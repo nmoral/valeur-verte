@@ -14,6 +14,8 @@ code postal (§7). L'agrégation de la surface de terrain est traitée séparém
 
 from __future__ import annotations
 
+import csv
+import io
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
@@ -143,3 +145,17 @@ def aggregate_mutations(rows: Iterable[Mapping[str, str]], millesime: int) -> li
             )
         )
     return mutations
+
+
+def parse_dvf_csv(text: str) -> list[dict[str, str]]:
+    """Parse un CSV geo-dvf (en-tête + lignes) en une liste de dictionnaires."""
+    reader = csv.DictReader(io.StringIO(text))
+    return [
+        {str(key): "" if value is None else str(value) for key, value in row.items()}
+        for row in reader
+    ]
+
+
+def mutations_from_csv(text: str, millesime: int) -> list[Mutation]:
+    """Chemin complet : CSV geo-dvf brut → mutations agrégées (§7)."""
+    return aggregate_mutations(parse_dvf_csv(text), millesime)
