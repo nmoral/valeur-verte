@@ -48,3 +48,22 @@ def test_parse_ban_address_ote_le_code_postal_et_la_commune() -> None:
 def test_parse_ban_address_vide() -> None:
     assert parse_ban_address("") == ""
     assert parse_ban_address(None) == ""
+
+
+def test_normalize_number_variantes() -> None:
+    assert normalize_number("12bis") == "12"
+    assert normalize_number("abc") == ""
+    assert normalize_number("nan") == ""
+    assert normalize_number("None") == ""
+    assert normalize_number("12", "nan") == "12"
+    assert normalize_number("12", "None") == "12"
+    assert normalize_number("12", "BIS") == "12 bis"
+    assert normalize_number("12", None) == "12"
+
+
+def test_parse_ban_address_sans_numero() -> None:
+    assert parse_ban_address("Rue des Fleurs 31000 Toulouse") == "rue fleurs"
+
+
+def test_parse_ban_address_avec_suffixe() -> None:
+    assert parse_ban_address("7 ter Avenue Jean 75000 Paris") == "7 ter avenue jean"
