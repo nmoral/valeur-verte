@@ -1,0 +1,47 @@
+name: CI data (Python)
+
+# Ne se déclenche QUE si du code Python (data/**) change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - ".github/workflows/data-ci.yml"
+  pull_request:
+    paths:
+      - "data/**"
+      - ".github/workflows/data-ci.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: data
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -e '.[dev]'
+
+      - name: Lint & format (Ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Analyse statique (mypy)
+        run: mypy src
+
+      - name: Tests (pytest)
+        run: pytest
+
+      - name: Mutation testing (mutmut, MSI >= 80 %)
+        run: ./tools/run-mutation.sh 80
