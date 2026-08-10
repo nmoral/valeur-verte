@@ -39,6 +39,15 @@ def _parse(path: Path) -> Migration:
     return Migration(version=int(match.group(1)), name=match.group(2), sql=sql)
 
 
+def _validate_sequence(migrations: list[Migration]) -> None:
+    """Vérifie l'unicité et la contiguïté (depuis 1) des versions."""
+    versions = [migration.version for migration in migrations]
+    if len(set(versions)) != len(versions):
+        raise MigrationError(f"Versions de migration dupliquées : {versions}")
+    if versions and versions != list(range(1, len(versions) + 1)):
+        raise MigrationError(f"Séquence de migrations non contiguë : {versions}")
+
+
 def load_migrations(directory: Path | None = None) -> list[Migration]:
     """Charge les migrations d'un dossier, triées par version et validées.
 
@@ -50,9 +59,5 @@ def load_migrations(directory: Path | None = None) -> list[Migration]:
         (_parse(path) for path in base.glob("*.sql")),
         key=lambda migration: migration.version,
     )
-    versions = [migration.version for migration in migrations]
-    if len(set(versions)) != len(versions):
-        raise MigrationError(f"Versions de migration dupliquées : {versions}")
-    if versions and versions != list(range(1, len(versions) + 1)):
-        raise MigrationError(f"Séquence de migrations non contiguë : {versions}")
+    _validate_sequence(migrations)
     return migrations
