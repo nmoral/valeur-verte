@@ -54,3 +54,43 @@ def test_best_result_retient_le_meilleur_score() -> None:
 
 def test_best_result_collection_vide() -> None:
     assert best_result(_collection()) is None
+
+
+def _raw_feature(properties: dict[str, object]) -> dict[str, object]:
+    return {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [2.29576, 49.894579]},
+        "properties": properties,
+    }
+
+
+def test_ignore_feature_sans_geometrie() -> None:
+    feature: dict[str, object] = {"type": "Feature", "properties": {"citycode": "80021"}}
+
+    assert geocode_results(_collection(feature)) == []
+
+
+def test_ignore_coordonnees_incompletes() -> None:
+    feature: dict[str, object] = {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [2.29]},
+        "properties": {"citycode": "80021"},
+    }
+
+    assert geocode_results(_collection(feature)) == []
+
+
+def test_ignore_feature_sans_citycode() -> None:
+    feature = _raw_feature({"label": "Sans code"})
+
+    assert geocode_results(_collection(feature)) == []
+
+
+def test_defauts_des_champs_optionnels_absents() -> None:
+    (result,) = geocode_results(_collection(_raw_feature({"citycode": "80021"})))
+
+    assert result.score == 0.0
+    assert result.label == ""
+    assert result.code_postal is None
+    assert result.nom_commune is None
+    assert result.type is None

@@ -62,3 +62,31 @@ def test_index_by_insee() -> None:
     index = index_by_insee([commune])
 
     assert index["80021"].nom == "Amiens"
+
+
+def test_parse_commune_centre_incomplet_donne_coords_none() -> None:
+    commune = parse_commune(_commune(centre={"type": "Point", "coordinates": [2.29]}))
+
+    assert commune is not None
+    assert commune.centre_longitude is None
+    assert commune.centre_latitude is None
+
+
+def test_parse_commune_sans_epci_donne_none() -> None:
+    payload = _commune()
+    del payload["codeEpci"]
+
+    commune = parse_commune(payload)
+
+    assert commune is not None
+    assert commune.code_epci is None
+
+
+def test_parse_commune_sans_nom_donne_chaine_vide() -> None:
+    payload = _commune()
+    del payload["nom"]
+
+    commune = parse_commune(payload)
+
+    assert commune is not None
+    assert commune.nom == ""
