@@ -7,7 +7,9 @@ name = "valeur-verte-data"
 version = "0.1.0"
 description = "Pipeline d'ingestion DVF/DPE/BAN et calcul des coefficients de valeur verte"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "psycopg[binary]>=3.1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -42,6 +44,9 @@ files = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "integration: nécessite une base PostgreSQL/PostGIS réelle (DATABASE_URL).",
+]
 
 # ---- Mutation testing (make data-mutation) ----
 [tool.mutmut]
