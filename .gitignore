@@ -6,8 +6,9 @@
 
 # ── Python / data ──
 /data/.venv/
-/data/*.egg-info/
+*.egg-info/
 /data/.mutmut-cache
+/data/mutants/
 **/__pycache__/
 .mypy_cache/
 .pytest_cache/
