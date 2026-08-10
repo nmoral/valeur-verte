@@ -95,3 +95,35 @@ def test_les_mutations_distinctes_sont_separees() -> None:
     mutations = aggregate_mutations(rows, millesime=2024)
 
     assert {m.id_mutation for m in mutations} == {"2024-1", "2024-2"}
+
+
+def test_le_terrain_somme_les_parcelles_distinctes() -> None:
+    # surface_terrain est répétée sur chaque ligne d'une même parcelle.
+    rows = [
+        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
+        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
+        _row(id_parcelle="P2", surface_terrain="300", nature_culture="S"),
+    ]
+
+    (mutation,) = aggregate_mutations(rows, millesime=2024)
+
+    assert mutation.surface_terrain == 800.0
+
+
+def test_le_terrain_ignore_les_natures_non_sol() -> None:
+    rows = [
+        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
+        _row(id_parcelle="P2", surface_terrain="1000", nature_culture="T"),
+    ]
+
+    (mutation,) = aggregate_mutations(rows, millesime=2024)
+
+    assert mutation.surface_terrain == 500.0
+
+
+def test_le_terrain_absent_vaut_none() -> None:
+    rows = [_row(surface_terrain=""), _row(surface_terrain="")]
+
+    (mutation,) = aggregate_mutations(rows, millesime=2024)
+
+    assert mutation.surface_terrain is None
