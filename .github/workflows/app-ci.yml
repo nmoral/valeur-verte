@@ -1,0 +1,46 @@
+name: CI app (PHP)
+
+# Ne se déclenche QUE si du code PHP (app/**) change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+  pull_request:
+    paths:
+      - "app/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: xdebug
+          tools: composer
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress
+
+      - name: Lint & format (PHP-CS-Fixer)
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+
+      - name: Analyse statique (PHPStan)
+        run: vendor/bin/phpstan analyse
+
+      - name: Tests (PHPUnit)
+        run: vendor/bin/phpunit
+
+      - name: Mutation testing (Infection, MSI >= 80 %)
+        run: vendor/bin/infection --min-covered-msi=80 --threads=max

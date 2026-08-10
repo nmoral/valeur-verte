@@ -60,7 +60,7 @@ app-mutation:
 	cd $(APP) && vendor/bin/infection --min-covered-msi=80 --threads=max
 
 data-mutation:
-	cd $(DATA) && mutmut run
+	cd $(DATA) && ./tools/run-mutation.sh 80
 
 # ---- Porte agrégée (à lancer avant chaque commit green/refactor) ----
 check: lint stan test
