@@ -32,9 +32,7 @@ def test_expose_version_nom_et_sql(tmp_path: Path) -> None:
 
     (migration,) = load_migrations(tmp_path)
 
-    assert migration == Migration(
-        version=1, name="create_data_schema", sql="CREATE SCHEMA data;"
-    )
+    assert migration == Migration(version=1, name="create_data_schema", sql="CREATE SCHEMA data;")
 
 
 def test_ignore_les_fichiers_non_sql(tmp_path: Path) -> None:
