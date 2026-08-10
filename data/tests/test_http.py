@@ -47,3 +47,23 @@ def test_get_text_leve_sur_erreur_http() -> None:
 
     with pytest.raises(httpx.HTTPStatusError):
         _fetcher(handler).get_text("https://example/missing")
+
+
+def test_get_json_passe_les_parametres() -> None:
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["size"] = request.url.params.get("size")
+        return httpx.Response(200, json={})
+
+    _fetcher(handler).get_json("https://example/j", {"size": "100"})
+
+    assert seen["size"] == "100"
+
+
+def test_httpfetcher_construit_un_client_avec_le_timeout_demande() -> None:
+    assert HttpFetcher(timeout=12.5)._client.timeout.connect == 12.5
+
+
+def test_httpfetcher_timeout_par_defaut() -> None:
+    assert HttpFetcher()._client.timeout.connect == 30.0

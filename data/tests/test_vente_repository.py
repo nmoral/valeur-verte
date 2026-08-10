@@ -73,6 +73,16 @@ def test_insert_mutations_adresse_key_vide_donne_none() -> None:
     assert params[15] is None
 
 
+def test_insert_mutations_inclut_le_suffixe_dans_adresse_key() -> None:
+    conn = _FakeConnection()
+
+    insert_mutations(conn, [_mutation(adresse_suffixe="bis")])
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert params[15] == "12 bis rue fleurs"
+
+
 def test_insert_mutations_passe_les_coordonnees_au_geom() -> None:
     conn = _FakeConnection()
 

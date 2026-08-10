@@ -30,6 +30,7 @@ class _FakeFetcher:
 def test_departement_metropole_dom_corse() -> None:
     assert departement("31555") == "31"
     assert departement("97411") == "974"
+    assert departement("98411") == "984"
     assert departement("2A004") == "2A"
 
 
