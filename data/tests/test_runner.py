@@ -34,9 +34,7 @@ class _FakeConnection:
         self.executed: list[str] = []
         self._applied: list[int] = []
 
-    def execute(
-        self, query: str, params: Sequence[Any] | None = None
-    ) -> _FakeCursor:
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> _FakeCursor:
         self.executed.append(query)
         lowered = query.lower()
         if "insert into" in lowered and params is not None:
