@@ -74,11 +74,6 @@ def test_contrat_lecture_seule_pour_l_application() -> None:
     sql = _all_sql()
     assert "valeur_verte_app" in sql
     assert re.search(r"grant usage on schema data to valeur_verte_app", sql)
-    assert re.search(
-        r"grant select on all tables in schema data to valeur_verte_app", sql
-    )
+    assert re.search(r"grant select on all tables in schema data to valeur_verte_app", sql)
     # Aucune permission d'écriture accordée à l'application.
-    assert (
-        re.search(r"grant\s+(insert|update|delete|all)[^;]*valeur_verte_app", sql)
-        is None
-    )
+    assert re.search(r"grant\s+(insert|update|delete|all)[^;]*valeur_verte_app", sql) is None
