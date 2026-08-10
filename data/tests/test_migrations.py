@@ -48,7 +48,7 @@ def test_ignore_les_fichiers_non_sql(tmp_path: Path) -> None:
 def test_rejette_un_nom_de_fichier_invalide(tmp_path: Path) -> None:
     _write(tmp_path, "abc_sans_version.sql")
 
-    with pytest.raises(MigrationError):
+    with pytest.raises(MigrationError, match=r"abc_sans_version\.sql"):
         load_migrations(tmp_path)
 
 
@@ -56,7 +56,7 @@ def test_rejette_les_versions_dupliquees(tmp_path: Path) -> None:
     _write(tmp_path, "001_a.sql")
     _write(tmp_path, "001_b.sql")
 
-    with pytest.raises(MigrationError):
+    with pytest.raises(MigrationError, match=r"dupliqu"):
         load_migrations(tmp_path)
 
 
@@ -64,21 +64,21 @@ def test_rejette_une_sequence_non_contigue(tmp_path: Path) -> None:
     _write(tmp_path, "001_a.sql")
     _write(tmp_path, "003_c.sql")  # 002 manquant
 
-    with pytest.raises(MigrationError):
+    with pytest.raises(MigrationError, match=r"contigu"):
         load_migrations(tmp_path)
 
 
 def test_rejette_une_sequence_ne_commencant_pas_a_un(tmp_path: Path) -> None:
     _write(tmp_path, "002_a.sql")
 
-    with pytest.raises(MigrationError):
+    with pytest.raises(MigrationError, match=r"contigu"):
         load_migrations(tmp_path)
 
 
 def test_rejette_une_migration_vide(tmp_path: Path) -> None:
     _write(tmp_path, "001_vide.sql", "   \n  ")
 
-    with pytest.raises(MigrationError):
+    with pytest.raises(MigrationError, match=r"vide"):
         load_migrations(tmp_path)
 
 

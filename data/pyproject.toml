@@ -45,5 +45,4 @@ addopts = "-ra"
 
 # ---- Mutation testing (make data-mutation) ----
 [tool.mutmut]
-paths_to_mutate = "src/"
-tests_dir = "tests/"
+source_paths = ["src"]
