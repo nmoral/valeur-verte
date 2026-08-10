@@ -40,3 +40,12 @@ def test_mutations_from_csv_agrege_les_lots() -> None:
     assert mutation.surface_bati == 100.0
     assert mutation.surface_terrain == 800.0
     assert mutation.code_insee == "31555"
+    assert mutation.millesime == 2024
+
+
+def test_parse_complete_les_colonnes_manquantes() -> None:
+    text = "a,b,c\nx,y\n"
+
+    rows = parse_dvf_csv(text)
+
+    assert rows == [{"a": "x", "b": "y", "c": ""}]
