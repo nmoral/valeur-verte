@@ -74,6 +74,25 @@ def _sum_bati(rows: list[Mapping[str, str]]) -> float | None:
     return sum(surfaces) if surfaces else None
 
 
+def _sum_terrain(rows: list[Mapping[str, str]]) -> float | None:
+    """Somme des surfaces de terrain par parcelle distincte, sols uniquement (§7).
+
+    ``surface_terrain`` est répétée sur chaque ligne d'une même parcelle : on
+    déduplique par ``id_parcelle``. Seules les parcelles ``nature_culture = 'S'``
+    (sols) sont comptées, pour exclure les terres agricoles qui polluent le modèle.
+    """
+    per_parcelle: dict[str, float] = {}
+    for row in rows:
+        if _clean(row.get("nature_culture")) != "S":
+            continue
+        parcelle = _clean(row.get("id_parcelle"))
+        surface = _to_float(row.get("surface_terrain"))
+        if parcelle is None or surface is None:
+            continue
+        per_parcelle[parcelle] = surface
+    return sum(per_parcelle.values()) if per_parcelle else None
+
+
 def _price(rows: list[Mapping[str, str]]) -> float | None:
     for row in rows:
         prix = _to_float(row.get("valeur_fonciere"))
@@ -114,7 +133,7 @@ def aggregate_mutations(rows: Iterable[Mapping[str, str]], millesime: int) -> li
                 nombre_pieces_principales=_to_int(principal.get("nombre_pieces_principales")),
                 prix=prix,
                 surface_bati=surface_bati,
-                surface_terrain=None,
+                surface_terrain=_sum_terrain(group),
                 prix_m2=_prix_m2(prix, surface_bati),
                 adresse_numero=_clean(principal.get("adresse_numero")),
                 adresse_suffixe=_clean(principal.get("adresse_suffixe")),
