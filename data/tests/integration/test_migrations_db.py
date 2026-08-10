@@ -28,13 +28,18 @@ def _scalar(conn: psycopg.Connection[Any], query: str) -> object:
 
 
 def test_migrations_creent_le_schema_postgis_et_sont_idempotentes() -> None:
-    applied = cli.run(os.environ)
-    assert applied == [1, 2, 3, 4]
+    cli.run(os.environ)
 
     # Rejouer ne réapplique rien : suivi dans public.schema_migrations.
+    # (Assertion indépendante de l'ordre des tests d'intégration.)
     assert cli.run(os.environ) == []
 
     with psycopg.connect(DSN) as conn:
+        versions = {
+            row[0]
+            for row in conn.execute("SELECT version FROM public.schema_migrations").fetchall()
+        }
+        assert versions == {1, 2, 3, 4}
         assert (
             _scalar(
                 conn,
