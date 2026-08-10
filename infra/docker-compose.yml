@@ -1,0 +1,23 @@
+# Provisioning PostGIS pour le pipeline `data` (§7, §10.6).
+# Local :  docker compose -f infra/docker-compose.yml up -d db
+# VPS   :  déployé par le workflow de déploiement (#78), secrets côté GitHub.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-valeur_verte}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-valeur_verte}
+      POSTGRES_DB: ${POSTGRES_DB:-valeur_verte}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-valeur_verte} -d ${POSTGRES_DB:-valeur_verte}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db_data:
