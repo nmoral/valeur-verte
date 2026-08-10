@@ -1,0 +1,126 @@
+"""Agrégation des lignes DVF géolocalisées en mutations (§7).
+
+Le fichier geo-dvf d'Etalab compte une ligne par lot ; une vente (mutation) peut
+porter sur plusieurs lots. On agrège en une ligne par ``id_mutation`` :
+
+- le prix (``valeur_fonciere``) est répété sur chaque ligne : on le prend une fois ;
+- la surface bâtie est la somme des lots ;
+- les champs scalaires (commune, type, adresse, coordonnées) viennent du local de
+  plus grande surface bâtie.
+
+La clé de rattachement commune est ``code_insee`` (= ``code_commune``), jamais le
+code postal (§7). L'agrégation de la surface de terrain est traitée séparément.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Mutation:
+    """Une vente agrégée, prête à alimenter ``data.vente``."""
+
+    id_mutation: str
+    date_mutation: str | None
+    millesime: int
+    code_insee: str
+    code_postal: str | None
+    nom_commune: str | None
+    type_local: str | None
+    nombre_pieces_principales: int | None
+    prix: float | None
+    surface_bati: float | None
+    surface_terrain: float | None
+    prix_m2: float | None
+    adresse_numero: str | None
+    adresse_suffixe: str | None
+    adresse_nom_voie: str | None
+    longitude: float | None
+    latitude: float | None
+
+
+def _to_float(value: object) -> float | None:
+    text = "" if value is None else str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _to_int(value: object) -> int | None:
+    number = _to_float(value)
+    return None if number is None else int(number)
+
+
+def _clean(value: object) -> str | None:
+    text = "" if value is None else str(value).strip()
+    return text or None
+
+
+def _largest(rows: list[Mapping[str, str]]) -> Mapping[str, str]:
+    return max(rows, key=lambda row: _to_float(row.get("surface_reelle_bati")) or 0.0)
+
+
+def _sum_bati(rows: list[Mapping[str, str]]) -> float | None:
+    surfaces = [
+        surface
+        for surface in (_to_float(row.get("surface_reelle_bati")) for row in rows)
+        if surface is not None
+    ]
+    return sum(surfaces) if surfaces else None
+
+
+def _price(rows: list[Mapping[str, str]]) -> float | None:
+    for row in rows:
+        prix = _to_float(row.get("valeur_fonciere"))
+        if prix is not None:
+            return prix
+    return None
+
+
+def _prix_m2(prix: float | None, surface_bati: float | None) -> float | None:
+    if prix is None or not surface_bati:
+        return None
+    return round(prix / surface_bati, 2)
+
+
+def aggregate_mutations(rows: Iterable[Mapping[str, str]], millesime: int) -> list[Mutation]:
+    """Agrège des lignes DVF brutes en une liste de mutations."""
+    groups: dict[str, list[Mapping[str, str]]] = {}
+    for row in rows:
+        key = _clean(row.get("id_mutation"))
+        if key is None:
+            continue
+        groups.setdefault(key, []).append(row)
+
+    mutations: list[Mutation] = []
+    for id_mutation, group in groups.items():
+        principal = _largest(group)
+        prix = _price(group)
+        surface_bati = _sum_bati(group)
+        mutations.append(
+            Mutation(
+                id_mutation=id_mutation,
+                date_mutation=_clean(principal.get("date_mutation")),
+                millesime=millesime,
+                code_insee=_clean(principal.get("code_commune")) or "",
+                code_postal=_clean(principal.get("code_postal")),
+                nom_commune=_clean(principal.get("nom_commune")),
+                type_local=_clean(principal.get("type_local")),
+                nombre_pieces_principales=_to_int(principal.get("nombre_pieces_principales")),
+                prix=prix,
+                surface_bati=surface_bati,
+                surface_terrain=None,
+                prix_m2=_prix_m2(prix, surface_bati),
+                adresse_numero=_clean(principal.get("adresse_numero")),
+                adresse_suffixe=_clean(principal.get("adresse_suffixe")),
+                adresse_nom_voie=_clean(principal.get("adresse_nom_voie")),
+                longitude=_to_float(principal.get("longitude")),
+                latitude=_to_float(principal.get("latitude")),
+            )
+        )
+    return mutations
