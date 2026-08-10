@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from .matching import parse_ban_address
+from .dvf import Mutation
+from .matching import address_key, parse_ban_address
 
 VALID_LABELS = ("A", "B", "C", "D", "E", "F", "G")
 
@@ -52,3 +53,40 @@ def build_dpe_lookup(
             periode_construction=(periode_counts.most_common(1)[0][0] if periode_counts else None),
         )
     return lookup
+
+
+def attach_dpe(
+    mutations: Iterable[Mutation], lookup: Mapping[tuple[str, str], DpeInfo]
+) -> list[Mutation]:
+    """Renseigne étiquette et période par appariement ``(code_postal, adresse)``."""
+    result: list[Mutation] = []
+    for mutation in mutations:
+        key = (
+            mutation.code_postal or "",
+            address_key(
+                mutation.adresse_numero,
+                mutation.adresse_nom_voie,
+                mutation.adresse_suffixe,
+            ),
+        )
+        info = lookup.get(key)
+        if info is None:
+            result.append(mutation)
+        else:
+            result.append(
+                replace(
+                    mutation,
+                    etiquette_dpe=info.etiquette_dpe,
+                    periode_construction=info.periode_construction,
+                )
+            )
+    return result
+
+
+def matching_rate(mutations: Iterable[Mutation]) -> float:
+    """Part de mutations appariées à un DPE (étiquette renseignée), 0 si vide."""
+    items = list(mutations)
+    if not items:
+        return 0.0
+    matched = sum(1 for mutation in items if mutation.etiquette_dpe is not None)
+    return matched / len(items)

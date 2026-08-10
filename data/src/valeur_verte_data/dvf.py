@@ -41,6 +41,9 @@ class Mutation:
     adresse_nom_voie: str | None
     longitude: float | None
     latitude: float | None
+    # Renseignés par l'appariement DPE (voir dpe.attach_dpe), None sinon.
+    etiquette_dpe: str | None = None
+    periode_construction: str | None = None
 
 
 def _to_float(value: object) -> float | None:
