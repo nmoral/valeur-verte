@@ -20,6 +20,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"valeur_verte_data.db" = ["migrations/*.sql"]
+
 # ---- Lint / format (make data-lint) ----
 [tool.ruff]
 line-length = 100
