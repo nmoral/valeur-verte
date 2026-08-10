@@ -44,7 +44,7 @@ def strip_accents(text: str) -> str:
     return "".join(ch for ch in nfkd if not unicodedata.combining(ch))
 
 
-def normalize_street(street: str) -> str:
+def normalize_street(street: object) -> str:
     """Normalise un nom de voie : minuscule, sans accents ni ponctuation,
     abréviations développées et mots vides retirés.
     """
