@@ -50,6 +50,7 @@ def test_geocode_retourne_le_meilleur_resultat() -> None:
     assert url == BAN_SEARCH_URL
     assert params["q"] == "8 Boulevard du Port"
     assert params["citycode"] == "80021"
+    assert params["limit"] == "1"
 
 
 def test_geocode_sans_resultat_retourne_none() -> None:

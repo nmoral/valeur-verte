@@ -52,8 +52,9 @@ def test_fetch_communes_by_departement() -> None:
     communes = fetch_communes_by_departement(fetcher, "80")
 
     assert [c.code_insee for c in communes] == ["80021", "80001"]
-    url, _ = fetcher.calls[0]
+    url, params = fetcher.calls[0]
     assert url.endswith("/departements/80/communes")
+    assert params["geometry"] == "centre"
 
 
 def test_fetch_commune_reponse_invalide_donne_none() -> None:
