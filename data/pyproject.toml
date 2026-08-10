@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "valeur-verte-data"
+version = "0.1.0"
+description = "Pipeline d'ingestion DVF/DPE/BAN et calcul des coefficients de valeur verte"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "pytest>=8.3",
+  "mutmut>=3.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---- Lint / format (make data-lint) ----
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+
+# ---- Analyse statique (make data-stan) ----
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+
+# ---- Tests (make data-test) ----
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+# ---- Mutation testing (make data-mutation) ----
+[tool.mutmut]
+paths_to_mutate = "src/"
+tests_dir = "tests/"

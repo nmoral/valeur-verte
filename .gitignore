@@ -1,0 +1,17 @@
+# ── PHP / app ──
+/app/vendor/
+/app/var/
+/app/.phpunit.cache/
+/app/.php-cs-fixer.cache
+
+# ── Python / data ──
+/data/.venv/
+/data/*.egg-info/
+/data/.mutmut-cache
+**/__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ── Divers ──
+.DS_Store
