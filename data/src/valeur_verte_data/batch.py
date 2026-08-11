@@ -12,7 +12,7 @@ peu peuplé, on refuse (``None``).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
 from .cross_validation import median_relative_error
@@ -113,3 +113,32 @@ def compute_maille(
     result = fit(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
     erreur = median_relative_error(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
     return _maille(code_insee, millesime, decision.mode, rayon_km, result, erreur, decision.alerte)
+
+
+def compute_communes(
+    communes: Iterable[tuple[str, float, float]],
+    pool: Sequence[Mutation],
+    millesime: int,
+    *,
+    seuil: int = MIN_LOCAL_SAMPLE,
+    min_sample: int = MIN_SAMPLE,
+    sigma_km: float = DEFAULT_SIGMA_KM,
+) -> Iterator[MailleCoefficient]:
+    """Calcule les mailles de plusieurs communes sur un pool chargé une seule fois.
+
+    Motif §10.6 : on charge les ventes du département (+ limitrophes) une fois en
+    mémoire, puis on itère les communes. Les communes en refus sont omises.
+    """
+    for code_insee, lat, lon in communes:
+        maille = compute_maille(
+            code_insee,
+            lat,
+            lon,
+            millesime,
+            pool,
+            seuil=seuil,
+            min_sample=min_sample,
+            sigma_km=sigma_km,
+        )
+        if maille is not None:
+            yield maille

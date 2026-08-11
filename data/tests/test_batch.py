@@ -84,4 +84,6 @@ def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
 def test_compute_communes_saute_les_refus() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes < seuil → refus partout
 
-    assert list(compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10)) == []
+    results = compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10)
+
+    assert list(results) == []
