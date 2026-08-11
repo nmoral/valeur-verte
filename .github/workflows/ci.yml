@@ -31,7 +31,6 @@ jobs:
               - '.github/workflows/ci.yml'
             app:
               - 'app/**'
-              - '.github/workflows/ci.yml'
 
   data-quality:
     needs: changes
