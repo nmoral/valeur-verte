@@ -217,3 +217,42 @@ def test_fit_r2_nul_si_prix_constant() -> None:
     result = fit(sample, 43.6, 1.44)
 
     assert result.r2 == 0.0
+
+
+def _maison_log(dpe: str, bati: float, effet_dpe: float, *, lat: float = 43.6) -> Mutation:
+    """Vente engendrée par un modèle multiplicatif : prix = 3000 · bati^0,9 · e^effet."""
+    prix = 3000.0 * (bati**0.9) * math.exp(effet_dpe)
+    return replace(
+        _house(dpe, int(bati), 0, int(prix)),
+        latitude=lat,
+    )
+
+
+def test_fit_estime_des_effets_relatifs_et_non_des_euros() -> None:
+    """Les coefficients doivent être comparables d'une commune à l'autre (#115).
+
+    En euros absolus, une même perte de valeur s'exprime par −2 114 à Toulouse
+    et −65 820 à Muret : les deux nombres ne sont pas comparables, alors que le
+    widget les présentera de la même façon. En logarithme, ce sont des taux.
+    """
+    effets = {"D": 0.0, "F": -0.20, "C": +0.10}
+    echantillon = [
+        _maison_log(dpe, 80 + 5 * i, effet)
+        for dpe, effet in effets.items()
+        for i in range(12)
+    ]
+
+    result = fit(echantillon, 43.6, 1.44, reference_dpe="D")
+
+    assert result.coef_dpe["D"] == 0.0
+    assert round(result.coef_dpe["F"], 2) == -0.20, "effet attendu en log, soit ≈ −20 %"
+    assert round(result.coef_dpe["C"], 2) == +0.10
+
+
+def test_fit_estime_une_elasticite_de_surface() -> None:
+    """En log, le coefficient de surface est une élasticité, pas un prix au m²."""
+    echantillon = [_maison_log("D", 60 + 10 * i, 0.0) for i in range(15)]
+
+    result = fit(echantillon, 43.6, 1.44, reference_dpe="D")
+
+    assert round(result.coef_m2_bati, 2) == 0.90
