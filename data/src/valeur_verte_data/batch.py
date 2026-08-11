@@ -30,6 +30,10 @@ DEPARTEMENTAL_SIGMA_KM = 1000.0
 # de confiance — calibré sur l'erreur médiane de la maille — ne le signale.
 MIN_CLASS_SAMPLE = 15
 
+# Une maille doit porter la référence *et* au moins une autre classe : sinon
+# aucun écart de valeur n'est calculable et le coefficient ne dit rien.
+MIN_CLASSES_PUBLIEES = 2
+
 
 @dataclass(frozen=True)
 class MailleCoefficient:
@@ -129,6 +133,10 @@ def compute_maille(
         rayon_km = None
         fit_sigma = DEPARTEMENTAL_SIGMA_KM
 
+    publiables = _classes_publiables(sample, min_class_sample)
+    if len(publiables) < MIN_CLASSES_PUBLIEES:
+        return None
+
     result = fit(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
     erreur = median_relative_error(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
     return _maille(
@@ -139,7 +147,7 @@ def compute_maille(
         result,
         erreur,
         decision.alerte,
-        _classes_publiables(sample, min_class_sample),
+        publiables,
     )
 
 
@@ -151,6 +159,7 @@ def compute_communes(
     seuil: int = MIN_LOCAL_SAMPLE,
     min_sample: int = MIN_SAMPLE,
     sigma_km: float = DEFAULT_SIGMA_KM,
+    min_class_sample: int = MIN_CLASS_SAMPLE,
 ) -> Iterator[MailleCoefficient]:
     """Calcule les mailles de plusieurs communes sur un pool chargé une seule fois.
 
@@ -167,6 +176,7 @@ def compute_communes(
             seuil=seuil,
             min_sample=min_sample,
             sigma_km=sigma_km,
+            min_class_sample=min_class_sample,
         )
         if maille is not None:
             yield maille

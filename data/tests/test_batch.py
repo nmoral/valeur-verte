@@ -89,7 +89,13 @@ def test_compute_maille_refus_si_tout_insuffisant() -> None:
 def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
     pool = _cluster(4, lat=43.6, lon=1.44)
 
-    results = list(compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10))
+    # min_class_sample=1 : ce test porte sur la production d'une ligne par commune,
+    # pas sur le seuil de publication par classe.
+    results = list(
+        compute_communes(
+            [("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10, min_class_sample=1
+        )
+    )
 
     assert len(results) == 1
     assert results[0].mode is CoverageMode.LOCAL
