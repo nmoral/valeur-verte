@@ -21,6 +21,15 @@ from .radius import haversine_km
 
 DEFAULT_SIGMA_KM = 10.0
 DEFAULT_REFERENCE_DPE = "D"
+
+# Nombre de ventes voisines résumant le niveau de prix d'un quartier. Assez
+# large pour lisser le bruit, assez étroit pour rester dans le même secteur.
+VOISINS_INDICE_LOCAL = 20
+
+# Étendue géographique minimale, en degrés (~200 m), sous laquelle l'échantillon
+# ne contient pas de quartiers à distinguer. L'indice y dégénérerait en moyenne
+# des autres ventes — effet DPE compris — et absorberait le signal cherché.
+ETENDUE_MINIMALE_INDICE = 0.002
 _YEAR_RE = re.compile(r"\d{4}")
 
 
@@ -121,6 +130,7 @@ class _Model:
 
     beta: NDArray[np.float64]
     columns: _Columns
+    apprentissage: list[_Row]
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
@@ -141,13 +151,17 @@ def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
     )
 
 
-def _encode(rows: list[_Row], columns: _Columns) -> NDArray[np.float64]:
+def _encode(
+    rows: list[_Row], columns: _Columns, apprentissage: list[_Row] | None = None
+) -> NDArray[np.float64]:
     """Matrice de design à colonnes **fixées** (pour ré-encoder un jeu de test)."""
     n = len(rows)
+    indice = _indice_local(rows, apprentissage)
     blocks = [
         np.ones((n, 1)),
         np.log(np.array([row.bati for row in rows], dtype=float))[:, None],
         np.log1p(np.array([row.terrain for row in rows], dtype=float))[:, None],
+        np.log(np.maximum(indice, 1.0))[:, None],
     ]
     extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
         (columns.dpe, lambda row: row.dpe),
@@ -164,6 +178,46 @@ def _encode(rows: list[_Row], columns: _Columns) -> NDArray[np.float64]:
                 block[line, column] = 1.0
         blocks.append(block)
     return np.hstack(blocks)
+
+
+def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDArray[np.float64]:
+    """Niveau de prix du quartier de chaque ligne, le bien lui-même exclu.
+
+    Sans cette exclusion, l'indice contiendrait le prix qu'il sert à expliquer
+    et le modèle s'auto-prédirait. Les voisines sont cherchées dans
+    ``reference`` (l'échantillon d'apprentissage) pour qu'une ligne de test ne
+    s'appuie jamais sur d'autres lignes de test.
+    """
+    voisinage = rows if reference is None else reference
+    if not voisinage:
+        return np.ones(len(rows))
+
+    etendue = max(
+        max(row.lat for row in voisinage) - min(row.lat for row in voisinage),
+        max(row.lon for row in voisinage) - min(row.lon for row in voisinage),
+    )
+    if etendue < ETENDUE_MINIMALE_INDICE:
+        # Pas de quartiers à distinguer : indice neutre (log 1 = 0).
+        return np.ones(len(rows))
+
+    prix_m2 = np.array([row.prix / row.bati for row in voisinage], dtype=float)
+    lat_v = np.array([row.lat for row in voisinage], dtype=float)
+    lon_v = np.array([row.lon for row in voisinage], dtype=float)
+    lat = np.array([row.lat for row in rows], dtype=float)
+    lon = np.array([row.lon for row in rows], dtype=float)
+
+    # Distances euclidiennes approchées : le facteur corrige l'écrasement des
+    # longitudes aux latitudes métropolitaines. Un ordre suffit ici.
+    ecarts = (lat[:, None] - lat_v[None, :]) ** 2 + ((lon[:, None] - lon_v[None, :]) * 0.73) ** 2
+    if reference is None:
+        np.fill_diagonal(ecarts, np.inf)
+
+    retenus = min(VOISINS_INDICE_LOCAL, ecarts.shape[1] - (1 if reference is None else 0))
+    if retenus < 1:
+        return np.ones(len(rows))
+
+    voisins = np.argsort(ecarts, axis=1)[:, :retenus]
+    return np.asarray(np.median(prix_m2[voisins], axis=1), dtype=float)
 
 
 def _weights(
@@ -187,12 +241,14 @@ def _fit_model(
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
-    return _Model(beta=beta, columns=columns)
+    return _Model(beta=beta, columns=columns, apprentissage=rows)
 
 
 def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
     """Prédit le **prix** des lignes ; le modèle travaille en logarithme."""
-    predictions: NDArray[np.float64] = np.exp(_encode(rows, model.columns) @ model.beta)
+    predictions: NDArray[np.float64] = np.exp(
+        _encode(rows, model.columns, model.apprentissage) @ model.beta
+    )
     return predictions
 
 
@@ -217,7 +273,7 @@ def fit(
 
     coef_dpe = {model.columns.reference_dpe: 0.0}
     for offset, level in enumerate(model.columns.dpe):
-        coef_dpe[level] = float(model.beta[3 + offset])
+        coef_dpe[level] = float(model.beta[4 + offset])
 
     predictions = np.log(_predict(model, rows))
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))
