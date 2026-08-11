@@ -56,3 +56,20 @@ def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
 
     assert inserted == 0
     assert conn.calls == []
+
+
+_CSV_MIXTE = (
+    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
+    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
+    "propre,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
+    "aberrante,10,31555,31000,80,14,RUE DES FLEURS,1.44,43.6\n"
+)
+
+
+def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
+    conn = _FakeConnection()
+
+    inserted = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
+
+    assert inserted == 1
+    assert len(conn.calls) == 1
