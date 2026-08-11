@@ -101,7 +101,49 @@ Cibles par sous-projet également disponibles : `make app-test`, `make data-stan
 
 ---
 
-## 5. Amorçage des sous-projets (une fois)
+## 5. Exploitation — les traitements longs tournent **sur le VPS**
+
+Toute tâche qui travaille sur la base de production — ingestion, calcul, dump, migration —
+s'exécute **sur le VPS, dans un conteneur détaché**. Jamais depuis un poste de développement
+à travers le tunnel SSH.
+
+**Pourquoi** : le tunnel meurt avec la session qui l'a ouvert — terminal fermé, poste en veille,
+session Claude Code terminée. Le traitement meurt avec lui. Une ingestion de plusieurs heures
+coupée à 70 % laisse la base dans un état hybride et **repart de zéro**. C'est exactement ce qui
+s'est produit sur les départements limitrophes (#91), deux fois.
+
+Forme attendue :
+
+```bash
+# Lancer — le conteneur est nommé pour être retrouvable, et n'est pas auto-supprimé
+# afin que ses logs et son code de sortie survivent à la fin du traitement.
+ssh vps 'cd /opt/valeur-verte && docker compose run -d --name ingest-09 \
+  migrate valeur_verte_data.cli ingest --departement 09 --millesime 2024'
+
+# Suivre (depuis n'importe quelle session, plus tard, depuis une autre machine)
+ssh vps 'docker logs -f ingest-09'
+
+# Constater la fin et nettoyer
+ssh vps 'docker inspect -f "{{.State.Status}} {{.State.ExitCode}}" ingest-09'
+ssh vps 'docker rm ingest-09'
+```
+
+`migrate` est le service porteur de l'image du pipeline ; l'`ENTRYPOINT` étant `python -m`,
+la commande passée est le module à jouer. Le cycle de vie du conteneur est celui du démon
+Docker du VPS, pas celui de la connexion SSH : la déconnexion n'a aucun effet sur lui.
+
+Le **tunnel SSH** (`ssh -f -N -L 15432:127.0.0.1:5432 vps`) reste légitime pour la
+**consultation** : psql, client graphique, requête de contrôle, export ponctuel. Autrement dit
+tout ce qu'une coupure permet de relancer sans conséquence. Dès qu'un traitement écrit et dure,
+il passe sur le VPS.
+
+**À annoncer explicitement** : en lançant un traitement long, dire **où il tourne** et **comment
+en suivre l'avancement** sans dépendre de la session en cours. Un traitement dont la survie
+dépend de la fenêtre ouverte n'est pas lancé, il est seulement commencé.
+
+---
+
+## 6. Amorçage des sous-projets (une fois)
 
 Le harnais qualité (`Makefile` + fichiers de config) est en place. Pour matérialiser chaque
 sous-projet la première fois :
@@ -114,7 +156,7 @@ sous-projet la première fois :
 
 ---
 
-## 6. Rappels produit (à ne jamais casser)
+## 7. Rappels produit (à ne jamais casser)
 
 Ces invariants viennent du cadrage et sont vérifiés par des tests :
 
@@ -127,7 +169,7 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
 
 ---
 
-## 7. Attendu de Claude
+## 8. Attendu de Claude
 
 - Suivre le cycle **Red → Green → Refactor** avec **un commit par étape**, sans exception.
 - **Une branche par issue**, PR vers `main`, statut de l'issue tenu à jour.
@@ -135,3 +177,5 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
   rapporter honnêtement l'état (tests rouges = le dire).
 - Ne pas affaiblir les portes qualité ni contourner un outil pour « faire vert ».
 - Rester dans le périmètre de l'issue courante ; hors périmètre → nouvelle issue.
+- **Lancer tout traitement long sur le VPS** (§5), jamais à travers le tunnel SSH, et
+  indiquer comment en suivre l'avancement depuis une autre session.
