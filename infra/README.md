@@ -68,20 +68,38 @@ workflow les compose.
 > refuse le déploiement plutôt que de livrer un identifiant tronqué — panne qui
 > ne se manifesterait que bien plus tard, sur une base déjà initialisée. Tous
 > les autres caractères (`$`, espaces, `"`, `` ` ``, `&`, `|`, `;`…) passent, et
-> sont couverts par les tests. Le compose de production **n'a aucune valeur de repli** —
-une variable manquante fait échouer le déploiement plutôt que démarrer la base
-avec un identifiant de développement.
+> sont couverts par les tests.
+
+Le compose de production **n'a aucune valeur de repli** : une variable manquante
+fait échouer le déploiement plutôt que démarrer la base avec un identifiant de
+développement.
 
 ## Exploitation
 
-La base ne publie aucun port : elle n'est joignable que depuis le réseau interne
-du compose. Pour une session `psql` :
+La base est publiée **sur la boucle locale du VPS uniquement**
+(`127.0.0.1:5432`) : injoignable depuis Internet, atteignable par un tunnel SSH.
+Le test `test_la_base_n_est_jamais_publiee_sur_une_interface_publique` rejette
+toute publication sans adresse, qui écouterait sur `0.0.0.0`.
+
+Session `psql` directement sur le serveur :
 
 ```bash
-ssh -L 5432:localhost:5432 <user>@<hôte>          # tunnel
-docker compose -f /opt/valeur-verte/docker-compose.yml exec db \
-  psql -U valeur_verte -d valeur_verte
+ssh vps 'cd /opt/valeur-verte && docker compose exec db psql -U valeur_verte -d valeur_verte'
 ```
+
+Client local (PyCharm, DBeaver, `psql`) — ouvrir un tunnel, puis s'y connecter :
+
+```bash
+ssh -f -N -L 15432:127.0.0.1:5432 vps      # tunnel en arrière-plan
+psql "host=127.0.0.1 port=15432 dbname=valeur_verte user=valeur_verte"
+```
+
+Le port local est décalé à `15432` pour ne pas heurter une instance PostgreSQL
+locale. Le tunnel meurt avec la session SSH ; le relancer au besoin, ou ajouter
+`LocalForward 15432 127.0.0.1:5432` à l'entrée `Host vps` de `~/.ssh/config`.
+
+Le mot de passe est celui du secret `POSTGRES_PASSWORD` ; il se lit aussi dans
+`/opt/valeur-verte/.env` sur le serveur.
 
 **Revenir en arrière** — l'image est taguée par le SHA, donc :
 
