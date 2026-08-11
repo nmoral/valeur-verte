@@ -187,3 +187,29 @@ def test_les_ventes_des_classes_rares_alimentent_quand_meme_la_regression() -> N
 
     assert maille is not None
     assert maille.n_transactions == len(abondantes) + len(rares)
+
+
+def test_une_maille_sans_classe_exploitable_est_refusee() -> None:
+    """Un coefficient qui ne porte aucune comparaison ne sert à rien (#115).
+
+    Après application du seuil par classe, 101 mailles du département 31 ne
+    publiaient plus aucune classe et 102 n'en publiaient qu'une : sans au moins
+    la référence et une autre classe, aucun écart de valeur n'est calculable.
+    Mieux vaut refuser, comme sous le seuil d'échantillon (§7).
+    """
+    # Assez de ventes pour dépasser le seuil global, mais dispersées sur des
+    # classes trop peu observées pour être publiées.
+    pool = [_maison_classe(dpe, i) for dpe in "ABCDEFG" for i in range(5)]
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool)
+
+    assert maille is None
+
+
+def test_une_maille_avec_la_seule_reference_est_refusee() -> None:
+    """La référence vaut 0 par construction : seule, elle ne dit rien."""
+    pool = [_maison_classe("D", i) for i in range(40)]
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool)
+
+    assert maille is None
