@@ -56,7 +56,7 @@ def test_median_relative_error_positive_sur_donnees_bruitees() -> None:
     error = median_relative_error(_bruite(), 43.6, 1.44)
 
     assert error is not None
-    assert error > 0.0
+    assert round(error, 1) == 8.9  # médiane, exprimée en %
 
 
 def test_median_relative_error_echantillon_trop_petit_donne_none() -> None:
@@ -67,3 +67,16 @@ def test_median_relative_error_est_deterministe() -> None:
     sample = _bruite()
 
     assert median_relative_error(sample, 43.6, 1.44) == median_relative_error(sample, 43.6, 1.44)
+
+
+def test_median_relative_error_exactement_k_lignes() -> None:
+    sample = [_house("D", bati, 1000 * bati) for bati in (80, 90, 100, 110, 120)]
+
+    assert median_relative_error(sample, 43.6, 1.44) is not None
+
+
+def test_median_relative_error_ignore_les_prix_nuls() -> None:
+    # Un prix nul ne doit pas provoquer de division par zéro.
+    sample = [*_parfait(), replace(_house("D", 100, 100_000), prix=0.0)]
+
+    assert median_relative_error(sample, 43.6, 1.44) is not None
