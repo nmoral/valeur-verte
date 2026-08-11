@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import httpx
 import pytest
 
 from valeur_verte_data import cli
@@ -33,8 +34,9 @@ _CSV = (
 class _FauxFetcher:
     """Sert le référentiel des communes, puis un CSV DVF par commune."""
 
-    def __init__(self, echecs: Sequence[str] = ()) -> None:
+    def __init__(self, echecs: Sequence[str] = (), absentes: Sequence[str] = ()) -> None:
         self.echecs = set(echecs)
+        self.absentes = set(absentes)
         self.communes_demandees: list[str] = []
 
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
@@ -43,8 +45,13 @@ class _FauxFetcher:
     def get_text(self, url: str, params: Mapping[str, str] | None = None) -> str:
         code = url.rsplit("/", 1)[-1].removesuffix(".csv")
         self.communes_demandees.append(code)
+        if code in self.absentes:
+            requete = httpx.Request("GET", url)
+            raise httpx.HTTPStatusError(
+                "not found", request=requete, response=httpx.Response(404, request=requete)
+            )
         if code in self.echecs:
-            raise RuntimeError(f"404 pour {code}")
+            raise RuntimeError(f"panne réseau sur {code}")
         return _CSV
 
 
@@ -126,4 +133,28 @@ def test_un_departement_entierement_en_echec_sort_en_erreur(
     rapport = cli.ingest_departement(_FauxFetcher(echecs=["31555", "31149"]), connexion, "31", 2024)
 
     assert rapport.communes_traitees == 0
+    assert rapport.est_en_echec
+
+
+def test_une_commune_absente_de_dvf_n_est_pas_un_echec(connexion: _FausseConnexion) -> None:
+    """Une petite commune sans transaction rend un 404 : c'est une absence, pas une panne.
+
+    Les confondre noierait un incident réel au milieu de dizaines d'absences
+    normales — sur le seul département 31, elles sont 35.
+    """
+    rapport = cli.ingest_departement(_FauxFetcher(absentes=["31555"]), connexion, "31", 2024)
+
+    assert rapport.sans_donnees == ["31555"]
+    assert rapport.echecs == []
+    assert rapport.communes_traitees == 1
+
+
+def test_un_departement_sans_aucune_donnee_n_est_pas_un_succes(
+    connexion: _FausseConnexion,
+) -> None:
+    """Aucune commune chargée reste un échec, même si toutes rendent un 404."""
+    rapport = cli.ingest_departement(
+        _FauxFetcher(absentes=["31555", "31149"]), connexion, "31", 2024
+    )
+
     assert rapport.est_en_echec
