@@ -27,6 +27,10 @@ class HttpFetcher:
 
     def __init__(self, client: httpx.Client | None = None, timeout: float = 30.0) -> None:
         self._client = client if client is not None else httpx.Client(timeout=timeout)
+        # DVF sert ses CSV par une redirection vers un stockage objet : sans
+        # suivi automatique, l'ingestion échoue sur toutes les communes. C'est
+        # une garantie du composant, y compris pour un client fourni.
+        self._client.follow_redirects = True
 
     def get_text(self, url: str, params: Mapping[str, str] | None = None) -> str:
         response = self._client.get(url, params=params)
