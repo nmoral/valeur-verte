@@ -29,6 +29,12 @@ def test_mode_departemental_sous_le_seuil_local() -> None:
     assert decision.alerte == DEGRADED_ALERT
 
 
+def test_mode_departemental_au_seuil_exact_du_departement() -> None:
+    decision = decide_mode(n_local=10, n_departement=MIN_LOCAL_SAMPLE)
+
+    assert decision.mode is CoverageMode.DEPARTEMENTAL
+
+
 def test_mode_refus_si_departement_aussi_insuffisant() -> None:
     decision = decide_mode(n_local=10, n_departement=29)
 
