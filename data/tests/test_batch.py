@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from valeur_verte_data.batch import MailleCoefficient, compute_maille
+from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
@@ -70,3 +70,18 @@ def test_compute_maille_refus_si_tout_insuffisant() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes, département aussi insuffisant
 
     assert compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10) is None
+
+
+def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
+    pool = _cluster(4, lat=43.6, lon=1.44)
+
+    results = list(compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10))
+
+    assert len(results) == 1
+    assert results[0].mode is CoverageMode.LOCAL
+
+
+def test_compute_communes_saute_les_refus() -> None:
+    pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes < seuil → refus partout
+
+    assert list(compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10)) == []
