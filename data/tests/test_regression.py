@@ -16,7 +16,11 @@ from valeur_verte_data.regression import (
 )
 
 _SURFACES = ((80, 200), (100, 300), (120, 500))
-_DPE_EFFECT = {"D": 0, "F": -25000, "C": 15000}
+# Effets en logarithme : ≈ −18 % pour F, +10 % pour C.
+_DPE_EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
+_ELASTICITE_BATI = 0.9
+_ELASTICITE_TERRAIN = 0.05
+_PRIX_BASE = 3000.0
 
 
 def _house(
@@ -50,9 +54,21 @@ def _house(
     return replace(base, etiquette_dpe=dpe, periode_construction=periode)
 
 
-def _sample_connu(insee: str = "31555", base_shift: int = 0) -> list[Mutation]:
+def _prix_theorique(bati: int, terrain: int, effet: float, facteur: float = 1.0) -> int:
+    """Prix engendré par le modèle log-linéaire que la régression doit retrouver."""
+    prix = (
+        _PRIX_BASE
+        * bati**_ELASTICITE_BATI
+        * (1 + terrain) ** _ELASTICITE_TERRAIN
+        * math.exp(effet)
+        * facteur
+    )
+    return round(prix)
+
+
+def _sample_connu(insee: str = "31555", facteur: float = 1.0) -> list[Mutation]:
     return [
-        _house(dpe, bati, terrain, 1200 * bati + 40 * terrain + effect + base_shift, insee=insee)
+        _house(dpe, bati, terrain, _prix_theorique(bati, terrain, effect, facteur), insee=insee)
         for dpe, effect in _DPE_EFFECT.items()
         for bati, terrain in _SURFACES
     ]
@@ -92,10 +108,10 @@ def test_fit_recupere_les_coefficients_connus() -> None:
 
     assert result.n == 9
     assert result.coef_dpe["D"] == 0.0
-    assert round(result.coef_dpe["F"]) == -25000
-    assert round(result.coef_dpe["C"]) == 15000
-    assert round(result.coef_m2_bati) == 1200
-    assert round(result.coef_m2_terrain) == 40
+    assert round(result.coef_dpe["F"], 2) == -0.20
+    assert round(result.coef_dpe["C"], 2) == 0.10
+    assert round(result.coef_m2_bati, 2) == _ELASTICITE_BATI
+    assert round(result.coef_m2_terrain, 2) == _ELASTICITE_TERRAIN
     assert result.r2 > 0.999
 
 
@@ -121,17 +137,20 @@ def test_fit_echantillon_vide_apres_restriction_leve() -> None:
 
 
 def test_fit_effets_fixes_commune_isolent_le_coef_dpe() -> None:
-    # Commune B décalée de +50 000 € : l'effet fixe commune doit l'absorber.
-    sample = _sample_connu("31555", 0) + _sample_connu("31300", 50_000)
+    # Commune B 20 % plus chère : l'effet fixe commune doit l'absorber.
+    sample = _sample_connu("31555") + _sample_connu("31300", facteur=1.2)
 
     result = fit(sample, 43.6, 1.44)
 
-    assert round(result.coef_dpe["F"]) == -25000
-    assert round(result.coef_dpe["C"]) == 15000
+    assert round(result.coef_dpe["F"], 2) == -0.20
+    assert round(result.coef_dpe["C"], 2) == 0.10
 
 
-def _bati_series(dpe: str, effect: int, *, lat: float, lon: float) -> list[Mutation]:
-    return [_house(dpe, bati, 0, 1000 * bati + effect, lat=lat, lon=lon) for bati in (80, 100, 120)]
+def _bati_series(dpe: str, effet: float, *, lat: float, lon: float) -> list[Mutation]:
+    return [
+        _house(dpe, bati, 0, _prix_theorique(bati, 0, effet), lat=lat, lon=lon)
+        for bati in (80, 100, 120)
+    ]
 
 
 def test_is_pre_1989_borne_stricte_a_1989() -> None:
@@ -139,14 +158,14 @@ def test_is_pre_1989_borne_stricte_a_1989() -> None:
 
 
 def test_fit_pondere_par_la_distance() -> None:
-    # Points proches (poids ~1) : F = -30 000. Points lointains ~50 km (poids ~0) : F = +10 000.
-    near = _bati_series("D", 0, lat=43.6, lon=1.44) + _bati_series("F", -30000, lat=43.6, lon=1.44)
-    far = _bati_series("D", 0, lat=44.05, lon=1.44) + _bati_series("F", 10000, lat=44.05, lon=1.44)
+    # Points proches (poids ~1) : F = −30 %. Points lointains ~50 km (poids ~0) : F = +10 %.
+    near = _bati_series("D", 0.0, lat=43.6, lon=1.44) + _bati_series("F", -0.30, lat=43.6, lon=1.44)
+    far = _bati_series("D", 0.0, lat=44.05, lon=1.44) + _bati_series("F", 0.10, lat=44.05, lon=1.44)
 
     result = fit(near + far, 43.6, 1.44)
 
-    # Sans pondération par la distance, F ≈ -10 000 (moyenne) ; avec, F ≈ -30 000.
-    assert result.coef_dpe["F"] < -25000
+    # Sans pondération par la distance, F ≈ −10 % (moyenne) ; avec, F ≈ −30 %.
+    assert result.coef_dpe["F"] < -0.25
 
 
 def test_fit_r2_borne_sur_ajustement_imparfait() -> None:
@@ -155,7 +174,9 @@ def test_fit_r2_borne_sur_ajustement_imparfait() -> None:
 
     result = fit(sample, 43.6, 1.44)
 
-    assert round(result.r2, 2) == 0.94
+    # Une valeur figée dépendrait de l'échelle d'ajustement ; l'intention est
+    # qu'un ajustement imparfait reste borné sous 1 sans s'effondrer.
+    assert 0.9 < result.r2 < 1.0
 
 
 def test_fit_exclut_tous_les_cas_meme_places_avant_les_valides() -> None:
@@ -175,39 +196,47 @@ def test_fit_exclut_tous_les_cas_meme_places_avant_les_valides() -> None:
 
 def test_fit_reference_dpe_absente_replie_sur_le_premier_niveau() -> None:
     sample = [
-        _house(dpe, bati, 0, 1000 * bati + effect)
-        for dpe, effect in {"C": 0, "F": -20000}.items()
+        _house(dpe, bati, 0, _prix_theorique(bati, 0, effet))
+        for dpe, effet in {"C": 0.0, "F": -0.20}.items()
         for bati in (80, 100, 120)
     ]
 
     result = fit(sample, 43.6, 1.44, reference_dpe="A")
 
     assert result.coef_dpe["C"] == 0.0
-    assert round(result.coef_dpe["F"]) == -20000
+    assert round(result.coef_dpe["F"], 2) == -0.20
 
 
 def test_fit_effets_fixes_commune_corrigent_le_confondu() -> None:
-    # F concentré dans la commune B (+50 000 €) : sans effet fixe, F paraîtrait plus cher.
-    commune_a = [_house("D", b, 0, 1000 * b, insee="31555") for b in (80, 100, 120)]
-    commune_a += [_house("F", 100, 0, 1000 * 100 - 25000, insee="31555")]
-    commune_b = [_house("F", b, 0, 1000 * b - 25000 + 50000, insee="31300") for b in (80, 100, 120)]
-    commune_b += [_house("D", 100, 0, 1000 * 100 + 50000, insee="31300")]
+    # F concentré dans la commune B, 50 % plus chère : sans effet fixe, F y paraîtrait cher.
+    commune_a = [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0), insee="31555") for b in (80, 100, 120)
+    ]
+    commune_a += [_house("F", 100, 0, _prix_theorique(100, 0, -0.20), insee="31555")]
+    commune_b = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.5), insee="31300")
+        for b in (80, 100, 120)
+    ]
+    commune_b += [_house("D", 100, 0, _prix_theorique(100, 0, 0.0, facteur=1.5), insee="31300")]
 
     result = fit(commune_a + commune_b, 43.6, 1.44)
 
-    assert round(result.coef_dpe["F"]) == -25000
+    assert round(result.coef_dpe["F"], 2) == -0.20
 
 
 def test_fit_effets_fixes_annee_corrigent_le_confondu() -> None:
-    # F concentré sur le millésime 2024 (+50 000 €) : l'effet fixe année doit l'absorber.
-    an_2023 = [_house("D", b, 0, 1000 * b, year=2023) for b in (80, 100, 120)]
-    an_2023 += [_house("F", 100, 0, 1000 * 100 - 25000, year=2023)]
-    an_2024 = [_house("F", b, 0, 1000 * b - 25000 + 50000, year=2024) for b in (80, 100, 120)]
-    an_2024 += [_house("D", 100, 0, 1000 * 100 + 50000, year=2024)]
+    # F concentré sur le millésime 2024, 50 % plus cher : l'effet fixe année doit l'absorber.
+    an_2023 = [_house("D", b, 0, _prix_theorique(b, 0, 0.0), year=2023) for b in (80, 100, 120)]
+    an_2023 += [_house("F", 100, 0, _prix_theorique(100, 0, -0.20), year=2023)]
+    an_2024 = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.5), year=2024)
+        for b in (80, 100, 120)
+    ]
+    an_2024 += [_house("D", 100, 0, _prix_theorique(100, 0, 0.0, facteur=1.5), year=2024)]
 
     result = fit(an_2023 + an_2024, 43.6, 1.44)
 
-    assert round(result.coef_dpe["F"]) == -25000
+    assert round(result.coef_dpe["F"], 2) == -0.20
 
 
 def test_fit_r2_nul_si_prix_constant() -> None:
@@ -217,3 +246,97 @@ def test_fit_r2_nul_si_prix_constant() -> None:
     result = fit(sample, 43.6, 1.44)
 
     assert result.r2 == 0.0
+
+
+def _maison_log(dpe: str, bati: float, effet_dpe: float, *, lat: float = 43.6) -> Mutation:
+    """Vente engendrée par un modèle multiplicatif : prix = 3000 · bati^0,9 · e^effet."""
+    prix = 3000.0 * (bati**0.9) * math.exp(effet_dpe)
+    return replace(
+        _house(dpe, int(bati), 0, int(prix)),
+        latitude=lat,
+    )
+
+
+def test_fit_estime_des_effets_relatifs_et_non_des_euros() -> None:
+    """Les coefficients doivent être comparables d'une commune à l'autre (#115).
+
+    En euros absolus, une même perte de valeur s'exprime par −2 114 à Toulouse
+    et −65 820 à Muret : les deux nombres ne sont pas comparables, alors que le
+    widget les présentera de la même façon. En logarithme, ce sont des taux.
+    """
+    effets = {"D": 0.0, "F": -0.20, "C": +0.10}
+    echantillon = [
+        _maison_log(dpe, 80 + 5 * i, effet) for dpe, effet in effets.items() for i in range(12)
+    ]
+
+    result = fit(echantillon, 43.6, 1.44, reference_dpe="D")
+
+    assert result.coef_dpe["D"] == 0.0
+    assert round(result.coef_dpe["F"], 2) == -0.20, "effet attendu en log, soit ≈ −20 %"
+    assert round(result.coef_dpe["C"], 2) == +0.10
+
+
+def test_fit_estime_une_elasticite_de_surface() -> None:
+    """En log, le coefficient de surface est une élasticité, pas un prix au m²."""
+    echantillon = [_maison_log("D", 60 + 10 * i, 0.0) for i in range(15)]
+
+    result = fit(echantillon, 43.6, 1.44, reference_dpe="D")
+
+    assert round(result.coef_m2_bati, 2) == 0.90
+
+
+def test_fit_isole_le_dpe_de_la_periode_de_construction() -> None:
+    """La classe DPE sert de proxy à l'ancienneté si on ne la contrôle pas (#115).
+
+    Mesuré sur le 31 : 44 % des logements classés G sont d'avant 1948, contre
+    2 % des A. Là où l'ancien est recherché — hypercentre toulousain —, la
+    régression attribue alors à l'étiquette ce qui revient à l'époque du bâti.
+    """
+    # F est concentré dans l'ancien, lui-même 30 % plus cher : sans contrôle de
+    # la période, F paraîtrait moins pénalisé qu'il ne l'est.
+    recent = [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0), periode="1975-1977") for b in (80, 100, 120)
+    ]
+    recent += [_house("F", 100, 0, _prix_theorique(100, 0, -0.20), periode="1975-1977")]
+    ancien = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.3), periode="avant 1948")
+        for b in (80, 100, 120)
+    ]
+    ancien += [_house("D", 100, 0, _prix_theorique(100, 0, 0.0, facteur=1.3), periode="avant 1948")]
+
+    result = fit(recent + ancien, 43.6, 1.44)
+
+    assert round(result.coef_dpe["F"], 2) == -0.20
+
+
+def test_fit_isole_le_dpe_de_l_emplacement_fin() -> None:
+    """Le quartier explique le prix bien plus que l'étiquette (#115).
+
+    À Toulouse, les logements mal classés sont concentrés dans l'hypercentre
+    historique, le secteur le plus cher : sans contrôle de l'emplacement fin,
+    la régression y attribue à l'étiquette ce qui revient à la rue. La
+    pondération par distance au centroïde communal ne discrimine rien à
+    l'intérieur d'une grande ville.
+    """
+    # Deux quartiers de la même commune, distants de ~2 km. Le quartier cher
+    # (+40 %) concentre les F : sans indice local, F paraîtrait peu pénalisé.
+    quartier_ordinaire = [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0), lat=43.60, lon=1.44)
+        for b in (80, 90, 100, 110, 120)
+    ]
+    quartier_ordinaire += [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20), lat=43.60, lon=1.44) for b in (85, 95)
+    ]
+    quartier_cher = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.4), lat=43.62, lon=1.44)
+        for b in (80, 90, 100, 110, 120)
+    ]
+    quartier_cher += [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0, facteur=1.4), lat=43.62, lon=1.44)
+        for b in (85, 95)
+    ]
+
+    result = fit(quartier_ordinaire + quartier_cher, 43.61, 1.44)
+
+    # Sans indice de quartier, F remonte vers 0 ; avec, il retrouve son effet propre.
+    assert result.coef_dpe["F"] < -0.12

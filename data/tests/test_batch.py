@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 
 from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
-_EFFECT = {"D": 0, "F": -25000, "C": 15000}
+# Effets en logarithme : le modèle est log-linéaire (#115).
+_EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
 
 
 def _house(dpe: str, bati: int, prix: int, *, lat: float, lon: float) -> Mutation:
@@ -33,7 +35,8 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
     for dpe, effect in _EFFECT.items():
         for i in range(count_per_class):
             bati = 80 + 5 * i
-            houses.append(_house(dpe, bati, 1000 * bati + effect, lat=lat, lon=lon))
+            prix = round(3000.0 * bati**0.9 * math.exp(effect))
+            houses.append(_house(dpe, bati, prix, lat=lat, lon=lon))
     return houses
 
 
@@ -52,8 +55,8 @@ def test_compute_maille_mode_local() -> None:
     assert maille.millesime == 2024
     assert maille.rayon_retenu_km == 10
     assert maille.n_transactions == 12
-    assert round(maille.coef_dpe["F"]) == -25000
-    assert round(maille.coef_m2_bati) == 1000
+    assert round(maille.coef_dpe["F"], 2) == -0.20
+    assert round(maille.coef_m2_bati, 2) == 0.90  # élasticité, non prix au m²
     assert maille.coef_m2_terrain is not None
     assert maille.r2 > 0.99
     assert maille.erreur_mediane is not None
