@@ -5,6 +5,7 @@ Joué en CI contre PostGIS ; ignoré sans ``DATABASE_URL``.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import replace
 
@@ -23,7 +24,8 @@ pytestmark = [
     pytest.mark.skipif(not DSN, reason="DATABASE_URL non défini"),
 ]
 
-_EFFECT = {"D": 0, "F": -25000, "C": 15000}
+# Effets en logarithme : le modèle est log-linéaire (#115).
+_EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
 
 
 def _house(dpe: str, bati: int, prix: int) -> Mutation:
@@ -46,12 +48,16 @@ def _house(dpe: str, bati: int, prix: int) -> Mutation:
 def test_compute_maille_puis_upsert_est_relu_et_idempotent() -> None:
     cli.run(os.environ)
     pool = [
-        _house(dpe, 80 + 5 * i, 1000 * (80 + 5 * i) + effect)
+        _house(dpe, 80 + 5 * i, round(3000.0 * (80 + 5 * i) ** 0.9 * math.exp(effect)))
         for dpe, effect in _EFFECT.items()
         for i in range(4)
     ]
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur l'écriture et la relecture en base,
+    # pas sur le seuil de publication par classe.
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
     assert maille is not None
 
     with psycopg.connect(DSN) as conn:
@@ -71,5 +77,5 @@ def test_compute_maille_puis_upsert_est_relu_et_idempotent() -> None:
     assert count_row is not None and count_row[0] == 1
     assert row is not None
     assert row[0] == 12
-    assert round(float(row[1])) == -25000
+    assert round(float(row[1]), 2) == -0.20  # effet relatif, non euros
     assert row[2] == 10

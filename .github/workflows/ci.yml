@@ -89,6 +89,9 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgresql://valeur_verte:valeur_verte@localhost:5432/valeur_verte
+      # Base de service, détruite avec le job : les tests peuvent la vider.
+      # Ce marqueur ne doit exister nulle part ailleurs (#112).
+      VALEUR_VERTE_BASE_JETABLE: "1"
     defaults:
       run:
         working-directory: data

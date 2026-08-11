@@ -12,6 +12,7 @@ peu peuplé, on refuse (``None``).
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
@@ -23,6 +24,15 @@ from .regression import DEFAULT_SIGMA_KM, RegressionResult, _eligible, fit
 
 # σ « large » : pour l'ajustement départemental, toutes les ventes comptent ~également.
 DEPARTEMENTAL_SIGMA_KM = 1000.0
+
+# Effectif minimal d'une classe DPE pour que son coefficient soit publié (#115).
+# En deçà, le coefficient est extrapolé sur quelques ventes sans que l'intervalle
+# de confiance — calibré sur l'erreur médiane de la maille — ne le signale.
+MIN_CLASS_SAMPLE = 15
+
+# Une maille doit porter la référence *et* au moins une autre classe : sinon
+# aucun écart de valeur n'est calculable et le coefficient ne dit rien.
+MIN_CLASSES_PUBLIEES = 2
 
 
 @dataclass(frozen=True)
@@ -41,6 +51,12 @@ class MailleCoefficient:
     coef_dpe: dict[str, float]
     ic_dpe: dict[str, tuple[float, float]]
     alerte: str | None
+
+
+def _classes_publiables(sample: Sequence[Mutation], seuil: int) -> set[str]:
+    """Classes DPE assez observées pour que leur coefficient veuille dire quelque chose."""
+    effectifs = Counter(row.dpe for row in _eligible(sample))
+    return {classe for classe, effectif in effectifs.items() if effectif >= seuil}
 
 
 def _intervals(
@@ -64,7 +80,13 @@ def _maille(
     result: RegressionResult,
     erreur: float | None,
     alerte: str | None,
+    publiables: set[str] | None = None,
 ) -> MailleCoefficient:
+    coef_dpe = (
+        result.coef_dpe
+        if publiables is None
+        else {classe: coef for classe, coef in result.coef_dpe.items() if classe in publiables}
+    )
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=millesime,
@@ -75,8 +97,8 @@ def _maille(
         erreur_mediane=erreur,
         coef_m2_bati=result.coef_m2_bati,
         coef_m2_terrain=result.coef_m2_terrain,
-        coef_dpe=result.coef_dpe,
-        ic_dpe=_intervals(result.coef_dpe, erreur),
+        coef_dpe=coef_dpe,
+        ic_dpe=_intervals(coef_dpe, erreur),
         alerte=alerte,
     )
 
@@ -91,6 +113,7 @@ def compute_maille(
     seuil: int = MIN_LOCAL_SAMPLE,
     min_sample: int = MIN_SAMPLE,
     sigma_km: float = DEFAULT_SIGMA_KM,
+    min_class_sample: int = MIN_CLASS_SAMPLE,
 ) -> MailleCoefficient | None:
     """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
     selection = adaptive_selection(centroid_lat, centroid_lon, pool, min_sample=min_sample)
@@ -110,9 +133,22 @@ def compute_maille(
         rayon_km = None
         fit_sigma = DEPARTEMENTAL_SIGMA_KM
 
+    publiables = _classes_publiables(sample, min_class_sample)
+    if len(publiables) < MIN_CLASSES_PUBLIEES:
+        return None
+
     result = fit(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
     erreur = median_relative_error(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
-    return _maille(code_insee, millesime, decision.mode, rayon_km, result, erreur, decision.alerte)
+    return _maille(
+        code_insee,
+        millesime,
+        decision.mode,
+        rayon_km,
+        result,
+        erreur,
+        decision.alerte,
+        publiables,
+    )
 
 
 def compute_communes(
@@ -123,6 +159,7 @@ def compute_communes(
     seuil: int = MIN_LOCAL_SAMPLE,
     min_sample: int = MIN_SAMPLE,
     sigma_km: float = DEFAULT_SIGMA_KM,
+    min_class_sample: int = MIN_CLASS_SAMPLE,
 ) -> Iterator[MailleCoefficient]:
     """Calcule les mailles de plusieurs communes sur un pool chargé une seule fois.
 
@@ -139,6 +176,7 @@ def compute_communes(
             seuil=seuil,
             min_sample=min_sample,
             sigma_km=sigma_km,
+            min_class_sample=min_class_sample,
         )
         if maille is not None:
             yield maille

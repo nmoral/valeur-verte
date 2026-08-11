@@ -12,6 +12,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.jetable import exiger_base_jetable
 from valeur_verte_data.db.sample_repository import adaptive_radius, count_within_radius
 from valeur_verte_data.db.vente_repository import insert_mutations
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
@@ -50,6 +51,7 @@ def test_selection_spatiale_par_rayon() -> None:
     ]
 
     with psycopg.connect(DSN) as conn:
+        exiger_base_jetable(os.environ)
         conn.execute("TRUNCATE data.vente")
         insert_mutations(conn, mutations)
         conn.commit()

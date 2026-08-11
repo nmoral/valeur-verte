@@ -19,6 +19,9 @@ from typing import Protocol
 
 import httpx
 
+from .batch import compute_communes
+from .db.coefficient_repository import delete_coefficient, upsert_coefficient
+from .db.pool_repository import load_pool
 from .db.runner import Connection, resolve_dsn
 from .decoupage_source import fetch_communes_by_departement
 from .http import Fetcher, HttpFetcher
@@ -107,6 +110,74 @@ def ingest_departement(
     return rapport
 
 
+@dataclass
+class RapportCalcul:
+    """Ce qu'une exécution a calculé, refusé, ou raté."""
+
+    departement: str
+    millesime: int
+    communes_calculees: int = 0
+    refus: list[str] = field(default_factory=list)
+    echecs: list[str] = field(default_factory=list)
+
+    @property
+    def est_en_echec(self) -> bool:
+        """Aucun coefficient : pool vide ou millésime erroné, pas un territoire creux."""
+        return self.communes_calculees == 0
+
+    def resume(self) -> str:
+        return (
+            f"Département {self.departement}, millésime {self.millesime} : "
+            f"{self.communes_calculees} coefficient(s), "
+            f"{len(self.refus)} refus sous seuil, "
+            f"{len(self.echecs)} échec(s)"
+        )
+
+
+def compute_departement(
+    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str, millesime: int
+) -> RapportCalcul:
+    """Calcule et écrit les coefficients de toutes les communes d'un département.
+
+    Le pool est chargé une seule fois (§10.6) ; les communes refusées sous le
+    seuil sont normales et n'interrompent rien.
+    """
+    rapport = RapportCalcul(departement=departement, millesime=millesime)
+    communes = fetch_communes_by_departement(fetcher, departement)
+    pool = load_pool(conn, departement, millesime)
+    logger.info("Pool du département %s : %d vente(s)", departement, len(pool))
+
+    coordonnees = [
+        (commune.code_insee, commune.centre_latitude, commune.centre_longitude)
+        for commune in communes
+        if commune.centre_latitude is not None and commune.centre_longitude is not None
+    ]
+    calculees = {
+        maille.code_insee: maille for maille in compute_communes(coordonnees, pool, millesime)
+    }
+
+    for code_insee, _, _ in coordonnees:
+        maille = calculees.get(code_insee)
+        if maille is None:
+            # Le refus doit effacer une éventuelle valeur antérieure, sinon un
+            # coefficient invalidé par ce calcul continuerait d'être servi.
+            delete_coefficient(conn, code_insee)
+            conn.commit()
+            rapport.refus.append(code_insee)
+            continue
+        try:
+            upsert_coefficient(conn, maille)
+        except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
+            conn.rollback()
+            rapport.echecs.append(code_insee)
+            logger.warning("%s : écriture impossible (%s)", code_insee, erreur)
+            continue
+        conn.commit()
+        rapport.communes_calculees += 1
+
+    return rapport
+
+
 def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     analyseur = argparse.ArgumentParser(prog="valeur_verte_data.cli")
     commandes = analyseur.add_subparsers(dest="commande", required=True)
@@ -114,6 +185,10 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     ingest = commandes.add_parser("ingest", help="Ingérer les ventes DVF d'un département")
     ingest.add_argument("--departement", required=True, help="Code département (ex. 31)")
     ingest.add_argument("--millesime", required=True, type=int, help="Année DVF (ex. 2024)")
+
+    compute = commandes.add_parser("compute", help="Calculer les coefficients d'un département")
+    compute.add_argument("--departement", required=True, help="Code département (ex. 31)")
+    compute.add_argument("--millesime", required=True, type=int, help="Année DVF (ex. 2024)")
 
     return analyseur.parse_args(argv)
 
@@ -126,9 +201,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     import psycopg
 
     with psycopg.connect(resolve_dsn(os.environ), autocommit=False) as conn:
-        rapport = ingest_departement(
-            HttpFetcher(), conn, arguments.departement, arguments.millesime
-        )
+        if arguments.commande == "compute":
+            rapport: RapportIngestion | RapportCalcul = compute_departement(
+                HttpFetcher(), conn, arguments.departement, arguments.millesime
+            )
+        else:
+            rapport = ingest_departement(
+                HttpFetcher(), conn, arguments.departement, arguments.millesime
+            )
 
     print(rapport.resume())
     if rapport.echecs:
