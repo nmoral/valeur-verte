@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.migrations import load_migrations
 
 
 class _FakeCursor:
@@ -53,7 +54,7 @@ def test_run_applique_via_le_connecteur() -> None:
 
     applied = cli.run({"DATABASE_URL": "postgresql://x"}, lambda dsn: _FakeCtx(conn))
 
-    assert applied == [1, 2, 3, 4]
+    assert applied == [migration.version for migration in load_migrations()]
     assert any("schema_migrations" in sql for sql in conn.executed)
 
 
@@ -68,11 +69,12 @@ def test_main_affiche_les_versions(capsys: pytest.CaptureFixture[str]) -> None:
     code = cli.main(env={"DATABASE_URL": "postgresql://x"}, connect=lambda dsn: _FakeCtx(conn))
 
     assert code == 0
-    assert "Migrations appliquées : 1, 2, 3, 4" in capsys.readouterr().out
+    expected = ", ".join(str(migration.version) for migration in load_migrations())
+    assert f"Migrations appliquées : {expected}" in capsys.readouterr().out
 
 
 def test_main_base_deja_a_jour(capsys: pytest.CaptureFixture[str]) -> None:
-    conn = _FakeConnection(applied=[1, 2, 3, 4])
+    conn = _FakeConnection(applied=[migration.version for migration in load_migrations()])
 
     code = cli.main(env={"DATABASE_URL": "postgresql://x"}, connect=lambda dsn: _FakeCtx(conn))
 

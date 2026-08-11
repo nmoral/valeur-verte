@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from valeur_verte_data.db.migrations import Migration
+from valeur_verte_data.db.migrations import Migration, load_migrations
 from valeur_verte_data.db.runner import (
     apply_migrations,
     pending_migrations,
@@ -89,7 +89,7 @@ def test_apply_migrations_charge_les_migrations_par_defaut() -> None:
 
     applied = apply_migrations(conn)
 
-    assert applied == [1, 2, 3, 4]
+    assert applied == [migration.version for migration in load_migrations()]
 
 
 def test_resolve_dsn_lit_l_environnement() -> None:

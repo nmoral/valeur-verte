@@ -13,6 +13,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.migrations import load_migrations
 
 DSN = os.environ.get("DATABASE_URL", "")
 
@@ -39,7 +40,7 @@ def test_migrations_creent_le_schema_postgis_et_sont_idempotentes() -> None:
             row[0]
             for row in conn.execute("SELECT version FROM public.schema_migrations").fetchall()
         }
-        assert versions == {1, 2, 3, 4}
+        assert versions == {migration.version for migration in load_migrations()}
         assert (
             _scalar(
                 conn,
