@@ -1,0 +1,129 @@
+name: Déploiement
+
+# Déploiement du pipeline « data » sur le VPS OVH (#78).
+#
+# Le runner GitHub publie l'image sur GHCR puis ouvre la connexion SSH vers le
+# VPS ; les identifiants vivent dans l'environnement « vps », jamais dans le dépôt.
+# Aucun déclencheur sur pull request : seul le code fusionné dans main, passé par
+# la porte qualité du workflow CI, atteint la production.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# Deux déploiements simultanés se disputeraient les migrations sur la même base.
+concurrency:
+  group: deploiement-vps
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/valeur-verte-data
+  REPERTOIRE_VPS: /opt/valeur-verte
+
+jobs:
+  # Le tag porte le SHA du commit : on sait toujours quel code tourne sur le VPS,
+  # et un retour arrière consiste à redéployer un tag précédent.
+  image:
+    name: Publier l'image data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Authentification GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: data
+          file: data/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Déployer sur le VPS
+    needs: image
+    runs-on: ubuntu-latest
+    environment: vps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Préparer la connexion SSH
+        env:
+          CLE_PRIVEE: ${{ secrets.SSH_KEY }}
+          HOTE: ${{ secrets.SSH_HOST }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CLE_PRIVEE" > ~/.ssh/deploiement
+          chmod 600 ~/.ssh/deploiement
+          # TOFU : à durcir avec un secret SSH_KNOWN_HOSTS épinglant l'empreinte.
+          ssh-keyscan -H "$HOTE" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Composer la configuration de déploiement
+        env:
+          MOT_DE_PASSE: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          # Format conninfo plutôt qu'URL : aucun échappement à prévoir sur le
+          # mot de passe, quels que soient ses caractères spéciaux.
+          {
+            echo "POSTGRES_USER=valeur_verte"
+            echo "POSTGRES_DB=valeur_verte"
+            echo "POSTGRES_PASSWORD=${MOT_DE_PASSE}"
+            echo "DATABASE_URL=host=db port=5432 dbname=valeur_verte user=valeur_verte password=${MOT_DE_PASSE}"
+            echo "DATA_IMAGE_TAG=${{ github.sha }}"
+          } > deploiement.env
+
+      - name: Téléverser le compose et la configuration
+        env:
+          UTILISATEUR: ${{ secrets.SSH_USER }}
+          HOTE: ${{ secrets.SSH_HOST }}
+        run: |
+          set -euo pipefail
+          # /opt appartient à root : le répertoire est provisionné une fois à la
+          # main (voir infra/README.md). Sans ce contrôle, la panne se manifeste
+          # par un « Permission denied » de scp, difficile à relier à sa cause.
+          ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" "test -w '$REPERTOIRE_VPS'" \
+            || { echo "::error::$REPERTOIRE_VPS est absent ou non inscriptible sur le VPS ; voir la préparation du VPS dans infra/README.md."; exit 1; }
+          scp -i ~/.ssh/deploiement infra/docker-compose.prod.yml \
+            "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/docker-compose.yml"
+          scp -i ~/.ssh/deploiement deploiement.env \
+            "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/.env"
+
+      - name: Tirer l'image et appliquer les migrations
+        env:
+          UTILISATEUR: ${{ secrets.SSH_USER }}
+          HOTE: ${{ secrets.SSH_HOST }}
+          JETON_GHCR: ${{ secrets.GITHUB_TOKEN }}
+          COMPTE_GHCR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          # Le dépôt est privé : le VPS s'authentifie avec le jeton éphémère du
+          # job (expire à sa fin) plutôt qu'avec un PAT stocké sur le serveur.
+          # Le jeton passe par stdin : dans la commande, il serait lisible par
+          # tout utilisateur du VPS via « ps ».
+          printf '%s' "$JETON_GHCR" | ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
+            "docker login ghcr.io -u '$COMPTE_GHCR' --password-stdin \
+             && cd '$REPERTOIRE_VPS' \
+             && docker compose pull \
+             && docker compose up -d db \
+             && docker compose run --rm -T migrate \
+             && docker logout ghcr.io"
+
+      - name: Effacer les traces locales
+        if: always()
+        run: rm -f deploiement.env ~/.ssh/deploiement

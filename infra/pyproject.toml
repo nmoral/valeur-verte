@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "valeur-verte-infra"
+version = "0.1.0"
+description = "Portes qualité du déploiement : invariants d'exploitation du compose de production, de l'image data et du workflow de déploiement"
+requires-python = ">=3.11"
+dependencies = []
+
+# Pas de code de production ici : ce périmètre ne contient que des tests qui
+# contraignent des fichiers de configuration (compose, Dockerfile, workflow).
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "pytest>=8.3",
+  "pyyaml>=6.0",
+  "types-PyYAML>=6.0",
+]
+
+[tool.setuptools]
+py-modules = []
+
+# ---- Lint / format (make infra-lint) ----
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+
+# ---- Analyse statique (make infra-stan) ----
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["tests"]
+
+# ---- Tests (make infra-test) ----
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "integration: nécessite Docker et une base réelle (build et exécution de l'image data).",
+]
