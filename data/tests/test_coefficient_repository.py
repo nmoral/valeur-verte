@@ -64,8 +64,8 @@ def test_upsert_coefficient_serialise_les_jsonb() -> None:
 
     _, params = conn.calls[0]
     assert params is not None
-    coef_dpe = next(p for p in params if isinstance(p, str) and '"F"' in p)
-    assert json.loads(coef_dpe)["F"] == -25000.0
+    assert json.loads(params[8])["F"] == -25000.0  # coef_dpe
+    assert json.loads(params[9])["F"] == [-27000.0, -23000.0]  # ic_dpe
 
 
 def test_upsert_coefficient_rayon_departemental_devient_zero() -> None:
