@@ -24,6 +24,23 @@ Déclenché par un push sur `main` (ou manuellement via *Actions → Déploiemen
 Les migrations sont **idempotentes** : elles sont rejouées à chaque livraison, un
 rejeu sans migration en attente ne fait rien.
 
+## Préparation du VPS (une seule fois)
+
+Le déploiement écrit dans `/opt/valeur-verte`, mais `/opt` appartient à `root` :
+le compte de déploiement ne peut pas y créer le répertoire lui-même. Il est donc
+provisionné à la main, une fois :
+
+```bash
+sudo install -d -o "$USER" -g "$USER" -m 755 /opt/valeur-verte
+```
+
+Le compte doit par ailleurs appartenir au groupe `docker` (`id -nG | grep docker`)
+et la clé publique de déploiement figurer dans son `~/.ssh/authorized_keys`.
+
+Le workflow vérifie que le répertoire est inscriptible et s'arrête avec un
+message explicite sinon, plutôt que d'échouer sur un « Permission denied » de
+`scp` dont la cause serait difficile à relier.
+
 ## Secrets attendus (environnement `vps`)
 
 | Secret | Rôle |

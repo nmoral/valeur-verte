@@ -94,8 +94,11 @@ jobs:
           HOTE: ${{ secrets.SSH_HOST }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
-            "mkdir -p '$REPERTOIRE_VPS'"
+          # /opt appartient à root : le répertoire est provisionné une fois à la
+          # main (voir infra/README.md). Sans ce contrôle, la panne se manifeste
+          # par un « Permission denied » de scp, difficile à relier à sa cause.
+          ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" "test -w '$REPERTOIRE_VPS'" \
+            || { echo "::error::$REPERTOIRE_VPS est absent ou non inscriptible sur le VPS ; voir la préparation du VPS dans infra/README.md."; exit 1; }
           scp -i ~/.ssh/deploiement infra/docker-compose.prod.yml \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/docker-compose.yml"
           scp -i ~/.ssh/deploiement deploiement.env \
