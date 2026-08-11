@@ -135,3 +135,38 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
     assert maille.erreur_mediane is not None and maille.erreur_mediane > 0
     demi = abs(maille.coef_dpe["F"]) * maille.erreur_mediane / 100.0
     assert maille.ic_dpe["F"] == (maille.coef_dpe["F"] - demi, maille.coef_dpe["F"] + demi)
+
+
+def _maison_classe(dpe: str, numero: int) -> Mutation:
+    """Maison ancienne d'une classe donnée, prix cohérent avec l'effet attendu."""
+    return _house(dpe, 80 + numero % 7, 200_000 + _EFFECT.get(dpe, 0) + 900 * numero,
+                  lat=43.6, lon=1.44)
+
+
+def test_une_classe_trop_peu_observee_n_est_pas_publiee() -> None:
+    """Seuil de publication par classe (#115) : 14 maisons classées A sur tout le 31.
+
+    Une commune n'en observe souvent aucune ; le coefficient serait alors
+    extrapolé sur deux ou trois ventes, sans que l'intervalle de confiance —
+    calibré sur l'erreur médiane globale — ne le signale.
+    """
+    abondantes = [_maison_classe(dpe, i) for dpe in ("D", "C", "F") for i in range(20)]
+    rares = [_maison_classe("A", i) for i in range(3)]
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, [*abondantes, *rares])
+
+    assert maille is not None
+    assert "A" not in maille.coef_dpe, "une classe sous le seuil ne doit pas être publiée"
+    assert "A" not in maille.ic_dpe, "son intervalle de confiance non plus"
+    assert {"D", "C", "F"} <= set(maille.coef_dpe)
+
+
+def test_les_ventes_des_classes_rares_alimentent_quand_meme_la_regression() -> None:
+    """Elles restent utiles pour estimer les coefficients de surface."""
+    abondantes = [_maison_classe(dpe, i) for dpe in ("D", "C", "F") for i in range(20)]
+    rares = [_maison_classe("A", i) for i in range(3)]
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, [*abondantes, *rares])
+
+    assert maille is not None
+    assert maille.n_transactions == len(abondantes) + len(rares)
