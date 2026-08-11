@@ -12,6 +12,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.jetable import exiger_base_jetable
 from valeur_verte_data.db.vente_repository import insert_mutations
 from valeur_verte_data.dpe import DpeInfo, attach_dpe
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
@@ -44,6 +45,7 @@ def test_mutation_enrichie_dpe_est_ecrite() -> None:
     (enriched,) = attach_dpe([_mutation("dpe-1")], lookup)
 
     with psycopg.connect(DSN) as conn:
+        exiger_base_jetable(os.environ)
         conn.execute("TRUNCATE data.vente")
         insert_mutations(conn, [enriched])
         conn.commit()

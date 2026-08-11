@@ -22,7 +22,7 @@ class _FakeFetcher:
         return self.text
 
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
-        raise AssertionError("get_json ne doit pas être appelé")
+        return {"results": []}  # commune sans DPE publié
 
 
 class _FakeCursor:
@@ -86,3 +86,45 @@ def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
 
     assert inserted == 1
     assert len(conn.inserts()) == 1
+
+
+_DPE_ADEME = {
+    "results": [
+        {
+            "code_postal_ban": "31000",
+            "adresse_ban": "12 RUE DES FLEURS 31000 TOULOUSE",
+            "etiquette_dpe": "F",
+            "periode_construction": "avant 1948",
+        }
+    ]
+}
+
+
+class _FetcherAvecDpe:
+    """Sert le CSV DVF puis les DPE ADEME de la commune."""
+
+    def __init__(self, csv: str) -> None:
+        self.csv = csv
+
+    def get_text(self, url: str, params: Mapping[str, str] | None = None) -> str:
+        return self.csv
+
+    def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
+        return _DPE_ADEME
+
+
+def test_ingest_commune_apparie_les_dpe() -> None:
+    """Sans étiquette DPE, le moteur écarte la vente : l'ingestion serait stérile.
+
+    `_eligible` (regression) exige une étiquette et une période de construction ;
+    une base chargée sans appariement produit zéro coefficient.
+    """
+    conn = _FakeConnection()
+
+    ingest_commune(_FetcherAvecDpe(_CSV), conn, "31555", 2024)
+
+    ecritures = conn.inserts()
+    assert len(ecritures) == 1
+    params = ecritures[0][1]
+    assert params is not None
+    assert "F" in list(params), "l'étiquette DPE doit être écrite avec la vente"
