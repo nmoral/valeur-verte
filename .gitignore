@@ -17,5 +17,14 @@
 # ── Infra / déploiement ──
 /infra/.venv/
 
+# Clés de déploiement : elles vivent dans ~/.ssh et dans GitHub Secrets.
+# Une clé committée reste dans l'historique : il faut la révoquer, pas l'effacer.
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519*
+*.pem
+*.ppk
+
 # ── Divers ──
 .DS_Store

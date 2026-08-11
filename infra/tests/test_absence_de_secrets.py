@@ -13,12 +13,10 @@ from pathlib import Path
 
 from .conftest import REPO_ROOT
 
-MARQUEURS_CLE_PRIVEE = (
-    "BEGIN OPENSSH PRIVATE KEY",
-    "BEGIN RSA PRIVATE KEY",
-    "BEGIN EC PRIVATE KEY",
-    "BEGIN DSA PRIVATE KEY",
-    "BEGIN PGP PRIVATE KEY",
+# Marqueurs composés à l'exécution : écrits en toutes lettres, ce fichier se
+# dénoncerait lui-même et il faudrait l'exclure du scan — donc créer un angle mort.
+MARQUEURS_CLE_PRIVEE = tuple(
+    f"BEGIN {format} PRIVATE KEY" for format in ("OPENSSH", "RSA", "EC", "DSA", "PGP")
 )
 
 EXTENSIONS_BINAIRES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".ico", ".woff", ".woff2"}
