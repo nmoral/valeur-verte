@@ -307,3 +307,36 @@ def test_fit_isole_le_dpe_de_la_periode_de_construction() -> None:
     result = fit(recent + ancien, 43.6, 1.44)
 
     assert round(result.coef_dpe["F"], 2) == -0.20
+
+
+def test_fit_isole_le_dpe_de_l_emplacement_fin() -> None:
+    """Le quartier explique le prix bien plus que l'étiquette (#115).
+
+    À Toulouse, les logements mal classés sont concentrés dans l'hypercentre
+    historique, le secteur le plus cher : sans contrôle de l'emplacement fin,
+    la régression y attribue à l'étiquette ce qui revient à la rue. La
+    pondération par distance au centroïde communal ne discrimine rien à
+    l'intérieur d'une grande ville.
+    """
+    # Deux quartiers de la même commune, distants de ~2 km. Le quartier cher
+    # (+40 %) concentre les F : sans indice local, F paraîtrait peu pénalisé.
+    quartier_ordinaire = [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0), lat=43.60, lon=1.44)
+        for b in (80, 90, 100, 110, 120)
+    ]
+    quartier_ordinaire += [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20), lat=43.60, lon=1.44) for b in (85, 95)
+    ]
+    quartier_cher = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.4), lat=43.62, lon=1.44)
+        for b in (80, 90, 100, 110, 120)
+    ]
+    quartier_cher += [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0, facteur=1.4), lat=43.62, lon=1.44)
+        for b in (85, 95)
+    ]
+
+    result = fit(quartier_ordinaire + quartier_cher, 43.61, 1.44)
+
+    # Sans indice de quartier, F remonte vers 0 ; avec, il retrouve son effet propre.
+    assert result.coef_dpe["F"] < -0.12
