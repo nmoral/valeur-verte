@@ -8,7 +8,8 @@ pour rester ajustables. Gère aussi le remap des codes INSEE (millésime COG).
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from dataclasses import replace
 
 from .dvf import Mutation
 
@@ -40,3 +41,16 @@ def is_clean(mutation: Mutation) -> bool:
 def clean_mutations(mutations: Iterable[Mutation]) -> list[Mutation]:
     """Ne conserve que les mutations dans les bornes §7."""
     return [mutation for mutation in mutations if is_clean(mutation)]
+
+
+def remap_insee(code_insee: str, correspondence: Mapping[str, str]) -> str:
+    """Applique la correspondance COG (ancien → nouveau code), sinon inchangé."""
+    return correspondence.get(code_insee, code_insee)
+
+
+def apply_cog(mutations: Iterable[Mutation], correspondence: Mapping[str, str]) -> list[Mutation]:
+    """Remappe le ``code_insee`` de chaque mutation selon le millésime COG (§7)."""
+    return [
+        replace(mutation, code_insee=remap_insee(mutation.code_insee, correspondence))
+        for mutation in mutations
+    ]
