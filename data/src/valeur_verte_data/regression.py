@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import numpy as np
@@ -100,22 +100,91 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
     return rows
 
 
-def _dummies(
-    values: Sequence[str], reference: str | None = None
-) -> tuple[NDArray[np.float64], list[str]]:
-    """Matrice d'indicatrices (une colonne par niveau sauf la référence)."""
-    levels = sorted(set(values))
-    matrix = np.zeros((len(values), 0))
-    if not levels:
-        return matrix, []
-    ref = reference if reference in levels else levels[0]
-    kept = [level for level in levels if level != ref]
-    index = {level: column for column, level in enumerate(kept)}
-    matrix = np.zeros((len(values), len(kept)))
-    for row, value in enumerate(values):
-        if value in index:
-            matrix[row, index[value]] = 1.0
-    return matrix, kept
+@dataclass(frozen=True)
+class _Columns:
+    """Niveaux retenus (hors référence) pour chaque variable catégorielle."""
+
+    reference_dpe: str
+    dpe: list[str]
+    commune: list[str]
+    annee: list[str]
+
+
+@dataclass(frozen=True)
+class _Model:
+    """Modèle ajusté : coefficients ``beta`` et structure de colonnes associée."""
+
+    beta: NDArray[np.float64]
+    columns: _Columns
+
+
+def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
+    """Détermine les niveaux d'indicatrices (référence DPE + niveaux gardés)."""
+    dpe_levels = sorted({row.dpe for row in rows})
+    if reference_dpe in dpe_levels:
+        ref = reference_dpe
+    else:
+        ref = dpe_levels[0] if dpe_levels else reference_dpe
+    return _Columns(
+        reference_dpe=ref,
+        dpe=[level for level in dpe_levels if level != ref],
+        commune=sorted({row.insee for row in rows})[1:],
+        annee=sorted({row.annee for row in rows})[1:],
+    )
+
+
+def _encode(rows: list[_Row], columns: _Columns) -> NDArray[np.float64]:
+    """Matrice de design à colonnes **fixées** (pour ré-encoder un jeu de test)."""
+    n = len(rows)
+    blocks = [
+        np.ones((n, 1)),
+        np.array([row.bati for row in rows], dtype=float)[:, None],
+        np.array([row.terrain for row in rows], dtype=float)[:, None],
+    ]
+    extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
+        (columns.dpe, lambda row: row.dpe),
+        (columns.commune, lambda row: row.insee),
+        (columns.annee, lambda row: row.annee),
+    )
+    for levels, value_of in extractors:
+        block = np.zeros((n, len(levels)))
+        index = {level: column for column, level in enumerate(levels)}
+        for line, row in enumerate(rows):
+            column = index.get(value_of(row))
+            if column is not None:
+                block[line, column] = 1.0
+        blocks.append(block)
+    return np.hstack(blocks)
+
+
+def _weights(
+    rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float
+) -> NDArray[np.float64]:
+    return np.array(
+        [
+            gaussian_weight(haversine_km(center_lat, center_lon, row.lat, row.lon), sigma_km)
+            for row in rows
+        ],
+        dtype=float,
+    )
+
+
+def _fit_model(
+    rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float, reference_dpe: str
+) -> _Model:
+    """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
+    columns = _build_columns(rows, reference_dpe)
+    design = _encode(rows, columns)
+    y = np.array([row.prix for row in rows], dtype=float)
+    sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
+    beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
+    return _Model(beta=beta, columns=columns)
+
+
+def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
+    """Prédit le prix des lignes en ré-encodant sur les colonnes du modèle."""
+    predictions: NDArray[np.float64] = _encode(rows, model.columns) @ model.beta
+    return predictions
 
 
 def fit(
@@ -132,41 +201,15 @@ def fit(
     if n == 0:
         raise InsufficientSampleError("échantillon vide après restriction au bâti ancien")
 
+    model = _fit_model(rows, center_lat, center_lon, sigma_km, reference_dpe)
     y = np.array([row.prix for row in rows], dtype=float)
-    bati = np.array([row.bati for row in rows], dtype=float)
-    terrain = np.array([row.terrain for row in rows], dtype=float)
-    dpe_matrix, dpe_levels = _dummies([row.dpe for row in rows], reference=reference_dpe)
-    commune_matrix, _ = _dummies([row.insee for row in rows])
-    annee_matrix, _ = _dummies([row.annee for row in rows])
+    weights = _weights(rows, center_lat, center_lon, sigma_km)
 
-    design = np.hstack(
-        [
-            np.ones((n, 1)),
-            bati[:, None],
-            terrain[:, None],
-            dpe_matrix,
-            commune_matrix,
-            annee_matrix,
-        ]
-    )
+    coef_dpe = {model.columns.reference_dpe: 0.0}
+    for offset, level in enumerate(model.columns.dpe):
+        coef_dpe[level] = float(model.beta[3 + offset])
 
-    weights = np.array(
-        [
-            gaussian_weight(haversine_km(center_lat, center_lon, row.lat, row.lon), sigma_km)
-            for row in rows
-        ],
-        dtype=float,
-    )
-    sqrt_w = np.sqrt(weights)
-    beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
-
-    dpe_values = {row.dpe for row in rows}
-    used_reference = reference_dpe if reference_dpe in dpe_values else sorted(dpe_values)[0]
-    coef_dpe = {used_reference: 0.0}
-    for offset, level in enumerate(dpe_levels):
-        coef_dpe[level] = float(beta[3 + offset])
-
-    predictions = design @ beta
+    predictions = _predict(model, rows)
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))
     ss_res = float(np.sum(weights * (y - predictions) ** 2))
     ss_tot = float(np.sum(weights * (y - weighted_mean) ** 2))
@@ -174,8 +217,8 @@ def fit(
 
     return RegressionResult(
         coef_dpe=coef_dpe,
-        coef_m2_bati=float(beta[1]),
-        coef_m2_terrain=float(beta[2]),
+        coef_m2_bati=float(model.beta[1]),
+        coef_m2_terrain=float(model.beta[2]),
         n=n,
         r2=r2,
     )
