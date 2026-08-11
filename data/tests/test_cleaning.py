@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from valeur_verte_data.cleaning import clean_mutations, is_clean
+from valeur_verte_data.cleaning import apply_cog, clean_mutations, is_clean, remap_insee
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
 
@@ -54,3 +54,23 @@ def test_clean_mutations_filtre_les_aberrantes() -> None:
     mutations = [_mutation(prix="200000"), _mutation(prix="10")]
 
     assert len(clean_mutations(mutations)) == 1
+
+
+def test_remap_insee_utilise_la_correspondance() -> None:
+    assert remap_insee("14697", {"14697": "14472"}) == "14472"
+
+
+def test_remap_insee_sans_correspondance_inchange() -> None:
+    assert remap_insee("31555", {}) == "31555"
+
+
+def test_apply_cog_remappe_le_code_insee() -> None:
+    (result,) = apply_cog([_mutation()], {"31555": "31999"})
+
+    assert result.code_insee == "31999"
+
+
+def test_apply_cog_sans_correspondance_laisse_inchange() -> None:
+    (result,) = apply_cog([_mutation()], {})
+
+    assert result.code_insee == "31555"
