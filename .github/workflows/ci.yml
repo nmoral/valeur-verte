@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -126,9 +127,14 @@ jobs:
     steps:
       - name: Vérifier qu'aucune vérification requise n'a échoué
         run: |
+          echo "changes          = ${{ needs.changes.result }}"
           echo "data-quality     = ${{ needs.data-quality.result }}"
           echo "data-integration = ${{ needs.data-integration.result }}"
           echo "app-quality      = ${{ needs.app-quality.result }}"
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "::error::La détection de changements a échoué — gate bloquant par sécurité."
+            exit 1
+          fi
           for result in \
             "${{ needs.data-quality.result }}" \
             "${{ needs.data-integration.result }}" \
