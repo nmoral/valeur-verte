@@ -43,7 +43,7 @@ def _house(
                 "code_commune": insee,
                 "surface_reelle_bati": str(bati),
                 "surface_terrain": str(terrain),
-                "nature_culture": "S",
+                "code_nature_culture": "S",
                 "id_parcelle": f"p-{bati}-{terrain}-{prix}-{lat}",
                 "latitude": str(lat),
                 "longitude": str(lon),

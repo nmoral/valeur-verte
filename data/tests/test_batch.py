@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from dataclasses import replace
 
+import pytest
+
 from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
@@ -63,7 +65,12 @@ def test_compute_maille_mode_local() -> None:
     assert maille.alerte is None
     # IC empirique calibré sur l'erreur médiane (§5.4).
     demi = abs(maille.coef_dpe["F"]) * maille.erreur_mediane / 100.0
-    assert maille.ic_dpe["F"] == (maille.coef_dpe["F"] - demi, maille.coef_dpe["F"] + demi)
+    # Tolérance plutôt qu'égalité stricte : les deux membres suivent des chemins
+    # de calcul flottant distincts et diffèrent au dernier bit selon la version
+    # de Python. Ce qui est testé, c'est la calibration sur l'erreur médiane.
+    assert maille.ic_dpe["F"] == pytest.approx(
+        (maille.coef_dpe["F"] - demi, maille.coef_dpe["F"] + demi)
+    )
 
 
 def test_compute_maille_mode_departemental() -> None:
@@ -159,7 +166,12 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
     assert maille is not None
     assert maille.erreur_mediane is not None and maille.erreur_mediane > 0
     demi = abs(maille.coef_dpe["F"]) * maille.erreur_mediane / 100.0
-    assert maille.ic_dpe["F"] == (maille.coef_dpe["F"] - demi, maille.coef_dpe["F"] + demi)
+    # Tolérance plutôt qu'égalité stricte : les deux membres suivent des chemins
+    # de calcul flottant distincts et diffèrent au dernier bit selon la version
+    # de Python. Ce qui est testé, c'est la calibration sur l'erreur médiane.
+    assert maille.ic_dpe["F"] == pytest.approx(
+        (maille.coef_dpe["F"] - demi, maille.coef_dpe["F"] + demi)
+    )
 
 
 def _maison_classe(dpe: str, numero: int) -> Mutation:

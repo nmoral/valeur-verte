@@ -27,7 +27,7 @@ def test_parse_entete_seule_donne_liste_vide() -> None:
 def test_mutations_from_csv_agrege_les_lots() -> None:
     text = (
         "id_mutation,valeur_fonciere,code_commune,surface_reelle_bati,"
-        "id_parcelle,nature_culture,surface_terrain\n"
+        "id_parcelle,code_nature_culture,surface_terrain\n"
         "2024-1,300000,31555,80,P1,S,500\n"
         "2024-1,300000,31555,20,P2,S,300\n"
     )
