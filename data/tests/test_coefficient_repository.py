@@ -26,22 +26,22 @@ class _FakeConnection:
 
 
 def _maille(**overrides: Any) -> MailleCoefficient:
-    base = dict(
-        code_insee="31555",
-        millesime=2024,
-        mode=CoverageMode.LOCAL,
-        rayon_retenu_km=15,
-        n_transactions=120,
-        r2=0.87,
-        erreur_mediane=12.3,
-        coef_m2_bati=1200.0,
-        coef_m2_terrain=40.0,
-        coef_dpe={"D": 0.0, "F": -25000.0},
-        ic_dpe={"F": (-27000.0, -23000.0)},
-        alerte=None,
-    )
+    base: dict[str, Any] = {
+        "code_insee": "31555",
+        "millesime": 2024,
+        "mode": CoverageMode.LOCAL,
+        "rayon_retenu_km": 15,
+        "n_transactions": 120,
+        "r2": 0.87,
+        "erreur_mediane": 12.3,
+        "coef_m2_bati": 1200.0,
+        "coef_m2_terrain": 40.0,
+        "coef_dpe": {"D": 0.0, "F": -25000.0},
+        "ic_dpe": {"F": (-27000.0, -23000.0)},
+        "alerte": None,
+    }
     base.update(overrides)
-    return MailleCoefficient(**base)  # type: ignore[arg-type]
+    return MailleCoefficient(**base)
 
 
 def test_upsert_coefficient_construit_l_upsert() -> None:
