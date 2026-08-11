@@ -59,7 +59,7 @@ def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
     requete, params = conn.calls[0]
     assert "data.vente" in requete
     assert params is not None
-    assert list(params) == ["31%", 2024]
+    assert list(params) == ["31%", 2024, "Maison"]
 
 
 def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> None:
@@ -82,3 +82,30 @@ def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> Non
 def test_un_departement_vide_rend_un_pool_vide() -> None:
     """Cas normal d'un département non encore ingéré : pas d'exception."""
     assert load_pool(_FakeConnection([]), "09", 2024) == []
+
+
+def test_seules_les_maisons_alimentent_le_moteur() -> None:
+    """Décision MVP (#115) : le signal DPE n'est exploitable que sur les maisons.
+
+    Sur les appartements, l'emplacement (étage, immeuble, quartier) écrase
+    l'étiquette : mesuré sur le 31, l'écart entre D et F y est de +47 €/m²,
+    contre −676 pour les maisons. Calculer sur un pool mixte reviendrait à
+    publier un chiffre au signe faux en zone urbaine dense.
+    """
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024)
+
+    requete, params = conn.calls[0]
+    assert "type_local" in requete, "le pool doit filtrer sur le type de bien"
+    assert params is not None
+    assert "Maison" in list(params)
+
+
+def test_le_segment_reste_explicite_et_modifiable() -> None:
+    """Le jour où les appartements reviennent, le point de bascule doit être visible."""
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024, type_local="Appartement")
+
+    assert "Appartement" in list(conn.calls[0][1] or [])
