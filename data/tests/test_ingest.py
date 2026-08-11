@@ -47,6 +47,8 @@ def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
     assert inserted == 1
     assert len(conn.calls) == 1
     assert "data.vente" in conn.calls[0][0]
+    assert conn.calls[0][1] is not None
+    assert conn.calls[0][1][2] == 2024  # millésime transmis
 
 
 def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:

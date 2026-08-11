@@ -45,6 +45,13 @@ def test_is_clean_terrain_absent_est_accepte() -> None:
     assert is_clean(_mutation(terrain=None))
 
 
+def test_is_clean_accepte_les_bornes_exactes() -> None:
+    assert is_clean(_mutation(prix="30000"))
+    assert is_clean(_mutation(prix="900000"))
+    assert is_clean(_mutation(bati="50"))
+    assert is_clean(_mutation(bati="250"))
+
+
 def test_is_clean_rejette_valeurs_manquantes() -> None:
     assert not is_clean(_mutation(prix=""))
     assert not is_clean(_mutation(bati=""))
