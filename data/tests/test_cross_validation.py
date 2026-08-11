@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 
 from valeur_verte_data.cross_validation import median_relative_error
@@ -25,12 +26,13 @@ def _house(dpe: str, bati: int, prix: int, *, insee: str = "31555") -> Mutation:
     return replace(base, etiquette_dpe=dpe, periode_construction="1948-1974")
 
 
-_EFFECT = {"D": 0, "F": -25000, "C": 15000}
+# Effets en logarithme : le modèle est log-linéaire (#115).
+_EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
 
 
 def _parfait() -> list[Mutation]:
     return [
-        _house(dpe, bati, 1000 * bati + effect)
+        _house(dpe, bati, round(3000.0 * bati**0.9 * math.exp(effect)))
         for dpe, effect in _EFFECT.items()
         for bati in range(80, 130, 5)
     ]
@@ -56,7 +58,9 @@ def test_median_relative_error_positive_sur_donnees_bruitees() -> None:
     error = median_relative_error(_bruite(), 43.6, 1.44)
 
     assert error is not None
-    assert round(error, 1) == 8.9  # médiane, exprimée en %
+    # Valeur dépendante de l'échelle d'ajustement ; l'intention est qu'un bruit
+    # injecté ressorte comme une erreur franche mais non aberrante.
+    assert 5.0 < error < 15.0  # médiane, exprimée en %
 
 
 def test_median_relative_error_echantillon_trop_petit_donne_none() -> None:

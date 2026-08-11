@@ -79,6 +79,8 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
     for mutation in sample:
         if mutation.prix is None or mutation.surface_bati is None or mutation.surface_bati <= 0:
             continue
+        if mutation.prix <= 0:  # le logarithme exige un prix strictement positif
+            continue
         if mutation.etiquette_dpe is None:
             continue
         if mutation.latitude is None or mutation.longitude is None:
@@ -138,8 +140,8 @@ def _encode(rows: list[_Row], columns: _Columns) -> NDArray[np.float64]:
     n = len(rows)
     blocks = [
         np.ones((n, 1)),
-        np.array([row.bati for row in rows], dtype=float)[:, None],
-        np.array([row.terrain for row in rows], dtype=float)[:, None],
+        np.log(np.array([row.bati for row in rows], dtype=float))[:, None],
+        np.log1p(np.array([row.terrain for row in rows], dtype=float))[:, None],
     ]
     extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
         (columns.dpe, lambda row: row.dpe),
@@ -175,15 +177,15 @@ def _fit_model(
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
     columns = _build_columns(rows, reference_dpe)
     design = _encode(rows, columns)
-    y = np.array([row.prix for row in rows], dtype=float)
+    y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
     return _Model(beta=beta, columns=columns)
 
 
 def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
-    """Prédit le prix des lignes en ré-encodant sur les colonnes du modèle."""
-    predictions: NDArray[np.float64] = _encode(rows, model.columns) @ model.beta
+    """Prédit le **prix** des lignes ; le modèle travaille en logarithme."""
+    predictions: NDArray[np.float64] = np.exp(_encode(rows, model.columns) @ model.beta)
     return predictions
 
 
@@ -202,14 +204,15 @@ def fit(
         raise InsufficientSampleError("échantillon vide après restriction au bâti ancien")
 
     model = _fit_model(rows, center_lat, center_lon, sigma_km, reference_dpe)
-    y = np.array([row.prix for row in rows], dtype=float)
+    # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
+    y = np.log(np.array([row.prix for row in rows], dtype=float))
     weights = _weights(rows, center_lat, center_lon, sigma_km)
 
     coef_dpe = {model.columns.reference_dpe: 0.0}
     for offset, level in enumerate(model.columns.dpe):
         coef_dpe[level] = float(model.beta[3 + offset])
 
-    predictions = _predict(model, rows)
+    predictions = np.log(_predict(model, rows))
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))
     ss_res = float(np.sum(weights * (y - predictions) ** 2))
     ss_tot = float(np.sum(weights * (y - weighted_mean) ** 2))
