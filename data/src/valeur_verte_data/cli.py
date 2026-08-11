@@ -17,6 +17,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
+import httpx
+
 from .db.runner import Connection, resolve_dsn
 from .decoupage_source import fetch_communes_by_departement
 from .http import Fetcher, HttpFetcher
@@ -46,6 +48,7 @@ class RapportIngestion:
     communes_traitees: int = 0
     mutations_inserees: int = 0
     echecs: list[str] = field(default_factory=list)
+    sans_donnees: list[str] = field(default_factory=list)
 
     @property
     def est_en_echec(self) -> bool:
@@ -57,6 +60,7 @@ class RapportIngestion:
             f"Département {self.departement}, millésime {self.millesime} : "
             f"{self.communes_traitees} commune(s), "
             f"{self.mutations_inserees} mutation(s), "
+            f"{len(self.sans_donnees)} sans transaction publiée, "
             f"{len(self.echecs)} échec(s)"
         )
 
@@ -77,6 +81,18 @@ def ingest_departement(
     for rang, commune in enumerate(communes, 1):
         try:
             inserees = ingest_commune(fetcher, conn, commune.code_insee, millesime)
+        except httpx.HTTPStatusError as erreur:
+            conn.rollback()
+            if erreur.response.status_code == 404:
+                # DVF ne publie pas de fichier pour une commune sans transaction.
+                rapport.sans_donnees.append(commune.code_insee)
+                logger.info(
+                    "[%d/%d] %s : aucune transaction publiée", rang, total, commune.code_insee
+                )
+                continue
+            rapport.echecs.append(commune.code_insee)
+            logger.warning("[%d/%d] %s : échec (%s)", rang, total, commune.code_insee, erreur)
+            continue
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
             conn.rollback()
             rapport.echecs.append(commune.code_insee)
