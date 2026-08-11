@@ -107,7 +107,9 @@ def test_l_image_data_est_epinglee_sur_une_version_publiee(
     image = str(migrate.get("image", ""))
     assert image.startswith("ghcr.io/"), f"L'image doit provenir de GHCR, reçu « {image} »."
 
-    tag = image.rpartition(":")[2]
+    # Le tag suit le nom d'image : découper sur le dernier « : » attraperait
+    # le message de ${VAR:?message}.
+    tag = image.split("/")[-1].partition(":")[2]
     assert tag != "latest", (
         "Un tag « latest » interdit de savoir ce qui tourne et de revenir en arrière."
     )

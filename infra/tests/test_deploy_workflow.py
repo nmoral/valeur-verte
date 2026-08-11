@@ -13,7 +13,12 @@ from typing import Any
 from .conftest import DEPLOY_WORKFLOW, triggers
 
 REFERENCE_SECRET = re.compile(r"\$\{\{\s*secrets\.[A-Z_]+\s*\}\}")
-IDENTIFIANT_SENSIBLE = re.compile(r"\b(host|user(name)?|key|password|passphrase)\b", re.IGNORECASE)
+EXPRESSION_GITHUB = re.compile(r"\$\{\{.+\}\}")
+
+# Ce qui doit impérativement venir d'un secret : la cible et de quoi s'y connecter.
+CONFIDENTIEL = re.compile(r"\b(host|key|password|passphrase)\b", re.IGNORECASE)
+# Ce qui peut venir d'un contexte GitHub (ex. le compte GHCR) mais jamais d'un littéral.
+IDENTIFIANT = re.compile(r"\b(user|username)\b", re.IGNORECASE)
 
 
 def _jobs(workflow: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -74,14 +79,19 @@ def test_aucun_identifiant_du_vps_n_est_ecrit_en_clair(deploy_workflow: dict[str
     contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
     for ligne in contenu.splitlines():
         cle, separateur, valeur = ligne.partition(":")
-        if not separateur or not IDENTIFIANT_SENSIBLE.search(cle):
-            continue
         valeur = valeur.strip()
-        if not valeur or valeur.startswith("#"):
+        if not separateur or not valeur or valeur.startswith("#"):
             continue
-        assert REFERENCE_SECRET.search(valeur), (
-            f"« {ligne.strip()} » doit référencer ${{{{ secrets.… }}}} et non une valeur littérale."
-        )
+
+        if CONFIDENTIEL.search(cle):
+            assert REFERENCE_SECRET.search(valeur), (
+                f"« {ligne.strip()} » doit venir de ${{{{ secrets.… }}}}, jamais d'un littéral."
+            )
+        elif IDENTIFIANT.search(cle):
+            assert EXPRESSION_GITHUB.search(valeur), (
+                f"« {ligne.strip()} » doit venir d'un secret ou d'un contexte GitHub, "
+                "jamais d'un littéral."
+            )
 
 
 def test_le_deploiement_attend_la_publication_de_l_image(
