@@ -59,7 +59,7 @@ def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
     requete, params = conn.calls[0]
     assert "data.vente" in requete
     assert params is not None
-    assert list(params) == ["31%", 2024]
+    assert list(params) == ["31%", 2024, "Maison"]
 
 
 def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> None:
