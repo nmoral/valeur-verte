@@ -1,0 +1,11 @@
+# Contexte de build minimal : seuls pyproject.toml et src/ sont nécessaires.
+.venv/
+tests/
+tools/
+mutants/
+.mutmut-cache
+**/__pycache__/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
