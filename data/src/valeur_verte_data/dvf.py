@@ -79,16 +79,23 @@ def _sum_bati(rows: list[Mapping[str, str]]) -> float | None:
     return sum(surfaces) if surfaces else None
 
 
+# Code de nature de culture des sols. On filtre sur le **code** et non sur le
+# libellé : celui-ci varie en orthographe et en accentuation dans la source
+# (« terrains a bâtir » sans accent), et c'est en l'interrogeant à la place du
+# code que toutes les surfaces de terrain ont été perdues (#136).
+CODE_NATURE_SOLS = "S"
+
+
 def _sum_terrain(rows: list[Mapping[str, str]]) -> float | None:
     """Somme des surfaces de terrain par parcelle distincte, sols uniquement (§7).
 
     ``surface_terrain`` est répétée sur chaque ligne d'une même parcelle : on
-    déduplique par ``id_parcelle``. Seules les parcelles ``nature_culture = 'S'``
-    (sols) sont comptées, pour exclure les terres agricoles qui polluent le modèle.
+    déduplique par ``id_parcelle``. Seules les parcelles de nature « sols » sont
+    comptées, pour exclure les terres agricoles qui polluent le modèle.
     """
     per_parcelle: dict[str, float] = {}
     for row in rows:
-        if _clean(row.get("nature_culture")) != "S":
+        if _clean(row.get("code_nature_culture")) != CODE_NATURE_SOLS:
             continue
         parcelle = _clean(row.get("id_parcelle"))
         surface = _to_float(row.get("surface_terrain"))

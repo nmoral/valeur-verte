@@ -15,7 +15,7 @@ def _mutation(prix: str = "200000", bati: str = "80", terrain: str | None = None
     }
     if terrain is not None:
         row["surface_terrain"] = terrain
-        row["nature_culture"] = "S"
+        row["code_nature_culture"] = "S"
         row["id_parcelle"] = "p1"
     (mutation,) = aggregate_mutations([row], millesime=2024)
     return mutation

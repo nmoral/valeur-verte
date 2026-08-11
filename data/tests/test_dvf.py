@@ -19,7 +19,8 @@ def _row(**overrides: str) -> dict[str, str]:
         "surface_reelle_bati": "80",
         "surface_terrain": "",
         "id_parcelle": "31555000AA0001",
-        "nature_culture": "S",
+        "code_nature_culture": "S",
+        "nature_culture": "sols",
         "adresse_numero": "12",
         "adresse_suffixe": "",
         "adresse_nom_voie": "RUE DES FLEURS",
@@ -100,9 +101,15 @@ def test_les_mutations_distinctes_sont_separees() -> None:
 def test_le_terrain_somme_les_parcelles_distinctes() -> None:
     # surface_terrain est répétée sur chaque ligne d'une même parcelle.
     rows = [
-        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
-        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
-        _row(id_parcelle="P2", surface_terrain="300", nature_culture="S"),
+        _row(
+            id_parcelle="P1", surface_terrain="500", code_nature_culture="S", nature_culture="sols"
+        ),
+        _row(
+            id_parcelle="P1", surface_terrain="500", code_nature_culture="S", nature_culture="sols"
+        ),
+        _row(
+            id_parcelle="P2", surface_terrain="300", code_nature_culture="S", nature_culture="sols"
+        ),
     ]
 
     (mutation,) = aggregate_mutations(rows, millesime=2024)
@@ -112,8 +119,15 @@ def test_le_terrain_somme_les_parcelles_distinctes() -> None:
 
 def test_le_terrain_ignore_les_natures_non_sol() -> None:
     rows = [
-        _row(id_parcelle="P1", surface_terrain="500", nature_culture="S"),
-        _row(id_parcelle="P2", surface_terrain="1000", nature_culture="T"),
+        _row(
+            id_parcelle="P1", surface_terrain="500", code_nature_culture="S", nature_culture="sols"
+        ),
+        _row(
+            id_parcelle="P2",
+            surface_terrain="1000",
+            code_nature_culture="T",
+            nature_culture="terres",
+        ),
     ]
 
     (mutation,) = aggregate_mutations(rows, millesime=2024)
@@ -143,7 +157,8 @@ def test_mappe_tous_les_champs_d_un_lot_unique() -> None:
             surface_reelle_bati="100",
             surface_terrain="400",
             id_parcelle="31069000ZZ0009",
-            nature_culture="S",
+            code_nature_culture="S",
+            nature_culture="sols",
             adresse_numero="7",
             adresse_suffixe="bis",
             adresse_nom_voie="RUE DU TEST",
@@ -219,7 +234,9 @@ def test_les_valeurs_vides_deviennent_none() -> None:
 
 
 def test_le_terrain_ignore_les_parcelles_sans_identifiant() -> None:
-    rows = [_row(id_parcelle="", surface_terrain="500", nature_culture="S")]
+    rows = [
+        _row(id_parcelle="", surface_terrain="500", code_nature_culture="S", nature_culture="sols")
+    ]
 
     (mutation,) = aggregate_mutations(rows, millesime=2024)
 
@@ -264,8 +281,15 @@ def test_le_plus_grand_local_l_emporte_meme_a_surface_nulle() -> None:
 
 def test_le_terrain_continue_apres_une_parcelle_non_sol() -> None:
     rows = [
-        _row(id_parcelle="P0", surface_terrain="1000", nature_culture="T"),
-        _row(id_parcelle="P1", surface_terrain="300", nature_culture="S"),
+        _row(
+            id_parcelle="P0",
+            surface_terrain="1000",
+            code_nature_culture="T",
+            nature_culture="terres",
+        ),
+        _row(
+            id_parcelle="P1", surface_terrain="300", code_nature_culture="S", nature_culture="sols"
+        ),
     ]
 
     (mutation,) = aggregate_mutations(rows, millesime=2024)
@@ -275,8 +299,10 @@ def test_le_terrain_continue_apres_une_parcelle_non_sol() -> None:
 
 def test_le_terrain_continue_apres_une_parcelle_sans_surface() -> None:
     rows = [
-        _row(id_parcelle="", surface_terrain="500", nature_culture="S"),
-        _row(id_parcelle="P1", surface_terrain="300", nature_culture="S"),
+        _row(id_parcelle="", surface_terrain="500", code_nature_culture="S", nature_culture="sols"),
+        _row(
+            id_parcelle="P1", surface_terrain="300", code_nature_culture="S", nature_culture="sols"
+        ),
     ]
 
     (mutation,) = aggregate_mutations(rows, millesime=2024)
