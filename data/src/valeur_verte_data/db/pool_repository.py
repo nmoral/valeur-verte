@@ -15,11 +15,16 @@ from __future__ import annotations
 from ..dvf import Mutation
 from .runner import Connection
 
+# Segment retenu pour le MVP (#115). Sur les appartements, l'emplacement
+# (étage, immeuble, quartier) écrase l'étiquette DPE : l'écart D→F y vaut
+# +47 €/m² contre −676 pour les maisons, soit un effet de signe opposé.
+SEGMENT_MVP = "Maison"
+
 _SELECT_POOL = (
     "SELECT id_mutation, date_mutation, millesime, code_insee, prix, surface_bati, "
     "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude "
     "FROM data.vente "
-    "WHERE code_insee LIKE %s AND millesime = %s"
+    "WHERE code_insee LIKE %s AND millesime = %s AND type_local = %s"
 )
 
 
@@ -47,11 +52,21 @@ def _mutation(ligne: tuple[object, ...]) -> Mutation:
     )
 
 
-def load_pool(conn: Connection, departement: str, millesime: int) -> list[Mutation]:
+def load_pool(
+    conn: Connection,
+    departement: str,
+    millesime: int,
+    *,
+    type_local: str = SEGMENT_MVP,
+) -> list[Mutation]:
     """Ventes d'un département pour un millésime, prêtes pour le moteur.
 
     Le département est déduit du préfixe du code INSEE : c'est la clé de
     rattachement retenue (§7), le code postal ne l'est jamais.
+
+    Le segment est un paramètre explicite plutôt qu'une condition enfouie :
+    étendre le calcul aux appartements suppose de contrôler l'emplacement
+    infra-communal, et le point de bascule doit rester visible (#115).
     """
-    lignes = conn.execute(_SELECT_POOL, [f"{departement}%", millesime]).fetchall()
+    lignes = conn.execute(_SELECT_POOL, [f"{departement}%", millesime, type_local]).fetchall()
     return [_mutation(tuple(ligne)) for ligne in lignes]
