@@ -1,6 +1,7 @@
 # Backlog — index des issues
 
-Généré à partir du document de cadrage MVP. 12 epics, 60 tâches/décisions.
+Généré à partir du document de cadrage MVP, complété par
+[Onboarding self-service](ONBOARDING-SELF-SERVICE.md). 13 epics, 68 tâches/décisions.
 Les numéros renvoient aux [issues](../../../issues) du dépôt.
 
 > Statut initial de toutes les issues : `statut: à faire`. Voir le [README](../README.md)
@@ -13,7 +14,7 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 | **J1 — Données** | [#1](../../../issues/1) | Base chargée, appariement DVF/DPE > 60 %, coefficients sur ≥ 80 % des communes |
 | **J2 — Moteur** | [#2](../../../issues/2) | Coefficients cohérents sur 5 zones test vérifiées |
 | **J3 — Mode audit** | [#3](../../../issues/3) [#4](../../../issues/4) | Un pro produit un rapport complet en RDV, sans assistance |
-| **J4 — Admin pro** | [#5](../../../issues/5) | Un pro configure seul son compte |
+| **J4 — Admin pro** | [#5](../../../issues/5) [#104](../../../issues/104) | Un pro s'inscrit, produit un rapport et configure son compte seul, dans cet ordre |
 | **J5 — Pilote** | [#64](../../../issues/64) | ≥ 10 rapports/pro sur 2 mois + retour qualitatif |
 | **J6 — Widget public** | [#6](../../../issues/6) | Parcours de bout en bout sur le site d'un pilote |
 
@@ -49,12 +50,12 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#33](../../../issues/33) Instantané de rapport immuable (JSONB)
 
 ### [#5](../../../issues/5) Espace pro / back-office — `jalon: J4`
-- [#34](../../../issues/34) Configuration des coûts par poste (défauts pré-remplis)
-- [#35](../../../issues/35) Bouquets de travaux types (CRUD)
+- [#34](../../../issues/34) **ONB-3** Configuration des coûts par poste (défauts pré-remplis)
+- [#35](../../../issues/35) Bouquets de travaux types (CRUD) — bouquet par défaut actif
 - [#36](../../../issues/36) Branding + prévisualisation du PDF en direct
 - [#37](../../../issues/37) Liste unique rapports & leads
 - [#38](../../../issues/38) Intégration widget (iframe, domaines, compteur d'essai)
-- [#39](../../../issues/39) Onboarding du pro (compte, pré-remplissage, démo)
+- [#39](../../../issues/39) **ONB-4** Premier rapport avant configuration
 
 ### [#6](../../../issues/6) Widget public — `jalon: J6`
 - [#40](../../../issues/40) Widget JS autonome embarqué en iframe (`/w/{token}`)
@@ -96,6 +97,21 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#66](../../../issues/66) Afficher le seuil de neutralité dans le PDF ?
 - [#67](../../../issues/67) Publier la méthodologie ou la garder opaque ?
 - [#68](../../../issues/68) Durée de purge des leads (défaut 24 mois)
+
+### [#104](../../../issues/104) Onboarding self-service — `domaine: onboarding`
+
+Voir [ONBOARDING-SELF-SERVICE.md](ONBOARDING-SELF-SERVICE.md). ONB-3 et ONB-4 sont portées par des
+issues existantes de l'epic [#5](../../../issues/5).
+
+- [#105](../../../issues/105) **ONB-1** Inscription ouverte — `jalon: J4`
+- [#106](../../../issues/106) **ONB-2** Remplissage automatique par le SIRET — `jalon: J4`
+- [#34](../../../issues/34) **ONB-3** Grilles de coûts pré-remplies (+ [#35](../../../issues/35)) — `jalon: J4`
+- [#39](../../../issues/39) **ONB-4** Premier rapport avant configuration — `jalon: J4`
+- [#107](../../../issues/107) **ONB-5** Paiement autonome — `jalon: transverse`
+- [#108](../../../issues/108) **ONB-6** Compteur d'essai visible — `jalon: transverse`
+- [#109](../../../issues/109) **ONB-7** Relance conversationnelle après le premier rapport — `jalon: transverse`
+- [#110](../../../issues/110) **ONB-8** Support porté par l'interface — `jalon: transverse`
+- [#111](../../../issues/111) Métriques d'activation à instrumenter — `jalon: transverse`
 
 ### [#12](../../../issues/12) v2 / Backlog — `jalon: v2`
 - [#69](../../../issues/69) Mode locatif (interdiction de location comme moteur)
