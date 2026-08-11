@@ -12,8 +12,8 @@ class _FakeCursor:
     def __init__(self, rows: list[tuple[Any, ...]]) -> None:
         self._rows = rows
 
-    def fetchone(self) -> tuple[Any, ...] | None:
-        return self._rows[0] if self._rows else None
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return self._rows
 
 
 class _FakeConnection:
@@ -23,8 +23,8 @@ class _FakeConnection:
 
     def execute(self, query: str, params: Sequence[Any] | None = None) -> _FakeCursor:
         self.calls.append((query, params))
-        radius_m = params[2] if params is not None else None
-        return _FakeCursor([(self.counts.get(int(radius_m), 0),)])
+        radius_m = int(params[2]) if params is not None else 0
+        return _FakeCursor([(self.counts.get(radius_m, 0),)])
 
 
 def test_count_within_radius_construit_la_requete_dwithin() -> None:
