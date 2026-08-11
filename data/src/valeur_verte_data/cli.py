@@ -20,7 +20,7 @@ from typing import Protocol
 import httpx
 
 from .batch import compute_communes
-from .db.coefficient_repository import upsert_coefficient
+from .db.coefficient_repository import delete_coefficient, upsert_coefficient
 from .db.pool_repository import load_pool
 from .db.runner import Connection, resolve_dsn
 from .decoupage_source import fetch_communes_by_departement
@@ -159,6 +159,10 @@ def compute_departement(
     for code_insee, _, _ in coordonnees:
         maille = calculees.get(code_insee)
         if maille is None:
+            # Le refus doit effacer une éventuelle valeur antérieure, sinon un
+            # coefficient invalidé par ce calcul continuerait d'être servi.
+            delete_coefficient(conn, code_insee)
+            conn.commit()
             rapport.refus.append(code_insee)
             continue
         try:

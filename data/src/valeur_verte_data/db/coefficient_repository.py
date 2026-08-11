@@ -26,6 +26,19 @@ _UPSERT = (
 )
 
 
+_DELETE = "DELETE FROM data.coefficient_maille WHERE code_insee = %s"
+
+
+def delete_coefficient(conn: Connection, code_insee: str) -> None:
+    """Efface le coefficient d'une commune devenue non calculable.
+
+    Sans cela, un recalcul qui refuse une maille laisserait l'ancienne valeur
+    en base : elle continuerait d'être servie alors qu'elle vient d'être jugée
+    non publiable.
+    """
+    conn.execute(_DELETE, [code_insee])
+
+
 def upsert_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
     """Insère ou met à jour la ligne ``coefficient_maille`` d'une commune."""
     conn.execute(
