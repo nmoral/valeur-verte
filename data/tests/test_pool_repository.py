@@ -1,0 +1,84 @@
+"""Chargement du pool de ventes d'un département, en mémoire (#91, §10.6).
+
+Le moteur (`batch.compute_communes`) travaille sur une liste de `Mutation`
+chargée **une seule fois** pour tout le département : recharger par commune
+multiplierait les requêtes par le nombre de communes, alors que le rayon
+adaptatif fait de toute façon déborder chaque sélection sur ses voisines.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
+
+from valeur_verte_data.db.pool_repository import load_pool
+
+
+class _FakeCursor:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self._rows = rows
+
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return self._rows
+
+
+class _FakeConnection:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+        self.calls: list[tuple[str, Sequence[Any] | None]] = []
+
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> _FakeCursor:
+        self.calls.append((query, params))
+        return _FakeCursor(self.rows)
+
+
+def _ligne(code_insee: str = "31555", etiquette: str = "F") -> tuple[Any, ...]:
+    # Ordre des colonnes attendu par le repository.
+    return (
+        "m1",
+        "2024-01-01",
+        2024,
+        code_insee,
+        250000.0,
+        80.0,
+        200.0,
+        etiquette,
+        "1948-1974",
+        1.44,
+        43.6,
+    )
+
+
+def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
+    """Mélanger des millésimes fausserait la régression, calibrée par année."""
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024)
+
+    assert len(conn.calls) == 1
+    requete, params = conn.calls[0]
+    assert "data.vente" in requete
+    assert params is not None
+    assert list(params) == ["31%", 2024]
+
+
+def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> None:
+    """Sans étiquette ni coordonnées, la vente est écartée par la régression."""
+    conn = _FakeConnection([_ligne()])
+
+    pool = load_pool(conn, "31", 2024)
+
+    assert len(pool) == 1
+    mutation = pool[0]
+    assert mutation.code_insee == "31555"
+    assert mutation.prix == 250000.0
+    assert mutation.surface_bati == 80.0
+    assert mutation.etiquette_dpe == "F"
+    assert mutation.periode_construction == "1948-1974"
+    assert mutation.latitude == 43.6
+    assert mutation.longitude == 1.44
+
+
+def test_un_departement_vide_rend_un_pool_vide() -> None:
+    """Cas normal d'un département non encore ingéré : pas d'exception."""
+    assert load_pool(_FakeConnection([]), "09", 2024) == []

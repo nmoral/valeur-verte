@@ -37,7 +37,7 @@ class _FakeFetcher:
         return _CSV
 
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
-        raise AssertionError("get_json ne doit pas être appelé")
+        return {"results": []}  # commune sans DPE publié
 
 
 def _compter(conn: psycopg.Connection[Any], code_insee: str, millesime: int) -> int:

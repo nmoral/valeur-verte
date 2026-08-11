@@ -1,6 +1,6 @@
 """Tests du client DPE/ADEME (pagination + mapping des champs, hors-ligne).
 
-Note : les noms de champs ADEME (``Etiquette_DPE``, ``Adresse_(BAN)``…) sont
+Note : les noms de champs ADEME (``etiquette_dpe``, ``adresse_ban``…) sont
 une hypothèse à confirmer sur l'API réelle (schéma non accessible hors-ligne).
 Le mapping est centralisé dans ``dpe_source`` pour être corrigé en un point.
 """
@@ -15,10 +15,10 @@ from valeur_verte_data.dpe_source import ADEME_LINES_URL, dpe_lookup, fetch_dpe_
 
 def _ademe(etiquette: str, adresse: str, periode: str) -> dict[str, str]:
     return {
-        "Etiquette_DPE": etiquette,
-        "Adresse_(BAN)": adresse,
-        "Code_postal_(BAN)": "31000",
-        "Période_construction": periode,
+        "etiquette_dpe": etiquette,
+        "adresse_ban": adresse,
+        "code_postal_ban": "31000",
+        "periode_construction": periode,
     }
 
 
@@ -58,11 +58,13 @@ def test_fetch_dpe_records_suit_la_pagination_et_mappe_les_champs() -> None:
     assert records[0]["periode_construction"] == "1948-1974"
     # 1er appel = endpoint ADEME + filtre commune ; 2e = URL 'next'.
     assert fetcher.calls[0][0] == ADEME_LINES_URL
-    assert fetcher.calls[0][1]["size"] == "1000"
+    # 10 000 = maximum accepté par l'API : Toulouse compte 186 000 DPE, soit
+    # 187 requêtes par pages de 1 000 pour une seule commune.
+    assert fetcher.calls[0][1]["size"] == "10000"
     assert "31555" in fetcher.calls[0][1]["qs"]
     assert (
         fetcher.calls[0][1]["select"]
-        == "Etiquette_DPE,Adresse_(BAN),Code_postal_(BAN),Période_construction"
+        == "etiquette_dpe,adresse_ban,code_postal_ban,periode_construction"
     )
     assert fetcher.calls[1][0] == "https://data.ademe.fr/data-fair/.../lines?after=cursor42"
 
@@ -77,7 +79,7 @@ def test_fetch_dpe_records_page_unique() -> None:
 
 
 def test_fetch_dpe_records_champ_absent_donne_chaine_vide() -> None:
-    fetcher = _FakeFetcher([{"total": 1, "results": [{"Etiquette_DPE": "C"}]}])
+    fetcher = _FakeFetcher([{"total": 1, "results": [{"etiquette_dpe": "C"}]}])
 
     records = fetch_dpe_records(fetcher, "31555")
 
