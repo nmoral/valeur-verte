@@ -43,6 +43,11 @@ def test_can_compute_frontiere_naturelle_sans_limitrophe() -> None:
     assert can_compute("2A", _NEIGHBORS, {"2A": CHARGE})
 
 
+def test_can_compute_departement_absent_de_la_carte() -> None:
+    # Aucun limitrophe connu → pas de blocage (comme une frontière naturelle).
+    assert can_compute("99", {}, {"99": CHARGE})
+
+
 def test_can_compute_accepte_un_limitrophe_deja_calcule() -> None:
     statuses = {"31": CHARGE, "32": CALCULE, "09": CHARGE, "11": CHARGE}
 
@@ -51,6 +56,10 @@ def test_can_compute_accepte_un_limitrophe_deja_calcule() -> None:
 
 def test_next_status_en_attente_si_non_charge() -> None:
     assert next_status("31", _NEIGHBORS, {"31": EN_ATTENTE}) == EN_ATTENTE
+
+
+def test_next_status_departement_absent_est_en_attente() -> None:
+    assert next_status("31", _NEIGHBORS, {}) == EN_ATTENTE
 
 
 def test_next_status_calcule_si_pret() -> None:
