@@ -123,9 +123,7 @@ def test_un_departement_entierement_en_echec_sort_en_erreur(
     connexion: _FausseConnexion,
 ) -> None:
     """Un import qui n'a rien chargé ne doit pas passer pour un succès."""
-    rapport = cli.ingest_departement(
-        _FauxFetcher(echecs=["31555", "31149"]), connexion, "31", 2024
-    )
+    rapport = cli.ingest_departement(_FauxFetcher(echecs=["31555", "31149"]), connexion, "31", 2024)
 
     assert rapport.communes_traitees == 0
     assert rapport.est_en_echec
