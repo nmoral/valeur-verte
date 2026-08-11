@@ -28,19 +28,21 @@ def _house(
     insee: str = "31555",
     year: int = 2024,
     periode: str = "1948-1974",
+    lat: float = 43.6,
+    lon: float = 1.44,
 ) -> Mutation:
     (base,) = aggregate_mutations(
         [
             {
-                "id_mutation": f"{insee}-{dpe}-{bati}-{terrain}-{prix}",
+                "id_mutation": f"{insee}-{dpe}-{bati}-{terrain}-{prix}-{lat}",
                 "valeur_fonciere": str(prix),
                 "code_commune": insee,
                 "surface_reelle_bati": str(bati),
                 "surface_terrain": str(terrain),
                 "nature_culture": "S",
-                "id_parcelle": f"p-{bati}-{terrain}-{prix}",
-                "latitude": "43.6",
-                "longitude": "1.44",
+                "id_parcelle": f"p-{bati}-{terrain}-{prix}-{lat}",
+                "latitude": str(lat),
+                "longitude": str(lon),
             }
         ],
         millesime=year,
@@ -126,3 +128,92 @@ def test_fit_effets_fixes_commune_isolent_le_coef_dpe() -> None:
 
     assert round(result.coef_dpe["F"]) == -25000
     assert round(result.coef_dpe["C"]) == 15000
+
+
+def _bati_series(dpe: str, effect: int, *, lat: float, lon: float) -> list[Mutation]:
+    return [_house(dpe, bati, 0, 1000 * bati + effect, lat=lat, lon=lon) for bati in (80, 100, 120)]
+
+
+def test_is_pre_1989_borne_stricte_a_1989() -> None:
+    assert not is_pre_1989("1983-1989")
+
+
+def test_fit_pondere_par_la_distance() -> None:
+    # Points proches (poids ~1) : F = -30 000. Points lointains ~50 km (poids ~0) : F = +10 000.
+    near = _bati_series("D", 0, lat=43.6, lon=1.44) + _bati_series("F", -30000, lat=43.6, lon=1.44)
+    far = _bati_series("D", 0, lat=44.05, lon=1.44) + _bati_series("F", 10000, lat=44.05, lon=1.44)
+
+    result = fit(near + far, 43.6, 1.44)
+
+    # Sans pondération par la distance, F ≈ -10 000 (moyenne) ; avec, F ≈ -30 000.
+    assert result.coef_dpe["F"] < -25000
+
+
+def test_fit_r2_borne_sur_ajustement_imparfait() -> None:
+    sample = _sample_connu()
+    sample[0] = replace(sample[0], prix=(sample[0].prix or 0.0) + 30000)
+
+    result = fit(sample, 43.6, 1.44)
+
+    assert round(result.r2, 2) == 0.94
+
+
+def test_fit_exclut_tous_les_cas_meme_places_avant_les_valides() -> None:
+    exclus = [
+        _house("F", 100, 300, 999_999, periode="1990-2000"),
+        replace(_house("D", 100, 300, 132_000), etiquette_dpe=None),
+        replace(_house("D", 100, 300, 132_000), latitude=None, longitude=None),
+        replace(_house("D", 100, 300, 132_000), longitude=None),
+        replace(_house("D", 100, 300, 132_000), surface_bati=None),
+        _house("D", 0, 300, 30_000),
+    ]
+
+    result = fit([*exclus, *_sample_connu()], 43.6, 1.44)
+
+    assert result.n == 9
+
+
+def test_fit_reference_dpe_absente_replie_sur_le_premier_niveau() -> None:
+    sample = [
+        _house(dpe, bati, 0, 1000 * bati + effect)
+        for dpe, effect in {"C": 0, "F": -20000}.items()
+        for bati in (80, 100, 120)
+    ]
+
+    result = fit(sample, 43.6, 1.44, reference_dpe="A")
+
+    assert result.coef_dpe["C"] == 0.0
+    assert round(result.coef_dpe["F"]) == -20000
+
+
+def test_fit_effets_fixes_commune_corrigent_le_confondu() -> None:
+    # F concentré dans la commune B (+50 000 €) : sans effet fixe, F paraîtrait plus cher.
+    commune_a = [_house("D", b, 0, 1000 * b, insee="31555") for b in (80, 100, 120)]
+    commune_a += [_house("F", 100, 0, 1000 * 100 - 25000, insee="31555")]
+    commune_b = [_house("F", b, 0, 1000 * b - 25000 + 50000, insee="31300") for b in (80, 100, 120)]
+    commune_b += [_house("D", 100, 0, 1000 * 100 + 50000, insee="31300")]
+
+    result = fit(commune_a + commune_b, 43.6, 1.44)
+
+    assert round(result.coef_dpe["F"]) == -25000
+
+
+def test_fit_effets_fixes_annee_corrigent_le_confondu() -> None:
+    # F concentré sur le millésime 2024 (+50 000 €) : l'effet fixe année doit l'absorber.
+    an_2023 = [_house("D", b, 0, 1000 * b, year=2023) for b in (80, 100, 120)]
+    an_2023 += [_house("F", 100, 0, 1000 * 100 - 25000, year=2023)]
+    an_2024 = [_house("F", b, 0, 1000 * b - 25000 + 50000, year=2024) for b in (80, 100, 120)]
+    an_2024 += [_house("D", 100, 0, 1000 * 100 + 50000, year=2024)]
+
+    result = fit(an_2023 + an_2024, 43.6, 1.44)
+
+    assert round(result.coef_dpe["F"]) == -25000
+
+
+def test_fit_r2_nul_si_prix_constant() -> None:
+    # Prix tous égaux → variance nulle → R² défini à 0 (garde anti-division par zéro).
+    sample = [_house(dpe, bati, 0, 100_000) for dpe in ("D", "F") for bati in (80, 100, 120)]
+
+    result = fit(sample, 43.6, 1.44)
+
+    assert result.r2 == 0.0
