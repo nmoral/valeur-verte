@@ -15,10 +15,22 @@ from .conftest import DEPLOY_WORKFLOW, triggers
 REFERENCE_SECRET = re.compile(r"\$\{\{\s*secrets\.[A-Z_]+\s*\}\}")
 EXPRESSION_GITHUB = re.compile(r"\$\{\{.+\}\}")
 
-# Ce qui doit impérativement venir d'un secret : la cible et de quoi s'y connecter.
-CONFIDENTIEL = re.compile(r"\b(host|key|password|passphrase)\b", re.IGNORECASE)
+# Les clés du workflow sont nommées en français : chercher les seuls termes
+# anglais laisserait le contrôle passer par vacuité. Pas de limite de mot non
+# plus, sans quoi « CLE_PRIVEE » échapperait à « cle ».
+CONFIDENTIEL = re.compile(
+    r"(host|hote|key|cle|password|mot_de_passe|passphrase|jeton|token)", re.IGNORECASE
+)
 # Ce qui peut venir d'un contexte GitHub (ex. le compte GHCR) mais jamais d'un littéral.
-IDENTIFIANT = re.compile(r"\b(user|username)\b", re.IGNORECASE)
+IDENTIFIANT = re.compile(r"(user|utilisateur|compte|acteur)", re.IGNORECASE)
+
+# Une adresse littérale trahit l'hôte de production ; les versions (v4, 16-3.4)
+# ne doivent pas être confondues avec elle.
+ADRESSE_IP = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+# Une vraie clé YAML : un identifiant sans espace. Sans ce filtre, la prose des
+# commentaires déclenche des faux positifs (« déclencheur » contient « cle »).
+CLE_YAML = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 
 
 def _jobs(workflow: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -79,8 +91,9 @@ def test_aucun_identifiant_du_vps_n_est_ecrit_en_clair(deploy_workflow: dict[str
     contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
     for ligne in contenu.splitlines():
         cle, separateur, valeur = ligne.partition(":")
+        cle = cle.strip().lstrip("- ")
         valeur = valeur.strip()
-        if not separateur or not valeur or valeur.startswith("#"):
+        if not separateur or not valeur or not CLE_YAML.match(cle):
             continue
 
         if CONFIDENTIEL.search(cle):
@@ -92,6 +105,16 @@ def test_aucun_identifiant_du_vps_n_est_ecrit_en_clair(deploy_workflow: dict[str
                 f"« {ligne.strip()} » doit venir d'un secret ou d'un contexte GitHub, "
                 "jamais d'un littéral."
             )
+
+
+def test_aucune_adresse_de_serveur_n_est_ecrite_dans_le_workflow() -> None:
+    """L'adresse du VPS est un secret d'exploitation : elle ne doit pas fuiter par le dépôt."""
+    for numero, ligne in enumerate(DEPLOY_WORKFLOW.read_text(encoding="utf-8").splitlines(), 1):
+        trouvee = ADRESSE_IP.search(ligne)
+        assert trouvee is None, (
+            f"Ligne {numero} : adresse littérale « {trouvee.group()} » — "
+            "utiliser ${{ secrets.SSH_HOST }}."
+        )
 
 
 def test_le_deploiement_attend_la_publication_de_l_image(
