@@ -21,8 +21,10 @@ EXPRESSION_GITHUB = re.compile(r"\$\{\{.+\}\}")
 CONFIDENTIEL = re.compile(
     r"(host|hote|key|cle|password|mot_de_passe|passphrase|jeton|token)", re.IGNORECASE
 )
-# Ce qui peut venir d'un contexte GitHub (ex. le compte GHCR) mais jamais d'un littéral.
-IDENTIFIANT = re.compile(r"(user|utilisateur|compte|acteur)", re.IGNORECASE)
+# Ce qui identifie un accès (compte SSH, compte GHCR) : peut venir d'un contexte
+# GitHub, jamais d'un littéral. « user » seul est exclu à dessein : POSTGRES_USER
+# est un nom de rôle applicatif, sans valeur d'authentification.
+IDENTIFIANT = re.compile(r"(ssh_user|username|utilisateur|compte|acteur)", re.IGNORECASE)
 
 # Une adresse littérale trahit l'hôte de production ; les versions (v4, 16-3.4)
 # ne doivent pas être confondues avec elle.

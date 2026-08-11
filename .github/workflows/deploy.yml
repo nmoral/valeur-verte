@@ -74,19 +74,16 @@ jobs:
 
       - name: Composer la configuration de déploiement
         env:
-          MOT_DE_PASSE: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USER: valeur_verte
+          POSTGRES_DB: valeur_verte
+          DATA_IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
           umask 077
-          # Format conninfo plutôt qu'URL : aucun échappement à prévoir sur le
-          # mot de passe, quels que soient ses caractères spéciaux.
-          {
-            echo "POSTGRES_USER=valeur_verte"
-            echo "POSTGRES_DB=valeur_verte"
-            echo "POSTGRES_PASSWORD=${MOT_DE_PASSE}"
-            echo "DATABASE_URL=host=db port=5432 dbname=valeur_verte user=valeur_verte password=${MOT_DE_PASSE}"
-            echo "DATA_IMAGE_TAG=${{ github.sha }}"
-          } > deploiement.env
+          # L'échappement du .env est délicat (Compose y interpole « $ ») :
+          # il est isolé dans un script couvert par des tests d'intégration.
+          bash infra/ecrire-env.sh > deploiement.env
 
       - name: Téléverser le compose et la configuration
         env:

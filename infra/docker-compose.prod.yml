@@ -31,7 +31,15 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL est requis}
+      # DSN assemblée ici, à partir de valeurs atomiques : le format conninfo a
+      # son propre quoting, et l'imbriquer dans celui du .env n'a pas de forme
+      # sûre. Les apostrophes encadrent le mot de passe, qui peut contenir des
+      # espaces (le script refuse apostrophe et barre oblique inverse).
+      DATABASE_URL: >-
+        host=db port=5432
+        dbname='${POSTGRES_DB:?POSTGRES_DB est requis}'
+        user='${POSTGRES_USER:?POSTGRES_USER est requis}'
+        password='${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}'
     command: ["valeur_verte_data.db.migrate"]
 
 volumes:

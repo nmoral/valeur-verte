@@ -51,7 +51,15 @@ message explicite sinon, plutôt que d'échouer sur un « Permission denied » d
 | `POSTGRES_PASSWORD` | Mot de passe du rôle `valeur_verte` |
 
 `POSTGRES_USER`, `POSTGRES_DB` et `DATABASE_URL` ne sont pas des secrets : le
-workflow les compose. Le compose de production **n'a aucune valeur de repli** —
+workflow les compose.
+
+> **Contrainte sur le mot de passe** : il ne doit contenir ni apostrophe (`'`)
+> ni barre oblique inverse (`\`). Ni le format `.env` de Compose ni le format
+> conninfo de libpq ne les transportent sans ambiguïté. `infra/ecrire-env.sh`
+> refuse le déploiement plutôt que de livrer un identifiant tronqué — panne qui
+> ne se manifesterait que bien plus tard, sur une base déjà initialisée. Tous
+> les autres caractères (`$`, espaces, `"`, `` ` ``, `&`, `|`, `;`…) passent, et
+> sont couverts par les tests. Le compose de production **n'a aucune valeur de repli** —
 une variable manquante fait échouer le déploiement plutôt que démarrer la base
 avec un identifiant de développement.
 
