@@ -1,0 +1,146 @@
+name: CI
+
+# Un seul workflow, un seul check requis : `gate`.
+# Les vérifications lourdes ne tournent que si le périmètre concerné change
+# (data/** ou app/**) ; `gate` reste vert quand elles sont non concernées
+# (docs, infra…) et rouge dès qu'une vérification réelle échoue. Cela permet
+# l'auto-merge des PR sans code sans contourner les portes qualité.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      data: ${{ steps.filter.outputs.data }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            data:
+              - 'data/**'
+              - '.github/workflows/ci.yml'
+            app:
+              - 'app/**'
+
+  data-quality:
+    needs: changes
+    if: needs.changes.outputs.data == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Installer les dépendances
+        run: pip install -e '.[dev]'
+      - name: Lint & format (Ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Analyse statique (mypy)
+        run: mypy src
+      - name: Tests (pytest)
+        run: pytest
+      - name: Mutation testing (mutmut, MSI >= 80 %)
+        run: ./tools/run-mutation.sh 80
+
+  # Migrations + écriture en base jouées contre un vrai PostGIS (container).
+  data-integration:
+    needs: changes
+    if: needs.changes.outputs.data == 'true'
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: valeur_verte
+          POSTGRES_PASSWORD: valeur_verte
+          POSTGRES_DB: valeur_verte
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U valeur_verte -d valeur_verte"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://valeur_verte:valeur_verte@localhost:5432/valeur_verte
+    defaults:
+      run:
+        working-directory: data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Installer les dépendances
+        run: pip install -e '.[dev]'
+      - name: Migrations + tests d'intégration (PostGIS réel)
+        run: pytest -m integration
+
+  app-quality:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurer PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: xdebug
+          tools: composer
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress
+      - name: Lint & format (PHP-CS-Fixer)
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+      - name: Analyse statique (PHPStan)
+        run: vendor/bin/phpstan analyse
+      - name: Tests (PHPUnit)
+        run: vendor/bin/phpunit
+      - name: Mutation testing (Infection, MSI >= 80 %)
+        run: vendor/bin/infection --min-covered-msi=80 --threads=max
+
+  # Seul check requis en protection de branche. Vert si les vérifications
+  # concernées passent OU ne sont pas concernées (skippées) ; rouge sinon.
+  gate:
+    needs: [changes, data-quality, data-integration, app-quality]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier qu'aucune vérification requise n'a échoué
+        run: |
+          echo "changes          = ${{ needs.changes.result }}"
+          echo "data-quality     = ${{ needs.data-quality.result }}"
+          echo "data-integration = ${{ needs.data-integration.result }}"
+          echo "app-quality      = ${{ needs.app-quality.result }}"
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "::error::La détection de changements a échoué — gate bloquant par sécurité."
+            exit 1
+          fi
+          for result in \
+            "${{ needs.data-quality.result }}" \
+            "${{ needs.data-integration.result }}" \
+            "${{ needs.app-quality.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::Une vérification requise a échoué ($result)."
+              exit 1
+            fi
+          done
+          echo "OK — vérifications réussies ou non concernées."
