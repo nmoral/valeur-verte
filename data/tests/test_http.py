@@ -67,3 +67,22 @@ def test_httpfetcher_construit_un_client_avec_le_timeout_demande() -> None:
 
 def test_httpfetcher_timeout_par_defaut() -> None:
     assert HttpFetcher()._client.timeout.connect == 30.0
+
+
+def test_les_redirections_sont_suivies() -> None:
+    """DVF sert ses CSV via une redirection 302 vers un stockage objet OVH.
+
+    Sans suivi automatique, l'ingestion échoue sur *toutes* les communes : le
+    défaut ne se voit qu'en conditions réelles, jamais sur un faux transport.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/redirige"):
+            return httpx.Response(302, headers={"Location": "https://example/final"})
+        return httpx.Response(200, text="contenu")
+
+    assert _fetcher(handler).get_text("https://example/redirige") == "contenu"
+
+
+def test_httpfetcher_suit_les_redirections_par_defaut() -> None:
+    assert HttpFetcher()._client.follow_redirects is True
