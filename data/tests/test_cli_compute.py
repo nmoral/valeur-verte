@@ -71,14 +71,15 @@ class _FauxFetcher:
 class _FausseConnexion:
     def __init__(self, pool: Sequence[Mutation]) -> None:
         self.pool = list(pool)
+        self.requetes: list[str] = []
         self.ecritures: list[tuple[str, Sequence[Any] | None]] = []
         self.commits = 0
         self.rollbacks = 0
 
     def execute(self, query: str, params: Sequence[Any] | None = None) -> Any:
+        self.requetes.append(query)
         if "INSERT" in query.upper():
             self.ecritures.append((query, params))
-            return _Curseur([])
         return _Curseur([])
 
     def commit(self) -> None:
@@ -160,3 +161,21 @@ def test_un_departement_sans_aucun_coefficient_sort_en_erreur(
 def test_la_commande_compute_exige_departement_et_millesime() -> None:
     with pytest.raises(SystemExit):
         cli.main(["compute", "--departement", "31"])
+
+
+def test_une_commune_devenue_non_calculable_perd_son_coefficient(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sinon un coefficient périmé continue d'être servi (#115).
+
+    Constaté sur le 31 : après durcissement du seuil, 203 mailles sont
+    refusées mais la table en comptait toujours 586 — l'upsert ne supprime
+    rien, donc les anciennes valeurs survivaient au recalcul qui les invalide.
+    """
+    connexion = _FausseConnexion([])
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
+
+    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
+    assert len(suppressions) == 2, "chaque commune refusée doit voir son coefficient effacé"
