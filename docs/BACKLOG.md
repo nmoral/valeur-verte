@@ -1,7 +1,8 @@
 # Backlog — index des issues
 
 Généré à partir du document de cadrage MVP, complété par
-[Onboarding self-service](ONBOARDING-SELF-SERVICE.md). 13 epics, 68 tâches/décisions.
+[Onboarding self-service](ONBOARDING-SELF-SERVICE.md) et
+[Tests d'invariants et qualité des données](QUALITE-DONNEES.md). 14 epics, 81 tâches/décisions.
 Les numéros renvoient aux [issues](../../../issues) du dépôt.
 
 > Statut initial de toutes les issues : `statut: à faire`. Voir le [README](../README.md)
@@ -78,7 +79,7 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#53](../../../issues/53) Monolithe Symfony à 3 firewalls + login par rôle
 - [#54](../../../issues/54) Multi-tenant en base unique (filtre Doctrine)
 - [#55](../../../issues/55) Sauvegarde/restauration testée + archivage des PDF
-- [#56](../../../issues/56) Environnement de recette + cas de référence
+- [#56](../../../issues/56) **REG-3** Environnement de recette + cas de référence (fourchettes)
 
 ### [#9](../../../issues/9) Juridique, RGPD & conformité — `jalon: transverse`
 - [#57](../../../issues/57) Cadrage juridique avec un avocat
@@ -112,6 +113,33 @@ issues existantes de l'epic [#5](../../../issues/5).
 - [#109](../../../issues/109) **ONB-7** Relance conversationnelle après le premier rapport — `jalon: transverse`
 - [#110](../../../issues/110) **ONB-8** Support porté par l'interface — `jalon: transverse`
 - [#111](../../../issues/111) Métriques d'activation à instrumenter — `jalon: transverse`
+
+### [#118](../../../issues/118) Tests d'invariants & qualité des données — `domaine: qualité-données`
+
+Voir [QUALITE-DONNEES.md](QUALITE-DONNEES.md). Traiter [#123](../../../issues/123) (INV-5) en
+premier : sans batch déterministe, REG-1 et REG-3 sont inexploitables.
+
+**Assertions d'ingestion** — fin d'ingestion, avant calcul — `jalon: J1`
+- [#124](../../../issues/124) **DAT-1** Schéma des sources ingérées
+- [#125](../../../issues/125) **DAT-2** Volumétrie par département (± 30 %)
+- [#126](../../../issues/126) **DAT-3** Appariement DVF ↔ DPE (≥ 60 %)
+- [#127](../../../issues/127) **DAT-4** Distributions (prix, surfaces, étiquettes)
+- [#128](../../../issues/128) **DAT-5** Fraîcheur des sources
+
+**Invariants du modèle** — fin de calcul, par maille — `jalon: J2`
+- [#119](../../../issues/119) **INV-1** Monotonie de l'échelle DPE
+- [#120](../../../issues/120) **INV-2** Signe et ordre de grandeur
+- [#121](../../../issues/121) **INV-3** Cohérence géographique
+- [#122](../../../issues/122) **INV-4** Qualité du modèle comme critère de publication
+- [#123](../../../issues/123) **INV-5** Reproductibilité du batch
+
+**Non-régression** — avant publication — `jalon: J2`
+- [#129](../../../issues/129) **REG-1** Rapport d'écarts entre millésimes
+- [#130](../../../issues/130) **REG-2** Publication manuelle d'un millésime
+- [#56](../../../issues/56) **REG-3** Cas de référence en fourchettes
+
+**Journalisation** — `jalon: transverse`
+- [#131](../../../issues/131) Rapport de batch archivé
 
 ### [#12](../../../issues/12) v2 / Backlog — `jalon: v2`
 - [#69](../../../issues/69) Mode locatif (interdiction de location comme moteur)
