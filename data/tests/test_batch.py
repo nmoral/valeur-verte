@@ -40,7 +40,11 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
 def test_compute_maille_mode_local() -> None:
     pool = _cluster(4, lat=43.6, lon=1.44)  # 12 ventes proches
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
+    # le seuil de publication par classe (couvert par son propre test).
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
 
     assert isinstance(maille, MailleCoefficient)
     assert maille.mode is CoverageMode.LOCAL
@@ -64,7 +68,11 @@ def test_compute_maille_mode_departemental() -> None:
     lointaines = _cluster(7, lat=44.6, lon=1.44)  # ~111 km, hors rayon mais dans le pool
     pool = proches + lointaines
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
+    # le seuil de publication par classe (couvert par son propre test).
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
 
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
@@ -114,7 +122,11 @@ def test_compute_maille_departemental_pondere_tout_le_pool() -> None:
     lointaines = _cluster_effet(0, lat=44.6, lon=1.44)
     pool = proches[:6] + lointaines  # 6 proches (< seuil) + 14 lointaines
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
+    # le seuil de publication par classe (couvert par son propre test).
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
 
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
@@ -129,7 +141,11 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
             noise = 6000 if i % 2 == 0 else -6000
             pool.append(_house(dpe, bati, 1000 * bati + effect + noise, lat=43.6, lon=1.44))
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
+    # le seuil de publication par classe (couvert par son propre test).
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
 
     assert maille is not None
     assert maille.erreur_mediane is not None and maille.erreur_mediane > 0
@@ -139,8 +155,9 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
 
 def _maison_classe(dpe: str, numero: int) -> Mutation:
     """Maison ancienne d'une classe donnée, prix cohérent avec l'effet attendu."""
-    return _house(dpe, 80 + numero % 7, 200_000 + _EFFECT.get(dpe, 0) + 900 * numero,
-                  lat=43.6, lon=1.44)
+    return _house(
+        dpe, 80 + numero % 7, 200_000 + _EFFECT.get(dpe, 0) + 900 * numero, lat=43.6, lon=1.44
+    )
 
 
 def test_une_classe_trop_peu_observee_n_est_pas_publiee() -> None:

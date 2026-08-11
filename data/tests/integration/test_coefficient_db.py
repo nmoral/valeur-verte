@@ -51,7 +51,11 @@ def test_compute_maille_puis_upsert_est_relu_et_idempotent() -> None:
         for i in range(4)
     ]
 
-    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10)
+    # min_class_sample=1 : ce test porte sur l'écriture et la relecture en base,
+    # pas sur le seuil de publication par classe.
+    maille = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+    )
     assert maille is not None
 
     with psycopg.connect(DSN) as conn:
