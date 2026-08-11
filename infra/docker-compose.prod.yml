@@ -1,0 +1,38 @@
+# Déploiement du pipeline « data » sur le VPS OVH (#78).
+#
+# Déposé dans /opt/valeur-verte par le workflow .github/workflows/deploy.yml,
+# qui écrit à côté un fichier `.env` (mode 600) contenant les variables ci-dessous.
+# Aucune valeur de repli n'est fournie : une variable manquante doit faire échouer
+# le déploiement, jamais démarrer la base avec un identifiant de développement.
+#
+# La base n'expose aucun port : seuls les services du réseau interne l'atteignent.
+# Pour une session psql d'exploitation, passer par un tunnel SSH.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER est requis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB est requis}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Tâche ponctuelle rejouée à chaque livraison : les migrations sont idempotentes.
+  migrate:
+    image: ghcr.io/nmoral/valeur-verte-data:${DATA_IMAGE_TAG:?DATA_IMAGE_TAG est requis}
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL est requis}
+    command: ["valeur_verte_data.db.migrate"]
+
+volumes:
+  db_data:
