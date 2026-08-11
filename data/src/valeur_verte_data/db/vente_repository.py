@@ -56,6 +56,14 @@ def _params(mutation: Mutation) -> list[Any]:
     ]
 
 
+_DELETE = "DELETE FROM data.vente WHERE code_insee = %s AND millesime = %s"
+
+
+def delete_mutations(conn: Connection, code_insee: str, millesime: int) -> None:
+    """Vide une commune pour un millésime, préalable à un ré-import."""
+    conn.execute(_DELETE, [code_insee, millesime])
+
+
 def insert_mutations(conn: Connection, mutations: Iterable[Mutation]) -> int:
     """Insère les mutations dans ``data.vente`` ; retourne le nombre inséré."""
     inserted = 0

@@ -38,6 +38,13 @@ class _FakeConnection:
         self.calls.append((query, params))
         return _FakeCursor()
 
+    def inserts(self) -> list[tuple[str, Sequence[Any] | None]]:
+        """Écritures seules : l'ingestion vide d'abord la commune (#91)."""
+        return [appel for appel in self.calls if appel[0].lstrip().upper().startswith("INSERT")]
+
+    def deletes(self) -> list[tuple[str, Sequence[Any] | None]]:
+        return [appel for appel in self.calls if appel[0].lstrip().upper().startswith("DELETE")]
+
 
 def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
     conn = _FakeConnection()
@@ -45,10 +52,12 @@ def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
     inserted = ingest_commune(_FakeFetcher(_CSV), conn, "31555", 2024)
 
     assert inserted == 1
-    assert len(conn.calls) == 1
-    assert "data.vente" in conn.calls[0][0]
-    assert conn.calls[0][1] is not None
-    assert conn.calls[0][1][2] == 2024  # millésime transmis
+    assert len(conn.deletes()) == 1  # la commune est vidée avant d'être réécrite
+    ecritures = conn.inserts()
+    assert len(ecritures) == 1
+    assert "data.vente" in ecritures[0][0]
+    assert ecritures[0][1] is not None
+    assert ecritures[0][1][2] == 2024  # millésime transmis
 
 
 def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
@@ -57,7 +66,9 @@ def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
     inserted = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
 
     assert inserted == 0
-    assert conn.calls == []
+    assert conn.inserts() == []
+    # La suppression a bien lieu : un millésime redevenu vide doit vider la commune.
+    assert len(conn.deletes()) == 1
 
 
 _CSV_MIXTE = (
@@ -74,4 +85,4 @@ def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
     inserted = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
 
     assert inserted == 1
-    assert len(conn.calls) == 1
+    assert len(conn.inserts()) == 1
