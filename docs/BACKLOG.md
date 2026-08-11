@@ -3,6 +3,8 @@
 Généré à partir du document de cadrage MVP, complété par
 [Onboarding self-service](ONBOARDING-SELF-SERVICE.md) et
 [Tests d'invariants et qualité des données](QUALITE-DONNEES.md). 14 epics, 81 tâches/décisions.
+Les grandeurs statistiques citées ici sont définies dans le
+[glossaire](GLOSSAIRE-STATISTIQUE.md).
 Les numéros renvoient aux [issues](../../../issues) du dépôt.
 
 > Statut initial de toutes les issues : `statut: à faire`. Voir le [README](../README.md)
