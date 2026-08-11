@@ -91,10 +91,10 @@ def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
 _DPE_ADEME = {
     "results": [
         {
-            "Code_postal_(BAN)": "31000",
-            "Adresse_(BAN)": "12 RUE DES FLEURS 31000 TOULOUSE",
-            "Etiquette_DPE": "F",
-            "Période_construction": "avant 1948",
+            "code_postal_ban": "31000",
+            "adresse_ban": "12 RUE DES FLEURS 31000 TOULOUSE",
+            "etiquette_dpe": "F",
+            "periode_construction": "avant 1948",
         }
     ]
 }
