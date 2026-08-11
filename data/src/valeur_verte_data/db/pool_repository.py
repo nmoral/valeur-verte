@@ -12,6 +12,8 @@ régression.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ..dvf import Mutation
 from .runner import Connection
 
@@ -24,7 +26,7 @@ _SELECT_POOL = (
     "SELECT id_mutation, date_mutation, millesime, code_insee, prix, surface_bati, "
     "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude "
     "FROM data.vente "
-    "WHERE code_insee LIKE %s AND millesime = %s AND type_local = %s"
+    "WHERE code_insee LIKE ANY(%s) AND millesime = %s AND type_local = %s"
 )
 
 
@@ -57,6 +59,7 @@ def load_pool(
     departement: str,
     millesime: int,
     *,
+    limitrophes: Sequence[str] = (),
     type_local: str = SEGMENT_MVP,
 ) -> list[Mutation]:
     """Ventes d'un département pour un millésime, prêtes pour le moteur.
@@ -64,9 +67,15 @@ def load_pool(
     Le département est déduit du préfixe du code INSEE : c'est la clé de
     rattachement retenue (§7), le code postal ne l'est jamais.
 
+    ``limitrophes`` fait déborder le pool sur les départements voisins, pour que
+    les communes du bord disposent d'un voisinage entier (#18). Le débordement
+    est demandé par l'appelant plutôt que déduit ici : ce module charge des
+    ventes, il ne connaît pas la géographie.
+
     Le segment est un paramètre explicite plutôt qu'une condition enfouie :
     étendre le calcul aux appartements suppose de contrôler l'emplacement
     infra-communal, et le point de bascule doit rester visible (#115).
     """
-    lignes = conn.execute(_SELECT_POOL, [f"{departement}%", millesime, type_local]).fetchall()
+    prefixes = [f"{code}%" for code in (departement, *limitrophes)]
+    lignes = conn.execute(_SELECT_POOL, [prefixes, millesime, type_local]).fetchall()
     return [_mutation(tuple(ligne)) for ligne in lignes]

@@ -115,7 +115,7 @@ def test_le_pool_du_departement_n_est_charge_qu_une_fois(
     """Recharger par commune multiplierait les requêtes sans rien apporter (§10.6)."""
     chargements: list[str] = []
 
-    def _charger(conn: Any, departement: str, millesime: int) -> list[Mutation]:
+    def _charger(conn: Any, departement: str, millesime: int, **_: Any) -> list[Mutation]:
         chargements.append(departement)
         return _POOL
 
@@ -169,7 +169,7 @@ def test_les_communes_calculees_sont_ecrites(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
-    monkeypatch.setattr(cli, "load_pool", lambda *_: _POOL)
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -183,7 +183,7 @@ def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(
 ) -> None:
     """Le refus sous seuil est un résultat du cadrage (§7), pas une panne."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_: [])
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -197,7 +197,7 @@ def test_un_departement_sans_aucun_coefficient_sort_en_erreur(
 ) -> None:
     """Rien de calculé signale un pool vide ou un millésime erroné."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_: [])
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 

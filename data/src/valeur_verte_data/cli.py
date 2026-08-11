@@ -26,6 +26,7 @@ from .db.runner import Connection, resolve_dsn
 from .decoupage_source import fetch_communes_by_departement
 from .http import Fetcher, HttpFetcher
 from .ingest import ingest_commune
+from .limitrophes import limitrophes
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -141,11 +142,23 @@ def compute_departement(
 
     Le pool est chargé une seule fois (§10.6) ; les communes refusées sous le
     seuil sont normales et n'interrompent rien.
+
+    Il déborde sur les départements limitrophes (#18) : sans eux, une commune du
+    bord calcule sur un demi-disque. Les voisins **nourrissent** le calcul sans
+    être calculés — la liste des communes vient du découpage administratif du
+    département demandé, et publier une maille voisine reviendrait à propager le
+    défaut que ce débordement corrige, ses propres voisins n'étant pas chargés.
     """
     rapport = RapportCalcul(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
-    pool = load_pool(conn, departement, millesime)
-    logger.info("Pool du département %s : %d vente(s)", departement, len(pool))
+    voisins = limitrophes(departement)
+    pool = load_pool(conn, departement, millesime, limitrophes=voisins)
+    logger.info(
+        "Pool du département %s (+ %s) : %d vente(s)",
+        departement,
+        ", ".join(voisins) if voisins else "aucun limitrophe",
+        len(pool),
+    )
 
     coordonnees = [
         (commune.code_insee, commune.centre_latitude, commune.centre_longitude)
