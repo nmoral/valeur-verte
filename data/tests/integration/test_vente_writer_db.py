@@ -11,6 +11,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.jetable import exiger_base_jetable
 from valeur_verte_data.db.vente_repository import insert_mutations
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
@@ -43,6 +44,7 @@ def test_insert_mutations_ecrit_la_ligne_et_le_geom() -> None:
     cli.run(os.environ)  # garantit le schéma
 
     with psycopg.connect(DSN) as conn:
+        exiger_base_jetable(os.environ)
         conn.execute("TRUNCATE data.vente")
         inserted = insert_mutations(conn, [_mutation("itest-1")])
         conn.commit()
