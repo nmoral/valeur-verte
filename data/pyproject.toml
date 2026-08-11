@@ -47,6 +47,8 @@ files = ["src", "tests"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = [
+  # Certains de ces tests vident des tables : ils exigent en plus
+  # VALEUR_VERTE_BASE_JETABLE=1, à ne définir que sur une base jetable (#112).
   "integration: nécessite une base PostgreSQL/PostGIS réelle (DATABASE_URL).",
 ]
 
