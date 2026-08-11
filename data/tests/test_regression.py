@@ -283,3 +283,27 @@ def test_fit_estime_une_elasticite_de_surface() -> None:
     result = fit(echantillon, 43.6, 1.44, reference_dpe="D")
 
     assert round(result.coef_m2_bati, 2) == 0.90
+
+
+def test_fit_isole_le_dpe_de_la_periode_de_construction() -> None:
+    """La classe DPE sert de proxy à l'ancienneté si on ne la contrôle pas (#115).
+
+    Mesuré sur le 31 : 44 % des logements classés G sont d'avant 1948, contre
+    2 % des A. Là où l'ancien est recherché — hypercentre toulousain —, la
+    régression attribue alors à l'étiquette ce qui revient à l'époque du bâti.
+    """
+    # F est concentré dans l'ancien, lui-même 30 % plus cher : sans contrôle de
+    # la période, F paraîtrait moins pénalisé qu'il ne l'est.
+    recent = [
+        _house("D", b, 0, _prix_theorique(b, 0, 0.0), periode="1975-1977") for b in (80, 100, 120)
+    ]
+    recent += [_house("F", 100, 0, _prix_theorique(100, 0, -0.20), periode="1975-1977")]
+    ancien = [
+        _house("F", b, 0, _prix_theorique(b, 0, -0.20, facteur=1.3), periode="avant 1948")
+        for b in (80, 100, 120)
+    ]
+    ancien += [_house("D", 100, 0, _prix_theorique(100, 0, 0.0, facteur=1.3), periode="avant 1948")]
+
+    result = fit(recent + ancien, 43.6, 1.44)
+
+    assert round(result.coef_dpe["F"], 2) == -0.20
