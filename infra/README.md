@@ -26,19 +26,28 @@ rejeu sans migration en attente ne fait rien.
 
 ## Préparation du VPS (une seule fois)
 
-Le déploiement écrit dans `/opt/valeur-verte`, mais `/opt` appartient à `root` :
-le compte de déploiement ne peut pas y créer le répertoire lui-même. Il est donc
-provisionné à la main, une fois :
+[`provision-vps.sh`](provision-vps.sh) est **la** procédure de reconstruction de
+l'hôte. Elle est idempotente : rejouable sans dommage, et pensée pour qu'une
+machine dérivée soit refaite plutôt que rafistolée.
 
 ```bash
-sudo install -d -o "$USER" -g "$USER" -m 755 /opt/valeur-verte
+scp infra/provision-vps.sh vps:/tmp/
+ssh vps 'sudo bash /tmp/provision-vps.sh'
 ```
 
-Le compte doit par ailleurs appartenir au groupe `docker` (`id -nG | grep docker`)
-et la clé publique de déploiement figurer dans son `~/.ssh/authorized_keys`.
+Elle refuse d'emblée une version d'Ubuntu non-LTS — le garde-fou qui empêche de
+reconstituer la situation de [#99](../../../issues/99) — puis installe les
+correctifs automatiques, Docker depuis le dépôt officiel, ajoute le compte au
+groupe `docker`, crée `/opt/valeur-verte` et n'autorise plus que
+l'authentification par clé en SSH.
 
-Le workflow vérifie que le répertoire est inscriptible et s'arrête avec un
-message explicite sinon, plutôt que d'échouer sur un « Permission denied » de
+Deux prérequis restent manuels : la clé publique de déploiement dans
+`~/.ssh/authorized_keys` du compte, et le choix de cette même clé lors d'une
+réinstallation depuis le manager OVH.
+
+`/opt` appartenant à `root`, le compte de déploiement ne peut pas créer son
+répertoire lui-même : le workflow vérifie qu'il est inscriptible et s'arrête sur
+un message explicite sinon, plutôt que d'échouer sur un « Permission denied » de
 `scp` dont la cause serait difficile à relier.
 
 ## Secrets attendus (environnement `vps`)
