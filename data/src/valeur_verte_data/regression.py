@@ -36,6 +36,7 @@ class _Row:
     bati: float
     terrain: float
     dpe: str
+    periode: str
     insee: str
     annee: str
     lat: float
@@ -93,6 +94,7 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
                 bati=mutation.surface_bati,
                 terrain=mutation.surface_terrain or 0.0,
                 dpe=mutation.etiquette_dpe,
+                periode=mutation.periode_construction or "",
                 insee=mutation.code_insee,
                 annee=str(mutation.millesime),
                 lat=mutation.latitude,
@@ -108,6 +110,7 @@ class _Columns:
 
     reference_dpe: str
     dpe: list[str]
+    periode: list[str]
     commune: list[str]
     annee: list[str]
 
@@ -130,6 +133,9 @@ def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
     return _Columns(
         reference_dpe=ref,
         dpe=[level for level in dpe_levels if level != ref],
+        # La période est corrélée au DPE : sans elle, l'étiquette capte
+        # l'effet de l'époque de construction (#115).
+        periode=sorted({row.periode for row in rows})[1:],
         commune=sorted({row.insee for row in rows})[1:],
         annee=sorted({row.annee for row in rows})[1:],
     )
@@ -145,6 +151,7 @@ def _encode(rows: list[_Row], columns: _Columns) -> NDArray[np.float64]:
     ]
     extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
         (columns.dpe, lambda row: row.dpe),
+        (columns.periode, lambda row: row.periode),
         (columns.commune, lambda row: row.insee),
         (columns.annee, lambda row: row.annee),
     )
