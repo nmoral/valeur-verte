@@ -282,3 +282,46 @@ def test_le_terrain_continue_apres_une_parcelle_sans_surface() -> None:
     (mutation,) = aggregate_mutations(rows, millesime=2024)
 
     assert mutation.surface_terrain == 300.0
+
+
+def test_surface_terrain_lue_au_format_reel_du_csv() -> None:
+    """Le CSV DVF porte le libellé dans `nature_culture` et le code ailleurs (#136).
+
+    La colonne `nature_culture` contient « sols », « jardins », « terres »… ;
+    le code `S` vit dans `code_nature_culture`. Filtrer sur le libellé attendu
+    `"S"` ne matchait jamais, et toutes les surfaces de terrain étaient perdues.
+    """
+    lignes = [
+        _row(
+            id_parcelle="P1",
+            surface_terrain="500",
+            code_nature_culture="S",
+            nature_culture="sols",
+        ),
+    ]
+
+    (mutation,) = aggregate_mutations(lignes, millesime=2024)
+
+    assert mutation.surface_terrain == 500.0
+
+
+def test_les_terres_agricoles_restent_exclues() -> None:
+    """Le cadrage §7 ne retient que les sols : une terre labourable n'est pas un jardin."""
+    lignes = [
+        _row(
+            id_parcelle="P1",
+            surface_terrain="500",
+            code_nature_culture="S",
+            nature_culture="sols",
+        ),
+        _row(
+            id_parcelle="P2",
+            surface_terrain="90000",
+            code_nature_culture="T",
+            nature_culture="terres",
+        ),
+    ]
+
+    (mutation,) = aggregate_mutations(lignes, millesime=2024)
+
+    assert mutation.surface_terrain == 500.0
