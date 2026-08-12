@@ -147,7 +147,13 @@ def compute_maille(
     if decision.mode is CoverageMode.LOCAL:
         sample: Sequence[Mutation] = selection.sample
         rayon_km: int | None = selection.rayon_km
-        fit_sigma = config.sigma_km
+        # σ adaptatif (S23) : la finesse de la pondération suit le rayon qu'il a
+        # fallu atteindre — serré en zone dense, plus lâche en rural.
+        fit_sigma = (
+            selection.rayon_km / config.sigma_diviseur
+            if config.sigma_adaptatif
+            else config.sigma_km
+        )
     else:
         sample = departemental
         rayon_km = None
