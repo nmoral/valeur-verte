@@ -68,7 +68,7 @@ def main() -> None:
         }
         print(
             f"millésime {MILLESIME} | restreindre_bati_ancien={config.restreindre_bati_ancien} "
-            f"| ecretage={config.ecretage} (frac={config.ecretage_fraction}, "
+            f"| ecretage={config.ecretage} (k={config.ecretage_k}, "
             f"seuil_n={config.ecretage_seuil_n})"
         )
         print(f"Pool 31 (+limitrophes) : {len(pools['31'])} maisons | Pool 09 : {len(pools['09'])}")
