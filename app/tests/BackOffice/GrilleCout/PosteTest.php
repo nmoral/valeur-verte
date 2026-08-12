@@ -22,6 +22,26 @@ final class PosteTest extends TestCase
         self::assertSame($uniteAttendue, $poste->unite());
     }
 
+    #[DataProvider('libellesAttendus')]
+    public function testChaquePostePorteSonLibelleAffichable(Poste $poste, string $libelleAttendu): void
+    {
+        self::assertSame($libelleAttendu, $poste->libelle());
+    }
+
+    /**
+     * @return iterable<string, array{Poste, string}>
+     */
+    public static function libellesAttendus(): iterable
+    {
+        yield 'murs' => [Poste::Murs, 'Isolation des murs'];
+        yield 'combles' => [Poste::Combles, 'Isolation des combles'];
+        yield 'planchers bas' => [Poste::PlanchersBas, 'Planchers bas'];
+        yield 'menuiseries' => [Poste::Menuiseries, 'Menuiseries'];
+        yield 'chauffage' => [Poste::Chauffage, 'Pompe à chaleur air/eau'];
+        yield 'ECS' => [Poste::Ecs, 'Eau chaude sanitaire'];
+        yield 'VMC' => [Poste::Vmc, 'VMC double flux'];
+    }
+
     /**
      * @return iterable<string, array{Poste, Unite}>
      */

@@ -22,4 +22,17 @@ enum Poste
             self::Chauffage, self::Ecs, self::Vmc => Unite::EuroForfait,
         };
     }
+
+    public function libelle(): string
+    {
+        return match ($this) {
+            self::Murs => 'Isolation des murs',
+            self::Combles => 'Isolation des combles',
+            self::PlanchersBas => 'Planchers bas',
+            self::Menuiseries => 'Menuiseries',
+            self::Chauffage => 'Pompe à chaleur air/eau',
+            self::Ecs => 'Eau chaude sanitaire',
+            self::Vmc => 'VMC double flux',
+        };
+    }
 }
