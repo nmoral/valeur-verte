@@ -15,14 +15,14 @@ from .runner import Connection
 _UPSERT = (
     "INSERT INTO data.coefficient_maille ("
     "code_insee, millesime, rayon_retenu_km, n_transactions, r2, erreur_mediane, "
-    "coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe"
-    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb) "
+    "coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe, alerte"
+    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s) "
     "ON CONFLICT (code_insee) DO UPDATE SET "
     "millesime = EXCLUDED.millesime, rayon_retenu_km = EXCLUDED.rayon_retenu_km, "
     "n_transactions = EXCLUDED.n_transactions, r2 = EXCLUDED.r2, "
     "erreur_mediane = EXCLUDED.erreur_mediane, coef_m2_bati = EXCLUDED.coef_m2_bati, "
     "coef_m2_terrain = EXCLUDED.coef_m2_terrain, coef_dpe = EXCLUDED.coef_dpe, "
-    "ic_dpe = EXCLUDED.ic_dpe, calcule_le = now()"
+    "ic_dpe = EXCLUDED.ic_dpe, alerte = EXCLUDED.alerte, calcule_le = now()"
 )
 
 
@@ -54,5 +54,6 @@ def upsert_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
             maille.coef_m2_terrain,
             json.dumps(maille.coef_dpe),
             json.dumps(maille.ic_dpe),
+            maille.alerte,
         ],
     )

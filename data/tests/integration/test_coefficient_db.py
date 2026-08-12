@@ -12,10 +12,11 @@ from dataclasses import replace
 import psycopg
 import pytest
 
-from valeur_verte_data.batch import compute_maille
+from valeur_verte_data.batch import MailleCoefficient, compute_maille
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.db import migrate as cli
 from valeur_verte_data.db.coefficient_repository import upsert_coefficient
+from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
 DSN = os.environ.get("DATABASE_URL", "")
@@ -85,3 +86,44 @@ def test_compute_maille_puis_upsert_est_relu_et_idempotent() -> None:
     assert row[0] == 12
     assert round(float(row[1]), 2) == -0.20  # effet relatif, non euros
     assert row[2] == 10
+
+
+def _maille(code_insee: str, alerte: str | None) -> MailleCoefficient:
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=10,
+        n_transactions=40,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=1500.0,
+        coef_m2_terrain=100.0,
+        coef_dpe={"D": 0.0, "F": -0.20},
+        ic_dpe={},
+        alerte=alerte,
+    )
+
+
+def test_upsert_persiste_l_alerte_de_bord() -> None:
+    # #162 : le bandeau (bord INV-3 #121 / dégradé #22) doit être servable, donc
+    # écrit en base. Sans alerte, la colonne reste NULL.
+    cli.run(os.environ)
+    avec = _maille("31901", "Écart de valeur important avec une commune limitrophe (facteur 3.0)")
+    sans = _maille("31902", None)
+
+    with psycopg.connect(DSN) as conn:
+        conn.execute("DELETE FROM data.coefficient_maille WHERE code_insee IN ('31901', '31902')")
+        upsert_coefficient(conn, avec)
+        upsert_coefficient(conn, sans)
+        conn.commit()
+
+        lu_avec = conn.execute(
+            "SELECT alerte FROM data.coefficient_maille WHERE code_insee = '31901'"
+        ).fetchone()
+        lu_sans = conn.execute(
+            "SELECT alerte FROM data.coefficient_maille WHERE code_insee = '31902'"
+        ).fetchone()
+
+    assert lu_avec is not None and lu_avec[0] == avec.alerte
+    assert lu_sans is not None and lu_sans[0] is None
