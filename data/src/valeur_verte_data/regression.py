@@ -17,7 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .dvf import Mutation
-from .radius import haversine_km
+from .radius import distances_km
 
 DEFAULT_SIGMA_KM = 10.0
 DEFAULT_REFERENCE_DPE = "D"
@@ -263,13 +263,11 @@ def _indice_local(
 def _weights(
     rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float
 ) -> NDArray[np.float64]:
-    return np.array(
-        [
-            gaussian_weight(haversine_km(center_lat, center_lon, row.lat, row.lon), sigma_km)
-            for row in rows
-        ],
-        dtype=float,
-    )
+    """Poids gaussien de chaque ligne, **vectorisé** (exp(-d²/2σ²))."""
+    lats = np.array([row.lat for row in rows], dtype=np.float64)
+    lons = np.array([row.lon for row in rows], dtype=np.float64)
+    distances = distances_km(center_lat, center_lon, lats, lons)
+    return np.asarray(np.exp(-(distances**2) / (2.0 * sigma_km**2)), dtype=np.float64)
 
 
 def _fit_model(

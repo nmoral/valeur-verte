@@ -13,6 +13,9 @@ import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
+import numpy as np
+from numpy.typing import NDArray
+
 from .dvf import Mutation
 
 RADII_KM: tuple[int, ...] = (10, 15, 20, 30, 50)
@@ -27,6 +30,22 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return 2 * _EARTH_RADIUS_KM * math.asin(math.sqrt(a))
+
+
+def distances_km(
+    center_lat: float, center_lon: float, lats: NDArray[np.float64], lons: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """Haversine **vectorisé** : distances (km) du centre à chaque point.
+
+    Une seule opération numpy remplace des dizaines de milliers d'appels Python —
+    c'est le point chaud du batch (une sélection par commune sur tout le pool).
+    """
+    phi1 = math.radians(center_lat)
+    phi2 = np.radians(lats)
+    dphi = np.radians(lats - center_lat)
+    dlambda = np.radians(lons - center_lon)
+    a = np.sin(dphi / 2) ** 2 + math.cos(phi1) * np.cos(phi2) * np.sin(dlambda / 2) ** 2
+    return np.asarray(2.0 * _EARTH_RADIUS_KM * np.arcsin(np.sqrt(a)), dtype=np.float64)
 
 
 @dataclass(frozen=True)
@@ -54,26 +73,26 @@ def adaptive_selection(
     radii: Sequence[int] = RADII_KM,
 ) -> RadiusSelection:
     """Retourne le plus petit rayon atteignant ``min_sample`` transactions (§5.1)."""
-    distances: list[tuple[float, Mutation]] = []
-    for mutation in mutations:
-        if mutation.latitude is None or mutation.longitude is None:
-            continue
-        distance = haversine_km(center_lat, center_lon, mutation.latitude, mutation.longitude)
-        distances.append((distance, mutation))
+    avec_coord = [m for m in mutations if m.latitude is not None and m.longitude is not None]
+    if not avec_coord:
+        return RadiusSelection([], radii[-1], False, 0.0)
 
-    triees = sorted(distance for distance, _ in distances)
-    if not triees:
-        distance_min_sample = 0.0
-    elif len(triees) >= min_sample:
-        distance_min_sample = triees[min_sample - 1]
-    else:
-        distance_min_sample = triees[-1]
+    lats = np.array([m.latitude for m in avec_coord], dtype=np.float64)
+    lons = np.array([m.longitude for m in avec_coord], dtype=np.float64)
+    distances = distances_km(center_lat, center_lon, lats, lons)
 
-    sample: list[Mutation] = []
+    triees = np.sort(distances)
+    rang = min_sample - 1 if len(triees) >= min_sample else len(triees) - 1
+    distance_min_sample = float(triees[rang])
+
+    def _echantillon(mask: NDArray[np.bool_]) -> list[Mutation]:
+        return [avec_coord[int(i)] for i in np.flatnonzero(mask)]
+
     rayon = radii[-1]
+    mask = distances <= rayon
     for radius_km in radii:
-        sample = [mutation for distance, mutation in distances if distance <= radius_km]
+        mask = distances <= radius_km
         rayon = radius_km
-        if len(sample) >= min_sample:
-            return RadiusSelection(sample, radius_km, True, distance_min_sample)
-    return RadiusSelection(sample, rayon, False, distance_min_sample)
+        if int(np.count_nonzero(mask)) >= min_sample:
+            return RadiusSelection(_echantillon(mask), radius_km, True, distance_min_sample)
+    return RadiusSelection(_echantillon(mask), rayon, False, distance_min_sample)
