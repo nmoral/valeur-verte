@@ -48,12 +48,17 @@ def main() -> None:
     refus = calc = err_ok = avec_viol = publiables = 0
     sans_gain_ec = publiable_ec = 0
     errs: list[float] = []
-    for code, lat, lon, _n in communes:
+    # Pondération par le nombre de ventes de maisons de la commune (part de marché).
+    tx_total = sum(int(c[3]) for c in communes)
+    tx_calc = tx_err_ok = tx_publiable_ec = tx_publiable_strict = 0
+    for code, lat, lon, n in communes:
+        n = int(n)
         m = compute_maille(str(code), float(lat), float(lon), 2024, pool, config=GAGNANTE)
         if m is None:
             refus += 1
             continue
         calc += 1
+        tx_calc += n
         e = m.erreur_mediane
         if e is not None:
             errs.append(e)
@@ -64,14 +69,17 @@ def main() -> None:
         gain_sain = a_gain_ec and d["C"] > d["E"]
         if ok:
             err_ok += 1
+            tx_err_ok += n
         if viol:
             avec_viol += 1
         if ok and viol == 0:
             publiables += 1
+            tx_publiable_strict += n
         if not a_gain_ec:
             sans_gain_ec += 1
         if ok and gain_sain:
             publiable_ec += 1
+            tx_publiable_ec += n
 
     def pct(x: int, base: int) -> str:
         return f"{x} ({x / base * 100:.0f}%)" if base else f"{x} (—)"
@@ -90,6 +98,11 @@ def main() -> None:
             f"  errCV : médiane={np.median(arr):.1f}  p25={np.percentile(arr, 25):.1f}  "
             f"p75={np.percentile(arr, 75):.1f}  p90={np.percentile(arr, 90):.1f}  max={arr.max():.1f}"
         )
+    print(f"\n  === Pondéré par les ventes (part de marché, {tx_total} ventes) ===")
+    print(f"    couvertes par une maille calculée   : {pct(tx_calc, tx_total)}")
+    print(f"    dans une maille errCV < 20 %        : {pct(tx_err_ok, tx_total)}")
+    print(f"    publiable strict (monotone)         : {pct(tx_publiable_strict, tx_total)}")
+    print(f"    publiable gain E→C                  : {pct(tx_publiable_ec, tx_total)}")
 
 
 if __name__ == "__main__":

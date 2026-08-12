@@ -18,6 +18,34 @@ PUBLIABLES gain E→C (calc & err<20 & C>E)     : 171 (34 % du total)
 errCV : médiane 16,5   p25 14,1   p75 21,0   p90 25,2   max 33,3
 ```
 
+## Pondéré par les transactions (part de marché) — le vrai chiffre
+
+Le taux par *nombre de communes* écrase le marché : les REFUS et les err>20 sont
+surtout de petites communes rurales. Pondéré par le nombre de ventes de maisons
+(7 692 ventes) :
+
+| Métrique | par commune | **par transactions** |
+|---|---|---|
+| Calculent | 72 % | **91 %** |
+| errCV < 20 % | 51 % du total | **83 %** |
+| Publiable strict (monotone) | 31 % | **34 %** |
+| **Publiable gain E→C** | 34 % | **71 %** |
+
+**~71 % du marché** (des ventes de maisons du 31) obtient un **gain E→C fiable** à
+la maille commune. Les 28 % de communes en REFUS ne pèsent que **9 %** des ventes.
+
+## Le constat qui tranche le débat monotonie
+
+Pondéré, le « strict monotone » (34 %) est **deux fois plus bas** que l'E→C (71 %).
+Pourquoi ? Parce que **les communes denses — l'essentiel du marché — sont
+justement celles qui portent l'inversion F/G** (vieux bâti de caractère,
+cf. [diagnostic F/G](diagnostic-inversion-FG-toulouse.md)). Une porte « monotonie
+parfaite » **jetterait la moitié du marché, sa moitié la plus dense et la plus
+chère**, à cause d'une inversion de queue qui **n'affecte pas** le gain E→C.
+
+C'est la preuve chiffrée qu'il faut **publier centré E→C**, et **surtout pas** faire
+de la monotonie parfaite une condition de publication.
+
 ## Lecture
 
 1. **La porte de publication EST la décision produit.** Selon le critère, le taux
@@ -31,11 +59,10 @@ errCV : médiane 16,5   p25 14,1   p75 21,0   p90 25,2   max 33,3
    (adjacentes, classe rare sous 30 ventes). On ne peut pas appliquer la tolérance
    aujourd'hui : **les effectifs par classe ne sont pas persistés** — prérequis à
    débloquer.
-4. **Le 34 % est par NOMBRE de communes, pas par marché.** Les 28 % de REFUS et la
-   plupart des err>20 sont de **petites communes rurales** peu peuplées. Les
-   communes denses (où sont la population et les transactions) publient proprement.
-   Pondéré par les transactions, le taux de couverture serait **bien plus haut** —
-   à mesurer. Le reste relève du **mode dégradé départemental** (#22).
+4. **Le 34 % est par NOMBRE de communes, pas par marché** — mesuré ci-dessous :
+   pondéré par les ventes, **71 % du marché** obtient un gain E→C fiable, et 91 %
+   est couvert par une maille qui calcule. Le reste relève du **mode dégradé
+   départemental** (#22).
 
 ## Ce que ça impose pour publier
 
