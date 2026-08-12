@@ -147,6 +147,10 @@ def compute_maille(
     config: CalculConfig = DEFAULT_CONFIG,
 ) -> MailleCoefficient | None:
     """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
+    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
+    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
+    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
+    pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
     selection = adaptive_selection(
         centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
     )

@@ -126,6 +126,10 @@ class RapportCalcul:
     communes_calculees: int = 0
     refus: list[str] = field(default_factory=list)
     echecs: list[str] = field(default_factory=list)
+    # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
+    # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
+    # batches dont on sait qu'ils étaient reproductibles.
+    ordre_canonique: str = "id_mutation"
 
     @property
     def est_en_echec(self) -> bool:
@@ -137,7 +141,8 @@ class RapportCalcul:
             f"Département {self.departement}, millésime {self.millesime} : "
             f"{self.communes_calculees} coefficient(s), "
             f"{len(self.refus)} refus sous seuil, "
-            f"{len(self.echecs)} échec(s)"
+            f"{len(self.echecs)} échec(s) ; "
+            f"ordre canonique : {self.ordre_canonique}"
         )
 
 

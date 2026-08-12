@@ -184,6 +184,18 @@ def test_les_communes_calculees_sont_ecrites(
     assert connexion.commits >= 1
 
 
+def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
+    """INV-5 (#123) : le rapport de batch trace la garantie de reproductibilité —
+    la clé d'ordre canonique qui rend le calcul déterministe. Sans ce marqueur,
+    un millésime publié n'est pas auditable et REG-1 compare des batches dont on
+    ne sait pas s'ils étaient reproductibles.
+    """
+    rapport = cli.RapportCalcul(departement="31", millesime=2024)
+
+    assert rapport.ordre_canonique == "id_mutation"
+    assert "id_mutation" in rapport.resume()
+
+
 def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

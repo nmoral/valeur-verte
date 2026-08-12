@@ -14,6 +14,7 @@ from valeur_verte_data.batch import (
     compute_maille,
 )
 from valeur_verte_data.config import CalculConfig
+from valeur_verte_data.cross_validation import median_relative_error
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.radius import RadiusSelection
@@ -526,3 +527,37 @@ def test_une_maille_avec_la_seule_reference_est_refusee() -> None:
     maille = compute_maille("31555", 43.6, 1.44, 2024, pool)
 
     assert maille is None
+
+
+# ---------------------------------------------------------------------------
+# INV-5 (#123) — Reproductibilité du batch : le résultat ne doit dépendre que
+# du jeu de données, jamais de l'ordre dans lequel les lignes arrivent. Le
+# SELECT du pool n'ayant pas d'ORDER BY, PostgreSQL est libre de renvoyer les
+# ventes dans un ordre variable d'une exécution à l'autre. Deux exécutions sur
+# le même jeu figé doivent produire des coefficients identiques bit à bit.
+# ---------------------------------------------------------------------------
+
+
+def test_median_relative_error_invariant_a_l_ordre_des_lignes() -> None:
+    """Les plis sont découpés par ``index % folds`` : si l'ordre des lignes
+    change, l'appartenance aux plis change et l'erreur médiane dérive. Elle
+    doit être invariante à l'ordre d'entrée (INV-5)."""
+    sample = _cluster(12, lat=43.6, lon=1.44)
+
+    directe = median_relative_error(sample, 43.6, 1.44)
+    inverse = median_relative_error(list(reversed(sample)), 43.6, 1.44)
+
+    assert directe == inverse
+
+
+def test_compute_maille_invariant_a_l_ordre_du_pool() -> None:
+    """Critère d'acceptation INV-5 : deux exécutions sur le même jeu figé, à
+    l'ordre près, produisent un ``MailleCoefficient`` identique bit à bit."""
+    pool = _cluster(12, lat=43.6, lon=1.44)
+    config = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    reference = compute_maille("31555", 43.6, 1.44, 2024, pool, config=config)
+    melange = compute_maille("31555", 43.6, 1.44, 2024, list(reversed(pool)), config=config)
+
+    assert reference is not None
+    assert reference == melange
