@@ -55,3 +55,5 @@ classes publiables).
 - [`resultats-S22.md`](resultats-S22.md) — retirer les effets fixes commune (sur-paramétrage) ; répare le rural fragile.
 - [`resultats-S24.md`](resultats-S24.md) — indice local : ablation → à garder (signal réel, pas redondant).
 - [`resultats-bornee-vs-nobornes.md`](resultats-bornee-vs-nobornes.md) — config gagnante sur base bornée vs sans bornes ; l'erreur plus basse en bornée est un artefact de censure.
+- [`diagnostic-inversion-FG-toulouse.md`](diagnostic-inversion-FG-toulouse.md) — l'inversion F/G de Toulouse est réelle (vieux bâti de caractère).
+- [`distribution-31.md`](distribution-31.md) — **config gagnante sur les 498 communes du 31** : taux calc/err/monotonie/publiable. Le chiffre qui décide.
