@@ -15,7 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
  * reconstruit à la lecture : Doctrine ne sait pas rendre un embeddable nullable.
  */
 #[ORM\Entity(repositoryClass: RapportRepository::class)]
-#[ORM\Table(name: 'rapport', schema: 'app')]
+#[ORM\Table(name: 'rapport')]
 class Rapport
 {
     #[ORM\Id]

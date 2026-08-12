@@ -15,7 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
  * configuration (ONB-4), avec la couleur de marque par défaut.
  */
 #[ORM\Entity(repositoryClass: BrandingRepository::class)]
-#[ORM\Table(name: 'branding', schema: 'app')]
+#[ORM\Table(name: 'branding')]
 class Branding
 {
     #[ORM\Id]
