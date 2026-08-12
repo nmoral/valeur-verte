@@ -26,7 +26,11 @@ _SELECT_POOL = (
     "SELECT id_mutation, date_mutation, millesime, code_insee, prix, surface_bati, "
     "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude "
     "FROM data.vente "
-    "WHERE code_insee LIKE ANY(%s) AND millesime = %s AND type_local = %s"
+    "WHERE code_insee LIKE ANY(%s) AND millesime = %s AND type_local = %s "
+    # INV-5 (#123) : ordre canonique à la source, en défense du tri appliqué
+    # dans le moteur — deux batches sur le même jeu voient les mêmes lignes
+    # dans le même ordre, indépendamment du plan d'exécution PostgreSQL.
+    "ORDER BY id_mutation"
 )
 
 

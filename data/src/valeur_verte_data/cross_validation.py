@@ -41,7 +41,12 @@ def median_relative_error(
     indice_local: bool = True,
 ) -> float | None:
     """Erreur médiane de prédiction en %, ou ``None`` si l'échantillon est trop petit."""
-    rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
+    # INV-5 (#123) : les plis sont découpés par ``index % folds``, donc
+    # l'appartenance aux plis dépend de l'ordre des lignes. On fige un ordre
+    # canonique en amont du filtrage pour que l'erreur médiane ne dépende que
+    # du jeu, pas du tri SQL du pool.
+    ordered = sorted(sample, key=lambda mutation: mutation.id_mutation)
+    rows = _eligible(ordered, restreindre_bati_ancien=restreindre_bati_ancien)
     if len(rows) < folds:
         return None
 
