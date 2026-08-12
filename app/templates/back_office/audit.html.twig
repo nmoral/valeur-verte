@@ -1,41 +1,72 @@
 {% extends 'back_office/base.html.twig' %}
 
-{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes protègent la crédibilité du chiffre&nbsp;: ce n'est pas de la validation de formulaire.</p>{% endblock %}
+{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes évitent qu'un chiffre absurde n'atterrisse devant le client.</p>{% endblock %}
 
 {% block stylesheets %}
 <style>
-    .audit{max-width:640px}
-    .audit-body{padding:6px 16px 16px}
-    .audit-field{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;padding:13px 0;border-bottom:1px solid var(--rule)}
+    .audit{max-width:660px}
+    .audit-body{padding:4px 16px 18px}
+    .audit-field{display:grid;grid-template-columns:1fr;gap:7px;padding:15px 0;border-bottom:1px solid var(--rule)}
     .audit-field:last-of-type{border-bottom:0}
-    .audit-field > label{font-size:13.5px;color:var(--slate);padding-top:8px}
-    .audit-control{display:flex;flex-direction:column;gap:5px}
-    .audit-inline{display:flex;align-items:center;gap:7px}
-    .audit input[type=text],.audit input[type=number],.audit select{
-        font:500 13px/1 'JetBrains Mono',monospace;padding:8px 10px;border:1px solid var(--rule-strong);
-        border-radius:2px;background:#fff;color:var(--ink);
+    .audit-field > label{font:500 13.5px/1.3 'Public Sans',sans-serif;color:var(--slate)}
+    .audit-control{display:flex;flex-direction:column;gap:6px;min-width:0}
+    .audit-inline{display:flex;align-items:center;gap:8px}
+    .audit input[type=text],.audit input[type=number]{
+        font:500 14px/1.2 'JetBrains Mono',monospace;padding:11px 12px;border:1px solid var(--rule-strong);
+        border-radius:3px;background:#fff;color:var(--ink);width:100%;
     }
-    .audit input#adresse{width:100%;text-align:left;font-family:'Public Sans',sans-serif}
-    .audit input[type=number]{width:104px;text-align:right}
-    .audit select{padding-right:6px}
+    .audit input[type=number]{max-width:150px;text-align:right}
+    .audit input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
     .audit .unit{font:400 12px/1 'JetBrains Mono',monospace;color:var(--mute)}
-    .audit-field.has-error input,.audit-field.has-error select{border-color:var(--bad);background:#FDF4F3}
-    .form-error{font:400 12px/1.4 'Public Sans',sans-serif;color:var(--bad)}
-    .field-hint{font:400 11px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
-    .audit-actions{padding-top:16px}
+    .audit-field.has-error input{border-color:var(--bad);background:#FDF4F3}
+    .form-error{font:400 12.5px/1.4 'Public Sans',sans-serif;color:var(--bad)}
+    .field-hint{font:400 11.5px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
 
-    .banner{margin:14px 16px 0;padding:11px 13px;border-radius:2px;font-size:13px;line-height:1.5}
+    /* Adresse + autocomplétion */
+    .adresse-wrap{position:relative}
+    .suggestions{position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:30;margin:0;padding:0;list-style:none;
+        background:#fff;border:1px solid var(--rule-strong);border-radius:3px;box-shadow:0 6px 20px rgba(17,24,32,.12);
+        max-height:260px;overflow:auto;display:none}
+    .suggestions.show{display:block}
+    .suggestions li{padding:11px 12px;font-size:14px;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--rule)}
+    .suggestions li:last-child{border-bottom:0}
+    .suggestions li:hover,.suggestions li.actif{background:var(--brand-soft);color:var(--brand)}
+
+    /* DPE en gros boutons (accessibles, tactiles) */
+    .dpe-group{display:flex;flex-wrap:wrap;gap:7px}
+    .dpe-choice{cursor:pointer}
+    .dpe-choice input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+    .dpe-choice span{display:grid;place-items:center;width:46px;height:46px;border-radius:5px;border:2px solid transparent;
+        font:800 16px/1 'Archivo',sans-serif;color:#fff;user-select:none}
+    .dpe-choice .d-c,.dpe-choice .d-d{color:#2A2A18}
+    .dpe-choice input:checked + span{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+    .dpe-choice input:focus-visible + span{outline:2px solid var(--brand);outline-offset:2px}
+
+    /* Bandeaux */
+    .banner{margin:0 0 14px;padding:12px 14px;border-radius:3px;font-size:13.5px;line-height:1.5}
     .banner-bad{border:1px solid var(--bad);background:#FBEDEB;color:var(--bad)}
     .banner-warn{border:1px solid #E4C687;background:#FBF3E6;color:var(--warn)}
 
+    .audit-actions{padding-top:18px}
+    .audit-actions .btn{width:100%;padding:14px 16px;font-size:14.5px}
+
+    /* Confirmation */
     .confirm{border-left:3px solid var(--ok)}
     .confirm .panel-head h2{display:flex;align-items:center;gap:8px}
-    .confirm .ok-dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:block}
+    .confirm .ok-dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
     .confirm-body{padding:16px}
-    .confirm-body .addr{font:600 15px/1.3 'Public Sans',sans-serif;margin-bottom:8px}
-    .confirm-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font:500 12.5px/1 'JetBrains Mono',monospace;color:var(--slate)}
+    .confirm-body .addr{font:600 16px/1.3 'Public Sans',sans-serif;margin-bottom:9px}
+    .confirm-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px;font:500 12.5px/1.6 'JetBrains Mono',monospace;color:var(--slate)}
     .confirm-meta .sep{color:var(--rule-strong)}
-    .confirm .note{margin-top:14px;padding-top:13px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--mute);line-height:1.5}
+    .confirm .note{margin-top:15px;padding-top:14px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--mute);line-height:1.5}
+
+    /* Tablette / desktop : label à gauche, contrôle à droite, bouton compact */
+    @media (min-width:560px){
+        .audit-field{grid-template-columns:150px 1fr;gap:18px;align-items:start;padding:14px 0}
+        .audit-field > label{font-weight:400;padding-top:11px}
+        .audit-actions{display:grid;grid-template-columns:150px 1fr;gap:18px}
+        .audit-actions .btn{grid-column:2;width:auto;justify-self:start;padding:12px 20px}
+    }
 </style>
 {% endblock %}
 
@@ -56,7 +87,7 @@
             {% if saisie.nombrePieces %}<span class="sep">·</span><span>{{ saisie.nombrePieces }} pièces</span>{% endif %}
         </div>
         {% for avertissement in avertissements %}
-            <p class="banner banner-warn" role="alert" style="margin-left:0;margin-right:0">{{ avertissement }}</p>
+            <p class="banner banner-warn" role="alert" style="margin-top:14px;margin-bottom:0">{{ avertissement }}</p>
         {% endfor %}
         <p class="note">Étape suivante&nbsp;: restitution — effectif, intervalle de confiance, rayon, millésime et indicateur de fiabilité.</p>
         <a class="btn btn-ghost btn-sm" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
@@ -64,18 +95,24 @@
 </div>
 {% endif %}
 
-<div class="panel audit">
-    <div class="panel-head"><h2>Saisie mode audit</h2><span class="hint">§9.8 — bornes de vraisemblance</span></div>
+{% set avant_choisi = valeurs.dpe_avant != '' ? valeurs.dpe_avant : 'E' %}
+{% set apres_choisi = valeurs.dpe_apres != '' ? valeurs.dpe_apres : 'C' %}
 
-    {% if erreurs.global is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.global }}</p>{% endif %}
-    {% if erreurs.dpe is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+<div class="panel audit">
+    <div class="panel-head"><h2>Saisie mode audit</h2></div>
 
     <form method="post" action="{{ path('back_office_audit') }}" novalidate>
         <div class="audit-body">
+            {% if erreurs.global is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.global }}</p>{% endif %}
+            {% if erreurs.dpe is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+
             <div class="audit-field{{ erreurs.adresse is defined ? ' has-error' : '' }}">
                 <label for="adresse">Adresse</label>
                 <div class="audit-control">
-                    <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="12 rue des Lilas, 31000 Toulouse" autofocus required>
+                    <div class="adresse-wrap">
+                        <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                        <ul id="adresse-suggestions" class="suggestions" role="listbox"></ul>
+                    </div>
                     {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
                 </div>
             </div>
@@ -97,20 +134,22 @@
             </div>
 
             <div class="audit-field">
-                <label for="dpe_avant">DPE actuel</label>
-                <div class="audit-control">
-                    <select id="dpe_avant" name="dpe_avant">
-                        {% for dpe in dpe_options %}<option value="{{ dpe.value }}"{{ valeurs.dpe_avant == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>{% endfor %}
-                    </select>
+                <label>DPE actuel</label>
+                <div class="dpe-group" role="radiogroup" aria-label="DPE actuel">
+                    {% for dpe in dpe_options %}
+                        <label class="dpe-choice"><input type="radio" name="dpe_avant" value="{{ dpe.value }}"{{ dpe.value == avant_choisi ? ' checked' : '' }}><span class="d-{{ dpe.value|lower }}">{{ dpe.value }}</span></label>
+                    {% endfor %}
                 </div>
             </div>
 
             <div class="audit-field{{ erreurs.dpeApres is defined ? ' has-error' : '' }}">
-                <label for="dpe_apres">DPE cible</label>
+                <label>DPE cible</label>
                 <div class="audit-control">
-                    <select id="dpe_apres" name="dpe_apres">
-                        {% for dpe in dpe_options %}<option value="{{ dpe.value }}"{{ valeurs.dpe_apres == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>{% endfor %}
-                    </select>
+                    <div class="dpe-group" role="radiogroup" aria-label="DPE cible">
+                        {% for dpe in dpe_options %}
+                            <label class="dpe-choice"><input type="radio" name="dpe_apres" value="{{ dpe.value }}"{{ dpe.value == apres_choisi ? ' checked' : '' }}><span class="d-{{ dpe.value|lower }}">{{ dpe.value }}</span></label>
+                        {% endfor %}
+                    </div>
                     {% if erreurs.dpeApres is defined %}<span class="form-error">{{ erreurs.dpeApres }}</span>{% else %}<span class="field-hint">doit être meilleur que le DPE actuel</span>{% endif %}
                 </div>
             </div>
@@ -131,3 +170,5 @@
     </form>
 </div>
 {% endblock %}
+
+{% block javascripts %}<script src="/js/audit-adresse.js" defer></script>{% endblock %}

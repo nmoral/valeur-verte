@@ -22,9 +22,14 @@ final class AuditControllerTest extends WebTestCase
         self::assertSelectorExists('input[name="adresse"]');
         self::assertSelectorExists('input[name="surface_batie"]');
         self::assertSelectorExists('input[name="surface_terrain"]');
-        self::assertSelectorExists('select[name="dpe_avant"]');
-        self::assertSelectorExists('select[name="dpe_apres"]');
         self::assertSelectorExists('input[name="nombre_pieces"]');
+        // Le DPE se choisit par de gros boutons (radios), pas par un sélecteur.
+        self::assertSelectorExists('input[type="radio"][name="dpe_avant"][value="C"]');
+        self::assertSelectorExists('input[type="radio"][name="dpe_apres"][value="C"]');
+        self::assertSelectorNotExists('select[name="dpe_avant"]');
+        // Autocomplétion d'adresse (progressive enhancement).
+        self::assertSelectorExists('#adresse-suggestions');
+        self::assertSelectorExists('script[src="/js/audit-adresse.js"]');
     }
 
     public function testUneSaisieValideMeneAUneConfirmation(): void
