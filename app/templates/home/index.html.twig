@@ -6,176 +6,249 @@
 <title>Valeur verte mesurée — l'outil des entreprises RGE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/landing.css">
 </head>
 <body>
 
-<nav>
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+
+<nav class="nav" aria-label="Navigation principale">
   <div class="wrap">
-    <span class="logo"><i>VV</i> Valeur Verte</span>
-    <span class="nav-links">
-      <a href="#methode">Méthode</a>
-      <a href="#prix">Prix</a>
-      <a href="#limites">Limites</a>
+    <a href="/" class="brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+    <ul class="nav-menu">
+      <li class="nav-link"><a href="#methode">Méthode</a></li>
+      <li class="nav-link"><a href="#prix">Prix</a></li>
+      <li class="nav-link"><a href="#limites">Limites</a></li>
       {# « Créer un compte » pointera vers l'inscription self-service (#105) quand elle existera. #}
-      <a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a>
-      <a href="{{ path('login') }}" class="btn btn-sm">Créer un compte</a>
-    </span>
+      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
+      <li><a href="{{ path('login') }}" class="btn btn-sm">Créer un compte</a></li>
+    </ul>
   </div>
 </nav>
 
-<!-- ============ HERO : un résultat, pas une promesse ============ -->
-<header class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <p class="kicker">Pour les entreprises RGE</p>
-      <h1>Vos clients ne voient que la dépense. <em>Montrez-leur la valeur.</em></h1>
-      <p class="lead">
-        Le chiffre exact que la rénovation ajoute à leur maison, mesuré sur les ventes
-        réellement enregistrées autour de l'adresse. Pas une moyenne nationale.
-      </p>
-      <div class="cta-row">
-        <a href="{{ path('login') }}" class="btn">Créer un compte</a>
-        <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
-      </div>
-      <p class="cta-note" style="margin-top:14px">Sans carte bancaire · Premier rapport en 3 minutes</p>
-    </div>
+<main id="contenu">
 
-    <!-- la preuve = le produit lui-même -->
-    <div class="proof">
-      <div class="proof-head"><span>Baziège (31) · maison 94 m²</span><span>E → C</span></div>
-      <div class="proof-body">
-        <div class="ruler" id="ruler" aria-hidden="true"></div>
-        <div>
-          <p class="figure">+52 610<span class="cur">€</span></p>
-          <p class="sub">fourchette<br>41 200 – 63 900 €</p>
-          <div class="trust">
-            <span class="dot"></span>
-            <span>476 ventes comparables, rayon 18 km</span>
+  <!-- ============ HERO + SIMULATEUR ============ -->
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Pour les entreprises RGE</p>
+        <h1>Vos clients ne voient que la dépense. <span>Montrez-leur la valeur.</span></h1>
+        <p class="lead">Le chiffre exact que la rénovation ajoute à leur maison, mesuré sur les ventes
+          réellement enregistrées autour de l'adresse. Pas une moyenne nationale.</p>
+        <div class="cta-row">
+          <a href="{{ path('login') }}" class="btn">Créer un compte</a>
+          <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
+        </div>
+        <p class="cta-note">Sans carte bancaire · Premier rapport en 3 minutes</p>
+      </div>
+
+      <section id="simulateur" class="demo" aria-labelledby="demo-titre">
+        <h2 id="demo-titre" class="demo-head">Démonstration · Baziège (31)</h2>
+        <div class="demo-body">
+          <fieldset class="field">
+            <legend>Le logement</legend>
+            <div class="field-row">
+              <span>Je règle&nbsp;:</span>
+              <div class="seg">
+                <button type="button" data-role="mode-cur" aria-pressed="true">L'état actuel</button>
+                <button type="button" data-role="mode-tgt" aria-pressed="false">La classe visée</button>
+              </div>
+            </div>
+            <div class="surf">
+              <label for="surface">Surface habitable</label>
+              <input id="surface" type="range" min="40" max="220" step="2" value="94"
+                     data-role="surface" aria-describedby="surface-val">
+              <output id="surface-val" for="surface" data-role="surface-val">94 m²</output>
+            </div>
+          </fieldset>
+
+          <div class="scale-wrap">
+            <div class="scale" data-role="scale" role="group" aria-label="Échelle des classes énergétiques, de A à G">
+              <span class="scale-axis" aria-hidden="true"></span>
+              <span class="scale-bar" data-role="bar" aria-hidden="true" style="top:82px;height:81px"></span>
+              <button type="button" class="rung" data-c="A" style="top:0" aria-label="Classe A comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:.4">A</span><span class="lab" aria-hidden="true">+ 68 300 €</span><span class="tag" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="rung" data-c="B" style="top:34px" aria-label="Classe B comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:.4">B</span><span class="lab" aria-hidden="true">+ 46 280 €</span><span class="tag" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="rung" data-c="C" style="top:67px" aria-label="Classe C comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:1;outline:2px solid #111820">C</span><span class="lab" aria-hidden="true">+ 25 030 €</span><span class="tag" aria-hidden="true">classe visée</span>
+              </button>
+              <button type="button" class="rung" data-c="D" style="top:106px" aria-label="Classe D comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:1">D</span><span class="lab" aria-hidden="true">0 €</span><span class="tag" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="rung" data-c="E" style="top:148px" aria-label="Classe E comme état actuel du logement" aria-pressed="true">
+                <span class="badge" aria-hidden="true" style="opacity:1;outline:2px solid #111820">E</span><span class="lab" aria-hidden="true">− 27 180 €</span><span class="tag" aria-hidden="true">état actuel</span>
+              </button>
+              <button type="button" class="rung" data-c="F" style="top:176px" aria-label="Classe F comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:.4">F</span><span class="lab" aria-hidden="true">− 45 470 €</span><span class="tag" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="rung" data-c="G" style="top:238px" aria-label="Classe G comme état actuel du logement" aria-pressed="false">
+                <span class="badge" aria-hidden="true" style="opacity:.4">G</span><span class="lab" aria-hidden="true">− 85 660 €</span><span class="tag" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="result">
+              <h3>Valeur créée · <span data-role="pair">E → C</span></h3>
+              <p class="figure" aria-hidden="true">+<span data-role="valeur">52 210</span><span class="cur">€</span></p>
+              <p class="sr-only" role="status" aria-live="polite" data-role="resume"></p>
+              <p class="frange">fourchette <span data-role="frange">40 880 € – 63 440 €</span></p>
+              <dl class="breakdown">
+                <div><dt>Travaux</dt><dd data-role="cout">36 660 €</dd></div>
+                <div class="aides"><dt>Aides</dt><dd data-role="aides">− 20 160 €</dd></div>
+                <div class="reste"><dt>Reste à charge</dt><dd data-role="reste">16 500 €</dd></div>
+              </dl>
+              <p class="nventes"><span data-role="nventes">476</span> ventes comparables, rayon 18 km</p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+    </div>
+  </header>
+
+  <!-- ============ MESURES ============ -->
+  <div class="metrics">
+    <div class="wrap">
+      <h2 class="sr-only">Chiffres clés</h2>
+      <dl>
+        <div><dd>4,1 M</dd><dt>ventes analysées</dt></div>
+        <div><dd>12 %</dd><dt>erreur médiane</dt></div>
+        <div><dd>34 800</dd><dt>communes couvertes</dt></div>
+        <div><dd>2020–2025</dd><dt>période observée</dt></div>
+      </dl>
     </div>
   </div>
-</header>
 
-<!-- ============ MESURES ============ -->
-<div class="metrics">
-  <div class="wrap">
-    <div class="metric"><b>4,1 M</b><span>ventes analysées</span></div>
-    <div class="metric"><b>12 %</b><span>erreur médiane</span></div>
-    <div class="metric"><b>34 800</b><span>communes couvertes</span></div>
-    <div class="metric"><b>2020–2025</b><span>période observée</span></div>
-  </div>
-</div>
-
-<!-- ============ USAGE ============ -->
-<section>
-  <div class="wrap">
-    <h2>Trois façons de s'en servir</h2>
-    <p class="section-lead">Le même calcul, aux trois moments où un devis se gagne ou se perd.</p>
-    <div class="steps">
-      <div class="step">
-        <b>01 — EN RENDEZ-VOUS</b>
-        <h3>Le document que vous laissez</h3>
-        <p>Après la visite, vous saisissez ce que vous avez constaté et repartez avec un PDF à votre en-tête. Le client garde un chiffre, pas seulement un devis.</p>
-      </div>
-      <div class="step">
-        <b>02 — APRÈS COUP</b>
-        <h3>La relance des devis dormants</h3>
-        <p>Un lien à votre marque, envoyé aux devis restés sans réponse. Vous savez qui l'ouvre. C'est le seul argument nouveau que vous pouvez apporter.</p>
-      </div>
-      <div class="step">
-        <b>03 — EN AMONT</b>
-        <h3>Votre page publique</h3>
-        <p>Une adresse à vous, à mettre sur vos devis, votre camion, votre signature. Le visiteur obtient son chiffre, vous obtenez son contact.</p>
-      </div>
+  <!-- ============ USAGE ============ -->
+  <section aria-labelledby="usages-titre">
+    <div class="wrap">
+      <h2 id="usages-titre">Trois façons de s'en servir</h2>
+      <p class="section-lead">Le même calcul, aux trois moments où un devis se gagne ou se perd.</p>
+      <ul class="steps">
+        <li class="step">
+          <p class="num">01 — EN RENDEZ-VOUS</p>
+          <h3>Le document que vous laissez</h3>
+          <p>Après la visite, vous saisissez ce que vous avez constaté et repartez avec un PDF à votre en-tête. Le client garde un chiffre, pas seulement un devis.</p>
+        </li>
+        <li class="step">
+          <p class="num">02 — APRÈS COUP</p>
+          <h3>La relance des devis dormants</h3>
+          <p>Un lien à votre marque, envoyé aux devis restés sans réponse. Vous savez qui l'ouvre. C'est le seul argument nouveau que vous pouvez apporter.</p>
+        </li>
+        <li class="step">
+          <p class="num">03 — EN AMONT</p>
+          <h3>Votre page publique</h3>
+          <p>Une adresse à vous, à mettre sur vos devis, votre camion, votre signature. Le visiteur obtient son chiffre, vous obtenez son contact.</p>
+        </li>
+      </ul>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============ MÉTHODE ============ -->
-<section id="methode" style="background:var(--card);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
-  <div class="wrap">
-    <h2>D'où vient le chiffre</h2>
-    <p class="section-lead">Trois bases publiques, croisées sur l'adresse. Vous pouvez tout vérifier.</p>
-
-    <div class="method">
-      <div class="srcs">
-        <div class="src">
-          <code>DVF</code>
-          <p><b>Ventes réelles</b> enregistrées par la DGFiP. Prix, surface bâtie, terrain, date, parcelle.</p>
-        </div>
-        <div class="src">
-          <code>ADEME</code>
-          <p><b>Diagnostics de performance énergétique.</b> Étiquette et période de construction.</p>
-        </div>
-        <div class="src">
-          <code>BAN</code>
-          <p><b>Base Adresse Nationale.</b> Sert de clé entre les deux précédentes.</p>
-        </div>
-      </div>
-
+  <!-- ============ MÉTHODE ============ -->
+  <section id="methode" class="on-card" aria-labelledby="methode-titre">
+    <div class="wrap">
+      <h2 id="methode-titre">D'où vient le chiffre</h2>
+      <p class="section-lead">Trois bases publiques, croisées sur l'adresse. Vous pouvez tout vérifier.</p>
+      <dl class="sources">
+        <div class="source"><dt>DVF</dt><dd><strong>Ventes réelles</strong> enregistrées par la DGFiP. Prix, surface bâtie, terrain, date, parcelle.</dd></div>
+        <div class="source"><dt>ADEME</dt><dd><strong>Diagnostics de performance énergétique.</strong> Étiquette et période de construction.</dd></div>
+        <div class="source"><dt>BAN</dt><dd><strong>Base Adresse Nationale.</strong> Sert de clé entre les deux précédentes.</dd></div>
+      </dl>
       <ul class="claims">
-        <li>Le rayon s'élargit jusqu'à réunir assez de ventes comparables. <b>Vous voyez lequel a été retenu.</b></li>
-        <li>Seul le bâti d'avant 1989 sert au calcul : une maison de cette époque classée C <b>a forcément été rénovée</b>.</li>
-        <li>Surface, terrain et commune sont neutralisés. Il ne reste que <b>l'effet de l'étiquette</b>.</li>
-        <li>Chaque estimation affiche son effectif, son rayon et sa marge d'erreur. <b>Jamais un chiffre nu.</b></li>
+        <li>Le rayon s'élargit jusqu'à réunir assez de ventes comparables. <strong>Vous voyez lequel a été retenu.</strong></li>
+        <li>Seul le bâti d'avant 1989 sert au calcul : une maison de cette époque classée C <strong>a forcément été rénovée</strong>.</li>
+        <li>Surface, terrain et commune sont neutralisés. Il ne reste que <strong>l'effet de l'étiquette</strong>.</li>
+        <li>Chaque estimation affiche son effectif, son rayon et sa marge d'erreur. <strong>Jamais un chiffre nu.</strong></li>
       </ul>
+
+      <div class="devis-card">
+        <div>
+          <p class="eyebrow">CE QUE ÇA CHANGE POUR LE DEVIS</p>
+          <h3>Le marché paie le passage en C, pas la progression continue.</h3>
+          <p>Viser C est presque toujours l'optimum ; payer pour B et rater le C est le pire scénario. Vous dimensionnez juste, et ça se défend.</p>
+        </div>
+        <table class="trans">
+          <caption>Valeur créée par transition — ordres de grandeur mesurés sur le corridor nord toulousain</caption>
+          <colgroup><col style="width:62px"><col><col style="width:62px"></colgroup>
+          <tbody>
+            <tr><th scope="row">E → D</th><td class="bar"><span style="width:28%"></span></td><td class="val">+15 k€</td></tr>
+            <tr class="hi"><th scope="row">E → C</th><td class="bar"><span style="width:77%"></span></td><td class="val">+41 k€</td></tr>
+            <tr class="hi"><th scope="row">F → C</th><td class="bar"><span style="width:100%"></span></td><td class="val">+53 k€</td></tr>
+            <tr><th scope="row">C → B</th><td class="bar"><span style="width:6%"></span></td><td class="val">+3 k€</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============ PRIX ============ -->
-<section id="prix" class="pricing">
-  <div class="wrap">
-    <h2>89 € par mois</h2>
-    <p class="section-lead">Pas de palier, pas de quota, pas de devis à demander.</p>
-
-    <div class="price-box">
-      <span class="tag">Offre fondateur — 10 places</span>
-      <p class="amount">89 €<small> / mois</small></p>
-      <p class="strike">tarif public <s>129 €</s> · prix garanti à vie</p>
-      <ul class="incl">
-        <li><b>6 premiers mois offerts</b></li>
-        <li>Rapports illimités</li>
-        <li>Votre logo, vos couleurs, vos coûts</li>
-        <li>Barèmes d'aides tenus à jour</li>
-        <li>Résiliation en un clic</li>
-      </ul>
-      <a href="{{ path('login') }}" class="btn" style="display:block;text-align:center">Prendre une place</a>
-      <p class="cta-note" style="margin-top:12px;text-align:center">
-        En échange : trois points de vingt minutes sur six mois.
-      </p>
+  <!-- ============ PRIX ============ -->
+  <section id="prix" class="on-card" aria-labelledby="prix-titre">
+    <div class="wrap">
+      <h2 id="prix-titre">Deux façons d'entrer</h2>
+      <p class="section-lead">Le même produit, sans quota ni palier. Les barèmes MaPrimeRénov', l'éco-PTZ, la TVA réduite et les coefficients de marché changent tous les six mois : c'est ce que vous payez — une donnée à jour, pas un calculateur.</p>
+      <div class="price-grid">
+        <div class="price-card">
+          <p><span class="price-tag">Membre classique</span></p>
+          <p class="price-amount">129 €<small> / mois</small></p>
+          <p class="price-sub">sans engagement · résiliable en un clic</p>
+          <ul class="price-list">
+            <li><strong>2 mois d'essai gratuit</strong></li>
+            <li>Rapports illimités</li>
+            <li>Votre logo, vos couleurs, vos coûts</li>
+            <li>Barèmes d'aides tenus à jour</li>
+            <li>Option annuelle : 10 mois payés</li>
+          </ul>
+          <a href="{{ path('login') }}" class="price-cta">Créer un compte</a>
+          <p class="price-foot">Disponible à tout moment, sans condition.</p>
+        </div>
+        <div class="price-card featured">
+          <p><span class="price-tag">Offre fondateur — 10 places</span></p>
+          <p class="price-amount">89 €<small> / mois</small></p>
+          <p class="price-sub">au lieu de <s>129 €</s> · prix garanti à vie</p>
+          <ul class="price-list">
+            <li><strong>6 premiers mois offerts</strong></li>
+            <li>Rapports illimités</li>
+            <li>Votre logo, vos couleurs, vos coûts</li>
+            <li>Barèmes d'aides tenus à jour</li>
+            <li>Résiliation en un clic</li>
+          </ul>
+          <a href="{{ path('login') }}" class="price-cta">Prendre une place fondateur</a>
+          <p class="price-foot">En échange : trois points de vingt minutes sur six mois.</p>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============ LIMITES ============ -->
-<section id="limites" class="limits">
-  <div class="wrap">
-    <h2>Ce que l'outil ne fait pas</h2>
-    <p class="section-lead">Autant le dire avant que vous le découvriez devant un client.</p>
-    <ul>
-      <li><b>Ce n'est pas une estimation immobilière.</b> C'est une mesure statistique sur des ventes passées. Elle n'engage personne sur un bien précis.</li>
-      <li><b>Maisons individuelles uniquement.</b> En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</li>
-      <li><b>La moitié du prix nous échappe.</b> État du bien, exposition, dépendances : le modèle ne les voit pas. D'où la fourchette affichée.</li>
-      <li><b>Certains secteurs sont trop peu fournis.</b> Dans ce cas l'outil le dit et bascule sur le département, avec un avertissement visible.</li>
-    </ul>
-  </div>
-</section>
+  <!-- ============ LIMITES ============ -->
+  <section id="limites" aria-labelledby="limites-titre">
+    <div class="wrap">
+      <h2 id="limites-titre">Ce que l'outil ne fait pas</h2>
+      <p class="section-lead">Autant le dire avant que vous le découvriez devant un client.</p>
+      <dl class="limits">
+        <div><dt>Ce n'est pas une estimation immobilière.</dt><dd>C'est une mesure statistique sur des ventes passées. Elle n'engage personne sur un bien précis.</dd></div>
+        <div><dt>Maisons individuelles uniquement.</dt><dd>En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</dd></div>
+        <div><dt>La moitié du prix nous échappe.</dt><dd>État du bien, exposition, dépendances : le modèle ne les voit pas. D'où la fourchette affichée.</dd></div>
+        <div><dt>Certains secteurs sont trop peu fournis.</dt><dd>Dans ce cas l'outil le dit et bascule sur le département, avec un avertissement visible.</dd></div>
+      </dl>
+    </div>
+  </section>
+</main>
 
 <footer>
   <div class="wrap">
-    <p>
-      Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.<br>
-      Estimation statistique — ne constitue pas une évaluation immobilière.
-    </p>
-    <p>
-      <a href="#">Méthode détaillée</a> · <a href="#">CGU</a> · <a href="#">Confidentialité</a><br>
-      Occitanie, France
-    </p>
+    <p>Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.<br>
+      Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+    <nav aria-label="Liens de bas de page">
+      <ul class="foot-links">
+        <li><a href="#methode">Méthode détaillée</a></li>
+        <li><a href="#limites">Accessibilité : conforme RGAA</a></li>
+        <li><a href="#">CGU</a></li>
+        <li><a href="#">Confidentialité</a></li>
+      </ul>
+    </nav>
   </div>
 </footer>
 
