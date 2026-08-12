@@ -1,0 +1,25 @@
+# Surcouche de développement local : monte le code app/ dans le conteneur pour
+# refléter les changements SANS reconstruire l'image, et bascule en APP_ENV=dev
+# (recompilation automatique du cache, erreurs verbeuses).
+#
+# À composer avec le fichier de base :
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d app
+# ou via le Makefile :  make stack-dev
+#
+# Le code est monté par-dessus /app ; « var/ » reste un volume nommé, propriété de
+# l'utilisateur du conteneur (uid 10001), pour que le cache/les logs soient
+# inscriptibles sans jouer avec les permissions de l'hôte. Le vendor/ local
+# (dev-deps incluses) sert alors de source des dépendances.
+services:
+  app:
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      APP_DOMAINE: valeurverte.localhost
+      DATABASE_URL: "postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
+    volumes:
+      - ../app:/app
+      - app_dev_var:/app/var
+
+volumes:
+  app_dev_var:

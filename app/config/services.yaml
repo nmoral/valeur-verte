@@ -7,6 +7,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Domaine de base du monolithe : chaque zone vit sur son sous-domaine
+    # (app., admin., widget.). Surchargé par l'environnement en production.
+    app.domaine: '%env(APP_DOMAINE)%'
 
 services:
     # default configuration for services in *this* file
@@ -19,5 +22,18 @@ services:
     App\:
         resource: '../src/'
 
+    # Traçabilité de la levée du cloisonnement (#54) : impl d'attente par log,
+    # remplacée par le journal d'audit persistant (#50).
+    App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+when@test:
+    services:
+        # Exposé pour les tests tant qu'aucun service applicatif n'injecte le
+        # hasher (l'inscription #105 le fera) : sans consommateur, l'alias
+        # d'autowiring est élagué du conteneur et introuvable côté test.
+        Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface:
+            alias: security.user_password_hasher
+            public: true

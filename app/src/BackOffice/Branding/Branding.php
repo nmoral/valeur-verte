@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Branding;
 
+use App\Tenant\TenantAwareInterface;
+use App\Tenant\TenantAwareTrait;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -16,8 +18,10 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: BrandingRepository::class)]
 #[ORM\Table(name: 'branding')]
-class Branding
+class Branding implements TenantAwareInterface
 {
+    use TenantAwareTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
