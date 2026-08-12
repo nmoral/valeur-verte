@@ -66,6 +66,15 @@ final class BouquetTest extends TestCase
         self::assertNotSame($base, $enrichi);
     }
 
+    public function testAvecPosteConserveTousLesPostesExistantsEtAjouteALaFin(): void
+    {
+        $base = Bouquet::creer('Isolation', Poste::Murs, Poste::Combles);
+
+        $enrichi = $base->avecPoste(Poste::Vmc);
+
+        self::assertSame([Poste::Murs, Poste::Combles, Poste::Vmc], $enrichi->postes());
+    }
+
     public function testAvecPosteEstIdempotent(): void
     {
         $base = Bouquet::creer('Isolation seule', Poste::Murs);
@@ -86,6 +95,15 @@ final class BouquetTest extends TestCase
         self::assertNotSame($base, $reduit);
     }
 
+    public function testSansPosteReindexeLaListeDesPostesRestants(): void
+    {
+        $base = Bouquet::creer('Ampleur', Poste::Murs, Poste::Combles, Poste::Vmc);
+
+        $reduit = $base->sansPoste(Poste::Combles);
+
+        self::assertSame([Poste::Murs, Poste::Vmc], $reduit->postes());
+    }
+
     public function testOnNePeutPasRetirerLeDernierPoste(): void
     {
         $bouquet = Bouquet::creer('Chauffage seul', Poste::Chauffage);
@@ -104,5 +122,12 @@ final class BouquetTest extends TestCase
         self::assertSame('Ancien nom', $base->nom());
         self::assertSame('Nouveau nom', $renomme->nom());
         self::assertEqualsCanonicalizing($base->postes(), $renomme->postes());
+    }
+
+    public function testRenommeDebarrasseLeNomDesEspacesSuperflus(): void
+    {
+        $bouquet = Bouquet::creer('Ancien', Poste::Murs)->renomme('  Espacé  ');
+
+        self::assertSame('Espacé', $bouquet->nom());
     }
 }
