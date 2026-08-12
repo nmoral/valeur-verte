@@ -67,6 +67,31 @@ def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> No
     assert large.n_transactions == len(anciennes) + len(recentes)
 
 
+def test_ecretage_prix_m2_reduit_l_echantillon_de_calcul() -> None:
+    """S32 V1 : l'écrêtage retire les prix/m² extrêmes de l'échantillon de calcul."""
+    pool = _cluster(8, lat=43.6, lon=1.44)  # 3 classes × 8 = 24 ventes
+    base = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        restreindre_bati_ancien=False,
+    )
+
+    sans = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    avec = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, ecretage="prix_m2", ecretage_seuil_n=10, ecretage_fraction=0.1),
+    )
+
+    assert sans is not None and avec is not None
+    assert avec.n_transactions < sans.n_transactions
+
+
 def test_compute_maille_lit_les_seuils_de_la_config() -> None:
     """La config descend jusqu'au calcul : durcir un seuil change le résultat.
 

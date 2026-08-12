@@ -41,6 +41,10 @@ def test_defauts_sans_environnement() -> None:
     assert config.segment == "Maison"
     # Restriction bâti ancien (S20) : active par défaut
     assert config.restreindre_bati_ancien is True
+    # Écrêtage (S32) : désactivé par défaut
+    assert config.ecretage == "off"
+    assert config.ecretage_fraction == 0.01
+    assert config.ecretage_seuil_n == 100
 
 
 def test_config_est_immuable() -> None:
