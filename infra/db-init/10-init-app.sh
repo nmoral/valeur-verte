@@ -13,7 +13,7 @@ BASE_TEST="${POSTGRES_DB}_test"
 # rôle : toute connexion de l'app travaille dans « app ».
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-SQL
 	CREATE ROLE app WITH LOGIN PASSWORD 'app';
-	ALTER ROLE app SET search_path TO app, public;
+	ALTER ROLE app SET search_path TO app;
 	CREATE DATABASE "${BASE_TEST}" OWNER "$POSTGRES_USER";
 SQL
 
