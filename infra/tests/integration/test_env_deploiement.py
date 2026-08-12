@@ -70,6 +70,7 @@ def valeurs_recues(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
             "POSTGRES_USER": "valeur_verte",
             "POSTGRES_DB": "valeur_verte",
             "DATA_IMAGE_TAG": "essai",
+            "APP_IMAGE_TAG": "essai",
         },
     )
     (repertoire / ".env").write_text(compose.stdout, encoding="utf-8")
@@ -122,6 +123,7 @@ def test_un_caractere_intransmissible_est_refuse_explicitement(mot_de_passe: str
             "POSTGRES_USER": "valeur_verte",
             "POSTGRES_DB": "valeur_verte",
             "DATA_IMAGE_TAG": "essai",
+            "APP_IMAGE_TAG": "essai",
         },
     )
     assert execution.returncode != 0, "Le script doit refuser, pas produire un .env douteux."
