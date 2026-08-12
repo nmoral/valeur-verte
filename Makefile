@@ -78,7 +78,8 @@ infra-test:
 mutation: app-mutation data-mutation
 
 app-mutation:
-	cd $(APP) && vendor/bin/infection --min-covered-msi=80 --threads=max
+	cd $(APP) && vendor/bin/phpunit --coverage-xml=var/cov/coverage-xml --log-junit=var/cov/junit.xml \
+		&& vendor/bin/infection --coverage=var/cov --skip-initial-tests --min-covered-msi=80 --threads=max
 
 data-mutation:
 	cd $(DATA) && ./tools/run-mutation.sh 80
