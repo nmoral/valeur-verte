@@ -26,21 +26,51 @@ def _within(value: float | None, low: float, high: float) -> bool:
     return value is not None and low <= value <= high
 
 
-def is_clean(mutation: Mutation) -> bool:
+def is_clean(
+    mutation: Mutation,
+    *,
+    price_min: float = PRICE_MIN,
+    price_max: float = PRICE_MAX,
+    bati_min: float = BATI_MIN,
+    bati_max: float = BATI_MAX,
+    terrain_min: float = TERRAIN_MIN,
+    terrain_max: float = TERRAIN_MAX,
+) -> bool:
     """Vrai si la mutation respecte les bornes §7 (terrain vérifié si présent)."""
-    if not _within(mutation.prix, PRICE_MIN, PRICE_MAX):
+    if not _within(mutation.prix, price_min, price_max):
         return False
-    if not _within(mutation.surface_bati, BATI_MIN, BATI_MAX):
+    if not _within(mutation.surface_bati, bati_min, bati_max):
         return False
     return not (
         mutation.surface_terrain is not None
-        and not _within(mutation.surface_terrain, TERRAIN_MIN, TERRAIN_MAX)
+        and not _within(mutation.surface_terrain, terrain_min, terrain_max)
     )
 
 
-def clean_mutations(mutations: Iterable[Mutation]) -> list[Mutation]:
+def clean_mutations(
+    mutations: Iterable[Mutation],
+    *,
+    price_min: float = PRICE_MIN,
+    price_max: float = PRICE_MAX,
+    bati_min: float = BATI_MIN,
+    bati_max: float = BATI_MAX,
+    terrain_min: float = TERRAIN_MIN,
+    terrain_max: float = TERRAIN_MAX,
+) -> list[Mutation]:
     """Ne conserve que les mutations dans les bornes §7."""
-    return [mutation for mutation in mutations if is_clean(mutation)]
+    return [
+        mutation
+        for mutation in mutations
+        if is_clean(
+            mutation,
+            price_min=price_min,
+            price_max=price_max,
+            bati_min=bati_min,
+            bati_max=bati_max,
+            terrain_min=terrain_min,
+            terrain_max=terrain_max,
+        )
+    ]
 
 
 def remap_insee(code_insee: str, correspondence: Mapping[str, str]) -> str:

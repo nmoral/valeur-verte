@@ -63,8 +63,9 @@ def _vente_ariegeoise() -> Mutation:
     return replace(vente, id_mutation="m-09", code_insee="09122")
 
 
-# Assez de ventes pour dépasser le seuil local et permettre une régression.
-_POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(120)]
+# Assez de ventes pour dépasser le seuil local et publier chaque classe DPE
+# (≥ min_class_sample=20 par classe, avec marge après écrêtage).
+_POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(210)]
 
 
 class _FauxFetcher:
@@ -133,7 +134,12 @@ def test_le_pool_deborde_sur_les_departements_limitrophes(
     appels: list[tuple[str, tuple[str, ...]]] = []
 
     def _charger(
-        conn: Any, departement: str, millesime: int, *, limitrophes: tuple[str, ...] = ()
+        conn: Any,
+        departement: str,
+        millesime: int,
+        *,
+        limitrophes: tuple[str, ...] = (),
+        type_local: str = "Maison",
     ) -> list[Mutation]:
         appels.append((departement, limitrophes))
         return _POOL
