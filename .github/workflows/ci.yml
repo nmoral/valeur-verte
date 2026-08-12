@@ -40,6 +40,8 @@ jobs:
               - 'data/.dockerignore'
               - 'data/pyproject.toml'
               - 'data/src/**'
+              - 'app/Dockerfile'
+              - 'app/.dockerignore'
               - '.github/workflows/deploy.yml'
               - '.github/workflows/ci.yml'
 

@@ -19,5 +19,19 @@ services:
       timeout: 5s
       retries: 20
 
+  # Application construite localement depuis app/Dockerfile — le même artefact
+  # FrankenPHP que celui déployé sur le VPS, pour l'exercer en bout-en-bout.
+  # Local :  docker compose -f infra/docker-compose.yml up -d --build app
+  app:
+    build:
+      context: ../app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+    ports:
+      - "127.0.0.1:8000:80"
+
 volumes:
   db_data:
