@@ -1,0 +1,98 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\BackOffice;
+
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
+
+final class AuditControllerTest extends WebTestCase
+{
+    public function testLaPagePorteLeFormulaireDeSaisie(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/back-office/audit');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('input[name="adresse"]');
+        self::assertSelectorExists('input[name="surface_batie"]');
+        self::assertSelectorExists('input[name="surface_terrain"]');
+        self::assertSelectorExists('select[name="dpe_avant"]');
+        self::assertSelectorExists('select[name="dpe_apres"]');
+        self::assertSelectorExists('input[name="nombre_pieces"]');
+    }
+
+    public function testUneSaisieValideMeneAUneConfirmation(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettre($client, [
+            'adresse' => '12 rue des Lilas, Toulouse',
+            'surface_batie' => '90',
+            'surface_terrain' => '500',
+            'dpe_avant' => 'E',
+            'dpe_apres' => 'C',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Saisie validée', $html);
+        self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
+        self::assertSelectorNotExists('.form-error');
+    }
+
+    public function testUneSaisieHorsBorneEstBloquee(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettre($client, [
+            'adresse' => '12 rue des Lilas',
+            'surface_batie' => '5',
+            'surface_terrain' => '500',
+            'dpe_avant' => 'C',
+            'dpe_apres' => 'E',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('surface bâtie', $html);
+        self::assertStringContainsString('DPE cible', $html);
+        self::assertStringNotContainsString('Saisie validée', $html);
+    }
+
+    public function testUnRatioSurfacePiecesDouteuxAvertitSansBloquer(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettre($client, [
+            'adresse' => '12 rue des Lilas',
+            'surface_batie' => '90',
+            'surface_terrain' => '500',
+            'dpe_avant' => 'E',
+            'dpe_apres' => 'C',
+            'nombre_pieces' => '12',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Saisie validée', $html);
+        self::assertStringContainsString('surface/pièces', $html);
+    }
+
+    /**
+     * @param array<string, string> $valeurs
+     */
+    private function soumettre(KernelBrowser $client, array $valeurs): void
+    {
+        $crawler = $client->request('GET', '/back-office/audit');
+        self::assertInstanceOf(Crawler::class, $crawler);
+        $formulaire = $crawler->selectButton('Valider la saisie')->form();
+        foreach ($valeurs as $champ => $valeur) {
+            $formulaire[$champ] = $valeur;
+        }
+        $client->submit($formulaire);
+    }
+}
