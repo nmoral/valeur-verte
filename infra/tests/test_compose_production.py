@@ -119,6 +119,47 @@ def test_l_image_data_est_epinglee_sur_une_version_publiee(
     )
 
 
+def test_l_image_app_est_epinglee_sur_une_version_publiee(
+    compose_prod: dict[str, Any],
+) -> None:
+    """Comme l'image data : publiée sur GHCR, tirée par le VPS, jamais « latest » ni buildée sur place."""
+    app = services(compose_prod)["app"]
+    assert "build" not in app, (
+        "Le VPS ne construit pas l'image app : elle est publiée par la CI puis tirée depuis GHCR."
+    )
+    image = str(app.get("image", ""))
+    assert image.startswith("ghcr.io/"), f"L'image app doit provenir de GHCR, reçu « {image} »."
+
+    tag = image.split("/")[-1].partition(":")[2]
+    assert tag != "latest", (
+        "Un tag « latest » interdit de savoir ce qui tourne et de revenir en arrière."
+    )
+    assert OBLIGATOIRE.search(tag), (
+        "Le tag de l'image app doit être injecté au déploiement via ${…:?…} "
+        "pour tracer la version déployée."
+    )
+
+
+def test_l_app_repart_apres_un_redemarrage_du_vps(compose_prod: dict[str, Any]) -> None:
+    """Sans politique de redémarrage, un reboot OVH laisse l'application à l'arrêt."""
+    app = services(compose_prod)["app"]
+    assert app.get("restart") in {"unless-stopped", "always"}, (
+        "Le service « app » doit redémarrer automatiquement après un reboot."
+    )
+
+
+def test_l_app_attend_une_base_prete(compose_prod: dict[str, Any]) -> None:
+    """L'app partage la base : démarrer avant qu'elle soit prête casse le premier accès."""
+    app = services(compose_prod)["app"]
+    depends: object = app.get("depends_on", {})
+    assert isinstance(depends, dict), (
+        "« depends_on » de app doit utiliser la forme longue avec condition."
+    )
+    assert depends.get("db", {}).get("condition") == "service_healthy", (
+        "Le service « app » doit attendre « service_healthy » sur « db »."
+    )
+
+
 def test_les_migrations_attendent_une_base_prete(compose_prod: dict[str, Any]) -> None:
     """Sans attente de healthcheck, le premier déploiement échoue sur une base non initialisée."""
     compose = services(compose_prod)
