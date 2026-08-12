@@ -100,3 +100,46 @@ def test_une_seule_classe_publiee_ne_pose_pas_de_probleme() -> None:
 
     assert resultat.publiable is True
     assert resultat.inversions_tolerees == ()
+
+
+def test_egalite_de_coef_n_est_pas_une_inversion() -> None:
+    # Deux classes adjacentes au même coef : l'ordre non strict tient, rien à signaler.
+    maille = _maille({"F": -0.20, "G": -0.20}, {"F": 40, "G": 40})
+
+    resultat = evaluer_monotonie_dpe(maille, CalculConfig())
+
+    assert resultat.publiable is True
+    assert resultat.raisons == ()
+    assert resultat.inversions_tolerees == ()
+
+
+def test_inversion_tardive_est_detectee() -> None:
+    # Premiers couples ordonnés, inversion plus loin (F<G) : le parcours ne
+    # s'arrête pas au premier couple conforme.
+    maille = _maille(
+        {"A": 0.30, "C": 0.10, "F": -0.30, "G": -0.10},
+        {"A": 40, "C": 40, "F": 40, "G": 40},
+    )
+
+    resultat = evaluer_monotonie_dpe(maille, CalculConfig())
+
+    assert resultat.publiable is False
+    assert any("F" in raison and "G" in raison for raison in resultat.raisons)
+
+
+def test_effectif_egal_au_seuil_bloque() -> None:
+    # « Sous 30 » est strict : à 30 pile, l'inversion n'est plus tolérée.
+    maille = _maille({"F": -0.30, "G": -0.10}, {"F": 40, "G": 30})
+
+    assert evaluer_monotonie_dpe(maille, CalculConfig()).publiable is False
+
+
+def test_effectif_manquant_compte_pour_zero() -> None:
+    # Classe sans effectif connu : traitée comme 0 (rare), donc inversion adjacente
+    # tolérée — et surtout pas de min(None, …) qui planterait.
+    maille = _maille({"F": -0.30, "G": -0.10}, {"F": 40})  # G absent des effectifs
+
+    resultat = evaluer_monotonie_dpe(maille, CalculConfig())
+
+    assert resultat.publiable is True
+    assert resultat.inversions_tolerees != ()
