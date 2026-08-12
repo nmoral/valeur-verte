@@ -29,5 +29,12 @@ final class LayoutTest extends KernelTestCase
         self::assertStringContainsString('Tableau de bord', $html);
         // Feuille de style du design system reliée.
         self::assertStringContainsString('back-office.css', $html);
+
+        // Le menu pointe vers de vraies routes, pas des liens morts.
+        self::assertStringContainsString('href="/back-office/rapports"', $html);
+        self::assertStringContainsString('href="/back-office/couts"', $html);
+        self::assertStringContainsString('href="/back-office/bouquets"', $html);
+        self::assertStringContainsString('href="/back-office/marque"', $html);
+        self::assertStringNotContainsString('href="#"', $html);
     }
 }

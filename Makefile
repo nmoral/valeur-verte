@@ -85,3 +85,35 @@ data-mutation:
 
 # ---- Porte agrégée (à lancer avant chaque commit green/refactor) ----
 check: lint stan test
+
+# ---- Stack locale (PostGIS partagé + app FrankenPHP) ----
+# Lance la base et l'application dans Docker, applique les migrations, et expose
+# l'app sur http://127.0.0.1:8000. Ne nécessite ni PHP ni Composer sur le poste :
+# l'image se construit toute seule. La base prépare aussi valeur_verte_test.
+COMPOSE := docker compose -f $(INFRA)/docker-compose.yml
+
+.PHONY: stack-up stack-down stack-reset stack-migrate stack-seed stack-logs
+
+stack-up:
+	$(COMPOSE) up -d --build
+	$(COMPOSE) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
+	@echo "App disponible sur http://127.0.0.1:8000 (back-office : /back-office/couts, /back-office/bouquets, /back-office/rapports, /back-office/marque)"
+
+# Applique les migrations sur la base de la stack en cours.
+stack-migrate:
+	$(COMPOSE) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
+
+# Insère quelques rapports de démonstration (dont un lead) pour peupler la liste.
+stack-seed:
+	$(COMPOSE) exec -T -e PGPASSWORD=app db psql -U app -d valeur_verte -c "INSERT INTO rapport (reference,cree_le,source,adresse,dpe_avant,dpe_apres,valeur_verte_estimee,pdf_url,contact_nom,contact_email,contact_telephone) VALUES ('2026-0841','2026-08-01 09:00','audit','12 rue des Écoles, Baziège (31)','E','C',52610,'/rapports/2026-0841.pdf',NULL,NULL,NULL), ('2026-0900','2026-08-10 09:00','widget','4 chemin de la Garrigue, Montgiscard (31)','F','C',40700,'/rapports/2026-0900.pdf','Mme Cazeneuve','cazeneuve@example.com',NULL) ON CONFLICT (reference) DO NOTHING;"
+
+stack-logs:
+	$(COMPOSE) logs -f app
+
+# Arrête la stack en conservant les données.
+stack-down:
+	$(COMPOSE) down
+
+# Arrête la stack ET efface la base (repart de zéro).
+stack-reset:
+	$(COMPOSE) down -v

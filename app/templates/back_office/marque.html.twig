@@ -1,0 +1,69 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Appliquée au PDF, au lien de relance et à la page publique.</p>{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .apercu{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:#fff}
+    .apercu-bandeau{padding:16px;color:#fff;display:flex;align-items:center;gap:12px;font:800 16px/1 'Archivo',sans-serif}
+    .apercu-logo{width:40px;height:40px;border-radius:2px;background:rgba(255,255,255,.2);display:grid;place-items:center;font:600 9px/1.2 'JetBrains Mono',monospace;text-align:center;overflow:hidden}
+    .apercu-logo img{max-width:100%;max-height:100%}
+    .apercu-corps{padding:16px;font-size:13px;color:var(--slate)}
+    .apercu-corps .l{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule)}
+    .erreur{margin:0 16px 12px;padding:10px 12px;border:1px solid var(--bad);border-radius:2px;color:var(--bad);font-size:13px}
+</style>
+{% endblock %}
+
+{% block bo_content %}
+<div class="panel">
+    <div class="panel-head">
+        <h2>Votre marque</h2>
+        <span class="hint">l'aperçu du PDF se met à jour en direct</span>
+    </div>
+
+    {% if erreur is defined %}<p class="erreur">{{ erreur }}</p>{% endif %}
+
+    <form method="post" action="{{ path('back_office_marque') }}" class="cfg" id="form-marque">
+        <div>
+            <div class="brandline">
+                <label class="logo-box" for="champ-logo">Déposer<br>le logo</label>
+                <div>
+                    <div class="mono" style="font-size:12px">Couleur principale</div>
+                    <div class="swat" id="swatches">
+                        {% for teinte in ['#0E4A5C', '#B8480F', '#14532D', '#1D4ED8', '#9A3412'] %}
+                            <i data-couleur="{{ teinte }}" style="background:{{ teinte }}"
+                               class="{{ branding.couleurPrincipale.hex == teinte ? 'sel' : '' }}"></i>
+                        {% endfor %}
+                    </div>
+                    <div class="row" style="border:0;padding-top:10px">
+                        <label for="champ-couleur">Code couleur</label>
+                        <span class="inp"><input type="text" id="champ-couleur" name="couleur" value="{{ branding.couleurPrincipale.hex }}" style="width:110px"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="row"><label for="champ-rge">Numéro RGE</label><span class="inp"><input type="text" id="champ-rge" name="numero_rge" value="{{ branding.numeroRge }}" style="width:130px"></span></div>
+            <div class="row"><label for="champ-tel">Téléphone affiché</label><span class="inp"><input type="text" id="champ-tel" name="telephone" value="{{ branding.telephone }}" style="width:150px"></span></div>
+            <div class="row"><label for="champ-logo-url">URL du logo</label><span class="inp"><input type="text" id="champ-logo-url" name="logo_url" value="{{ branding.logoUrl }}" style="width:180px"></span></div>
+            <div class="row"><label for="champ-mentions">Mentions légales</label><span class="inp"><input type="text" id="champ-mentions" name="mentions_legales" value="{{ branding.mentionsLegales }}" style="width:220px"></span></div>
+            <div style="padding-top:14px"><button type="submit" class="btn">Enregistrer la marque</button></div>
+        </div>
+
+        <div>
+            <p class="mono muted" style="font-size:11px;margin-bottom:10px">APERÇU DU PDF</p>
+            <div class="apercu" id="apercu-pdf">
+                <div class="apercu-bandeau" id="apercu-bandeau" style="background:{{ branding.couleurPrincipale.hex }}">
+                    <span class="apercu-logo" id="apercu-logo">{% if branding.logoUrl %}<img src="{{ branding.logoUrl }}" alt="logo">{% else %}LOGO{% endif %}</span>
+                    <span>Valeur Verte</span>
+                </div>
+                <div class="apercu-corps">
+                    <div class="l"><span>Numéro RGE</span><b id="apercu-rge">{{ branding.numeroRge ?? '—' }}</b></div>
+                    <div class="l"><span>Téléphone</span><b id="apercu-tel">{{ branding.telephone ?? '—' }}</b></div>
+                    <div class="l" style="border:0"><span>Mentions</span><b id="apercu-mentions">{{ branding.mentionsLegales ?? '—' }}</b></div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block javascripts %}<script src="/js/branding-preview.js" defer></script>{% endblock %}

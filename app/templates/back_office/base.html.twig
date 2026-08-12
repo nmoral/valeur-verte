@@ -7,16 +7,16 @@
     <aside>
         <div class="brand"><i>VV</i> {% block brand %}Valeur Verte{% endblock %}</div>
         <nav class="side">
-            <a href="#"{{ nav_active|default('') == 'dashboard' ? ' class="on"' : '' }}>Tableau de bord</a>
-            <a href="#"{{ nav_active|default('') == 'reports' ? ' class="on"' : '' }}>Rapports &amp; leads</a>
+            <span class="lien-off" title="À venir">Tableau de bord</span>
+            <a href="{{ path('back_office_rapports') }}"{{ nav_active|default('') == 'reports' ? ' class="on"' : '' }}>Rapports &amp; leads</a>
             <p class="sect">Configuration</p>
-            <a href="#"{{ nav_active|default('') == 'costs' ? ' class="on"' : '' }}>Coûts de travaux</a>
-            <a href="#"{{ nav_active|default('') == 'bouquets' ? ' class="on"' : '' }}>Bouquets types</a>
-            <a href="#"{{ nav_active|default('') == 'branding' ? ' class="on"' : '' }}>Ma marque</a>
-            <a href="#"{{ nav_active|default('') == 'public_page' ? ' class="on"' : '' }}>Page publique</a>
+            <a href="{{ path('back_office_couts') }}"{{ nav_active|default('') == 'costs' ? ' class="on"' : '' }}>Coûts de travaux</a>
+            <a href="{{ path('back_office_bouquets') }}"{{ nav_active|default('') == 'bouquets' ? ' class="on"' : '' }}>Bouquets types</a>
+            <a href="{{ path('back_office_marque') }}"{{ nav_active|default('') == 'branding' ? ' class="on"' : '' }}>Ma marque</a>
+            <span class="lien-off" title="À venir">Page publique</span>
             <p class="sect">Compte</p>
-            <a href="#"{{ nav_active|default('') == 'subscription' ? ' class="on"' : '' }}>Abonnement</a>
-            <a href="#"{{ nav_active|default('') == 'company' ? ' class="on"' : '' }}>Entreprise</a>
+            <span class="lien-off" title="À venir">Abonnement</span>
+            <span class="lien-off" title="À venir">Entreprise</span>
         </nav>
         {% block sidebar_footer %}{% endblock %}
     </aside>

@@ -7,9 +7,12 @@ doctrine:
         #server_version: '16'
 
         profiling_collect_backtrace: '%kernel.debug%'
-        # Doctrine ne gère QUE le schéma « app » : le schéma « data » (lecture seule,
-        # possédé par le pipeline) est invisible du diff et des migrations.
-        schema_filter: ~^app\.~
+        # Doctrine ne gère QUE le schéma « app ». Le rôle a search_path=app, donc
+        # ses tables sont introspectées non qualifiées ; « data »/« public » (postgis)
+        # apparaissent qualifiées (schema.table). On ne garde que les noms non
+        # qualifiés : « data » reste invisible du diff et des migrations, et la table
+        # de métadonnées (non qualifiée) est bien détectée.
+        schema_filter: ~^[^.]+$~
     orm:
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore
