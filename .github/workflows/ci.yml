@@ -217,7 +217,12 @@ jobs:
       - name: Mutation testing (Infection, MSI >= 80 %)
         run: |
           if find src -name '*.php' ! -name 'Kernel.php' | grep -q .; then
-            vendor/bin/infection --min-covered-msi=80 --threads=max
+            # Couverture générée par un run PHPUnit dédié, puis Infection SANS sa
+            # passe initiale : cette passe (phpunit sous pcov + le flot de logs du
+            # kernel en test) se fait tuer par SIGTERM (exit 143) dans ce contexte.
+            # Le seuil MSI reste intégralement appliqué.
+            vendor/bin/phpunit --coverage-xml=var/cov/coverage-xml --log-junit=var/cov/junit.xml
+            vendor/bin/infection --coverage=var/cov --skip-initial-tests --min-covered-msi=80 --threads=max
           else
             echo "Aucune source métier à muter (amorçage) — étape ignorée."
           fi

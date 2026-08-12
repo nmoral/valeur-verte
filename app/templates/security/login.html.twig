@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion · Valeur Verte{% endblock %}
+
+{% block body %}
+<main class="auth">
+    <h1>Se connecter</h1>
+
+    {% if derniere_erreur %}
+        <p class="erreur" role="alert">{{ derniere_erreur.messageKey|trans(derniere_erreur.messageData, 'security') }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('login') }}">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ dernier_email }}" autocomplete="email" required autofocus>
+
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+        <button type="submit">Se connecter</button>
+    </form>
+</main>
+{% endblock %}
