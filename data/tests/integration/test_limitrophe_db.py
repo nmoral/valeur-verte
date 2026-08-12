@@ -17,6 +17,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.db import migrate as cli
+from valeur_verte_data.db.jetable import exiger_base_jetable
 from valeur_verte_data.db.limitrophe_repository import (
     derive_limitrophes,
     read_adjacence,
@@ -45,6 +46,7 @@ def _carre(x0: float, y0: float) -> str:
 
 def test_contiguite_derivee_par_st_touches() -> None:
     cli.run(os.environ)
+    exiger_base_jetable(os.environ)
 
     with psycopg.connect(DSN) as conn:
         conn.execute("TRUNCATE data.commune_limitrophe")
@@ -73,6 +75,7 @@ def test_contiguite_derivee_par_st_touches() -> None:
 
 def test_derive_limitrophes_est_idempotent() -> None:
     cli.run(os.environ)
+    exiger_base_jetable(os.environ)
 
     with psycopg.connect(DSN) as conn:
         conn.execute("TRUNCATE data.commune_limitrophe")
