@@ -22,6 +22,7 @@ from .degraded import CoverageMode, decide_mode
 from .dvf import Mutation
 from .radius import adaptive_selection
 from .regression import RegressionResult, _eligible, fit
+from .trimming import ecreter_prix_m2
 
 # σ « large » : pour l'ajustement départemental, toutes les ventes comptent ~également.
 DEPARTEMENTAL_SIGMA_KM = 1000.0
@@ -151,6 +152,11 @@ def compute_maille(
         sample = departemental
         rayon_km = None
         fit_sigma = config.departemental_sigma_km
+
+    if config.ecretage == "prix_m2":
+        sample = ecreter_prix_m2(
+            sample, fraction=config.ecretage_fraction, seuil_n=config.ecretage_seuil_n
+        )
 
     publiables = _classes_publiables(
         sample, config.min_class_sample, restreindre_bati_ancien=config.restreindre_bati_ancien

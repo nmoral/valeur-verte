@@ -39,6 +39,10 @@ class CalculConfig:
     terrain_max: float = 5_000.0
     segment: str = "Maison"
     restreindre_bati_ancien: bool = True
+    # Écrêtage de l'échantillon au calcul (S32) : "off" | "prix_m2" (V1).
+    ecretage: str = "off"
+    ecretage_fraction: float = 0.01
+    ecretage_seuil_n: int = 100
 
 
 # Config historique par défaut, partagée comme valeur par défaut des signatures :
@@ -74,6 +78,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         restreindre_bati_ancien=_bool(
             env, "RESTREINDRE_BATI_ANCIEN", defaut.restreindre_bati_ancien
         ),
+        ecretage=_str(env, "ECRETAGE", defaut.ecretage),
+        ecretage_fraction=_float(env, "ECRETAGE_FRACTION", defaut.ecretage_fraction),
+        ecretage_seuil_n=_int(env, "ECRETAGE_SEUIL_N", defaut.ecretage_seuil_n),
     )
 
 
