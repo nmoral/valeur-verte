@@ -1,0 +1,25 @@
+{# En-tête SEO commun aux pages publiques. Paramètres : titre, description,
+   canonical ; optionnels : robots (défaut index,follow), og_type, og_titre. #}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titre }}</title>
+<meta name="description" content="{{ description }}">
+<link rel="canonical" href="{{ canonical }}">
+<meta name="robots" content="{{ robots|default('index,follow') }}">
+<meta name="theme-color" content="#0E4A5C">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+<meta property="og:site_name" content="Valeur Verte">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:type" content="{{ og_type|default('website') }}">
+<meta property="og:title" content="{{ og_titre|default(titre) }}">
+<meta property="og:description" content="{{ description }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ absolute_url('/og-cover.png') }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_titre|default(titre) }}">
+<meta name="twitter:description" content="{{ description }}">
+<meta name="twitter:image" content="{{ absolute_url('/og-cover.png') }}">
