@@ -136,7 +136,8 @@ h2{font:800 30px/1.15 'Archivo',sans-serif;letter-spacing:-.025em;margin-bottom:
 .trans caption{text-align:left;font:400 12px/1.4 'JetBrains Mono',monospace;color:var(--slate-2);padding-bottom:8px}
 .trans th{text-align:left;font:400 12.5px/1 'JetBrains Mono',monospace;color:var(--slate);padding:4px 12px 4px 0}
 .trans tr.hi th{font-weight:700;color:var(--ink)}
-.trans td.bar span{display:block;height:20px;background:var(--rule-strong)}
+/* 1px de fond entre deux barres adjacentes, pour que les foncées (E→C, F→C) ne fusionnent pas. */
+.trans td.bar span{display:block;height:20px;background:var(--rule-strong);border-bottom:1px solid var(--paper)}
 .trans tr.hi td.bar span{background:var(--brand)}
 .trans td.val{font:400 12.5px/1 'JetBrains Mono',monospace;color:var(--slate);padding:4px 0 4px 12px;white-space:nowrap}
 .trans tr.hi td.val{font-weight:700;color:var(--ink)}
