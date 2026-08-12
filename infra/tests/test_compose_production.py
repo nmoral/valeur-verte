@@ -122,7 +122,7 @@ def test_l_image_data_est_epinglee_sur_une_version_publiee(
 def test_l_image_app_est_epinglee_sur_une_version_publiee(
     compose_prod: dict[str, Any],
 ) -> None:
-    """Comme l'image data : publiée sur GHCR, tirée par le VPS, jamais « latest » ni buildée sur place."""
+    """Comme l'image data : publiée sur GHCR, tirée par le VPS, jamais « latest »."""
     app = services(compose_prod)["app"]
     assert "build" not in app, (
         "Le VPS ne construit pas l'image app : elle est publiée par la CI puis tirée depuis GHCR."
