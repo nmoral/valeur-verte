@@ -146,6 +146,38 @@ def test_sigma_adaptatif_equivaut_a_sigma_fixe_rayon_sur_diviseur() -> None:
     assert adaptatif.coef_dpe != defaut.coef_dpe  # ≠ σ fixe par défaut (10)
 
 
+def test_effets_fixes_commune_changent_le_modele() -> None:
+    """S22 : les effets fixes commune contrôlent le niveau de prix par commune.
+
+    Deux communes au même endroit, à mix DPE différent et niveau de prix décalé :
+    sans effet fixe commune, l'écart de prix de la commune se confond avec le DPE.
+    """
+    houses: list[Mutation] = []
+    for i in range(8):
+        bati = 90 + i
+        # 31555 : D et F, prix de base.
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.6, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.20)), lat=43.6, lon=1.44))
+        # 31149 : que du D, +30 % de niveau — décale le prix, pas le DPE.
+        d = replace(
+            _house("D", bati, round(3000 * bati * 1.3), lat=43.6, lon=1.44),
+            id_mutation=f"autre-{i}",
+            code_insee="31149",
+        )
+        houses.append(d)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    avec = compute_maille(
+        "31555", 43.6, 1.44, 2024, houses, config=replace(base, effets_fixes_commune=True)
+    )
+    sans = compute_maille(
+        "31555", 43.6, 1.44, 2024, houses, config=replace(base, effets_fixes_commune=False)
+    )
+
+    assert avec is not None and sans is not None
+    assert avec.coef_dpe != sans.coef_dpe
+
+
 def test_compute_maille_lit_les_seuils_de_la_config() -> None:
     """La config descend jusqu'au calcul : durcir un seuil change le résultat.
 

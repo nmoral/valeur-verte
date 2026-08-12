@@ -31,6 +31,7 @@ def test_defauts_sans_environnement() -> None:
     assert config.reference_dpe == "D"
     assert config.voisins_indice_local == 20
     assert config.etendue_minimale_indice == 0.002
+    assert config.effets_fixes_commune is True
     # Validation croisée
     assert config.cv_folds == 5
     # Nettoyage
