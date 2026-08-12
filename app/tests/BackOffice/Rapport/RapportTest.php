@@ -40,7 +40,8 @@ final class RapportTest extends TestCase
 
         $rapport = $this->rapport($contact);
 
-        self::assertSame($contact, $rapport->contact());
+        // Le contact est reconstruit à la lecture (mapping en colonnes) : égalité de valeur.
+        self::assertEquals($contact, $rapport->contact());
         self::assertTrue($rapport->estUnLead());
     }
 

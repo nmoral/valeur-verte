@@ -4,24 +4,80 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Rapport;
 
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Rapport de valeur verte. Un rapport porteur d'un contact est un lead : les
- * deux vivent dans une seule liste (§9.2). La persistance Doctrine est ajoutée
- * dans une tranche ultérieure (mapping sur le schéma `app`).
+ * deux vivent dans une seule liste (§9.2).
+ *
+ * Le contact (value object optionnel) est mappé en trois colonnes nullables et
+ * reconstruit à la lecture : Doctrine ne sait pas rendre un embeddable nullable.
  */
+#[ORM\Entity(repositoryClass: RapportRepository::class)]
+#[ORM\Table(name: 'rapport', schema: 'app')]
 class Rapport
 {
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
+    private ?int $id = null;
+
+    #[ORM\Column(length: 32, unique: true)]
+    private string $reference;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    private \DateTimeImmutable $creeLe;
+
+    #[ORM\Column(enumType: Source::class)]
+    private Source $source;
+
+    #[ORM\Column(length: 255)]
+    private string $adresse;
+
+    #[ORM\Column(enumType: Dpe::class, length: 1)]
+    private Dpe $dpeAvant;
+
+    #[ORM\Column(enumType: Dpe::class, length: 1)]
+    private Dpe $dpeApres;
+
+    #[ORM\Column]
+    private int $valeurVerteEstimee;
+
+    #[ORM\Column(length: 255)]
+    private string $pdfUrl;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $contactNom;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $contactEmail;
+
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $contactTelephone;
+
     private function __construct(
-        private string $reference,
-        private \DateTimeImmutable $creeLe,
-        private Source $source,
-        private string $adresse,
-        private Dpe $dpeAvant,
-        private Dpe $dpeApres,
-        private int $valeurVerteEstimee,
-        private string $pdfUrl,
-        private ?Contact $contact,
+        string $reference,
+        \DateTimeImmutable $creeLe,
+        Source $source,
+        string $adresse,
+        Dpe $dpeAvant,
+        Dpe $dpeApres,
+        int $valeurVerteEstimee,
+        string $pdfUrl,
+        ?Contact $contact,
     ) {
+        $this->reference = $reference;
+        $this->creeLe = $creeLe;
+        $this->source = $source;
+        $this->adresse = $adresse;
+        $this->dpeAvant = $dpeAvant;
+        $this->dpeApres = $dpeApres;
+        $this->valeurVerteEstimee = $valeurVerteEstimee;
+        $this->pdfUrl = $pdfUrl;
+        $this->contactNom = $contact?->nom();
+        $this->contactEmail = $contact?->email();
+        $this->contactTelephone = $contact?->telephone();
     }
 
     public static function creer(
@@ -51,6 +107,11 @@ class Rapport
             $pdfUrl,
             $contact,
         );
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
     }
 
     public function reference(): string
@@ -95,11 +156,15 @@ class Rapport
 
     public function contact(): ?Contact
     {
-        return $this->contact;
+        if (null === $this->contactNom) {
+            return null;
+        }
+
+        return Contact::creer($this->contactNom, $this->contactEmail, $this->contactTelephone);
     }
 
     public function estUnLead(): bool
     {
-        return null !== $this->contact;
+        return null !== $this->contactNom;
     }
 }
