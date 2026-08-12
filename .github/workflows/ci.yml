@@ -155,11 +155,11 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
-      - name: Configurer PHP 8.3
+      - name: Configurer PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
-          coverage: xdebug
+          php-version: "8.4"
+          coverage: pcov
           tools: composer
       - name: Installer les dépendances
         run: composer install --no-interaction --no-progress
@@ -169,8 +169,16 @@ jobs:
         run: vendor/bin/phpstan analyse
       - name: Tests (PHPUnit)
         run: vendor/bin/phpunit
+      # Infection échoue s'il n'a aucune source à muter : au stade de l'amorçage,
+      # src/ ne contient que la glue Symfony (Kernel.php, exclu). On ne lance donc
+      # la mutation que lorsqu'il existe du code métier.
       - name: Mutation testing (Infection, MSI >= 80 %)
-        run: vendor/bin/infection --min-covered-msi=80 --threads=max
+        run: |
+          if find src -name '*.php' ! -name 'Kernel.php' | grep -q .; then
+            vendor/bin/infection --min-covered-msi=80 --threads=max
+          else
+            echo "Aucune source métier à muter (amorçage) — étape ignorée."
+          fi
 
   # Seul check requis en protection de branche. Vert si les vérifications
   # concernées passent OU ne sont pas concernées (skippées) ; rouge sinon.
