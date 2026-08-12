@@ -82,6 +82,7 @@ class CommuneContour:
     """
 
     code_insee: str
+    code_departement: str
     contour: str
 
 
@@ -96,7 +97,9 @@ def parse_contour(payload: Mapping[str, object]) -> CommuneContour | None:
     if not contour.get("coordinates"):
         return None
     normalise = json.dumps(contour, sort_keys=True, separators=(",", ":"))
-    return CommuneContour(code_insee=code_insee, contour=normalise)
+    # Le préfixe INSEE fait foi si le champ est absent (métropole, §7).
+    departement = _clean(payload.get("codeDepartement")) or code_insee[:2]
+    return CommuneContour(code_insee=code_insee, code_departement=departement, contour=normalise)
 
 
 def parse_communes(payload: Iterable[Mapping[str, object]]) -> list[Commune]:

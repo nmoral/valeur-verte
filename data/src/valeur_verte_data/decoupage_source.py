@@ -9,12 +9,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from .decoupage import Commune, parse_commune, parse_communes
+from .decoupage import Commune, CommuneContour, parse_commune, parse_communes, parse_contour
 from .http import Fetcher
 
 GEO_API_URL = "https://geo.api.gouv.fr"
 _FIELDS = "nom,code,codeDepartement,codeEpci,codesPostaux,centre"
 _QUERY = {"fields": _FIELDS, "geometry": "centre", "format": "json"}
+
+# Contours : polygones communaux pour la contiguïté INV-3 (#121). Requête à part,
+# la géométrie ``contour`` étant bien plus lourde que le centroïde.
+_CONTOUR_FIELDS = "code,codeDepartement,contour"
+_CONTOUR_QUERY = {"fields": _CONTOUR_FIELDS, "geometry": "contour", "format": "json"}
 
 
 def fetch_commune(fetcher: Fetcher, code_insee: str) -> Commune | None:
@@ -27,3 +32,14 @@ def fetch_communes_by_departement(fetcher: Fetcher, departement: str) -> list[Co
     """Récupère toutes les communes d'un département (référentiel batch, §10.6)."""
     payload = fetcher.get_json(f"{GEO_API_URL}/departements/{departement}/communes", dict(_QUERY))
     return parse_communes(payload) if isinstance(payload, list) else []
+
+
+def fetch_contours_by_departement(fetcher: Fetcher, departement: str) -> list[CommuneContour]:
+    """Récupère les contours communaux d'un département pour la contiguïté (#121)."""
+    payload = fetcher.get_json(
+        f"{GEO_API_URL}/departements/{departement}/communes", dict(_CONTOUR_QUERY)
+    )
+    if not isinstance(payload, list):
+        return []
+    contours = (parse_contour(item) for item in payload if isinstance(item, Mapping))
+    return [contour for contour in contours if contour is not None]
