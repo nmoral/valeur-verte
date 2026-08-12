@@ -17,6 +17,7 @@ local sur `vv_lab_nobornes` (7 départements ré-ingérés **sans bornes**, mill
 | `VV_MOTEUR_SIGMA_MIN` | `3.0` | S23 | Plancher : protège le fragile d'un σ trop serré | |
 | `VV_MOTEUR_EFFETS_FIXES_COMMUNE` | `false` | **S22** | Les indicatrices commune sur-ajustaient (r² gonflé, erreur CV pire) ; l'indice local + σ portent déjà la localité | [S22](resultats-S22.md) |
 | `VV_MOTEUR_INDICE_LOCAL` | `true` (gardé) | **S24** | Ablation testée : le retirer dégrade l'erreur CV (Toulouse 12,3 → 17,5). Signal réel, complémentaire de σ — pas du sur-paramétrage | [S24](resultats-S24.md) |
+| `VV_MOTEUR_MIN_CLASS_SAMPLE` | `20` | **S21** | Filtre de **publication** des classes DPE (pas de qualité : n'affecte pas l'erreur). 20 retire le bruit des classes rares (A/G) sans trop perdre de couverture | *(cf. ci-dessous)* |
 
 ## 2. Comment je valide une option (les critères)
 
@@ -49,32 +50,39 @@ Par commune : densité, effectif, mode/rayon, **σ effectif**, r² (diagnostic),
 
 ### Communes denses
 ```
-Toulouse   d80=1.79km  n=1441 local/10km σ=3.0  r2=0.858  errCV=12.3%  m2bati=0.63 m2terr=0.05  gainE→C=+18.5%  7 classes
-           DPE: A:+21% B:+10% C:+9% D:0% E:-8% F:-18% G:-12%
+Toulouse   d80=1.79km  n=1441 local/10km σ=3.0  r2=0.858  errCV=12.3%  m2bati=0.63 m2terr=0.05  gainE→C=+18.5%  6 classes
+           DPE: B:+10% C:+9% D:0% E:-8% F:-18% G:-12%          ⚠️ F<G : inversion ROBUSTE (n=1441, pas du bruit)
 Colomiers  d80=1.26km  n=1165 local/10km σ=3.0  r2=0.791  errCV=12.4%  m2bati=0.61 m2terr=0.04  gainE→C=+20.8%  7 classes
-           DPE: A:+19% B:+23% C:+10% D:0% E:-9% F:-10% G:-9%
+           DPE: A:+19% B:+23% C:+10% D:0% E:-9% F:-10% G:-9%   ⚠️ A<B (classe A rare = bruit)
 ```
 
 ### Communes rurales
 ```
-Foix       d80=2.44km  n=142  local/10km σ=3.0  r2=0.795  errCV=16.8%  m2bati=0.26 m2terr=0.26  gainE→C=+7.4%   4 classes
-           DPE: C:-5% D:0% E:-12% F:-9%
+Foix       d80=2.44km  n=142  local/10km σ=3.0  r2=0.795  errCV=16.8%  m2bati=0.26 m2terr=0.26  gainE→C=+7.4%   3 classes
+           DPE: C:-5% D:0% E:-12%                              ⚠️ C<D : inversion robuste (classes bien peuplées)
 Cazères    d80=4.83km  n=94   local/10km σ=4.8  r2=0.353  errCV=20.9%  m2bati=0.35 m2terr=0.18  gainE→C=+16.8%  3 classes
-           DPE: C:+21% D:0% E:+4%            ⚠️ E>D : monotonie cassée (maille fragile)
+           DPE: C:+21% D:0% E:+4%                              ⚠️ E>D : bruit (maille fragile, errCV 21 %)
 ```
 
 ### Communes de montagne (grand rayon)
 ```
-65160      d80=11.4km  n=162  local/15km σ=11.4 r2=0.621  errCV=18.3%  m2bati=0.37 m2terr=0.10  gainE→C=+32.7%  4 classes
-           DPE: C:+14% D:0% E:-14% F:-19%
-65481      d80=15.3km  n=93   local/20km σ=15.3 r2=0.581  errCV=21.3%  m2bati=0.31 m2terr=0.06  gainE→C=+23.0%  4 classes
-           DPE: C:+27% D:0% E:+3% F:0%       ⚠️ E>D, F>E : monotonie cassée (maille isolée)
+65160      d80=11.4km  n=162  local/15km σ=11.4 r2=0.621  errCV=18.3%  m2bati=0.37 m2terr=0.10  gainE→C=+32.7%  3 classes
+           DPE: C:+14% D:0% E:-14%                            (monotone)
+65481      d80=15.3km  n=93   local/20km σ=15.3 r2=0.581  errCV=21.3%  m2bati=0.31 m2terr=0.06  gainE→C=n/a     2 classes
+           DPE: D:0% E:+3%                                    ⚠️ E>D ; C non publiée (< 20) → gain E→C indisponible
 ```
 
 ### Refus
 ```
-Tarascon   d80=4.83km  REFUS — aucune classe DPE n'atteint 15 ventes (appariement DPE 09 trop faible, DAT-3)
+Tarascon   d80=4.83km  REFUS — aucune classe DPE n'atteint 20 ventes (appariement DPE 09 trop faible, DAT-3)
 ```
+
+> Note `min_class_sample=20` : par rapport à 15, on retire les classes rares (A sur
+> Toulouse, F sur Foix/65160/65481) → **les inversions de bruit disparaissent**,
+> mais les **inversions robustes** (Toulouse F/G sur n=1441, Foix C/D sur classes
+> peuplées) **persistent** — elles ne sont pas du petit échantillon et méritent une
+> explication (effet de sélection des ventes G/C), pas un masquage. Le seuil ne
+> change **pas l'erreur** (filtre de publication), et coûte le gain E→C sur 65481.
 
 ## 4. Défauts → gagnante (à données constantes, sans bornes)
 
@@ -109,20 +117,33 @@ Point de départ = base **bornée** `vv_lab`, config par défaut (voir
 Le gain E→C monte de ~+4 pts (correction du biais des bornes, S12) et l'erreur
 CV baisse partout ; deux communes-test refusées au départ calculent désormais.
 
+### Même config, bornée vs sans bornes (l'effet des données seul)
+
+Voir [bornee-vs-nobornes](resultats-bornee-vs-nobornes.md). ⚠️ **Piège** : sur le
+dense, la base bornée affiche une erreur *plus basse* (Toulouse 11,0 vs 12,3) —
+mais c'est un **artefact de censure** (elle a jeté les cas difficiles). Les deux
+erreurs ne sont pas comparables (populations différentes). Le sans-bornes gagne en
+couverture (Cazères calcule), sur le rural (Foix 16,8 vs 19,8) et sur le gain non
+biaisé. **On ne compare l'erreur CV qu'à périmètre de données constant.**
+
 ## 6. Points ouverts (non clos par cette config)
 
 - **Tarascon / DAT-3** : appariement DPE trop faible sur le 09 → aucune classe à
-  15 ventes. Levier hors moteur (qualité de l'appariement), pas réglable ici.
-- **Monotonie DPE sur mailles fragiles** (Cazères E>D, 65481 F>E) : les invariants
-  INV-1 les signaleront ; leur `errCV` élevée est déjà le drapeau.
-- **65481** : la seule maille où retirer les EF commune dégrade un peu — mailles
-  ultra-isolées à traiter à part.
-- **S24 (indice local)** : ablation testée → **gardé** (le retirer dégrade
-  l'erreur CV, surtout sur le dense). Bloc paramètres clos.
+  20 ventes. Levier hors moteur (qualité de l'appariement), pas réglable ici.
+- **Inversions de monotonie DPE** — deux natures distinctes :
+  - *Bruit* (classes rares A/G) : atténué par `min_class_sample=20`, toléré par
+    INV-1 (inversion adjacente sous 30 ventes).
+  - *Robustes* (Toulouse F/G sur n=1441, Foix C/D sur classes peuplées) :
+    **persistent quel que soit le seuil** → vraie anomalie (effet de sélection des
+    ventes G/C probable). À **comprendre**, pas à masquer. Nécessite les effectifs
+    par classe (non persistés aujourd'hui) pour trancher.
+- **65481** : maille ultra-isolée où retirer les EF commune dégrade un peu, et où
+  `min_class_sample=20` fait perdre le gain E→C (C < 20 ventes) — à traiter à part.
 - **Rappels de fond** : coefficients en log/% et non en € (unité des invariants),
   IC empirique heuristique (S29), pas d'historique des coefficients (S30 → REG-1),
-  et le `log(exp)` du R² à simplifier (tâche de suivi).
+  effectifs par classe non persistés (bloque la tolérance INV-1), et le `log(exp)`
+  du R² à simplifier (tâche de suivi).
 
 > ⚠️ Cette config gagnante est documentée et pilotable par env, mais **les défauts
 > du code restent inchangés**. La basculer en défaut est une décision à prendre une
-> fois S24 tranché et les invariants (#118) en place.
+> fois les invariants (#118) en place.

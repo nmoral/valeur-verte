@@ -31,6 +31,8 @@ GAGNANTE = CalculConfig(
     sigma_diviseur=1.0,
     sigma_min=3.0,
     effets_fixes_commune=False,  # S22
+    indice_local=True,  # S24 (gardé)
+    min_class_sample=20,  # S21
 )
 CLASSES = ["A", "B", "C", "D", "E", "F", "G"]
 

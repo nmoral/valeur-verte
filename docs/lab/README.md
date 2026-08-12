@@ -54,3 +54,4 @@ classes publiables).
 - [`resultats-S23-densite.md`](resultats-S23-densite.md) — σ piloté par la densité continue (d80) ; améliore l'erreur CV partout.
 - [`resultats-S22.md`](resultats-S22.md) — retirer les effets fixes commune (sur-paramétrage) ; répare le rural fragile.
 - [`resultats-S24.md`](resultats-S24.md) — indice local : ablation → à garder (signal réel, pas redondant).
+- [`resultats-bornee-vs-nobornes.md`](resultats-bornee-vs-nobornes.md) — config gagnante sur base bornée vs sans bornes ; l'erreur plus basse en bornée est un artefact de censure.
