@@ -83,8 +83,13 @@ def is_pre_1989(periode: str | None) -> bool:
     return max(years) < 1989
 
 
-def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
-    """Filtre les mutations exploitables et restreint au bâti ancien (§5.2)."""
+def _eligible(sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = True) -> list[_Row]:
+    """Filtre les mutations exploitables (§5.2).
+
+    ``restreindre_bati_ancien`` restreint au bâti < 1989 (mesure du gain de
+    rénovation sans taux de capture) ; désactivé, le bâti récent entre aussi —
+    un logement récent en E existe et doit compter (S20).
+    """
     rows: list[_Row] = []
     for mutation in sample:
         if mutation.prix is None or mutation.surface_bati is None or mutation.surface_bati <= 0:
@@ -95,7 +100,7 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
             continue
         if mutation.latitude is None or mutation.longitude is None:
             continue
-        if not is_pre_1989(mutation.periode_construction):
+        if restreindre_bati_ancien and not is_pre_1989(mutation.periode_construction):
             continue
         rows.append(
             _Row(
@@ -294,12 +299,13 @@ def fit(
     reference_dpe: str = DEFAULT_REFERENCE_DPE,
     voisins_indice_local: int = VOISINS_INDICE_LOCAL,
     etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
+    restreindre_bati_ancien: bool = True,
 ) -> RegressionResult:
     """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
-    rows = _eligible(sample)
+    rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
     n = len(rows)
     if n == 0:
-        raise InsufficientSampleError("échantillon vide après restriction au bâti ancien")
+        raise InsufficientSampleError("échantillon vide après filtrage d'éligibilité")
 
     model = _fit_model(
         rows,

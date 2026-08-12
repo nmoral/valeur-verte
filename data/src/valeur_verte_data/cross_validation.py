@@ -36,9 +36,10 @@ def median_relative_error(
     reference_dpe: str = DEFAULT_REFERENCE_DPE,
     voisins_indice_local: int = VOISINS_INDICE_LOCAL,
     etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
+    restreindre_bati_ancien: bool = True,
 ) -> float | None:
     """Erreur médiane de prédiction en %, ou ``None`` si l'échantillon est trop petit."""
-    rows = _eligible(sample)
+    rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
     if len(rows) < folds:
         return None
 

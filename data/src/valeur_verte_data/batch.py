@@ -64,9 +64,13 @@ def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutatio
     return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
 
 
-def _classes_publiables(sample: Sequence[Mutation], seuil: int) -> set[str]:
+def _classes_publiables(
+    sample: Sequence[Mutation], seuil: int, *, restreindre_bati_ancien: bool = True
+) -> set[str]:
     """Classes DPE assez observées pour que leur coefficient veuille dire quelque chose."""
-    effectifs = Counter(row.dpe for row in _eligible(sample))
+    effectifs = Counter(
+        row.dpe for row in _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
+    )
     return {classe for classe, effectif in effectifs.items() if effectif >= seuil}
 
 
@@ -128,8 +132,12 @@ def compute_maille(
         centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
     )
     departemental = _meme_departement(code_insee, pool)
-    n_local = len(_eligible(selection.sample))
-    n_departement = len(_eligible(departemental))
+    n_local = len(
+        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    n_departement = len(
+        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
     decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
 
     if decision.mode is CoverageMode.REFUS:
@@ -144,7 +152,9 @@ def compute_maille(
         rayon_km = None
         fit_sigma = config.departemental_sigma_km
 
-    publiables = _classes_publiables(sample, config.min_class_sample)
+    publiables = _classes_publiables(
+        sample, config.min_class_sample, restreindre_bati_ancien=config.restreindre_bati_ancien
+    )
     if len(publiables) < config.min_classes_publiees:
         return None
 
@@ -156,6 +166,7 @@ def compute_maille(
         reference_dpe=config.reference_dpe,
         voisins_indice_local=config.voisins_indice_local,
         etendue_minimale_indice=config.etendue_minimale_indice,
+        restreindre_bati_ancien=config.restreindre_bati_ancien,
     )
     erreur = median_relative_error(
         sample,
@@ -166,6 +177,7 @@ def compute_maille(
         reference_dpe=config.reference_dpe,
         voisins_indice_local=config.voisins_indice_local,
         etendue_minimale_indice=config.etendue_minimale_indice,
+        restreindre_bati_ancien=config.restreindre_bati_ancien,
     )
     return _maille(
         code_insee,

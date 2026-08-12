@@ -38,6 +38,7 @@ class CalculConfig:
     terrain_min: float = 50.0
     terrain_max: float = 5_000.0
     segment: str = "Maison"
+    restreindre_bati_ancien: bool = True
 
 
 # Config historique par défaut, partagée comme valeur par défaut des signatures :
@@ -70,6 +71,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         terrain_min=_float(env, "TERRAIN_MIN", defaut.terrain_min),
         terrain_max=_float(env, "TERRAIN_MAX", defaut.terrain_max),
         segment=_str(env, "SEGMENT", defaut.segment),
+        restreindre_bati_ancien=_bool(
+            env, "RESTREINDRE_BATI_ANCIEN", defaut.restreindre_bati_ancien
+        ),
     )
 
 
@@ -95,6 +99,13 @@ def _float(env: Mapping[str, str], name: str, default: float) -> float:
 def _str(env: Mapping[str, str], name: str, default: str) -> str:
     raw = _raw(env, name)
     return default if raw is None else raw
+
+
+def _bool(env: Mapping[str, str], name: str, default: bool) -> bool:
+    raw = _raw(env, name)
+    if raw is None:
+        return default
+    return raw.lower() not in {"false", "0", "no", "non", "off"}
 
 
 def _tuple(env: Mapping[str, str], name: str, default: tuple[int, ...]) -> tuple[int, ...]:
