@@ -46,3 +46,4 @@ classes publiables).
 - [`resultats-S32-v1.md`](resultats-S32-v1.md) — écrêtage prix/m² (V1), sur base S20.
 - [`resultats-nobornes.md`](resultats-nobornes.md) — S12 : base ré-ingérée sans bornes, re-validation baseline/S20/S32.
 - [`resultats-S32-v2.md`](resultats-S32-v2.md) — écrêtage résidu pondéré (V2), sur base sans bornes.
+- [`resultats-S23.md`](resultats-S23.md) — σ adaptatif au rayon retenu ; diviseur 2 sûr, 3 casse le fragile.
