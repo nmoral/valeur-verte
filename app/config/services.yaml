@@ -45,3 +45,9 @@ when@test:
         Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface:
             alias: security.user_password_hasher
             public: true
+
+        # Recherche SIRET (#106) : doubles en mémoire, aucun appel réseau réel.
+        App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire: ~
+        App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire: ~
+        App\BackOffice\Entreprise\RechercheEntreprise: '@App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire'
+        App\BackOffice\Entreprise\QualificationsRge: '@App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire'

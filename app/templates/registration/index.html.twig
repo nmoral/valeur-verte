@@ -51,6 +51,15 @@
         {% endif %}
       </div>
 
+      <div id="entreprise-apercu" class="entreprise-apercu" hidden aria-live="polite">
+        <p class="entreprise-apercu-titre">Votre entreprise</p>
+        <p class="entreprise-nom" data-champ="raisonSociale"></p>
+        <p class="entreprise-adresse" data-champ="adresse"></p>
+        <p class="entreprise-meta"><span data-champ="codeNaf"></span> · <span data-champ="effectif"></span></p>
+        <p class="entreprise-rge"><span class="entreprise-badge" data-champ="statutRgeLibelle"></span> <span data-champ="domainesRge"></span></p>
+      </div>
+      <p id="entreprise-repli" class="hint" hidden>Entreprise introuvable pour ce SIRET — vous pourrez compléter votre fiche plus tard.</p>
+
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('inscription') }}">
       <button type="submit" class="btn-primary">Créer mon compte</button>
     </form>
@@ -61,5 +70,6 @@
   <p class="auth-alt">Vous avez déjà un compte ? <a href="{{ path('login') }}">Se connecter</a></p>
   <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
 </main>
+<script src="/js/inscription-siret.js" defer></script>
 </body>
 </html>
