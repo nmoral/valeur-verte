@@ -13,6 +13,9 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      # Rôle et schéma applicatifs (app en écriture, data en lecture seule) — #37.
+      # Joué une seule fois, à la création du volume.
+      - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-valeur_verte} -d ${POSTGRES_DB:-valeur_verte}"]
       interval: 5s
@@ -30,6 +33,9 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: prod
+      # Rôle applicatif « app » sur la base partagée : écrit le schéma app, lit
+      # seulement data. L'hôte est le service « db » du réseau interne du compose.
+      DATABASE_URL: "postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
     ports:
       - "127.0.0.1:8000:80"
 
