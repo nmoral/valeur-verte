@@ -1,0 +1,98 @@
+"""Configuration de calcul du moteur, résolue depuis l'environnement.
+
+Toutes les constantes réglables du moteur (seuils d'échantillon, σ de pondération,
+bornes de nettoyage, segment de biens) sont centralisées ici et surchargeables par
+variable d'environnement ``VV_MOTEUR_*``. Même motif que ``resolve_dsn`` : l'env
+est **injecté** (un ``Mapping``), donc la config est testable hors-ligne et se
+règle par expérience sans modifier le code. Sans variable, les valeurs par défaut
+reproduisent exactement le comportement historique du pipeline.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+
+_PREFIX = "VV_MOTEUR_"
+
+
+@dataclass(frozen=True)
+class CalculConfig:
+    """Constantes de calcul du moteur, avec leurs valeurs par défaut historiques."""
+
+    radii_km: tuple[int, ...] = (10, 15, 20, 30, 50)
+    min_sample: int = 80
+    min_local_sample: int = 30
+    min_class_sample: int = 15
+    min_classes_publiees: int = 2
+    sigma_km: float = 10.0
+    departemental_sigma_km: float = 1000.0
+    reference_dpe: str = "D"
+    voisins_indice_local: int = 20
+    etendue_minimale_indice: float = 0.002
+    cv_folds: int = 5
+    price_min: float = 30_000.0
+    price_max: float = 900_000.0
+    bati_min: float = 50.0
+    bati_max: float = 250.0
+    terrain_min: float = 50.0
+    terrain_max: float = 5_000.0
+    segment: str = "Maison"
+
+
+def resolve_config(env: Mapping[str, str]) -> CalculConfig:
+    """Construit la config depuis l'environnement, défaut historique si absent/vide."""
+    defaut = CalculConfig()
+    return CalculConfig(
+        radii_km=_tuple(env, "RADII_KM", defaut.radii_km),
+        min_sample=_int(env, "MIN_SAMPLE", defaut.min_sample),
+        min_local_sample=_int(env, "MIN_LOCAL_SAMPLE", defaut.min_local_sample),
+        min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),
+        min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
+        sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
+        departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),
+        reference_dpe=_str(env, "REFERENCE_DPE", defaut.reference_dpe),
+        voisins_indice_local=_int(env, "VOISINS_INDICE_LOCAL", defaut.voisins_indice_local),
+        etendue_minimale_indice=_float(
+            env, "ETENDUE_MINIMALE_INDICE", defaut.etendue_minimale_indice
+        ),
+        cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
+        price_min=_float(env, "PRICE_MIN", defaut.price_min),
+        price_max=_float(env, "PRICE_MAX", defaut.price_max),
+        bati_min=_float(env, "BATI_MIN", defaut.bati_min),
+        bati_max=_float(env, "BATI_MAX", defaut.bati_max),
+        terrain_min=_float(env, "TERRAIN_MIN", defaut.terrain_min),
+        terrain_max=_float(env, "TERRAIN_MAX", defaut.terrain_max),
+        segment=_str(env, "SEGMENT", defaut.segment),
+    )
+
+
+def _raw(env: Mapping[str, str], name: str) -> str | None:
+    """Valeur brute de ``VV_MOTEUR_<name>``, ou ``None`` si absente ou vide."""
+    value = env.get(_PREFIX + name)
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _int(env: Mapping[str, str], name: str, default: int) -> int:
+    raw = _raw(env, name)
+    return default if raw is None else int(raw)
+
+
+def _float(env: Mapping[str, str], name: str, default: float) -> float:
+    raw = _raw(env, name)
+    return default if raw is None else float(raw)
+
+
+def _str(env: Mapping[str, str], name: str, default: str) -> str:
+    raw = _raw(env, name)
+    return default if raw is None else raw
+
+
+def _tuple(env: Mapping[str, str], name: str, default: tuple[int, ...]) -> tuple[int, ...]:
+    raw = _raw(env, name)
+    if raw is None:
+        return default
+    return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
