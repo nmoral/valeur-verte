@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ page_title|default('Back-office') }} · Valeur Verte{% endblock %}
+
+{% block body %}
+<div class="app">
+    <aside>
+        <div class="brand"><i>VV</i> {% block brand %}Valeur Verte{% endblock %}</div>
+        <nav class="side">
+            <a href="#"{{ nav_active|default('') == 'dashboard' ? ' class="on"' : '' }}>Tableau de bord</a>
+            <a href="#"{{ nav_active|default('') == 'reports' ? ' class="on"' : '' }}>Rapports &amp; leads</a>
+            <p class="sect">Configuration</p>
+            <a href="#"{{ nav_active|default('') == 'costs' ? ' class="on"' : '' }}>Coûts de travaux</a>
+            <a href="#"{{ nav_active|default('') == 'bouquets' ? ' class="on"' : '' }}>Bouquets types</a>
+            <a href="#"{{ nav_active|default('') == 'branding' ? ' class="on"' : '' }}>Ma marque</a>
+            <a href="#"{{ nav_active|default('') == 'public_page' ? ' class="on"' : '' }}>Page publique</a>
+            <p class="sect">Compte</p>
+            <a href="#"{{ nav_active|default('') == 'subscription' ? ' class="on"' : '' }}>Abonnement</a>
+            <a href="#"{{ nav_active|default('') == 'company' ? ' class="on"' : '' }}>Entreprise</a>
+        </nav>
+        {% block sidebar_footer %}{% endblock %}
+    </aside>
+
+    <main>
+        <div class="top">
+            <div>
+                <h1>{{ page_title|default('') }}</h1>
+                {% block page_subtitle %}{% endblock %}
+            </div>
+            <div style="display:flex;gap:8px">{% block topbar_actions %}{% endblock %}</div>
+        </div>
+
+        {% block bo_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}
