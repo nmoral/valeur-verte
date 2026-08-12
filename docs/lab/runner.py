@@ -66,7 +66,11 @@ def main() -> None:
             )
             for dep in ("31", "09")
         }
-        print(f"Baseline — millésime {MILLESIME}, config = défauts")
+        print(
+            f"millésime {MILLESIME} | restreindre_bati_ancien={config.restreindre_bati_ancien} "
+            f"| ecretage={config.ecretage} (frac={config.ecretage_fraction}, "
+            f"seuil_n={config.ecretage_seuil_n})"
+        )
         print(f"Pool 31 (+limitrophes) : {len(pools['31'])} maisons | Pool 09 : {len(pools['09'])}")
         print()
         entete = (

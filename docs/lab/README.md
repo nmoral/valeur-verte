@@ -43,3 +43,4 @@ classes publiables).
 
 - [`resultats-baseline.md`](resultats-baseline.md) — config par défaut, référence.
 - [`resultats-S20.md`](resultats-S20.md) — sans restriction bâti ancien (< 1989).
+- [`resultats-S32-v1.md`](resultats-S32-v1.md) — écrêtage prix/m² (V1), sur base S20.
