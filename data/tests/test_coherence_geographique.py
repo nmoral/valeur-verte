@@ -23,7 +23,9 @@ from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.invariants import (
+    RuptureLimitrophe,
     VerdictPublication,
+    detecter_ruptures_limitrophes,
     evaluer_coherence_geographique,
 )
 from valeur_verte_data.radius import adaptive_selection
@@ -146,3 +148,120 @@ def test_retirer_une_vente_hors_selection_ne_reduit_pas_le_rayon() -> None:
 
     assert _rayon(ampute) >= _rayon(plein)
     assert _rayon(ampute) == 10
+
+
+# --- Invariant #3 : facteur 2 entre communes limitrophes ---------------------
+#
+# Deux communes limitrophes dont le coef_m2_bati diffère de plus d'un facteur 2
+# signalent un artefact de bord probable (§3.2). Détection pure : elle consomme
+# les mailles calculées et l'adjacence (dérivée en base), sans décider encore de
+# la conséquence (non-publication + alerte — tranche 5).
+
+
+def _maille_bati(code_insee: str, coef_m2_bati: float) -> MailleCoefficient:
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=10,
+        n_transactions=40,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=coef_m2_bati,
+        coef_m2_terrain=100.0,
+        coef_dpe={"D": 0.0, "F": -0.20},
+        ic_dpe={},
+        alerte=None,
+    )
+
+
+def test_ecart_sous_le_facteur_2_ne_signale_rien() -> None:
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31002", 1500.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    ruptures = detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig())
+
+    assert ruptures == ()
+
+
+def test_ecart_egal_au_facteur_2_est_tolere() -> None:
+    # « Supérieur à un facteur 2 » : à 2,0 pile, pas de rupture (borne stricte).
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31002", 2000.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    assert detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig()) == ()
+
+
+def test_ecart_au_dessus_du_facteur_2_est_signale() -> None:
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31002", 3000.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    ruptures = detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig())
+
+    assert len(ruptures) == 1
+    rupture = ruptures[0]
+    assert isinstance(rupture, RuptureLimitrophe)
+    # Ordre canonique (a < b), quel que soit le sens de parcours de l'adjacence.
+    assert (rupture.code_insee_a, rupture.code_insee_b) == ("31001", "31002")
+    assert rupture.facteur == 3.0
+
+
+def test_communes_non_limitrophes_ne_sont_pas_comparees() -> None:
+    # Gros écart mais aucune arête commune : ce n'est pas un artefact de bord.
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31050", 5000.0)]
+
+    assert detecter_ruptures_limitrophes(mailles, {}, CalculConfig()) == ()
+
+
+def test_voisin_sans_maille_publiee_est_ignore() -> None:
+    # La commune voisine est en refus (pas de maille) : la paire est incomparable,
+    # pas une rupture — et surtout pas une KeyError.
+    mailles = [_maille_bati("31001", 1000.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    assert detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig()) == ()
+
+
+def test_une_paire_n_est_signalee_qu_une_fois() -> None:
+    # L'adjacence donne les deux sens ; la rupture ne doit pas être dédoublée.
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31002", 3000.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    assert len(detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig())) == 1
+
+
+def test_le_facteur_provient_de_la_config() -> None:
+    # Seuil configurable unique : à 1,2, un écart de 1,5 devient une rupture.
+    strict = replace(CalculConfig(), rupture_facteur_max=1.2)
+    mailles = [_maille_bati("31001", 1000.0), _maille_bati("31002", 1500.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    assert len(detecter_ruptures_limitrophes(mailles, adjacence, strict)) == 1
+
+
+def test_coef_bati_non_positif_est_hors_perimetre() -> None:
+    # Un coef_m2_bati ≤ 0 est une anomalie de signe (INV-2), pas de bord : le
+    # ratio n'a pas de sens, la paire est ignorée par INV-3.
+    mailles = [_maille_bati("31001", 0.0), _maille_bati("31002", 3000.0)]
+    adjacence = {"31001": ("31002",), "31002": ("31001",)}
+
+    assert detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig()) == ()
+
+
+def test_ruptures_ordonnees_de_facon_deterministe() -> None:
+    # INV-5 : l'ordre de sortie ne dépend pas de l'ordre d'itération des mailles.
+    mailles = [
+        _maille_bati("31003", 5000.0),
+        _maille_bati("31001", 1000.0),
+        _maille_bati("31002", 3000.0),
+    ]
+    adjacence = {
+        "31001": ("31002",),
+        "31002": ("31001", "31003"),
+        "31003": ("31002",),
+    }
+
+    ruptures = detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig())
+    paires = [(r.code_insee_a, r.code_insee_b) for r in ruptures]
+
+    assert paires == [("31001", "31002"), ("31002", "31003")]
