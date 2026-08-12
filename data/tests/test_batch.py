@@ -63,7 +63,9 @@ def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> No
     pool = anciennes + recentes
     base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
 
-    stricte = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    stricte = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, config=replace(base, restreindre_bati_ancien=True)
+    )
     large = compute_maille(
         "31555", 43.6, 1.44, 2024, pool, config=replace(base, restreindre_bati_ancien=False)
     )
@@ -89,7 +91,8 @@ def test_sigma_local_mode_rayon() -> None:
 
 def test_sigma_local_mode_densite() -> None:
     # σ suit la densité continue, pas le rayon quantifié : 6 km / 3 = 2 km.
-    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0)
+    # sigma_min=0 pour isoler le calcul du plancher (testé à part).
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_min=0.0)
     assert _sigma_local(cfg, _selection(20, 6.0)) == 2.0
 
 

@@ -20,18 +20,18 @@ def test_defauts_sans_environnement() -> None:
     assert config.radii_km == (10, 15, 20, 30, 50)
     assert config.min_sample == 80
     assert config.min_local_sample == 30
-    assert config.min_class_sample == 15
+    assert config.min_class_sample == 20
     assert config.min_classes_publiees == 2
-    # Régression
+    # Régression — config gagnante par défaut
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
-    assert config.sigma_mode == "fixe"
-    assert config.sigma_diviseur == 3.0
-    assert config.sigma_min == 0.0
+    assert config.sigma_mode == "densite"
+    assert config.sigma_diviseur == 1.0
+    assert config.sigma_min == 3.0
     assert config.reference_dpe == "D"
     assert config.voisins_indice_local == 20
     assert config.etendue_minimale_indice == 0.002
-    assert config.effets_fixes_commune is True
+    assert config.effets_fixes_commune is False
     assert config.indice_local is True
     # Validation croisée
     assert config.cv_folds == 5
@@ -44,10 +44,10 @@ def test_defauts_sans_environnement() -> None:
     assert config.terrain_max == 5_000.0
     # Segment
     assert config.segment == "Maison"
-    # Restriction bâti ancien (S20) : active par défaut
-    assert config.restreindre_bati_ancien is True
-    # Écrêtage (S32) : désactivé par défaut
-    assert config.ecretage == "off"
+    # Restriction bâti ancien (S20) : retirée par défaut (bâti récent inclus)
+    assert config.restreindre_bati_ancien is False
+    # Écrêtage (S32) : résidu pondéré par défaut
+    assert config.ecretage == "residu"
     assert config.ecretage_seuil_n == 100
     assert config.ecretage_k == 3.0
 

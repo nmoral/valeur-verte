@@ -18,30 +18,35 @@ _PREFIX = "VV_MOTEUR_"
 
 @dataclass(frozen=True)
 class CalculConfig:
-    """Constantes de calcul du moteur, avec leurs valeurs par défaut historiques."""
+    """Constantes de calcul du moteur.
+
+    Les défauts sont la **config gagnante** validée sur le 31 (voir
+    ``docs/lab/RECAP.md``) : σ piloté par la densité (S23), écrêtage sur résidu
+    (S32), bâti récent inclus (S20), sans effets fixes commune (S22), seuil de
+    classe à 20 (S21). Surchargeables par ``VV_MOTEUR_*``.
+    """
 
     radii_km: tuple[int, ...] = (10, 15, 20, 30, 50)
     min_sample: int = 80
     min_local_sample: int = 30
-    min_class_sample: int = 15
+    min_class_sample: int = 20  # S21
     min_classes_publiees: int = 2
-    sigma_km: float = 10.0
+    sigma_km: float = 10.0  # utilisé seulement si sigma_mode="fixe"
     departemental_sigma_km: float = 1000.0
     # σ en mode local (S23) : "fixe" (σ ci-dessus) | "rayon" (σ = rayon_retenu /
     # diviseur, quantifié) | "densite" (σ = distance à la min_sample-ième vente /
     # diviseur — mesure de densité continue, distingue Paris de Toulouse).
-    sigma_mode: str = "fixe"
-    sigma_diviseur: float = 3.0
-    sigma_min: float = 0.0  # plancher de σ : protège les mailles fragiles d'un σ trop serré.
+    sigma_mode: str = "densite"  # S23
+    sigma_diviseur: float = 1.0
+    sigma_min: float = 3.0  # plancher de σ : protège les mailles fragiles d'un σ trop serré.
     reference_dpe: str = "D"
     voisins_indice_local: int = 20
     etendue_minimale_indice: float = 0.002
-    # Effets fixes commune dans la régression (S22). Une indicatrice par commune du
-    # rayon : coûteux et possiblement redondant avec l'indice local + la pondération.
-    effets_fixes_commune: bool = True
-    # Indice local de quartier comme régresseur (S24). Désactivable : la pondération
-    # densité porte déjà la localité — reste à voir s'il devient superflu.
-    indice_local: bool = True
+    # Effets fixes commune dans la régression (S22) : retirés par défaut, ils
+    # sur-ajustaient (indice local + pondération portent déjà la localité).
+    effets_fixes_commune: bool = False  # S22
+    # Indice local de quartier comme régresseur (S24) : gardé (signal réel).
+    indice_local: bool = True  # S24
     cv_folds: int = 5
     price_min: float = 30_000.0
     price_max: float = 900_000.0
@@ -50,9 +55,9 @@ class CalculConfig:
     terrain_min: float = 50.0
     terrain_max: float = 5_000.0
     segment: str = "Maison"
-    restreindre_bati_ancien: bool = True
+    restreindre_bati_ancien: bool = False  # S20
     # Écrêtage de l'échantillon au calcul (S32) : "off" | "residu".
-    ecretage: str = "off"
+    ecretage: str = "residu"  # S32 V2
     ecretage_seuil_n: int = 100
     ecretage_k: float = 3.0  # seuil en nombre de MAD sur le résidu pondéré.
 

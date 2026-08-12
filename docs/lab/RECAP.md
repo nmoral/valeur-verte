@@ -144,6 +144,7 @@ biaisé. **On ne compare l'erreur CV qu'à périmètre de données constant.**
   effectifs par classe non persistés (bloque la tolérance INV-1), et le `log(exp)`
   du R² à simplifier (tâche de suivi).
 
-> ⚠️ Cette config gagnante est documentée et pilotable par env, mais **les défauts
-> du code restent inchangés**. La basculer en défaut est une décision à prendre une
-> fois les invariants (#118) en place.
+> ✅ Cette config gagnante est désormais **le défaut du code** (`CalculConfig`) —
+> les `VV_MOTEUR_*` ne servent plus qu'à expérimenter. **Suivi restant** : les
+> **bornes de nettoyage** (S12) sont laissées telles quelles ; à réduire à des
+> garde-fous avant la prochaine ingestion (la base prod est déjà sans bornes).
