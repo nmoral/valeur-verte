@@ -1,5 +1,11 @@
+includes:
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-doctrine/rules.neon
+
 parameters:
     level: max
     paths:
         - src
         - tests
+    doctrine:
+        objectManagerLoader: tests/object-manager.php

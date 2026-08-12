@@ -10,6 +10,10 @@
         <env name="APP_ENV" value="test" force="true" />
         <env name="KERNEL_CLASS" value="App\Kernel" />
     </php>
+    <extensions>
+        <!-- Chaque test tourne dans une transaction annulée à la fin : base isolée et rapide. -->
+        <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension" />
+    </extensions>
     <testsuites>
         <testsuite name="app">
             <directory>tests</directory>
