@@ -153,6 +153,7 @@ class _Model:
     apprentissage: list[_Row]
     voisins: int
     etendue_minimale: float
+    avec_indice: bool
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
@@ -182,16 +183,20 @@ def _encode(
     *,
     voisins: int = VOISINS_INDICE_LOCAL,
     etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+    avec_indice: bool = True,
 ) -> NDArray[np.float64]:
     """Matrice de design à colonnes **fixées** (pour ré-encoder un jeu de test)."""
     n = len(rows)
-    indice = _indice_local(rows, apprentissage, voisins=voisins, etendue_minimale=etendue_minimale)
     blocks = [
         np.ones((n, 1)),
         np.log(np.array([row.bati for row in rows], dtype=float))[:, None],
         np.log1p(np.array([row.terrain for row in rows], dtype=float))[:, None],
-        np.log(np.maximum(indice, 1.0))[:, None],
     ]
+    if avec_indice:
+        indice = _indice_local(
+            rows, apprentissage, voisins=voisins, etendue_minimale=etendue_minimale
+        )
+        blocks.append(np.log(np.maximum(indice, 1.0))[:, None])
     extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
         (columns.dpe, lambda row: row.dpe),
         (columns.periode, lambda row: row.periode),
@@ -277,10 +282,13 @@ def _fit_model(
     voisins: int = VOISINS_INDICE_LOCAL,
     etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
     avec_commune: bool = True,
+    avec_indice: bool = True,
 ) -> _Model:
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
     columns = _build_columns(rows, reference_dpe, avec_commune=avec_commune)
-    design = _encode(rows, columns, voisins=voisins, etendue_minimale=etendue_minimale)
+    design = _encode(
+        rows, columns, voisins=voisins, etendue_minimale=etendue_minimale, avec_indice=avec_indice
+    )
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
@@ -290,6 +298,7 @@ def _fit_model(
         apprentissage=rows,
         voisins=voisins,
         etendue_minimale=etendue_minimale,
+        avec_indice=avec_indice,
     )
 
 
@@ -302,6 +311,7 @@ def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
             model.apprentissage,
             voisins=model.voisins,
             etendue_minimale=model.etendue_minimale,
+            avec_indice=model.avec_indice,
         )
         @ model.beta
     )
@@ -319,6 +329,7 @@ def fit(
     etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
     restreindre_bati_ancien: bool = True,
     effets_fixes_commune: bool = True,
+    indice_local: bool = True,
 ) -> RegressionResult:
     """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
     rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
@@ -335,14 +346,18 @@ def fit(
         voisins=voisins_indice_local,
         etendue_minimale=etendue_minimale_indice,
         avec_commune=effets_fixes_commune,
+        avec_indice=indice_local,
     )
     # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     weights = _weights(rows, center_lat, center_lon, sigma_km)
 
+    # Colonnes fixes : const, log(bâti), log1p(terrain), [log(indice)]. Les DPE
+    # commencent après, donc leur position dépend de la présence de l'indice.
+    dpe_debut = 4 if indice_local else 3
     coef_dpe = {model.columns.reference_dpe: 0.0}
     for offset, level in enumerate(model.columns.dpe):
-        coef_dpe[level] = float(model.beta[4 + offset])
+        coef_dpe[level] = float(model.beta[dpe_debut + offset])
 
     predictions = np.log(_predict(model, rows))
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))

@@ -39,6 +39,9 @@ class CalculConfig:
     # Effets fixes commune dans la régression (S22). Une indicatrice par commune du
     # rayon : coûteux et possiblement redondant avec l'indice local + la pondération.
     effets_fixes_commune: bool = True
+    # Indice local de quartier comme régresseur (S24). Désactivable : la pondération
+    # densité porte déjà la localité — reste à voir s'il devient superflu.
+    indice_local: bool = True
     cv_folds: int = 5
     price_min: float = 30_000.0
     price_max: float = 900_000.0
@@ -80,6 +83,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
             env, "ETENDUE_MINIMALE_INDICE", defaut.etendue_minimale_indice
         ),
         effets_fixes_commune=_bool(env, "EFFETS_FIXES_COMMUNE", defaut.effets_fixes_commune),
+        indice_local=_bool(env, "INDICE_LOCAL", defaut.indice_local),
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
         price_min=_float(env, "PRICE_MIN", defaut.price_min),
         price_max=_float(env, "PRICE_MAX", defaut.price_max),
