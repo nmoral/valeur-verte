@@ -20,7 +20,7 @@ from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
 from .degraded import CoverageMode, decide_mode
 from .dvf import Mutation
-from .radius import adaptive_selection
+from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
 from .trimming import ecreter_residu
 
@@ -119,6 +119,24 @@ def _maille(
     )
 
 
+def _sigma_local(config: CalculConfig, selection: RadiusSelection) -> float:
+    """σ de pondération en mode local selon ``sigma_mode`` (S23), borné par ``sigma_min``.
+
+    - ``rayon`` : σ = rayon retenu / diviseur (proxy quantifié de densité).
+    - ``densite`` : σ = distance à la min_sample-ième vente / diviseur (densité
+      continue, distingue une ville très dense d'une ville dense).
+    - sinon : σ fixe.
+    """
+    if config.sigma_mode == "rayon":
+        sigma = selection.rayon_km / config.sigma_diviseur
+    elif config.sigma_mode == "densite":
+        distance = selection.distance_min_sample
+        sigma = distance / config.sigma_diviseur if distance > 0 else config.sigma_km
+    else:
+        return config.sigma_km
+    return max(sigma, config.sigma_min)
+
+
 def compute_maille(
     code_insee: str,
     centroid_lat: float,
@@ -147,13 +165,7 @@ def compute_maille(
     if decision.mode is CoverageMode.LOCAL:
         sample: Sequence[Mutation] = selection.sample
         rayon_km: int | None = selection.rayon_km
-        # σ adaptatif (S23) : la finesse de la pondération suit le rayon qu'il a
-        # fallu atteindre — serré en zone dense, plus lâche en rural.
-        fit_sigma = (
-            selection.rayon_km / config.sigma_diviseur
-            if config.sigma_adaptatif
-            else config.sigma_km
-        )
+        fit_sigma = _sigma_local(config, selection)
     else:
         sample = departemental
         rayon_km = None

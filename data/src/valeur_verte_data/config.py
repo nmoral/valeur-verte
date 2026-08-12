@@ -27,10 +27,12 @@ class CalculConfig:
     min_classes_publiees: int = 2
     sigma_km: float = 10.0
     departemental_sigma_km: float = 1000.0
-    # σ adaptatif au rayon retenu (S23) : si actif, σ = rayon_retenu / diviseur en
-    # mode local (la finesse s'adapte à la densité de données). Sinon σ fixe ci-dessus.
-    sigma_adaptatif: bool = False
+    # σ en mode local (S23) : "fixe" (σ ci-dessus) | "rayon" (σ = rayon_retenu /
+    # diviseur, quantifié) | "densite" (σ = distance à la min_sample-ième vente /
+    # diviseur — mesure de densité continue, distingue Paris de Toulouse).
+    sigma_mode: str = "fixe"
     sigma_diviseur: float = 3.0
+    sigma_min: float = 0.0  # plancher de σ : protège les mailles fragiles d'un σ trop serré.
     reference_dpe: str = "D"
     voisins_indice_local: int = 20
     etendue_minimale_indice: float = 0.002
@@ -66,8 +68,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
         departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),
-        sigma_adaptatif=_bool(env, "SIGMA_ADAPTATIF", defaut.sigma_adaptatif),
+        sigma_mode=_str(env, "SIGMA_MODE", defaut.sigma_mode),
         sigma_diviseur=_float(env, "SIGMA_DIVISEUR", defaut.sigma_diviseur),
+        sigma_min=_float(env, "SIGMA_MIN", defaut.sigma_min),
         reference_dpe=_str(env, "REFERENCE_DPE", defaut.reference_dpe),
         voisins_indice_local=_int(env, "VOISINS_INDICE_LOCAL", defaut.voisins_indice_local),
         etendue_minimale_indice=_float(

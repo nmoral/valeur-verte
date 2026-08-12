@@ -31,11 +31,18 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 @dataclass(frozen=True)
 class RadiusSelection:
-    """Échantillon retenu, rayon utilisé, et si le seuil a été atteint."""
+    """Échantillon retenu, rayon utilisé, et si le seuil a été atteint.
+
+    ``distance_min_sample`` est la distance **continue** à la ``min_sample``-ième
+    vente la plus proche : une mesure de densité locale fine, là où ``rayon_km``
+    est quantifié et plafonné (10 km au minimum). Elle distingue une ville très
+    dense d'une ville simplement dense (S23 mode « densité »).
+    """
 
     sample: list[Mutation]
     rayon_km: int
     suffisant: bool
+    distance_min_sample: float = 0.0
 
 
 def adaptive_selection(
@@ -54,11 +61,19 @@ def adaptive_selection(
         distance = haversine_km(center_lat, center_lon, mutation.latitude, mutation.longitude)
         distances.append((distance, mutation))
 
+    triees = sorted(distance for distance, _ in distances)
+    if not triees:
+        distance_min_sample = 0.0
+    elif len(triees) >= min_sample:
+        distance_min_sample = triees[min_sample - 1]
+    else:
+        distance_min_sample = triees[-1]
+
     sample: list[Mutation] = []
     rayon = radii[-1]
     for radius_km in radii:
         sample = [mutation for distance, mutation in distances if distance <= radius_km]
         rayon = radius_km
         if len(sample) >= min_sample:
-            return RadiusSelection(sample=sample, rayon_km=radius_km, suffisant=True)
-    return RadiusSelection(sample=sample, rayon_km=rayon, suffisant=False)
+            return RadiusSelection(sample, radius_km, True, distance_min_sample)
+    return RadiusSelection(sample, rayon, False, distance_min_sample)
