@@ -22,3 +22,6 @@ phpstan.neon
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Référence de config générée (dépend de l'env)
+/config/reference.php
