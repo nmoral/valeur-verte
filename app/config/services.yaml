@@ -22,6 +22,10 @@ services:
     App\:
         resource: '../src/'
 
+    # Traçabilité de la levée du cloisonnement (#54) : impl d'attente par log,
+    # remplacée par le journal d'audit persistant (#50).
+    App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

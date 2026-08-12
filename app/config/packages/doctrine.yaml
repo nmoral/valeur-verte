@@ -26,6 +26,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src'
                 prefix: 'App'
                 alias: App
+        # Cloisonnement multi-tenant (D3, #54) : activé par requête par le
+        # TenantRequestListener dès qu'un pro est connecté.
+        filters:
+            tenant:
+                class: App\Tenant\TenantFilter
+                enabled: false
 
 when@test:
     doctrine:
