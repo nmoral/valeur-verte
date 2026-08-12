@@ -354,9 +354,13 @@ def test_rupture_limitrophe_publie_avec_alerte(
         lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 3000.0)],
     )
     monkeypatch.setattr(
-        orchestration, "read_adjacence", lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)}
+        orchestration,
+        "read_adjacence",
+        lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
     )
-    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille))
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -378,9 +382,13 @@ def test_sans_rupture_aucune_alerte_de_bord(
         lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 1500.0)],
     )
     monkeypatch.setattr(
-        orchestration, "read_adjacence", lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)}
+        orchestration,
+        "read_adjacence",
+        lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
     )
-    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille))
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -399,7 +407,9 @@ def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
     monkeypatch.setattr(orchestration, "read_adjacence", lambda *_: {})
     config = replace(CalculConfig(), rayon_max_km=5)  # la maille (rayon 10) dépasse le plafond
 
-    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+    rapport = orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=config
+    )
 
     assert connexion.ecritures == []
     assert "31555" in rapport.rejets_invariants

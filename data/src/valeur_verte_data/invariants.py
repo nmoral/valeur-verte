@@ -122,3 +122,25 @@ def detecter_ruptures_limitrophes(
                 )
 
     return tuple(ruptures[paire] for paire in sorted(ruptures))
+
+
+# Bandeau non masquable attaché aux deux communes d'une rupture (§3.2). La maille
+# reste publiée : l'écart est signalé au client, pas censuré (décision produit).
+_ALERTE_BORD = (
+    "Écart de valeur important avec une commune limitrophe (facteur {facteur:.1f}) — "
+    "cohérence de bord à vérifier."
+)
+
+
+def alertes_de_bord(ruptures: Iterable[RuptureLimitrophe]) -> dict[str, str]:
+    """Message d'alerte par commune impliquée dans une rupture, au **pire** facteur.
+
+    Une commune au carrefour de plusieurs ruptures ne porte qu'un bandeau, calibré
+    sur l'écart le plus fort — le plus informatif pour le client.
+    """
+    pire_facteur: dict[str, float] = {}
+    for rupture in ruptures:
+        for code in (rupture.code_insee_a, rupture.code_insee_b):
+            if rupture.facteur > pire_facteur.get(code, 0.0):
+                pire_facteur[code] = rupture.facteur
+    return {code: _ALERTE_BORD.format(facteur=facteur) for code, facteur in pire_facteur.items()}
