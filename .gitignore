@@ -26,6 +26,11 @@ id_ed25519*
 *.pem
 *.ppk
 
+# ── Environnement ──
+# Les vraies variables (dont VV_MOTEUR_*) restent locales ; `.env.example` est suivi.
+.env
+.env.local
+
 # ── Divers ──
 .DS_Store
 .idea
