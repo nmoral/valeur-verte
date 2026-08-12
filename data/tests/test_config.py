@@ -19,6 +19,7 @@ def test_defauts_sans_environnement() -> None:
     # Échantillonnage / mode
     assert config.radii_km == (10, 15, 20, 30, 50)
     assert config.rayon_max_km == 50
+    assert config.rupture_facteur_max == 2.0
     assert config.min_sample == 80
     assert config.min_local_sample == 30
     assert config.min_class_sample == 20
@@ -81,6 +82,11 @@ def test_surcharge_int() -> None:
 def test_surcharge_rayon_max() -> None:
     # Plafond de rayon (INV-3) surchargeable par l'environnement.
     assert resolve_config({"VV_MOTEUR_RAYON_MAX_KM": "40"}).rayon_max_km == 40
+
+
+def test_surcharge_rupture_facteur() -> None:
+    # Facteur de rupture limitrophe (INV-3) surchargeable par l'environnement.
+    assert resolve_config({"VV_MOTEUR_RUPTURE_FACTEUR_MAX": "1.5"}).rupture_facteur_max == 1.5
 
 
 def test_surcharge_str() -> None:

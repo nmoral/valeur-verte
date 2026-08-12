@@ -31,6 +31,9 @@ class CalculConfig:
     # unique configurable — une maille dont le rayon dépasse ce plafond n'est
     # pas publiée (garde défensive contre un palier ``radii_km`` mal configuré).
     rayon_max_km: int = 50
+    # INV-3 (#121) : rapport maximal de coef_m2_bati toléré entre deux communes
+    # limitrophes. Au-delà, artefact de bord probable (§3.2). Borne stricte.
+    rupture_facteur_max: float = 2.0
     min_sample: int = 80
     min_local_sample: int = 30
     min_class_sample: int = 20  # S21
@@ -82,6 +85,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
     return CalculConfig(
         radii_km=_tuple(env, "RADII_KM", defaut.radii_km),
         rayon_max_km=_int(env, "RAYON_MAX_KM", defaut.rayon_max_km),
+        rupture_facteur_max=_float(env, "RUPTURE_FACTEUR_MAX", defaut.rupture_facteur_max),
         min_sample=_int(env, "MIN_SAMPLE", defaut.min_sample),
         min_local_sample=_int(env, "MIN_LOCAL_SAMPLE", defaut.min_local_sample),
         min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),

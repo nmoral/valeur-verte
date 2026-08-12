@@ -15,6 +15,7 @@ viennent de la config (source unique, configurable).
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from .batch import MailleCoefficient
@@ -70,3 +71,54 @@ def evaluer_coherence_geographique(
         raisons.append(f"rayon {maille.rayon_retenu_km} km > {config.rayon_max_km} km")
 
     return VerdictPublication(publiable=not raisons, raisons=tuple(raisons))
+
+
+@dataclass(frozen=True)
+class RuptureLimitrophe:
+    """Écart de coef_m2_bati > facteur toléré entre deux communes limitrophes.
+
+    Paire **canonique** (``code_insee_a`` < ``code_insee_b``). ``facteur`` est le
+    rapport observé (``max / min``), signalant un artefact de bord probable (§3.2).
+    """
+
+    code_insee_a: str
+    code_insee_b: str
+    coef_a: float
+    coef_b: float
+    facteur: float
+
+
+def detecter_ruptures_limitrophes(
+    mailles: Iterable[MailleCoefficient],
+    adjacence: Mapping[str, Sequence[str]],
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> tuple[RuptureLimitrophe, ...]:
+    """Invariant #3 d'INV-3 : ruptures de coef_m2_bati entre communes limitrophes.
+
+    Ne compare que les paires dont **les deux** communes ont une maille publiée
+    et un coef_m2_bati positif ; un coef ≤ 0 relève d'INV-2, pas du bord. La
+    sortie est triée sur la paire pour un résultat reproductible (INV-5).
+    """
+    coef_par_commune = {maille.code_insee: maille.coef_m2_bati for maille in mailles}
+
+    ruptures: dict[tuple[str, str], RuptureLimitrophe] = {}
+    for commune, voisins in adjacence.items():
+        for voisin in voisins:
+            paire = (commune, voisin) if commune < voisin else (voisin, commune)
+            if paire in ruptures or paire[0] == paire[1]:
+                continue
+            coef_a = coef_par_commune.get(paire[0])
+            coef_b = coef_par_commune.get(paire[1])
+            if coef_a is None or coef_b is None or coef_a <= 0 or coef_b <= 0:
+                continue
+            facteur = max(coef_a, coef_b) / min(coef_a, coef_b)
+            if facteur > config.rupture_facteur_max:
+                ruptures[paire] = RuptureLimitrophe(
+                    code_insee_a=paire[0],
+                    code_insee_b=paire[1],
+                    coef_a=coef_a,
+                    coef_b=coef_b,
+                    facteur=facteur,
+                )
+
+    return tuple(ruptures[paire] for paire in sorted(ruptures))

@@ -250,8 +250,9 @@ def test_coef_bati_non_positif_est_hors_perimetre() -> None:
 
 def test_ruptures_ordonnees_de_facon_deterministe() -> None:
     # INV-5 : l'ordre de sortie ne dépend pas de l'ordre d'itération des mailles.
+    # Deux ruptures : 3000/1000 = 3 et 7000/3000 ≈ 2,33, toutes deux > 2.
     mailles = [
-        _maille_bati("31003", 5000.0),
+        _maille_bati("31003", 7000.0),
         _maille_bati("31001", 1000.0),
         _maille_bati("31002", 3000.0),
     ]
