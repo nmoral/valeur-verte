@@ -39,6 +39,8 @@ def test_defauts_sans_environnement() -> None:
     assert config.terrain_max == 5_000.0
     # Segment
     assert config.segment == "Maison"
+    # Restriction bâti ancien (S20) : active par défaut
+    assert config.restreindre_bati_ancien is True
 
 
 def test_config_est_immuable() -> None:
@@ -74,3 +76,20 @@ def test_surcharge_bornes_nettoyage() -> None:
 def test_variable_vide_retombe_sur_defaut() -> None:
     # Une variable présente mais vide ne doit pas écraser le défaut par 0/"".
     assert resolve_config({"VV_MOTEUR_SIGMA_KM": ""}).sigma_km == 10.0
+
+
+def test_surcharge_bool_false() -> None:
+    assert (
+        resolve_config({"VV_MOTEUR_RESTREINDRE_BATI_ANCIEN": "false"}).restreindre_bati_ancien
+        is False
+    )
+    assert (
+        resolve_config({"VV_MOTEUR_RESTREINDRE_BATI_ANCIEN": "0"}).restreindre_bati_ancien is False
+    )
+
+
+def test_surcharge_bool_true() -> None:
+    assert (
+        resolve_config({"VV_MOTEUR_RESTREINDRE_BATI_ANCIEN": "true"}).restreindre_bati_ancien
+        is True
+    )

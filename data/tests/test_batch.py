@@ -43,6 +43,30 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
     return houses
 
 
+def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
+    """S20 : sans la restriction < 1989, les ventes récentes alimentent la régression.
+
+    Un E récent existe et doit compter ; le supprimer est une erreur. Le drapeau
+    ``restreindre_bati_ancien`` de la config le pilote de bout en bout.
+    """
+    anciennes = _cluster(4, lat=43.6, lon=1.44)  # période 1948-1974
+    recentes = [
+        replace(vente, id_mutation=f"recent-{i}", periode_construction="2006-2012")
+        for i, vente in enumerate(_cluster(4, lat=43.6, lon=1.44))
+    ]
+    pool = anciennes + recentes
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    stricte = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    large = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, config=replace(base, restreindre_bati_ancien=False)
+    )
+
+    assert stricte is not None and large is not None
+    assert stricte.n_transactions == len(anciennes)
+    assert large.n_transactions == len(anciennes) + len(recentes)
+
+
 def test_compute_maille_lit_les_seuils_de_la_config() -> None:
     """La config descend jusqu'au calcul : durcir un seuil change le résultat.
 
