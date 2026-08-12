@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Registration;
 
+use App\BackOffice\Entreprise\Entreprise;
+use App\BackOffice\Entreprise\EntrepriseRepository;
+use App\BackOffice\Entreprise\StatutRge;
 use App\Security\UserRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -13,6 +16,8 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
 final class RegistrationControllerTest extends WebTestCase
 {
     private const HOTE = 'valeurverte.localhost';
+    private const SIRET_CONNU = '12345678901234';
+    private const SIRET_INCONNU = '00000000000000';
 
     public function testLaPageInscriptionEstPubliqueEtPorteLeFormulaire(): void
     {
@@ -65,6 +70,41 @@ final class RegistrationControllerTest extends WebTestCase
         $repository = self::getContainer()->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $repository);
         self::assertNull($repository->findOneBy(['email' => 'court@example.com']));
+    }
+
+    public function testUneInscriptionAvecSiretConnuPersisteLaFicheLieeAuTenant(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettreInscription($client, 'artisan@example.com', 'motdepasse-solide', self::SIRET_CONNU);
+
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/');
+
+        $utilisateurs = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $utilisateurs);
+        $user = $utilisateurs->findOneBy(['email' => 'artisan@example.com']);
+        self::assertNotNull($user);
+
+        $entreprises = self::getContainer()->get(EntrepriseRepository::class);
+        self::assertInstanceOf(EntrepriseRepository::class, $entreprises);
+        $entreprise = $entreprises->findOneBy(['siret' => self::SIRET_CONNU]);
+        self::assertInstanceOf(Entreprise::class, $entreprise);
+        self::assertSame('Renov Habitat', $entreprise->raisonSociale());
+        self::assertSame(StatutRge::Rge, $entreprise->statutRge());
+        self::assertSame($user->getTenantId(), $entreprise->getTenantId());
+    }
+
+    public function testUneInscriptionAvecSiretInconnuNeCreePasDeFicheMaisLeCompte(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettreInscription($client, 'sans-fiche@example.com', 'motdepasse-solide', self::SIRET_INCONNU);
+
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/');
+
+        $entreprises = self::getContainer()->get(EntrepriseRepository::class);
+        self::assertInstanceOf(EntrepriseRepository::class, $entreprises);
+        self::assertNull($entreprises->findOneBy(['siret' => self::SIRET_INCONNU]), 'Un SIRET inconnu ne doit pas créer de fiche, mais ne bloque pas le compte.');
     }
 
     private function soumettreInscription(KernelBrowser $client, string $email, string $motDePasse, string $siret): void
