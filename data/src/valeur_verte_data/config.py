@@ -36,6 +36,9 @@ class CalculConfig:
     reference_dpe: str = "D"
     voisins_indice_local: int = 20
     etendue_minimale_indice: float = 0.002
+    # Effets fixes commune dans la régression (S22). Une indicatrice par commune du
+    # rayon : coûteux et possiblement redondant avec l'indice local + la pondération.
+    effets_fixes_commune: bool = True
     cv_folds: int = 5
     price_min: float = 30_000.0
     price_max: float = 900_000.0
@@ -76,6 +79,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         etendue_minimale_indice=_float(
             env, "ETENDUE_MINIMALE_INDICE", defaut.etendue_minimale_indice
         ),
+        effets_fixes_commune=_bool(env, "EFFETS_FIXES_COMMUNE", defaut.effets_fixes_commune),
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
         price_min=_float(env, "PRICE_MIN", defaut.price_min),
         price_max=_float(env, "PRICE_MAX", defaut.price_max),

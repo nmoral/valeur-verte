@@ -37,6 +37,7 @@ def median_relative_error(
     voisins_indice_local: int = VOISINS_INDICE_LOCAL,
     etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
     restreindre_bati_ancien: bool = True,
+    effets_fixes_commune: bool = True,
 ) -> float | None:
     """Erreur médiane de prédiction en %, ou ``None`` si l'échantillon est trop petit."""
     rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
@@ -57,6 +58,7 @@ def median_relative_error(
             reference_dpe,
             voisins=voisins_indice_local,
             etendue_minimale=etendue_minimale_indice,
+            avec_commune=effets_fixes_commune,
         )
         for row, prediction in zip(test, _predict(model, test), strict=True):
             if row.prix > 0:

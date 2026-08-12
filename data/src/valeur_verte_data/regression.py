@@ -155,7 +155,7 @@ class _Model:
     etendue_minimale: float
 
 
-def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
+def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
     """Détermine les niveaux d'indicatrices (référence DPE + niveaux gardés)."""
     dpe_levels = sorted({row.dpe for row in rows})
     if reference_dpe in dpe_levels:
@@ -168,7 +168,9 @@ def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
         # La période est corrélée au DPE : sans elle, l'étiquette capte
         # l'effet de l'époque de construction (#115).
         periode=sorted({row.periode for row in rows})[1:],
-        commune=sorted({row.insee for row in rows})[1:],
+        # Effets fixes commune (S22) : désactivables, l'indice local et la
+        # pondération portent déjà la localité.
+        commune=sorted({row.insee for row in rows})[1:] if avec_commune else [],
         annee=sorted({row.annee for row in rows})[1:],
     )
 
@@ -274,9 +276,10 @@ def _fit_model(
     *,
     voisins: int = VOISINS_INDICE_LOCAL,
     etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+    avec_commune: bool = True,
 ) -> _Model:
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
-    columns = _build_columns(rows, reference_dpe)
+    columns = _build_columns(rows, reference_dpe, avec_commune=avec_commune)
     design = _encode(rows, columns, voisins=voisins, etendue_minimale=etendue_minimale)
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
@@ -315,6 +318,7 @@ def fit(
     voisins_indice_local: int = VOISINS_INDICE_LOCAL,
     etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
     restreindre_bati_ancien: bool = True,
+    effets_fixes_commune: bool = True,
 ) -> RegressionResult:
     """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
     rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
@@ -330,6 +334,7 @@ def fit(
         reference_dpe,
         voisins=voisins_indice_local,
         etendue_minimale=etendue_minimale_indice,
+        avec_commune=effets_fixes_commune,
     )
     # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
     y = np.log(np.array([row.prix for row in rows], dtype=float))

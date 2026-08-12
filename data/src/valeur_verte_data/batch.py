@@ -200,6 +200,7 @@ def compute_maille(
         voisins_indice_local=config.voisins_indice_local,
         etendue_minimale_indice=config.etendue_minimale_indice,
         restreindre_bati_ancien=config.restreindre_bati_ancien,
+        effets_fixes_commune=config.effets_fixes_commune,
     )
     erreur = median_relative_error(
         sample,
@@ -211,6 +212,7 @@ def compute_maille(
         voisins_indice_local=config.voisins_indice_local,
         etendue_minimale_indice=config.etendue_minimale_indice,
         restreindre_bati_ancien=config.restreindre_bati_ancien,
+        effets_fixes_commune=config.effets_fixes_commune,
     )
     return _maille(
         code_insee,
