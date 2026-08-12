@@ -28,6 +28,7 @@ from .invariants import (
     detecter_ruptures_limitrophes,
     evaluer_coherence_geographique,
     evaluer_invariants_publication,
+    evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
 
@@ -218,11 +219,13 @@ def compute_departement(
         raisons = (
             evaluer_invariants_publication(maille, config).raisons
             + evaluer_coherence_geographique(maille, config).raisons
+            + evaluer_signe_ordre_grandeur(maille, config).raisons
         )
         if raisons:
-            # INV-3/INV-4 : une maille hors seuils de qualité (erreur, R², n) ou
-            # au rayon aberrant n'est pas publiée, et son éventuel coefficient
-            # antérieur est effacé — #22 prend le relais. Le motif est journalisé.
+            # INV-2/INV-3/INV-4 : une maille hors seuils de qualité (erreur, R², n),
+            # au rayon aberrant, ou aux coefficients de signe/ordre invraisemblable
+            # n'est pas publiée ; son éventuel coefficient antérieur est effacé —
+            # #22 prend le relais. Le motif est journalisé.
             delete_coefficient(conn, code_insee)
             conn.commit()
             rapport.rejets_invariants.append(code_insee)

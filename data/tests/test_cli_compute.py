@@ -19,6 +19,7 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
+from valeur_verte_data.invariants import VerdictPublication
 
 _COMMUNES = [
     {
@@ -74,6 +75,16 @@ _POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(210)]
 # rejetterait. Les tests qui vérifient le *plumbing* de publication (chargement,
 # débordement, écriture) neutralisent donc INV-4 par une config permissive.
 _CONFIG_PUBLIANTE = replace(CalculConfig(), r2_min=0.0, erreur_mediane_max_pct=100.0)
+
+
+def _neutraliser_signe_ordre(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Plumbing : les coefficients du pool synthétique (signe/ordre invraisemblables)
+    seraient rejetés par INV-2. On la neutralise pour isoler le câblage de publication."""
+    monkeypatch.setattr(
+        orchestration,
+        "evaluer_signe_ordre_grandeur",
+        lambda maille, config: VerdictPublication(publiable=True, raisons=()),
+    )
 
 
 class _FauxFetcher:
@@ -171,6 +182,7 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     département demandé, jamais du pool.
     """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
+    _neutraliser_signe_ordre(monkeypatch)
 
     orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -186,6 +198,7 @@ def test_les_communes_calculees_sont_ecrites(
 ) -> None:
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    _neutraliser_signe_ordre(monkeypatch)
 
     rapport = orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -308,6 +321,7 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     """Une écriture qui échoue est annulée (rollback) et tracée par son code commune,
     sans interrompre les autres — la maille n'est pas comptée comme calculée."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    _neutraliser_signe_ordre(monkeypatch)
 
     def _boom(*_: Any, **__: Any) -> None:
         raise RuntimeError("base indisponible")
@@ -323,8 +337,9 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     assert connexion.rollbacks >= 1
 
 
-def _maille_publiable(code_insee: str, coef_m2_bati: float) -> MailleCoefficient:
-    """Maille saine (passe INV-4 et INV-3 #1), coef_m2_bati contrôlé pour INV-3 #3."""
+def _maille_publiable(code_insee: str, coef_m2_bati: float = 0.90) -> MailleCoefficient:
+    """Maille saine (passe INV-2/INV-3 #1/INV-4). ``coef_m2_bati`` est une
+    élasticité (log-prix), pilotée pour tester la rupture INV-3 #3."""
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=2024,
@@ -334,7 +349,7 @@ def _maille_publiable(code_insee: str, coef_m2_bati: float) -> MailleCoefficient
         r2=0.5,
         erreur_mediane=15.0,
         coef_m2_bati=coef_m2_bati,
-        coef_m2_terrain=100.0,
+        coef_m2_terrain=0.30,
         coef_dpe={"D": 0.0, "F": -0.20},
         ic_dpe={},
         alerte=None,
@@ -351,7 +366,7 @@ def test_rupture_limitrophe_publie_avec_alerte(
     monkeypatch.setattr(
         orchestration,
         "compute_communes",
-        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 3000.0)],
+        lambda *a, **k: [_maille_publiable("31555", 0.5), _maille_publiable("31149", 1.2)],
     )
     monkeypatch.setattr(
         orchestration,
@@ -379,7 +394,7 @@ def test_sans_rupture_aucune_alerte_de_bord(
     monkeypatch.setattr(
         orchestration,
         "compute_communes",
-        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 1500.0)],
+        lambda *a, **k: [_maille_publiable("31555", 0.5), _maille_publiable("31149", 0.6)],
     )
     monkeypatch.setattr(
         orchestration,

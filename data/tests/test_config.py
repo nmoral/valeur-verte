@@ -40,6 +40,10 @@ def test_defauts_sans_environnement() -> None:
     # Seuils de publication (INV-4)
     assert config.erreur_mediane_max_pct == 20.0
     assert config.r2_min == 0.30
+    # Signe/ordre de grandeur (INV-2, en log)
+    assert config.gain_dpe_ec_max == 0.70
+    assert config.elasticite_bati_min == 0.30
+    assert config.elasticite_bati_max == 1.50
     # Nettoyage
     assert config.price_min == 30_000.0
     assert config.price_max == 900_000.0
@@ -87,6 +91,20 @@ def test_surcharge_rayon_max() -> None:
 def test_surcharge_rupture_facteur() -> None:
     # Facteur de rupture limitrophe (INV-3) surchargeable par l'environnement.
     assert resolve_config({"VV_MOTEUR_RUPTURE_FACTEUR_MAX": "1.5"}).rupture_facteur_max == 1.5
+
+
+def test_surcharge_bornes_signe_ordre_grandeur() -> None:
+    # Bornes de magnitude INV-2 (en log) surchargeables par l'environnement.
+    config = resolve_config(
+        {
+            "VV_MOTEUR_GAIN_DPE_EC_MAX": "0.5",
+            "VV_MOTEUR_ELASTICITE_BATI_MIN": "0.4",
+            "VV_MOTEUR_ELASTICITE_BATI_MAX": "1.2",
+        }
+    )
+    assert config.gain_dpe_ec_max == 0.5
+    assert config.elasticite_bati_min == 0.4
+    assert config.elasticite_bati_max == 1.2
 
 
 def test_surcharge_str() -> None:
