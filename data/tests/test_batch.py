@@ -90,6 +90,41 @@ def test_compute_maille_mode_departemental() -> None:
     assert maille.alerte is not None
 
 
+def test_le_repli_departemental_ignore_les_departements_limitrophes() -> None:
+    """Le bandeau promet une moyenne départementale : elle doit en être une (#91).
+
+    Depuis que le pool déborde sur les voisins (#18), ``sample = pool`` en mode
+    dégradé servirait une moyenne sur sept départements sous un bandeau qui
+    annonce le seul département — une commune du Comminges recevrait une valeur
+    tirée de l'Aude et du Tarn. Le débordement est fait pour nourrir le calcul
+    *local*, pas pour redéfinir ce qu'est un département.
+    """
+    proches = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes : sous le seuil local
+    lointaines_31 = _cluster(7, lat=44.6, lon=1.44)  # 21 ventes du 31, hors rayon
+    voisines_09 = [
+        replace(vente, id_mutation=f"09-{i}", code_insee="09122")
+        for i, vente in enumerate(_cluster(7, lat=42.9, lon=1.6))
+    ]
+
+    maille = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        proches + lointaines_31 + voisines_09,
+        seuil=10,
+        min_sample=10,
+        min_class_sample=1,
+    )
+
+    assert maille is not None
+    assert maille.mode is CoverageMode.DEPARTEMENTAL
+    assert maille.n_transactions == len(proches) + len(lointaines_31), (
+        "le repli doit compter les seules ventes du 31, "
+        f"pas les {len(voisines_09)} ventes ariégeoises du pool"
+    )
+
+
 def test_compute_maille_refus_si_tout_insuffisant() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes, département aussi insuffisant
 

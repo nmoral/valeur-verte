@@ -53,6 +53,16 @@ class MailleCoefficient:
     alerte: str | None
 
 
+def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutation]:
+    """Ventes du département de cette commune, le pool débordant sur les voisins (#18).
+
+    Le préfixe à deux caractères suffit en métropole, seul territoire couvert par
+    le MVP ; l'outre-mer (codes en 97x) demandera trois caractères.
+    """
+    departement = code_insee[:2]
+    return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
+
+
 def _classes_publiables(sample: Sequence[Mutation], seuil: int) -> set[str]:
     """Classes DPE assez observées pour que leur coefficient veuille dire quelque chose."""
     effectifs = Counter(row.dpe for row in _eligible(sample))
@@ -117,8 +127,9 @@ def compute_maille(
 ) -> MailleCoefficient | None:
     """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
     selection = adaptive_selection(centroid_lat, centroid_lon, pool, min_sample=min_sample)
+    departemental = _meme_departement(code_insee, pool)
     n_local = len(_eligible(selection.sample))
-    n_departement = len(_eligible(pool))
+    n_departement = len(_eligible(departemental))
     decision = decide_mode(n_local, n_departement, seuil=seuil)
 
     if decision.mode is CoverageMode.REFUS:
@@ -129,7 +140,7 @@ def compute_maille(
         rayon_km: int | None = selection.rayon_km
         fit_sigma = sigma_km
     else:
-        sample = pool
+        sample = departemental
         rayon_km = None
         fit_sigma = DEPARTEMENTAL_SIGMA_KM
 

@@ -59,7 +59,7 @@ def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
     requete, params = conn.calls[0]
     assert "data.vente" in requete
     assert params is not None
-    assert list(params) == ["31%", 2024, "Maison"]
+    assert list(params) == [["31%"], 2024, "Maison"]
 
 
 def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> None:
@@ -100,6 +100,34 @@ def test_seules_les_maisons_alimentent_le_moteur() -> None:
     assert "type_local" in requete, "le pool doit filtrer sur le type de bien"
     assert params is not None
     assert "Maison" in list(params)
+
+
+def test_le_pool_peut_deborder_sur_les_departements_limitrophes() -> None:
+    """Sans eux, une commune du bord calcule sur un demi-disque (#18).
+
+    Le rayon adaptatif ne connaît pas les frontières administratives : il prend
+    les n ventes les plus proches. Si la base s'arrête au département, celles
+    d'en face n'existent pas et l'échantillon est amputé sans que n, rayon ou
+    IC ne le laissent voir.
+    """
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024, limitrophes=("09", "81"))
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert list(params)[0] == ["31%", "09%", "81%"]
+
+
+def test_sans_limitrophes_le_pool_reste_celui_du_departement() -> None:
+    """Le débordement est une décision de l'appelant, jamais un effet de bord."""
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024)
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert list(params)[0] == ["31%"]
 
 
 def test_le_segment_reste_explicite_et_modifiable() -> None:

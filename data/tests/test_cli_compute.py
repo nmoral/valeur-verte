@@ -9,6 +9,7 @@ erreur, et le rapport doit les distinguer pour rester lisible.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -54,6 +55,12 @@ def _vente(numero: int, dpe: str, prix: float) -> Mutation:
         etiquette_dpe=dpe,
         periode_construction="1948-1974",
     )
+
+
+def _vente_ariegeoise() -> Mutation:
+    """Vente d'un département limitrophe, présente dans le pool mais non publiable."""
+    vente = _vente(999, "D", 180000.0)
+    return replace(vente, id_mutation="m-09", code_insee="09122")
 
 
 # Assez de ventes pour dépasser le seuil local et permettre une régression.
@@ -108,7 +115,7 @@ def test_le_pool_du_departement_n_est_charge_qu_une_fois(
     """Recharger par commune multiplierait les requêtes sans rien apporter (§10.6)."""
     chargements: list[str] = []
 
-    def _charger(conn: Any, departement: str, millesime: int) -> list[Mutation]:
+    def _charger(conn: Any, departement: str, millesime: int, **_: Any) -> list[Mutation]:
         chargements.append(departement)
         return _POOL
 
@@ -119,11 +126,50 @@ def test_le_pool_du_departement_n_est_charge_qu_une_fois(
     assert chargements == ["31"]
 
 
+def test_le_pool_deborde_sur_les_departements_limitrophes(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Les communes du bord doivent voir les ventes d'en face (#18)."""
+    appels: list[tuple[str, tuple[str, ...]]] = []
+
+    def _charger(
+        conn: Any, departement: str, millesime: int, *, limitrophes: tuple[str, ...] = ()
+    ) -> list[Mutation]:
+        appels.append((departement, limitrophes))
+        return _POOL
+
+    monkeypatch.setattr(cli, "load_pool", _charger)
+
+    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert appels == [("31", ("09", "11", "32", "65", "81", "82"))]
+
+
+def test_seules_les_communes_du_departement_recoivent_un_coefficient(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Élargir le pool ne doit pas élargir la publication.
+
+    Une commune limitrophe est dans le pool pour *nourrir* le calcul du 31,
+    pas pour être calculée : son propre disque déborderait sur des
+    départements non chargés, et son coefficient reposerait sur un échantillon
+    amputé. La liste des communes vient du découpage administratif du
+    département demandé, jamais du pool.
+    """
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
+
+    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    ecrits = [str(params[0]) for _, params in connexion.ecritures if params]
+    assert ecrits, "le test ne prouve rien si rien n'est écrit"
+    assert all(code.startswith("31") for code in ecrits), ecrits
+
+
 def test_les_communes_calculees_sont_ecrites(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
-    monkeypatch.setattr(cli, "load_pool", lambda *_: _POOL)
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -137,7 +183,7 @@ def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(
 ) -> None:
     """Le refus sous seuil est un résultat du cadrage (§7), pas une panne."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_: [])
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
@@ -151,7 +197,7 @@ def test_un_departement_sans_aucun_coefficient_sort_en_erreur(
 ) -> None:
     """Rien de calculé signale un pool vide ou un millésime erroné."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_: [])
+    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
 
     rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
