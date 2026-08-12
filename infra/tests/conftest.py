@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_PROD = REPO_ROOT / "infra" / "docker-compose.prod.yml"
 DEPLOY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "deploy.yml"
 DATA_DOCKERFILE = REPO_ROOT / "data" / "Dockerfile"
+APP_DOCKERFILE = REPO_ROOT / "app" / "Dockerfile"
 
 
 def load_yaml(path: Path) -> dict[str, Any]:

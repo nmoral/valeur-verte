@@ -48,5 +48,24 @@ services:
         password='${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}'
     command: ["valeur_verte_data.db.migrate"]
 
+  # Application (widget, mode audit, back-office, admin) : image FrankenPHP publiée
+  # sur GHCR par la CI puis tirée ici — le VPS ne construit rien.
+  app:
+    image: ghcr.io/nmoral/valeur-verte-app:${APP_IMAGE_TAG:?APP_IMAGE_TAG est requis}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      # DATABASE_URL est ajoutée avec Doctrine (issues back-office à venir). L'app
+      # partage cette base PostGIS : lecture seule sur le schéma « data », écriture
+      # sur le schéma « app » (schema_filter côté Doctrine + rôle applicatif
+      # disposant de SELECT seul sur « data », posé au provisionnement du VPS).
+    # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
+    # jamais directement sur Internet (même règle que la base).
+    ports:
+      - "127.0.0.1:8000:80"
+
 volumes:
   db_data:
