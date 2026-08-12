@@ -43,7 +43,6 @@ def test_defauts_sans_environnement() -> None:
     assert config.restreindre_bati_ancien is True
     # Écrêtage (S32) : désactivé par défaut
     assert config.ecretage == "off"
-    assert config.ecretage_fraction == 0.01
     assert config.ecretage_seuil_n == 100
     assert config.ecretage_k == 3.0
 
