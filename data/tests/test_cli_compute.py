@@ -15,7 +15,9 @@ from typing import Any
 import pytest
 
 from valeur_verte_data import cli, orchestration
+from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
+from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
 
 _COMMUNES = [
@@ -319,3 +321,95 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     assert set(rapport.echecs) == {"31555", "31149"}
     assert rapport.communes_calculees == 0
     assert connexion.rollbacks >= 1
+
+
+def _maille_publiable(code_insee: str, coef_m2_bati: float) -> MailleCoefficient:
+    """Maille saine (passe INV-4 et INV-3 #1), coef_m2_bati contrôlé pour INV-3 #3."""
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=10,
+        n_transactions=40,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=coef_m2_bati,
+        coef_m2_terrain=100.0,
+        coef_dpe={"D": 0.0, "F": -0.20},
+        ic_dpe={},
+        alerte=None,
+    )
+
+
+def test_rupture_limitrophe_publie_avec_alerte(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-3 #3 : deux communes limitrophes au coef_m2_bati trop écarté restent
+    publiées, mais reçoivent un bandeau d'alerte de bord (facteur affiché)."""
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(
+        orchestration,
+        "compute_communes",
+        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 3000.0)],
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "read_adjacence",
+        lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
+    )
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    par_code = {m.code_insee: m for m in ecrites}
+    assert set(par_code) == {"31555", "31149"}  # les deux restent publiées
+    assert "facteur" in (par_code["31555"].alerte or "")
+    assert "facteur" in (par_code["31149"].alerte or "")
+    assert set(rapport.alertes_bord) == {"31555", "31149"}
+
+
+def test_sans_rupture_aucune_alerte_de_bord(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(
+        orchestration,
+        "compute_communes",
+        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 1500.0)],
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "read_adjacence",
+        lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
+    )
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert all(m.alerte is None for m in ecrites)
+    assert rapport.alertes_bord == []
+
+
+def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-3 #1 câblé au gate de publication : rayon > plafond → non publiée."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(
+        orchestration, "compute_communes", lambda *a, **k: [_maille_publiable("31555", 1000.0)]
+    )
+    monkeypatch.setattr(orchestration, "read_adjacence", lambda *_: {})
+    config = replace(CalculConfig(), rayon_max_km=5)  # la maille (rayon 10) dépasse le plafond
+
+    rapport = orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=config
+    )
+
+    assert connexion.ecritures == []
+    assert "31555" in rapport.rejets_invariants
