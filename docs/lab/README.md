@@ -48,3 +48,4 @@ classes publiables).
 - [`resultats-S32-v2.md`](resultats-S32-v2.md) — écrêtage résidu pondéré (V2), sur base sans bornes.
 - [`resultats-S23.md`](resultats-S23.md) — σ adaptatif au rayon retenu ; diviseur 2 sûr, 3 casse le fragile.
 - [`resultats-S23-densite.md`](resultats-S23-densite.md) — σ piloté par la densité continue (d80) ; améliore l'erreur CV partout.
+- [`resultats-S22.md`](resultats-S22.md) — retirer les effets fixes commune (sur-paramétrage) ; répare le rural fragile.
