@@ -77,12 +77,14 @@ final class FirewallLoginTest extends WebTestCase
     }
 
     /**
-     * @param list<string> $roles
+     * @param non-empty-string $email
+     * @param list<string>     $roles
      */
     private function creerUtilisateur(string $email, string $motDePasse, array $roles): void
     {
         $container = self::getContainer();
         $hasher = $container->get(UserPasswordHasherInterface::class);
+        self::assertInstanceOf(UserPasswordHasherInterface::class, $hasher);
         $repository = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $repository);
 

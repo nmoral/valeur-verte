@@ -3,7 +3,10 @@ framework:
     secret: '%env(APP_SECRET)%'
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    # Cookie partagé entre les sous-domaines (app./admin.) : une connexion vaut
+    # pour toute la zone authentifiée, l'isolation se fait par rôle (access_control).
+    session:
+        cookie_domain: '.%app.domaine%'
 
     #esi: true
     #fragments: true
