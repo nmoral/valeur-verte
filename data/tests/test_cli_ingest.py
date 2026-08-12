@@ -18,10 +18,16 @@ import httpx
 import pytest
 
 from valeur_verte_data import cli, orchestration
+from valeur_verte_data.decoupage import CommuneContour
 
 _COMMUNES = [
     {"code": "31555", "nom": "Toulouse", "codeDepartement": "31"},
     {"code": "31149", "nom": "Colomiers", "codeDepartement": "31"},
+]
+
+_CONTOURS = [
+    CommuneContour("31555", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[2,44],[1,43]]]}'),
+    CommuneContour("31149", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[0,44],[1,43]]]}'),
 ]
 
 _CSV = (
@@ -172,3 +178,40 @@ def test_le_rapport_d_ingestion_porte_le_departement_et_le_millesime(
 
     assert rapport.departement == "31"
     assert rapport.millesime == 2024
+
+
+def test_ingest_departement_stocke_les_contours(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-3 (#121) : l'ingestion charge aussi les contours, pour que la
+    contiguïté soit calculable dès que le département et ses voisins sont là."""
+    stockes: list[str] = []
+    monkeypatch.setattr(orchestration, "fetch_contours_by_departement", lambda f, d: _CONTOURS)
+    monkeypatch.setattr(
+        orchestration,
+        "upsert_contour",
+        lambda conn, code_insee, code_departement, contour: stockes.append(code_insee),
+    )
+
+    rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert stockes == ["31555", "31149"]
+    assert rapport.contours_charges == 2
+
+
+def test_un_echec_de_contour_n_interrompt_pas_l_ingestion(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Les contours sont auxiliaires aux ventes DVF : leur échec ne doit pas
+    faire capoter une ingestion de plusieurs heures (§5)."""
+
+    def _boom(fetcher: Any, departement: str) -> Any:
+        raise RuntimeError("geo.api indisponible")
+
+    monkeypatch.setattr(orchestration, "fetch_contours_by_departement", _boom)
+
+    rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    # Les ventes sont bien ingérées malgré l'échec des contours.
+    assert rapport.communes_traitees == 2
+    assert rapport.contours_charges == 0

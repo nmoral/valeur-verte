@@ -413,3 +413,20 @@ def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
 
     assert connexion.ecritures == []
     assert "31555" in rapport.rejets_invariants
+
+
+def test_compute_departement_derive_la_limitrophie_avant_de_lire(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-3 #3 : la contiguïté est (re)dérivée des contours chargés avant d'être
+    lue — sinon l'adjacence refléterait un état périmé (ou vide)."""
+    ordre: list[str] = []
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(orchestration, "derive_limitrophes", lambda conn: ordre.append("derive"))
+    monkeypatch.setattr(
+        orchestration, "read_adjacence", lambda conn, dep: (ordre.append("read"), {})[1]
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert ordre == ["derive", "read"]
