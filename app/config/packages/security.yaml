@@ -39,6 +39,7 @@ security:
     # sur tout host), puis l'exigence de rôle par sous-domaine.
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/inscription$, roles: PUBLIC_ACCESS }
         - { host: '^admin\.', roles: ROLE_ADMIN }
         - { host: '^app\.', roles: ROLE_PRO }
 

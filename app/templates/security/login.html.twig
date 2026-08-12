@@ -1,25 +1,44 @@
-{% extends 'base.html.twig' %}
-
-{% block title %}Connexion · Valeur Verte{% endblock %}
-
-{% block body %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion · Valeur Verte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
 <main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
     <h1>Se connecter</h1>
+    <p class="auth-lead">Accédez à votre espace pour produire vos rapports.</p>
 
     {% if derniere_erreur %}
-        <p class="erreur" role="alert">{{ derniere_erreur.messageKey|trans(derniere_erreur.messageData, 'security') }}</p>
+      <p class="alert" role="alert">{{ derniere_erreur.messageKey|trans(derniere_erreur.messageData, 'security') }}</p>
     {% endif %}
 
     <form method="post" action="{{ path('login') }}">
+      <div class="field-group">
         <label for="email">Email</label>
         <input type="email" id="email" name="email" value="{{ dernier_email }}" autocomplete="email" required autofocus>
+      </div>
 
+      <div class="field-group">
         <label for="password">Mot de passe</label>
         <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
 
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-
-        <button type="submit">Se connecter</button>
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+      <button type="submit" class="btn-primary">Se connecter</button>
     </form>
+  </div>
+
+  <p class="auth-alt">Pas encore de compte ? <a href="{{ path('inscription') }}">Créer un compte</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
 </main>
-{% endblock %}
+</body>
+</html>

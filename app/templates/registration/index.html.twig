@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créer un compte · Valeur Verte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Créer votre compte</h1>
+    <p class="auth-lead">Compte actif immédiatement. Premier rapport en trois minutes, sans carte bancaire.</p>
+
+    {% if erreurs.global is defined %}
+      <p class="alert" role="alert">{{ erreurs.global }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('inscription') }}" novalidate>
+      <div class="field-group{{ erreurs.email is defined ? ' has-error' : '' }}">
+        <label for="email">Email professionnel</label>
+        <input type="email" id="email" name="email" value="{{ email }}" autocomplete="email" required autofocus>
+        {% if erreurs.email is defined %}<span class="form-error">{{ erreurs.email }}</span>{% endif %}
+      </div>
+
+      <div class="field-group{{ erreurs.password is defined ? ' has-error' : '' }}">
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" autocomplete="new-password" required>
+        {% if erreurs.password is defined %}
+          <span class="form-error">{{ erreurs.password }}</span>
+        {% else %}
+          <span class="hint">Au moins 8 caractères.</span>
+        {% endif %}
+      </div>
+
+      <div class="field-group{{ erreurs.siret is defined ? ' has-error' : '' }}">
+        <label for="siret">SIRET</label>
+        <input type="text" id="siret" name="siret" value="{{ siret }}" inputmode="numeric" maxlength="14" placeholder="14 chiffres">
+        {% if erreurs.siret is defined %}
+          <span class="form-error">{{ erreurs.siret }}</span>
+        {% else %}
+          <span class="hint">Pour retrouver votre entreprise et vos qualifications. Ne bloque pas la création.</span>
+        {% endif %}
+      </div>
+
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('inscription') }}">
+      <button type="submit" class="btn-primary">Créer mon compte</button>
+    </form>
+
+    <p class="auth-note">Vérification d'email a posteriori · Résiliation en un clic</p>
+  </div>
+
+  <p class="auth-alt">Vous avez déjà un compte ? <a href="{{ path('login') }}">Se connecter</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>
