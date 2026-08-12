@@ -18,6 +18,13 @@ final class SaisieAuditAvertissementsTest extends TestCase
         self::assertSame([], $saisie->avertissements());
     }
 
+    public function testZeroPieceNeDeclencheNiAvertissementNiDivisionParZero(): void
+    {
+        $saisie = SaisieAudit::depuis('Adresse', 90, 500, Dpe::E, Dpe::C, 0);
+
+        self::assertSame([], $saisie->avertissements());
+    }
+
     #[DataProvider('ratiosPlausibles')]
     public function testUnRatioPlausibleNeDeclencheAucunAvertissement(int $surface, int $pieces): void
     {
