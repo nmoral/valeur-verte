@@ -8,6 +8,14 @@ framework:
     session:
         cookie_domain: '.%app.domaine%'
 
+    # Rate limiting (D2, étendu aux inscriptions #44) : plafond glissant par IP
+    # sur la création de compte. Un dépassement bloque (429) et notifie l'admin.
+    rate_limiter:
+        inscription_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
+
     #esi: true
     #fragments: true
 

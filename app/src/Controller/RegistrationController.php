@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
+use App\Security\LimiteurInscription;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,12 +17,17 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class RegistrationController extends AbstractController
 {
     #[Route('/inscription', name: 'inscription', methods: ['GET', 'POST'])]
-    public function inscrire(Request $request, CreateurDeCompte $createurDeCompte, Security $security): Response
-    {
+    public function inscrire(
+        Request $request,
+        CreateurDeCompte $createurDeCompte,
+        Security $security,
+        LimiteurInscription $limiteurInscription,
+    ): Response {
         $email = trim((string) $request->request->get('email', ''));
         $siret = trim((string) $request->request->get('siret', ''));
 
         if ($request->isMethod('POST')) {
+            $limiteurInscription->verifier($request->getClientIp() ?? 'inconnu');
             $motDePasse = (string) $request->request->get('password', '');
             $erreurs = $this->valider($request, $email, $motDePasse, $siret);
 
