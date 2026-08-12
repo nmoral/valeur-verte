@@ -152,6 +152,25 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
+    # Les tests d'intégration s'exécutent contre un vrai PostGIS, sur une base de
+    # test dédiée (valeur_verte_test), jamais celle de développement.
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: valeur_verte
+          POSTGRES_PASSWORD: valeur_verte
+          POSTGRES_DB: valeur_verte
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U valeur_verte -d valeur_verte"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Rôle applicatif « app » : écrit le schéma app, lit seulement data.
+      DATABASE_URL: "postgresql://app:app@127.0.0.1:5432/valeur_verte?serverVersion=16&charset=utf8"
     defaults:
       run:
         working-directory: app
@@ -162,9 +181,20 @@ jobs:
         with:
           php-version: "8.4"
           coverage: pcov
+          extensions: pdo_pgsql, intl
           tools: composer
       - name: Installer les dépendances
         run: composer install --no-interaction --no-progress
+      - name: Préparer les bases (rôle app, schéma app, base de test)
+        working-directory: .
+        env:
+          PGHOST: localhost
+          PGPASSWORD: valeur_verte
+          POSTGRES_USER: valeur_verte
+          POSTGRES_DB: valeur_verte
+        run: bash infra/db-init/10-init-app.sh
+      - name: Migrations (base de test)
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
       - name: Lint & format (PHP-CS-Fixer)
         run: vendor/bin/php-cs-fixer fix --dry-run --diff
       - name: Analyse statique (PHPStan)

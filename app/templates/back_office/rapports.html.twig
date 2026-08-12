@@ -1,0 +1,57 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Une seule liste : rapports et leads, les plus récents d'abord.</p>{% endblock %}
+
+{% block bo_content %}
+<div class="panel">
+    <div class="panel-head">
+        <h2>Rapports &amp; leads</h2>
+        <span class="hint">chaque rapport reste consultable indéfiniment</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Réf.</th>
+                <th>Adresse</th>
+                <th>Transition</th>
+                <th>Valeur verte</th>
+                <th>Contact</th>
+                <th>Source</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rapport in rapports %}
+                <tr>
+                    <td class="mono">{{ rapport.reference }}<div class="mono muted">{{ rapport.creeLe|date('d/m/Y') }}</div></td>
+                    <td>{{ rapport.adresse }}</td>
+                    <td>
+                        <span class="dpe d-{{ rapport.dpeAvant.value|lower }}">{{ rapport.dpeAvant.value }}</span>
+                        <span class="arrow">→</span>
+                        <span class="dpe d-{{ rapport.dpeApres.value|lower }}">{{ rapport.dpeApres.value }}</span>
+                    </td>
+                    <td class="num">+{{ rapport.valeurVerteEstimee|number_format(0, ',', ' ') }} €</td>
+                    <td>
+                        {% if rapport.contact %}
+                            {{ rapport.contact.nom }}
+                            <div class="mono muted">{{ rapport.contact.email ?? rapport.contact.telephone }}</div>
+                        {% else %}
+                            <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if rapport.source.value == 'widget' %}
+                            <span class="tag widget">page publique</span>
+                        {% else %}
+                            <span class="tag audit">audit</span>
+                        {% endif %}
+                    </td>
+                    <td><a href="{{ rapport.pdfUrl }}" class="btn btn-ghost btn-sm">PDF</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="muted">Aucun rapport pour l'instant.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
