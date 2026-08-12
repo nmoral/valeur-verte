@@ -19,12 +19,18 @@ rm -rf mutants .mutmut-cache 2>/dev/null || true
 cp pyproject.toml pyproject.toml.mutbak
 trap 'mv -f pyproject.toml.mutbak pyproject.toml 2>/dev/null || true' EXIT
 
-if python tools/scope_mutation.py "$@"; then
-    :  # mutation restreinte aux fichiers changés
-elif [ "${SCOPE_REQUIRED:-0}" = "1" ]; then
+set +e
+python tools/scope_mutation.py "$@"
+scope_code=$?
+set -e
+if [ "$scope_code" = "3" ]; then
+    # Tous les fichiers changés sont en do_not_mutate : rien à muter, pas un échec.
+    exit 0
+elif [ "$scope_code" != "0" ] && [ "${SCOPE_REQUIRED:-0}" = "1" ]; then
     echo "Aucun fichier src/**.py modifié — mutation testing ignoré."
     exit 0
 fi
+# scope_code=0 : scopé ; scope_code=2 hors CI : run complet (only_mutate non injecté).
 
 # mutmut sort en erreur s'il reste des mutants survivants (dont les équivalents) :
 # on neutralise son code de sortie et on juge sur le MSI.

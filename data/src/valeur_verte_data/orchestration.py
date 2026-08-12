@@ -247,28 +247,42 @@ def compute_departement(
     return rapport
 
 
+def load_contours_departement(
+    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str
+) -> int:
+    """Charge les contours communaux d'un département et dérive la contiguïté (#121).
+
+    Récupère les contours (geo.api), les enregistre, puis dérive la limitrophie
+    (``ST_Touches``) sur l'ensemble des contours chargés. Retourne le nombre de
+    contours chargés. **Lève** en cas d'échec : c'est le travail demandé, pas un
+    accessoire — l'appelant décide s'il l'absorbe (ingestion) ou non (commande
+    dédiée). Sans contour (département inconnu de geo.api), ne dérive ni ne
+    committe.
+    """
+    contours = fetch_contours_by_departement(fetcher, departement)
+    if not contours:
+        return 0
+    for contour in contours:
+        upsert_contour(conn, contour.code_insee, contour.code_departement, contour.contour)
+    derive_limitrophes(conn)
+    conn.commit()
+    return len(contours)
+
+
 def _charger_contours(
     fetcher: Fetcher,
     conn: ConnexionTransactionnelle,
     departement: str,
     rapport: RapportIngestion,
 ) -> None:
-    """Charge les contours communaux (INV-3, #121) en fin d'ingestion.
+    """Charge les contours (INV-3, #121) en fin d'ingestion, en mode **résilient**.
 
     Les contours sont **auxiliaires** aux ventes DVF : une panne de geo.api ne
     doit pas emporter une ingestion de plusieurs heures (§5). L'échec est annulé
-    et journalisé, sans marquer l'ingestion en erreur. La contiguïté est dérivée
-    dans la foulée (``ST_Touches``), une fois les nouveaux contours en base.
+    et journalisé, sans marquer l'ingestion en erreur.
     """
     try:
-        contours = fetch_contours_by_departement(fetcher, departement)
-        if not contours:
-            return
-        for contour in contours:
-            upsert_contour(conn, contour.code_insee, contour.code_departement, contour.contour)
-        derive_limitrophes(conn)
-        conn.commit()
-        rapport.contours_charges = len(contours)
+        rapport.contours_charges = load_contours_departement(fetcher, conn, departement)
     except Exception as erreur:  # noqa: BLE001 — les contours ne doivent pas emporter les ventes
         conn.rollback()
         logger.warning("%s : contours non chargés (%s)", departement, erreur)

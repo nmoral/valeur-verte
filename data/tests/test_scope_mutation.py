@@ -14,7 +14,11 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]  # data/
 sys.path.insert(0, str(_ROOT / "tools"))
 
-from scope_mutation import inject_only_mutate, normaliser_fichiers  # noqa: E402
+from scope_mutation import (  # noqa: E402
+    fichiers_a_muter,
+    inject_only_mutate,
+    normaliser_fichiers,
+)
 
 _BASE = '[tool.mutmut]\nsource_paths = ["src"]\n'
 
@@ -41,6 +45,31 @@ def test_normalise_retire_le_prefixe_data_et_garde_les_py_de_src() -> None:
         "src/valeur_verte_data/batch.py",
         "src/valeur_verte_data/cli.py",
     ]
+
+
+def test_fichiers_a_muter_exclut_ceux_de_do_not_mutate() -> None:
+    # Les fichiers en do_not_mutate (couche entrée) ne produisent aucun mutant.
+    pyproject = '[tool.mutmut]\ndo_not_mutate = ["src/valeur_verte_data/cli.py"]\n'
+
+    restants = fichiers_a_muter(
+        pyproject,
+        ["src/valeur_verte_data/cli.py", "src/valeur_verte_data/batch.py"],
+    )
+
+    assert restants == ["src/valeur_verte_data/batch.py"]
+
+
+def test_fichiers_a_muter_vide_si_tous_exclus() -> None:
+    # Cas qui plantait la CI : tous les fichiers changés sont en do_not_mutate.
+    exclus = ["src/valeur_verte_data/cli.py", "src/valeur_verte_data/orchestration.py"]
+    liste = ", ".join(f'"{fichier}"' for fichier in exclus)
+    pyproject = f"[tool.mutmut]\ndo_not_mutate = [{liste}]\n"
+
+    assert fichiers_a_muter(pyproject, exclus) == []
+
+
+def test_fichiers_a_muter_sans_do_not_mutate() -> None:
+    assert fichiers_a_muter("[tool.mutmut]\n", ["src/a.py"]) == ["src/a.py"]
 
 
 def test_injection_idempotente_ne_duplique_pas() -> None:

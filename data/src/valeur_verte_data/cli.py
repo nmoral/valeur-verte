@@ -20,7 +20,13 @@ from collections.abc import Sequence
 from .config import resolve_config
 from .db.runner import resolve_dsn
 from .http import HttpFetcher
-from .orchestration import RapportCalcul, RapportIngestion, compute_departement, ingest_departement
+from .orchestration import (
+    RapportCalcul,
+    RapportIngestion,
+    compute_departement,
+    ingest_departement,
+    load_contours_departement,
+)
 
 
 def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -35,6 +41,11 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     compute.add_argument("--departement", required=True, help="Code département (ex. 31)")
     compute.add_argument("--millesime", required=True, type=int, help="Année DVF (ex. 2024)")
 
+    contours = commandes.add_parser(
+        "load-contours", help="Charger les contours communaux d'un département (INV-3)"
+    )
+    contours.add_argument("--departement", required=True, help="Code département (ex. 31)")
+
     return analyseur.parse_args(argv)
 
 
@@ -47,6 +58,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     config = resolve_config(os.environ)
     with psycopg.connect(resolve_dsn(os.environ), autocommit=False) as conn:
+        if arguments.commande == "load-contours":
+            charges = load_contours_departement(HttpFetcher(), conn, arguments.departement)
+            print(f"Département {arguments.departement} : {charges} contour(s) chargé(s)")
+            return 0
         if arguments.commande == "compute":
             rapport: RapportIngestion | RapportCalcul = compute_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
