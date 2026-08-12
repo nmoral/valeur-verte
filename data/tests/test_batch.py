@@ -7,10 +7,16 @@ from dataclasses import replace
 
 import pytest
 
-from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
+from valeur_verte_data.batch import (
+    MailleCoefficient,
+    _sigma_local,
+    compute_communes,
+    compute_maille,
+)
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
+from valeur_verte_data.radius import RadiusSelection
 
 # Effets en logarithme : le modèle est log-linéaire (#115).
 _EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
@@ -67,6 +73,37 @@ def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> No
     assert large.n_transactions == len(anciennes) + len(recentes)
 
 
+def _selection(rayon_km: int, distance_min_sample: float) -> RadiusSelection:
+    return RadiusSelection([], rayon_km, True, distance_min_sample)
+
+
+def test_sigma_local_mode_fixe() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="fixe", sigma_km=10.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 10.0
+
+
+def test_sigma_local_mode_rayon() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="rayon", sigma_diviseur=2.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 10.0  # 20 / 2
+
+
+def test_sigma_local_mode_densite() -> None:
+    # σ suit la densité continue, pas le rayon quantifié : 6 km / 3 = 2 km.
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 2.0
+
+
+def test_sigma_local_plancher() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_min=5.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 5.0  # 6/3=2 relevé au plancher 5
+
+
+def test_sigma_local_densite_degeneree_retombe_sur_fixe() -> None:
+    # Distance nulle (points confondus) : pas de division par zéro, on garde σ fixe.
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_km=10.0)
+    assert _sigma_local(cfg, _selection(10, 0.0)) == 10.0
+
+
 def _pool_etale() -> list[Mutation]:
     """Deux grappes à ~8 km : F fortement décoté au centre, faiblement au loin.
 
@@ -98,7 +135,7 @@ def test_sigma_adaptatif_equivaut_a_sigma_fixe_rayon_sur_diviseur() -> None:
         1.44,
         2024,
         pool,
-        config=replace(base, sigma_adaptatif=True, sigma_diviseur=2.0),
+        config=replace(base, sigma_mode="rayon", sigma_diviseur=2.0),
     )
     fixe = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, sigma_km=5.0))
     defaut = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
