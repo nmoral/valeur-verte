@@ -271,7 +271,9 @@ def test_compute_maille_expose_l_effectif_par_classe_dpe() -> None:
 
     def _classe(dpe: str, effect: float, n: int) -> list[Mutation]:
         return [
-            _house(dpe, 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(effect)), lat=43.6, lon=1.44)
+            _house(
+                dpe, 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(effect)), lat=43.6, lon=1.44
+            )
             for i in range(n)
         ]
 
