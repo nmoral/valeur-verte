@@ -8,6 +8,7 @@ from typing import Any
 from valeur_verte_data.decoupage_source import (
     fetch_commune,
     fetch_communes_by_departement,
+    fetch_contours_by_departement,
 )
 
 _COMMUNE: dict[str, Any] = {
@@ -67,3 +68,31 @@ def test_fetch_communes_reponse_invalide_donne_liste_vide() -> None:
     fetcher = _FakeFetcher({"erreur": "boom"})
 
     assert fetch_communes_by_departement(fetcher, "80") == []
+
+
+_CONTOUR_POLYGON = {
+    "type": "Polygon",
+    "coordinates": [[[1.0, 43.0], [1.1, 43.0], [1.1, 43.1], [1.0, 43.0]]],
+}
+
+
+def test_fetch_contours_by_departement_extrait_les_polygones() -> None:
+    payload = [
+        {"code": "31001", "codeDepartement": "31", "contour": _CONTOUR_POLYGON},
+        {"code": "31002", "codeDepartement": "31"},  # sans contour → ignorée
+    ]
+    fetcher = _FakeFetcher(payload)
+
+    contours = fetch_contours_by_departement(fetcher, "31")
+
+    assert [c.code_insee for c in contours] == ["31001"]
+    assert contours[0].code_departement == "31"
+    url, params = fetcher.calls[0]
+    assert url.endswith("/departements/31/communes")
+    assert params["geometry"] == "contour"
+
+
+def test_fetch_contours_reponse_invalide_donne_liste_vide() -> None:
+    fetcher = _FakeFetcher({"erreur": "boom"})
+
+    assert fetch_contours_by_departement(fetcher, "31") == []

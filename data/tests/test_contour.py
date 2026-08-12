@@ -48,6 +48,21 @@ def test_parse_contour_accepte_un_multipolygone() -> None:
     assert json.loads(contour.contour)["type"] == "MultiPolygon"
 
 
+def test_parse_contour_porte_le_departement() -> None:
+    contour = parse_contour(_payload(_POLYGON))
+
+    assert contour is not None
+    assert contour.code_departement == "31"
+
+
+def test_parse_contour_departement_deduit_du_code_insee_si_absent() -> None:
+    # Sans champ codeDepartement, le préfixe INSEE fait foi (métropole, §7).
+    contour = parse_contour({"code": "31555", "contour": _POLYGON})
+
+    assert contour is not None
+    assert contour.code_departement == "31"
+
+
 def test_parse_contour_sans_contour_retourne_none() -> None:
     assert parse_contour({"code": "31555", "nom": "Toulouse"}) is None
 
