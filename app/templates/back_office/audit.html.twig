@@ -1,0 +1,72 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes protègent la crédibilité du chiffre, ce n'est pas de la validation de formulaire.</p>{% endblock %}
+
+{% block bo_content %}
+{% if saisie %}
+<div class="panel">
+    <div class="panel-head"><h2>Saisie validée</h2></div>
+    <p><strong>{{ saisie.adresse }}</strong></p>
+    <p class="mono">Surface bâtie {{ saisie.surfaceBatie }} m² · Terrain {{ saisie.surfaceTerrain }} m² · DPE {{ saisie.dpeAvant.value }} → {{ saisie.dpeApres.value }}{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}</p>
+    {% for avertissement in avertissements %}
+        <p class="alert" role="alert">{{ avertissement }}</p>
+    {% endfor %}
+    <p class="hint">Étape suivante : restitution — effectif, intervalle de confiance, rayon, millésime et indicateur de fiabilité.</p>
+    <p><a href="{{ path('back_office_audit') }}">Nouvelle saisie</a></p>
+</div>
+{% endif %}
+
+<div class="panel">
+    <div class="panel-head"><h2>Saisie mode audit</h2></div>
+    <form method="post" action="{{ path('back_office_audit') }}" novalidate>
+        {% if erreurs.global is defined %}<p class="alert" role="alert">{{ erreurs.global }}</p>{% endif %}
+        {% if erreurs.dpe is defined %}<p class="alert" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+
+        <div class="field-group{{ erreurs.adresse is defined ? ' has-error' : '' }}">
+            <label for="adresse">Adresse</label>
+            <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" required>
+            {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
+        </div>
+
+        <div class="field-group{{ erreurs.surfaceBatie is defined ? ' has-error' : '' }}">
+            <label for="surface_batie">Surface bâtie (m²)</label>
+            <input type="number" id="surface_batie" name="surface_batie" value="{{ valeurs.surface_batie }}" min="20" max="400" inputmode="numeric" required>
+            {% if erreurs.surfaceBatie is defined %}<span class="form-error">{{ erreurs.surfaceBatie }}</span>{% else %}<span class="hint">Entre 20 et 400 m².</span>{% endif %}
+        </div>
+
+        <div class="field-group{{ erreurs.surfaceTerrain is defined ? ' has-error' : '' }}">
+            <label for="surface_terrain">Surface terrain (m²)</label>
+            <input type="number" id="surface_terrain" name="surface_terrain" value="{{ valeurs.surface_terrain }}" min="0" max="10000" inputmode="numeric" required>
+            {% if erreurs.surfaceTerrain is defined %}<span class="form-error">{{ erreurs.surfaceTerrain }}</span>{% else %}<span class="hint">De 0 à 10 000 m².</span>{% endif %}
+        </div>
+
+        <div class="field-group">
+            <label for="dpe_avant">DPE actuel</label>
+            <select id="dpe_avant" name="dpe_avant">
+                {% for dpe in dpe_options %}
+                    <option value="{{ dpe.value }}"{{ valeurs.dpe_avant == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field-group{{ erreurs.dpeApres is defined ? ' has-error' : '' }}">
+            <label for="dpe_apres">DPE cible</label>
+            <select id="dpe_apres" name="dpe_apres">
+                {% for dpe in dpe_options %}
+                    <option value="{{ dpe.value }}"{{ valeurs.dpe_apres == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>
+                {% endfor %}
+            </select>
+            {% if erreurs.dpeApres is defined %}<span class="form-error">{{ erreurs.dpeApres }}</span>{% else %}<span class="hint">Doit être meilleur que le DPE actuel.</span>{% endif %}
+        </div>
+
+        <div class="field-group">
+            <label for="nombre_pieces">Nombre de pièces (optionnel)</label>
+            <input type="number" id="nombre_pieces" name="nombre_pieces" value="{{ valeurs.nombre_pieces }}" min="1" inputmode="numeric">
+            <span class="hint">Sert au contrôle de cohérence surface/pièces.</span>
+        </div>
+
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
+        <button type="submit" class="btn-primary">Valider la saisie</button>
+    </form>
+</div>
+{% endblock %}

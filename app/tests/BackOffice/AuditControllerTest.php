@@ -10,11 +10,13 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class AuditControllerTest extends WebTestCase
 {
+    private const URL = 'http://valeurverte.localhost/back-office/audit';
+
     public function testLaPagePorteLeFormulaireDeSaisie(): void
     {
         $client = static::createClient();
 
-        $client->request('GET', '/back-office/audit');
+        $client->request('GET', self::URL);
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('input[name="adresse"]');
@@ -87,7 +89,7 @@ final class AuditControllerTest extends WebTestCase
      */
     private function soumettre(KernelBrowser $client, array $valeurs): void
     {
-        $crawler = $client->request('GET', '/back-office/audit');
+        $crawler = $client->request('GET', self::URL);
         self::assertInstanceOf(Crawler::class, $crawler);
         $formulaire = $crawler->selectButton('Valider la saisie')->form();
         foreach ($valeurs as $champ => $valeur) {
