@@ -41,6 +41,22 @@ final class ContactTest extends TestCase
         self::assertSame('M. Fabre', $contact->nom());
     }
 
+    public function testLEmailEstDebarrasseDesEspacesSuperflus(): void
+    {
+        $contact = Contact::creer('M. Fabre', '  fabre@example.com  ', null);
+
+        self::assertSame('fabre@example.com', $contact->email());
+    }
+
+    public function testUnEmailReduitADesEspacesEstIgnore(): void
+    {
+        // Un email « vide » (que des espaces) ne compte pas comme moyen de contact.
+        $contact = Contact::creer('M. Fabre', '   ', '05 61 00 00 00');
+
+        self::assertNull($contact->email());
+        self::assertSame('05 61 00 00 00', $contact->telephone());
+    }
+
     public function testUnNomVideEstRefuse(): void
     {
         $this->expectException(\InvalidArgumentException::class);
