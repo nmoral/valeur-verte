@@ -24,6 +24,7 @@ def test_defauts_sans_environnement() -> None:
     assert config.min_local_sample == 30
     assert config.min_class_sample == 20
     assert config.min_classes_publiees == 2
+    assert config.inversion_dpe_seuil == 30
     # Régression — config gagnante par défaut
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
@@ -87,6 +88,11 @@ def test_surcharge_rayon_max() -> None:
 def test_surcharge_rupture_facteur() -> None:
     # Facteur de rupture limitrophe (INV-3) surchargeable par l'environnement.
     assert resolve_config({"VV_MOTEUR_RUPTURE_FACTEUR_MAX": "1.5"}).rupture_facteur_max == 1.5
+
+
+def test_surcharge_inversion_dpe_seuil() -> None:
+    # Seuil de tolérance de monotonie DPE (INV-1) surchargeable par l'environnement.
+    assert resolve_config({"VV_MOTEUR_INVERSION_DPE_SEUIL": "20"}).inversion_dpe_seuil == 20
 
 
 def test_surcharge_str() -> None:
