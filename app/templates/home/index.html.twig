@@ -1,13 +1,50 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Valeur verte mesurée — l'outil des entreprises RGE</title>
+{{ include('_seo.html.twig', {
+  titre: 'Valeur verte mesurée — l\'outil des entreprises RGE',
+  og_titre: 'Montrez à vos clients la valeur, pas la dépense',
+  description: 'Mesurez la valeur qu\'une rénovation ajoute à une maison, à partir des ventes réelles autour de l\'adresse. Rapport PDF en 3 min, pour les entreprises RGE.',
+  canonical: url('home'),
+}) }}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/landing.css">
+{% set donnees_structurees = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': url('home') ~ '#organisation',
+      'name': 'Valeur Verte',
+      'url': url('home'),
+      'description': 'Outil de mesure de la valeur verte pour les entreprises RGE, à partir des ventes réelles (DVF) croisées aux DPE.',
+      'areaServed': 'FR'
+    },
+    {
+      '@type': 'WebSite',
+      'url': url('home'),
+      'name': 'Valeur Verte',
+      'inLanguage': 'fr-FR',
+      'publisher': { '@id': url('home') ~ '#organisation' }
+    },
+    {
+      '@type': 'Product',
+      'name': 'Valeur Verte',
+      'description': 'Rapport de valeur verte chiffré, à l\'en-tête du professionnel, à partir de transactions réelles.',
+      'brand': { '@type': 'Brand', 'name': 'Valeur Verte' },
+      'offers': {
+        '@type': 'Offer',
+        'price': '89',
+        'priceCurrency': 'EUR',
+        'availability': 'https://schema.org/InStock',
+        'url': url('inscription')
+      }
+    }
+  ]
+} %}
+<script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
 </head>
 <body>
 
