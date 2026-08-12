@@ -55,3 +55,6 @@ markers = [
 # ---- Mutation testing (make data-mutation) ----
 [tool.mutmut]
 source_paths = ["src"]
+# `tools/` doit être copié dans mutants/ pour que test_scope_mutation.py y importe
+# le helper de scope (#151) — mutmut ne copie que source_paths + tests par défaut.
+also_copy = ["tools"]
