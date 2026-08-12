@@ -17,6 +17,8 @@ final readonly class SaisieAudit
     private const SURFACE_BATIE_MAX = 400;
     private const SURFACE_TERRAIN_MIN = 0;
     private const SURFACE_TERRAIN_MAX = 10000;
+    private const RATIO_PIECE_MIN = 9.0;
+    private const RATIO_PIECE_MAX = 60.0;
 
     private function __construct(
         private string $adresse,
@@ -87,5 +89,28 @@ final readonly class SaisieAudit
     public function nombrePieces(): ?int
     {
         return $this->nombrePieces;
+    }
+
+    /**
+     * Signaux non bloquants de vraisemblance (§9.8) : ils alertent sans empêcher
+     * la génération. Un ratio surface/pièces hors plage usuelle est suspect.
+     *
+     * @return list<string>
+     */
+    public function avertissements(): array
+    {
+        $avertissements = [];
+
+        if (null !== $this->nombrePieces && $this->nombrePieces > 0) {
+            $ratio = $this->surfaceBatie / $this->nombrePieces;
+            if ($ratio < self::RATIO_PIECE_MIN || $ratio > self::RATIO_PIECE_MAX) {
+                $avertissements[] = \sprintf(
+                    'Le rapport surface/pièces (%d m²/pièce) semble inhabituel — vérifiez la saisie.',
+                    (int) round($ratio),
+                );
+            }
+        }
+
+        return $avertissements;
     }
 }
