@@ -25,6 +25,8 @@ def test_defauts_sans_environnement() -> None:
     # Régression
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
+    assert config.sigma_adaptatif is False
+    assert config.sigma_diviseur == 3.0
     assert config.reference_dpe == "D"
     assert config.voisins_indice_local == 20
     assert config.etendue_minimale_indice == 0.002

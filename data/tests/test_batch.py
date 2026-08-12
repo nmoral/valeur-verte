@@ -67,6 +67,48 @@ def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> No
     assert large.n_transactions == len(anciennes) + len(recentes)
 
 
+def _pool_etale() -> list[Mutation]:
+    """Deux grappes à ~8 km : F fortement décoté au centre, faiblement au loin.
+
+    L'écart entre les deux fait que σ (combien le lointain compte) change le
+    coefficient F — condition pour que le σ adaptatif soit observable.
+    """
+    houses: list[Mutation] = []
+    for i in range(6):
+        bati = 90 + i
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.6, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.30)), lat=43.6, lon=1.44))
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.672, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.05)), lat=43.672, lon=1.44))
+    return houses
+
+
+def test_sigma_adaptatif_equivaut_a_sigma_fixe_rayon_sur_diviseur() -> None:
+    """S23 : en mode local, σ adaptatif = rayon_retenu / diviseur.
+
+    Preuve par équivalence : la maille calculée avec σ adaptatif (diviseur 2, rayon
+    10 → σ=5) est identique à celle avec σ fixe = 5, et diffère du σ fixe par défaut.
+    """
+    pool = _pool_etale()  # rayon retenu = 10 km
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    adaptatif = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, sigma_adaptatif=True, sigma_diviseur=2.0),
+    )
+    fixe = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, sigma_km=5.0))
+    defaut = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+
+    assert adaptatif is not None and fixe is not None and defaut is not None
+    assert adaptatif.rayon_retenu_km == 10
+    assert adaptatif.coef_dpe == fixe.coef_dpe  # σ = 10/2 = 5
+    assert adaptatif.coef_dpe != defaut.coef_dpe  # ≠ σ fixe par défaut (10)
+
+
 def test_compute_maille_lit_les_seuils_de_la_config() -> None:
     """La config descend jusqu'au calcul : durcir un seuil change le résultat.
 
