@@ -32,6 +32,7 @@ def test_defauts_sans_environnement() -> None:
     assert config.voisins_indice_local == 20
     assert config.etendue_minimale_indice == 0.002
     assert config.effets_fixes_commune is True
+    assert config.indice_local is True
     # Validation croisée
     assert config.cv_folds == 5
     # Nettoyage

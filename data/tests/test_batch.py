@@ -146,6 +146,25 @@ def test_sigma_adaptatif_equivaut_a_sigma_fixe_rayon_sur_diviseur() -> None:
     assert adaptatif.coef_dpe != defaut.coef_dpe  # ≠ σ fixe par défaut (10)
 
 
+def test_indice_local_desactive_extrait_les_bons_coefficients_dpe() -> None:
+    """S24 : sans indice, la colonne log(indice) disparaît et décale la position des
+    coefficients DPE dans beta — l'extraction doit suivre le décalage.
+
+    Points confondus → indice neutre : F doit valoir −0,20 dans les deux cas. Si
+    l'extraction était mal alignée (décalage d'un cran), F serait aberrant.
+    """
+    pool = _cluster(6, lat=43.6, lon=1.44)  # effet F = −0,20, tous au même point
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    avec = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    sans = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, indice_local=False))
+
+    assert avec is not None and sans is not None
+    assert round(avec.coef_dpe["F"], 2) == -0.20
+    assert round(sans.coef_dpe["F"], 2) == -0.20
+    assert set(avec.coef_dpe) == set(sans.coef_dpe) == {"D", "C", "F"}
+
+
 def test_effets_fixes_commune_changent_le_modele() -> None:
     """S22 : les effets fixes commune contrôlent le niveau de prix par commune.
 
