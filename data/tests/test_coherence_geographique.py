@@ -25,6 +25,7 @@ from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.invariants import (
     RuptureLimitrophe,
     VerdictPublication,
+    alertes_de_bord,
     detecter_ruptures_limitrophes,
     evaluer_coherence_geographique,
 )
@@ -266,3 +267,32 @@ def test_ruptures_ordonnees_de_facon_deterministe() -> None:
     paires = [(r.code_insee_a, r.code_insee_b) for r in ruptures]
 
     assert paires == [("31001", "31002"), ("31002", "31003")]
+
+
+# --- Alertes de bord : conséquence « publier avec alerte » (tranche 5) --------
+
+
+def test_alertes_de_bord_marque_les_deux_communes() -> None:
+    ruptures = (RuptureLimitrophe("31001", "31002", 1000.0, 3000.0, 3.0),)
+
+    alertes = alertes_de_bord(ruptures)
+
+    assert set(alertes) == {"31001", "31002"}
+    assert "3.0" in alertes["31001"]
+    assert "3.0" in alertes["31002"]
+
+
+def test_alertes_de_bord_retient_le_pire_facteur() -> None:
+    # Une commune au carrefour de deux ruptures porte le facteur le plus fort.
+    ruptures = (
+        RuptureLimitrophe("31001", "31002", 1000.0, 3000.0, 3.0),
+        RuptureLimitrophe("31001", "31003", 1000.0, 5000.0, 5.0),
+    )
+
+    alertes = alertes_de_bord(ruptures)
+
+    assert "5.0" in alertes["31001"]
+
+
+def test_alertes_de_bord_vide_sans_rupture() -> None:
+    assert alertes_de_bord(()) == {}
