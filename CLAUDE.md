@@ -1,4 +1,8 @@
-# CLAUDE.md — Règles de travail (Valeur verte)
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Règles de travail (Valeur verte)
 
 Ce fichier fait autorité pour toute contribution au dépôt, humaine ou assistée.
 Contexte produit : voir [`README.md`](README.md) ; backlog : [`docs/BACKLOG.md`](docs/BACKLOG.md).
@@ -11,6 +15,32 @@ Contexte produit : voir [`README.md`](README.md) ; backlog : [`docs/BACKLOG.md`]
 | `data/` | Python 3.11+ | Ingestion DVF/DPE/BAN, régressions, écriture des coefficients (schéma `data`) |
 
 Contrat entre les deux : `data` est **lecture seule** pour `app` ; chacun gère ses propres migrations.
+
+### Architecture de `app/` (Symfony)
+
+Organisation **par domaine**, pas par couche technique :
+
+- `src/<Domaine>/<Concept>/` — le cœur métier. Ex. `src/BackOffice/{Rapport,Branding,GrilleCout,Bouquet}/`.
+  On y trouve des **objets-valeur** (`Montant`, `Couleur`, `PeriodeValidite`, l'enum `Dpe`…) et,
+  pour les agrégats persistés, une **entité Doctrine + son `ServiceEntityRepository`**
+  (`RapportRepository`, `BrandingRepository`). Les valeurs par défaut du produit sont portées par
+  des **fabriques statiques** — `GrilleCout::parDefautNationale()`, `Bouquet::renovationAmpleurStandard()`,
+  `Branding::parDefaut()` — c'est le socle du principe « un rapport avant toute configuration » :
+  un repository renvoie toujours un objet exploitable même sans rien en base (`BrandingRepository::courant()`).
+- `src/Controller/<Domaine>/` — contrôleurs **invokables et fins** (`#[Route]` en attribut, une action
+  `__invoke`, quelques lignes de glue) qui délèguent au domaine et rendent un template. Aucune logique métier.
+- `templates/<domaine>/` — Twig en `snake_case`, avec un layout par zone (`back_office/base.html.twig`).
+
+**Deux schémas PostgreSQL dans une base unique** (contrat `app`/`data`) :
+
+- Le rôle de connexion `app` a `search_path = app` ; Doctrine ne gère **que** le schéma `app`.
+  Le `schema_filter: ~^[^.]+$~` (dans `config/packages/doctrine.yaml`) ne retient que les tables
+  **non qualifiées** → `data`, `public`, `postgis` restent invisibles du diff et des migrations.
+- `App\Doctrine\DeclareSchemasExistants` (listener `postGenerateSchema`) déclare les schémas déjà
+  présents en base pour que `doctrine:migrations:diff` ne génère pas de `CREATE SCHEMA` superflu.
+- L'init de la base (`infra/db-init/10-init-app.sh`, joué à la création du volume) crée le rôle `app`,
+  le schéma `app` (en écriture) et les `GRANT SELECT` sur `data`, dans la base de dev **et** dans
+  `valeur_verte_test`.
 
 ---
 
@@ -98,6 +128,55 @@ make check       # lint + stan + test  (porte avant commit)
 ```
 
 Cibles par sous-projet également disponibles : `make app-test`, `make data-stan`, etc.
+
+### Poste de dev sans PHP — tout passe par Docker
+
+Les cibles `make app-*` supposent PHP 8.4 + Composer **sur le poste** (comme en CI, via
+`setup-php`). En leur absence, on joue les portes `app/` **dans l'image de la stack**
+(`infra-app`, qui porte `intl` + `pdo_pgsql`), en montant le code local (le `vendor/`
+local contient déjà les dev-deps) et en tournant sous l'uid de l'hôte pour que
+`var/cache` reste inscriptible :
+
+```bash
+docker compose -f infra/docker-compose.yml run --rm --no-deps \
+  -v "$PWD/app:/app" -w /app -u "$(id -u):$(id -g)" \
+  -e APP_ENV=test \
+  -e DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8" \
+  --entrypoint "" app  vendor/bin/phpunit
+```
+
+En environnement `test`, Doctrine **ajoute le suffixe `_test`** (`dbname_suffix`) :
+l'URL pointe donc toujours la base `valeur_verte`, jamais `valeur_verte_test` en dur.
+Remplacer la dernière commande par `vendor/bin/phpstan analyse`,
+`vendor/bin/php-cs-fixer fix --dry-run --diff` ou `php bin/console …` selon la porte.
+La base de test doit être migrée une fois : `… php bin/console doctrine:migrations:migrate`.
+
+**Lancer un seul test** : `vendor/bin/phpunit --filter testNomDuTest`
+(ou `vendor/bin/phpunit tests/BackOffice/Rapport/RapportTest.php`).
+
+### Stack locale (app tournante pour vérification manuelle / Playwright)
+
+Le `Makefile` porte une stack Docker (PostGIS partagé + app FrankenPHP) — voir la section
+« Stack locale » du fichier :
+
+```bash
+make stack-up      # build + démarre db & app (image prod), migrations → http://127.0.0.1:8000
+make stack-dev     # itération : code app/ monté (pas de rebuild), APP_ENV=dev, sous-domaines
+make stack-migrate # rejoue les migrations sur la base en cours
+make stack-seed    # insère quelques rapports de démo (dont un lead)
+make stack-logs    # suit les logs de l'app
+make stack-down    # arrête (conserve les données)
+make stack-reset   # arrête ET efface la base (repart de zéro)
+```
+
+`stack-up` exerce l'artefact de prod (le même qu'au VPS). `stack-dev` monte `app/` en
+bind-mount et bascule en `APP_ENV=dev` : les changements de code sont pris sans
+reconstruire l'image. Les zones vivent sur des **sous-domaines** de `%app.domaine%`
+(défaut `valeurverte.localhost`, résolu vers 127.0.0.1 par les navigateurs) :
+`app.` (espace pro), `admin.` (admin interne), `widget.` (widget public).
+
+Vérifier une page, c'est vérifier qu'elle **fonctionne** (contenu, action attendue),
+pas seulement qu'elle répond 200.
 
 ---
 

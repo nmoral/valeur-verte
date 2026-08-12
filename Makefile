@@ -91,13 +91,29 @@ check: lint stan test
 # l'app sur http://127.0.0.1:8000. Ne nécessite ni PHP ni Composer sur le poste :
 # l'image se construit toute seule. La base prépare aussi valeur_verte_test.
 COMPOSE := docker compose -f $(INFRA)/docker-compose.yml
+# Variante dev : monte le code (pas de rebuild à chaque changement), APP_ENV=dev.
+COMPOSE_DEV := docker compose -f $(INFRA)/docker-compose.yml -f $(INFRA)/docker-compose.dev.yml
 
-.PHONY: stack-up stack-down stack-reset stack-migrate stack-seed stack-logs
+.PHONY: stack-up stack-dev stack-image stack-down stack-reset stack-migrate stack-seed stack-logs
 
 stack-up:
 	$(COMPOSE) up -d --build
 	$(COMPOSE) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
 	@echo "App disponible sur http://127.0.0.1:8000 (back-office : /back-office/couts, /back-office/bouquets, /back-office/rapports, /back-office/marque)"
+
+# Stack de développement : le code app/ est monté dans le conteneur, donc un
+# changement de code est reflété sans reconstruire l'image (APP_ENV=dev). L'image
+# (socle PHP + extensions) est réutilisée telle quelle : le vendor/ local est monté,
+# donc PAS de « composer install » ni de rebuild réseau. La construire une fois via
+# « make stack-up » (ou « make stack-image ») si elle n'existe pas encore.
+stack-dev:
+	$(COMPOSE_DEV) up -d
+	$(COMPOSE_DEV) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
+	@echo "App (dev) sur http://app.valeurverte.localhost:8000 et http://admin.valeurverte.localhost:8000"
+
+# Construit (ou reconstruit) l'image applicative seule.
+stack-image:
+	$(COMPOSE) build app
 
 # Applique les migrations sur la base de la stack en cours.
 stack-migrate:
