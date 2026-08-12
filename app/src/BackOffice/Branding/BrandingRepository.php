@@ -27,7 +27,12 @@ class BrandingRepository extends ServiceEntityRepository
 
     public function enregistrer(Branding $branding): void
     {
+        // La marque est une configuration unique : on remplace la précédente
+        // plutôt que d'empiler des lignes (sinon « courant() » garderait la 1re).
         $manager = $this->getEntityManager();
+        foreach ($this->findAll() as $ancienne) {
+            $manager->remove($ancienne);
+        }
         $manager->persist($branding);
         $manager->flush();
     }

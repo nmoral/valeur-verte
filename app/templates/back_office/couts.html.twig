@@ -1,27 +1,25 @@
 {% extends 'back_office/base.html.twig' %}
 
-{% block page_subtitle %}<p>Barème national pré-rempli — ajustez les postes qui vous concernent.</p>{% endblock %}
+{% block page_subtitle %}<p>Barème national pré-rempli, appliqué par défaut à vos rapports.</p>{% endblock %}
 
 {% block bo_content %}
 <div class="panel">
     <div class="panel-head">
         <h2>Vos coûts de travaux</h2>
-        <span class="hint">pré-remplis — un poste laissé tel quel garde la valeur nationale</span>
+        <span class="hint">valeurs nationales — personnalisation à venir</span>
     </div>
-    {# La sauvegarde arrivera avec la persistance (Doctrine) : cet écran présente la grille par défaut. #}
-    <form method="post" action="">
-        <div style="padding:16px">
-            {% for poste in grille.postes %}
-                <div class="row">
-                    <label>{{ poste.libelle }}</label>
-                    <span class="inp">
-                        <span class="dflt">déf. {{ grille.montant(poste).euros }}</span>
-                        <input name="couts[{{ poste.name }}]" value="{{ grille.montant(poste).euros }}" inputmode="numeric">
-                        <span class="unit">{{ poste.unite.symbole }}</span>
-                    </span>
-                </div>
-            {% endfor %}
-        </div>
-    </form>
+    {# Affichage seul pour l'instant : la personnalisation (et sa persistance versionnée)
+       viendra dans une évolution dédiée. Pas de formulaire tant qu'il n'y a pas de sauvegarde. #}
+    <div style="padding:16px">
+        {% for poste in grille.postes %}
+            <div class="row">
+                <label>{{ poste.libelle }}</label>
+                <span class="inp">
+                    <input value="{{ grille.montant(poste).euros }}" inputmode="numeric" readonly aria-readonly="true">
+                    <span class="unit">{{ poste.unite.symbole }}</span>
+                </span>
+            </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}
