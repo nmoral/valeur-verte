@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from valeur_verte_data import cli
+from valeur_verte_data import cli, orchestration
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.dvf import Mutation
 
@@ -126,9 +126,9 @@ def test_le_pool_du_departement_n_est_charge_qu_une_fois(
         chargements.append(departement)
         return _POOL
 
-    monkeypatch.setattr(cli, "load_pool", _charger)
+    monkeypatch.setattr(orchestration, "load_pool", _charger)
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert chargements == ["31"]
 
@@ -150,9 +150,9 @@ def test_le_pool_deborde_sur_les_departements_limitrophes(
         appels.append((departement, limitrophes))
         return _POOL
 
-    monkeypatch.setattr(cli, "load_pool", _charger)
+    monkeypatch.setattr(orchestration, "load_pool", _charger)
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert appels == [("31", ("09", "11", "32", "65", "81", "82"))]
 
@@ -168,9 +168,11 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     amputé. La liste des communes vient du découpage administratif du
     département demandé, jamais du pool.
     """
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE)
+    orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
+    )
 
     ecrits = [str(params[0]) for _, params in connexion.ecritures if params]
     assert ecrits, "le test ne prouve rien si rien n'est écrit"
@@ -181,9 +183,9 @@ def test_les_communes_calculees_sont_ecrites(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
 
-    rapport = cli.compute_departement(
+    rapport = orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
     )
 
@@ -198,7 +200,7 @@ def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
     un millésime publié n'est pas auditable et REG-1 compare des batches dont on
     ne sait pas s'ils étaient reproductibles.
     """
-    rapport = cli.RapportCalcul(departement="31", millesime=2024)
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
 
     assert rapport.ordre_canonique == "id_mutation"
     assert "id_mutation" in rapport.resume()
@@ -209,9 +211,9 @@ def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(
 ) -> None:
     """Le refus sous seuil est un résultat du cadrage (§7), pas une panne."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
 
-    rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert rapport.communes_calculees == 0
     assert rapport.refus == ["31555", "31149"]
@@ -223,9 +225,9 @@ def test_un_departement_sans_aucun_coefficient_sort_en_erreur(
 ) -> None:
     """Rien de calculé signale un pool vide ou un millésime erroné."""
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
 
-    rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert rapport.est_en_echec
 
@@ -245,9 +247,9 @@ def test_une_commune_devenue_non_calculable_perd_son_coefficient(
     rien, donc les anciennes valeurs survivaient au recalcul qui les invalide.
     """
     connexion = _FausseConnexion([])
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
     assert len(suppressions) == 2, "chaque commune refusée doit voir son coefficient effacé"
@@ -261,10 +263,12 @@ def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
 
     Seuil R² porté à 0,99 (impossible) : toute maille calculée est rejetée.
     """
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     config = replace(CalculConfig(), r2_min=0.99)
 
-    rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+    rapport = orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=config
+    )
 
     assert connexion.ecritures == []
     assert rapport.communes_calculees == 0
@@ -275,10 +279,10 @@ def test_une_maille_rejetee_efface_le_coefficient_anterieur(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Un coefficient publié qui devient non conforme ne doit plus être servi (#115)."""
-    monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     config = replace(CalculConfig(), r2_min=0.99)
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
 
     suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
     assert len(suppressions) == 2
