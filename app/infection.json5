@@ -2,6 +2,8 @@
     // Mutation testing — voir CLAUDE.md §3 (cible MSI couvert >= 80 %).
     "source": {
         "directories": ["src"],
+        // Kernel.php est de la glue Symfony générée, sans logique métier à muter.
+        "excludes": ["Kernel.php"],
     },
     "mutators": {
         "@default": true,

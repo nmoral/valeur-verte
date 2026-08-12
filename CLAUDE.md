@@ -7,7 +7,7 @@ Contexte produit : voir [`README.md`](README.md) ; backlog : [`docs/BACKLOG.md`]
 
 | Dossier | Techno | Rôle |
 |---|---|---|
-| `app/` | PHP 8.3 / Symfony 7 | Widget public, mode audit, back-office pro, admin interne (schéma `app`) |
+| `app/` | PHP 8.4 / Symfony 8.1 | Widget public, mode audit, back-office pro, admin interne (schéma `app`) |
 | `data/` | Python 3.11+ | Ingestion DVF/DPE/BAN, régressions, écriture des coefficients (schéma `data`) |
 
 Contrat entre les deux : `data` est **lecture seule** pour `app` ; chacun gère ses propres migrations.
