@@ -35,6 +35,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private string $password = '';
 
+    // Le compte porte son tenant (D3) mais n'est PAS filtré : le login doit
+    // retrouver les comptes sans cloisonnement. Null pour l'admin interne.
+    #[ORM\Column(nullable: true)]
+    private ?int $tenantId = null;
+
     /**
      * @param list<string> $roles
      */
@@ -47,6 +52,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getEmail(): string
     {
         return $this->email;
+    }
+
+    public function getTenantId(): ?int
+    {
+        return $this->tenantId;
+    }
+
+    public function rattacherAuTenant(int $tenantId): void
+    {
+        $this->tenantId = $tenantId;
     }
 
     /**
