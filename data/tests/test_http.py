@@ -86,3 +86,72 @@ def test_les_redirections_sont_suivies() -> None:
 
 def test_httpfetcher_suit_les_redirections_par_defaut() -> None:
     assert HttpFetcher()._client.follow_redirects is True
+
+
+def _fetcher_sans_attente(
+    handler: Callable[[httpx.Request], httpx.Response], **kwargs: object
+) -> HttpFetcher:
+    return HttpFetcher(
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        sleep=lambda _: None,
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+def test_reprend_sur_429_puis_reussit() -> None:
+    """Un 429 transitoire (rate limiting ADEME/DVF) ne doit pas perdre la commune."""
+    appels = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        appels["n"] += 1
+        if appels["n"] == 1:
+            return httpx.Response(429, text="slow down")
+        return httpx.Response(200, text="ok")
+
+    assert _fetcher_sans_attente(handler).get_text("https://example/x") == "ok"
+    assert appels["n"] == 2
+
+
+def test_abandonne_apres_le_max_de_reprises() -> None:
+    appels = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        appels["n"] += 1
+        return httpx.Response(429)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        _fetcher_sans_attente(handler, max_retries=3).get_text("https://example/x")
+
+    assert appels["n"] == 4  # 1 tentative + 3 reprises
+
+
+def test_respecte_le_header_retry_after() -> None:
+    delais: list[float] = []
+    appels = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        appels["n"] += 1
+        if appels["n"] == 1:
+            return httpx.Response(429, headers={"Retry-After": "2"})
+        return httpx.Response(200, text="ok")
+
+    fetcher = HttpFetcher(
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        sleep=lambda d: delais.append(d),
+    )
+    fetcher.get_text("https://example/x")
+
+    assert delais == [2.0]
+
+
+def test_le_json_reprend_aussi_sur_429() -> None:
+    appels = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        appels["n"] += 1
+        if appels["n"] == 1:
+            return httpx.Response(429)
+        return httpx.Response(200, json={"ok": True})
+
+    assert _fetcher_sans_attente(handler).get_json("https://example/j") == {"ok": True}
+    assert appels["n"] == 2
