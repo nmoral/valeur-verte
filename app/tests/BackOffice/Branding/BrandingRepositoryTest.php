@@ -30,6 +30,21 @@ final class BrandingRepositoryTest extends KernelTestCase
         self::assertNull($courant->numeroRge());
     }
 
+    public function testEnregistrerRemplaceLaMarquePrecedenteAuLieuDEmpiler(): void
+    {
+        $this->repository->enregistrer(Branding::creer(Couleur::depuisHex('#0E4A5C'), 'AVANT', null, null, null));
+        $this->repository->enregistrer(Branding::creer(Couleur::depuisHex('#B8480F'), 'APRES', null, null, null));
+
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $manager->clear();
+
+        $courant = $this->repository->courant();
+        self::assertSame('#B8480F', $courant->couleurPrincipale()->hex());
+        self::assertSame('APRES', $courant->numeroRge());
+        self::assertCount(1, $this->repository->findAll(), 'une seule marque doit subsister');
+    }
+
     public function testLaMarqueEnregistreeEstRelueDepuisLaBase(): void
     {
         $this->repository->enregistrer(Branding::creer(
