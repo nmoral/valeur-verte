@@ -48,6 +48,10 @@ class CalculConfig:
     # Indice local de quartier comme régresseur (S24) : gardé (signal réel).
     indice_local: bool = True  # S24
     cv_folds: int = 5
+    # INV-4 (#122) : seuils de publication d'une maille. n minimal = min_local_sample
+    # (seuil #22, source unique). Ces bornes sont configurables, pas codées en dur.
+    erreur_mediane_max_pct: float = 20.0
+    r2_min: float = 0.30
     price_min: float = 30_000.0
     price_max: float = 900_000.0
     bati_min: float = 50.0
@@ -90,6 +94,8 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         effets_fixes_commune=_bool(env, "EFFETS_FIXES_COMMUNE", defaut.effets_fixes_commune),
         indice_local=_bool(env, "INDICE_LOCAL", defaut.indice_local),
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
+        erreur_mediane_max_pct=_float(env, "ERREUR_MEDIANE_MAX_PCT", defaut.erreur_mediane_max_pct),
+        r2_min=_float(env, "R2_MIN", defaut.r2_min),
         price_min=_float(env, "PRICE_MIN", defaut.price_min),
         price_max=_float(env, "PRICE_MAX", defaut.price_max),
         bati_min=_float(env, "BATI_MIN", defaut.bati_min),
