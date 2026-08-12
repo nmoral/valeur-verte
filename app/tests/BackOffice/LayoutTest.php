@@ -13,6 +13,7 @@ final class LayoutTest extends KernelTestCase
     {
         self::bootKernel();
         $twig = self::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
 
         $html = $twig->render('back_office/base.html.twig', [
             'page_title' => 'Tableau de bord',
