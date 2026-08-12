@@ -26,6 +26,14 @@ services:
     # remplacée par le journal d'audit persistant (#50).
     App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
 
+    # Notification admin d'un usage anormal (#44) : impl d'attente par log (#50).
+    App\Notification\NotificationAdmin: '@App\Notification\NotificationAdminViaLog'
+
+    # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
+    App\Security\LimiteurInscription:
+        arguments:
+            $inscriptionIpLimiter: '@limiter.inscription_ip'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

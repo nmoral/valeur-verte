@@ -8,6 +8,7 @@ use App\Security\UserRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 final class RegistrationControllerTest extends WebTestCase
 {
@@ -68,6 +69,12 @@ final class RegistrationControllerTest extends WebTestCase
 
     private function soumettreInscription(KernelBrowser $client, string $email, string $motDePasse, string $siret): void
     {
+        // Ces tests ne portent pas sur le rate limiting : on repart d'une fenêtre
+        // vierge pour l'IP par défaut afin de ne pas fuir d'un run à l'autre.
+        $limiteur = self::getContainer()->get('limiter.inscription_ip');
+        self::assertInstanceOf(RateLimiterFactory::class, $limiteur);
+        $limiteur->create('127.0.0.1')->reset();
+
         $crawler = $client->request('GET', 'http://'.self::HOTE.'/inscription');
         self::assertInstanceOf(Crawler::class, $crawler);
         $formulaire = $crawler->selectButton('Créer mon compte')->form();
