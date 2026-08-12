@@ -50,6 +50,7 @@ final class Siret implements \Stringable
 
     private static function normaliser(string $valeur): string
     {
-        return preg_replace('/\s+/', '', trim($valeur)) ?? '';
+        // « \s+ » retire déjà tout blanc, en tête, en queue comme au milieu.
+        return preg_replace('/\s+/', '', $valeur) ?? '';
     }
 }
