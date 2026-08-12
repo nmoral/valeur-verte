@@ -8,6 +8,7 @@ from dataclasses import replace
 import pytest
 
 from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
+from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
@@ -42,13 +43,38 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
     return houses
 
 
+def test_compute_maille_lit_les_seuils_de_la_config() -> None:
+    """La config descend jusqu'au calcul : durcir un seuil change le résultat.
+
+    Preuve de câblage : avec ``min_class_sample=1`` les trois classes du cluster
+    (4 ventes chacune) sont publiées ; à 5, aucune n'atteint le seuil et la maille
+    est refusée. Le paramètre vient donc bien de la config, pas d'une constante.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)  # 3 classes × 4 ventes
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10)
+
+    assert (
+        compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, min_class_sample=1))
+        is not None
+    )
+    assert (
+        compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, min_class_sample=5))
+        is None
+    )
+
+
 def test_compute_maille_mode_local() -> None:
     pool = _cluster(4, lat=43.6, lon=1.44)  # 12 ventes proches
 
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert isinstance(maille, MailleCoefficient)
@@ -81,7 +107,12 @@ def test_compute_maille_mode_departemental() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -112,9 +143,7 @@ def test_le_repli_departemental_ignore_les_departements_limitrophes() -> None:
         1.44,
         2024,
         proches + lointaines_31 + voisines_09,
-        seuil=10,
-        min_sample=10,
-        min_class_sample=1,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -128,7 +157,17 @@ def test_le_repli_departemental_ignore_les_departements_limitrophes() -> None:
 def test_compute_maille_refus_si_tout_insuffisant() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes, département aussi insuffisant
 
-    assert compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10) is None
+    assert (
+        compute_maille(
+            "31555",
+            43.6,
+            1.44,
+            2024,
+            pool,
+            config=replace(CalculConfig(), min_local_sample=10, min_sample=10),
+        )
+        is None
+    )
 
 
 def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
@@ -138,7 +177,10 @@ def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
     # pas sur le seuil de publication par classe.
     results = list(
         compute_communes(
-            [("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10, min_class_sample=1
+            [("31555", 43.6, 1.44)],
+            pool,
+            2024,
+            config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
         )
     )
 
@@ -152,7 +194,12 @@ def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
 def test_compute_communes_saute_les_refus() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes < seuil → refus partout
 
-    results = compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10)
+    results = compute_communes(
+        [("31555", 43.6, 1.44)],
+        pool,
+        2024,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10),
+    )
 
     assert list(results) == []
 
@@ -176,7 +223,12 @@ def test_compute_maille_departemental_pondere_tout_le_pool() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -195,7 +247,12 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None

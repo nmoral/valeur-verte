@@ -133,7 +133,12 @@ def test_le_pool_deborde_sur_les_departements_limitrophes(
     appels: list[tuple[str, tuple[str, ...]]] = []
 
     def _charger(
-        conn: Any, departement: str, millesime: int, *, limitrophes: tuple[str, ...] = ()
+        conn: Any,
+        departement: str,
+        millesime: int,
+        *,
+        limitrophes: tuple[str, ...] = (),
+        type_local: str = "Maison",
     ) -> list[Mutation]:
         appels.append((departement, limitrophes))
         return _POOL

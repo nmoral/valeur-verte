@@ -16,11 +16,12 @@ from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
+from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
-from .degraded import MIN_LOCAL_SAMPLE, CoverageMode, decide_mode
+from .degraded import CoverageMode, decide_mode
 from .dvf import Mutation
-from .radius import MIN_SAMPLE, adaptive_selection
-from .regression import DEFAULT_SIGMA_KM, RegressionResult, _eligible, fit
+from .radius import adaptive_selection
+from .regression import RegressionResult, _eligible, fit
 
 # σ « large » : pour l'ajustement départemental, toutes les ventes comptent ~également.
 DEPARTEMENTAL_SIGMA_KM = 1000.0
@@ -120,17 +121,16 @@ def compute_maille(
     millesime: int,
     pool: Sequence[Mutation],
     *,
-    seuil: int = MIN_LOCAL_SAMPLE,
-    min_sample: int = MIN_SAMPLE,
-    sigma_km: float = DEFAULT_SIGMA_KM,
-    min_class_sample: int = MIN_CLASS_SAMPLE,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> MailleCoefficient | None:
     """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
-    selection = adaptive_selection(centroid_lat, centroid_lon, pool, min_sample=min_sample)
+    selection = adaptive_selection(
+        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
+    )
     departemental = _meme_departement(code_insee, pool)
     n_local = len(_eligible(selection.sample))
     n_departement = len(_eligible(departemental))
-    decision = decide_mode(n_local, n_departement, seuil=seuil)
+    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
 
     if decision.mode is CoverageMode.REFUS:
         return None
@@ -138,18 +138,35 @@ def compute_maille(
     if decision.mode is CoverageMode.LOCAL:
         sample: Sequence[Mutation] = selection.sample
         rayon_km: int | None = selection.rayon_km
-        fit_sigma = sigma_km
+        fit_sigma = config.sigma_km
     else:
         sample = departemental
         rayon_km = None
-        fit_sigma = DEPARTEMENTAL_SIGMA_KM
+        fit_sigma = config.departemental_sigma_km
 
-    publiables = _classes_publiables(sample, min_class_sample)
-    if len(publiables) < MIN_CLASSES_PUBLIEES:
+    publiables = _classes_publiables(sample, config.min_class_sample)
+    if len(publiables) < config.min_classes_publiees:
         return None
 
-    result = fit(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
-    erreur = median_relative_error(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
+    result = fit(
+        sample,
+        centroid_lat,
+        centroid_lon,
+        sigma_km=fit_sigma,
+        reference_dpe=config.reference_dpe,
+        voisins_indice_local=config.voisins_indice_local,
+        etendue_minimale_indice=config.etendue_minimale_indice,
+    )
+    erreur = median_relative_error(
+        sample,
+        centroid_lat,
+        centroid_lon,
+        folds=config.cv_folds,
+        sigma_km=fit_sigma,
+        reference_dpe=config.reference_dpe,
+        voisins_indice_local=config.voisins_indice_local,
+        etendue_minimale_indice=config.etendue_minimale_indice,
+    )
     return _maille(
         code_insee,
         millesime,
@@ -167,10 +184,7 @@ def compute_communes(
     pool: Sequence[Mutation],
     millesime: int,
     *,
-    seuil: int = MIN_LOCAL_SAMPLE,
-    min_sample: int = MIN_SAMPLE,
-    sigma_km: float = DEFAULT_SIGMA_KM,
-    min_class_sample: int = MIN_CLASS_SAMPLE,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> Iterator[MailleCoefficient]:
     """Calcule les mailles de plusieurs communes sur un pool chargé une seule fois.
 
@@ -178,16 +192,6 @@ def compute_communes(
     mémoire, puis on itère les communes. Les communes en refus sont omises.
     """
     for code_insee, lat, lon in communes:
-        maille = compute_maille(
-            code_insee,
-            lat,
-            lon,
-            millesime,
-            pool,
-            seuil=seuil,
-            min_sample=min_sample,
-            sigma_km=sigma_km,
-            min_class_sample=min_class_sample,
-        )
+        maille = compute_maille(code_insee, lat, lon, millesime, pool, config=config)
         if maille is not None:
             yield maille

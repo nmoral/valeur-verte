@@ -40,6 +40,12 @@ class CalculConfig:
     segment: str = "Maison"
 
 
+# Config historique par défaut, partagée comme valeur par défaut des signatures :
+# ``CalculConfig`` est gelée, une instance unique est donc sûre (et évite un appel
+# dans les arguments par défaut, cf. flake8-bugbear B008).
+DEFAULT_CONFIG = CalculConfig()
+
+
 def resolve_config(env: Mapping[str, str]) -> CalculConfig:
     """Construit la config depuis l'environnement, défaut historique si absent/vide."""
     defaut = CalculConfig()

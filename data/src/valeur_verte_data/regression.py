@@ -131,6 +131,8 @@ class _Model:
     beta: NDArray[np.float64]
     columns: _Columns
     apprentissage: list[_Row]
+    voisins: int
+    etendue_minimale: float
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
@@ -152,11 +154,16 @@ def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
 
 
 def _encode(
-    rows: list[_Row], columns: _Columns, apprentissage: list[_Row] | None = None
+    rows: list[_Row],
+    columns: _Columns,
+    apprentissage: list[_Row] | None = None,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
 ) -> NDArray[np.float64]:
     """Matrice de design à colonnes **fixées** (pour ré-encoder un jeu de test)."""
     n = len(rows)
-    indice = _indice_local(rows, apprentissage)
+    indice = _indice_local(rows, apprentissage, voisins=voisins, etendue_minimale=etendue_minimale)
     blocks = [
         np.ones((n, 1)),
         np.log(np.array([row.bati for row in rows], dtype=float))[:, None],
@@ -180,7 +187,13 @@ def _encode(
     return np.hstack(blocks)
 
 
-def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDArray[np.float64]:
+def _indice_local(
+    rows: list[_Row],
+    reference: list[_Row] | None = None,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+) -> NDArray[np.float64]:
     """Niveau de prix du quartier de chaque ligne, le bien lui-même exclu.
 
     Sans cette exclusion, l'indice contiendrait le prix qu'il sert à expliquer
@@ -196,7 +209,7 @@ def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDAr
         max(row.lat for row in voisinage) - min(row.lat for row in voisinage),
         max(row.lon for row in voisinage) - min(row.lon for row in voisinage),
     )
-    if etendue < ETENDUE_MINIMALE_INDICE:
+    if etendue < etendue_minimale:
         # Pas de quartiers à distinguer : indice neutre (log 1 = 0).
         return np.ones(len(rows))
 
@@ -212,12 +225,12 @@ def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDAr
     if reference is None:
         np.fill_diagonal(ecarts, np.inf)
 
-    retenus = min(VOISINS_INDICE_LOCAL, ecarts.shape[1] - (1 if reference is None else 0))
+    retenus = min(voisins, ecarts.shape[1] - (1 if reference is None else 0))
     if retenus < 1:
         return np.ones(len(rows))
 
-    voisins = np.argsort(ecarts, axis=1)[:, :retenus]
-    return np.asarray(np.median(prix_m2[voisins], axis=1), dtype=float)
+    indices_voisins = np.argsort(ecarts, axis=1)[:, :retenus]
+    return np.asarray(np.median(prix_m2[indices_voisins], axis=1), dtype=float)
 
 
 def _weights(
@@ -233,21 +246,41 @@ def _weights(
 
 
 def _fit_model(
-    rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float, reference_dpe: str
+    rows: list[_Row],
+    center_lat: float,
+    center_lon: float,
+    sigma_km: float,
+    reference_dpe: str,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
 ) -> _Model:
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
     columns = _build_columns(rows, reference_dpe)
-    design = _encode(rows, columns)
+    design = _encode(rows, columns, voisins=voisins, etendue_minimale=etendue_minimale)
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
-    return _Model(beta=beta, columns=columns, apprentissage=rows)
+    return _Model(
+        beta=beta,
+        columns=columns,
+        apprentissage=rows,
+        voisins=voisins,
+        etendue_minimale=etendue_minimale,
+    )
 
 
 def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
     """Prédit le **prix** des lignes ; le modèle travaille en logarithme."""
     predictions: NDArray[np.float64] = np.exp(
-        _encode(rows, model.columns, model.apprentissage) @ model.beta
+        _encode(
+            rows,
+            model.columns,
+            model.apprentissage,
+            voisins=model.voisins,
+            etendue_minimale=model.etendue_minimale,
+        )
+        @ model.beta
     )
     return predictions
 
@@ -259,6 +292,8 @@ def fit(
     *,
     sigma_km: float = DEFAULT_SIGMA_KM,
     reference_dpe: str = DEFAULT_REFERENCE_DPE,
+    voisins_indice_local: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
 ) -> RegressionResult:
     """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
     rows = _eligible(sample)
@@ -266,7 +301,15 @@ def fit(
     if n == 0:
         raise InsufficientSampleError("échantillon vide après restriction au bâti ancien")
 
-    model = _fit_model(rows, center_lat, center_lon, sigma_km, reference_dpe)
+    model = _fit_model(
+        rows,
+        center_lat,
+        center_lon,
+        sigma_km,
+        reference_dpe,
+        voisins=voisins_indice_local,
+        etendue_minimale=etendue_minimale_indice,
+    )
     # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     weights = _weights(rows, center_lat, center_lon, sigma_km)
