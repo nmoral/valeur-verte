@@ -33,7 +33,7 @@
   };
 
   function geom() {
-    return window.matchMedia('(max-width: 760px)').matches
+    return window.matchMedia('(max-width: 600px)').matches
       ? { H: 356, RH: 44, even: true, pad: 22 }
       : { H: 268, RH: 30, even: false, pad: 15 };
   }

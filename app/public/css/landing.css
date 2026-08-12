@@ -173,18 +173,40 @@ footer p{font:400 12px/1.7 'JetBrains Mono',monospace;color:var(--slate);max-wid
 footer .foot-links{list-style:none;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;
   font:400 12px/1.7 'JetBrains Mono',monospace}
 
-/* ---------- responsive : adaptations mobile (7a) ---------- */
-@media (max-width:760px){
+/* ---------- responsive ---------- */
+
+/* Tablette (≤ 900px) : la colonne texte + le widget fixe de 424px ne tiennent
+   plus côte à côte, on empile le héros et on assouplit les grilles serrées. */
+@media (max-width:900px){
+  .wrap{padding:0 28px}
+  .hero .wrap{grid-template-columns:1fr;gap:32px;padding-top:48px;padding-bottom:44px}
+  .hero .demo{max-width:560px}
+  h1{font-size:40px}
+  .devis-card{grid-template-columns:1fr;gap:22px}
+  .metrics dl{gap:16px}
+}
+
+/* Tablette étroite (≤ 720px) : les grilles à 3 colonnes deviennent trop serrées. */
+@media (max-width:720px){
+  .steps,.sources{grid-template-columns:1fr}
+  .price-grid{grid-template-columns:1fr}
+  .metrics dl{grid-template-columns:repeat(2,1fr);gap:18px}
+}
+
+/* Mobile / téléphone (≤ 600px) : maquette 7a — échelle DPE espacée pleine
+   largeur, cibles tactiles 44px, une seule colonne partout. */
+@media (max-width:600px){
   .wrap{padding:0 20px}
   .nav .wrap{min-height:56px}
-  .nav-menu{gap:12px}
+  .nav-menu{gap:10px}
   .nav-menu li.nav-link{display:none}
-  .hero .wrap{grid-template-columns:1fr;gap:34px;padding-top:32px;padding-bottom:28px}
+  /* « Créer un compte » retiré de la nav : il reste accessible dans le héros. */
+  .nav-menu li.nav-cta{display:none}
+  .hero .demo{max-width:none}
   h1{font-size:32px}
   h2{font-size:24px}
   .cta-row{flex-direction:column;align-items:stretch}
   .cta-row .btn{min-height:48px}
-  .metrics dl{grid-template-columns:1fr 1fr;gap:18px}
   .scale-wrap{grid-template-columns:1fr;gap:16px}
   .scale{height:356px}
   .rung{min-height:44px;height:auto;gap:10px}
@@ -192,8 +214,8 @@ footer .foot-links{list-style:none;display:flex;flex-wrap:wrap;gap:10px;justify-
   .rung .lab{font-size:12.5px}
   .seg{flex:1}
   .seg button{flex:1;min-height:44px}
-  .steps,.sources,.claims,.limits,.price-grid{grid-template-columns:1fr}
-  .devis-card{grid-template-columns:1fr;gap:18px;padding:18px 16px}
+  .claims,.limits{grid-template-columns:1fr}
+  .devis-card{padding:18px 16px}
   footer .wrap{flex-direction:column}
   footer .foot-links{justify-content:flex-start}
   section{padding:40px 0}
