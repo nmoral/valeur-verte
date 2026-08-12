@@ -7,9 +7,16 @@ from dataclasses import replace
 
 import pytest
 
-from valeur_verte_data.batch import MailleCoefficient, compute_communes, compute_maille
+from valeur_verte_data.batch import (
+    MailleCoefficient,
+    _sigma_local,
+    compute_communes,
+    compute_maille,
+)
+from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
+from valeur_verte_data.radius import RadiusSelection
 
 # Effets en logarithme : le modèle est log-linéaire (#115).
 _EFFECT = {"D": 0.0, "F": -0.20, "C": 0.10}
@@ -42,13 +49,232 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
     return houses
 
 
+def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
+    """S20 : sans la restriction < 1989, les ventes récentes alimentent la régression.
+
+    Un E récent existe et doit compter ; le supprimer est une erreur. Le drapeau
+    ``restreindre_bati_ancien`` de la config le pilote de bout en bout.
+    """
+    anciennes = _cluster(4, lat=43.6, lon=1.44)  # période 1948-1974
+    recentes = [
+        replace(vente, id_mutation=f"recent-{i}", periode_construction="2006-2012")
+        for i, vente in enumerate(_cluster(4, lat=43.6, lon=1.44))
+    ]
+    pool = anciennes + recentes
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    stricte = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, config=replace(base, restreindre_bati_ancien=True)
+    )
+    large = compute_maille(
+        "31555", 43.6, 1.44, 2024, pool, config=replace(base, restreindre_bati_ancien=False)
+    )
+
+    assert stricte is not None and large is not None
+    assert stricte.n_transactions == len(anciennes)
+    assert large.n_transactions == len(anciennes) + len(recentes)
+
+
+def _selection(rayon_km: int, distance_min_sample: float) -> RadiusSelection:
+    return RadiusSelection([], rayon_km, True, distance_min_sample)
+
+
+def test_sigma_local_mode_fixe() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="fixe", sigma_km=10.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 10.0
+
+
+def test_sigma_local_mode_rayon() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="rayon", sigma_diviseur=2.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 10.0  # 20 / 2
+
+
+def test_sigma_local_mode_densite() -> None:
+    # σ suit la densité continue, pas le rayon quantifié : 6 km / 3 = 2 km.
+    # sigma_min=0 pour isoler le calcul du plancher (testé à part).
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_min=0.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 2.0
+
+
+def test_sigma_local_densite_distance_faible_reste_proportionnelle() -> None:
+    # Densité très forte (0,5 km) : σ = 0,5 / diviseur, pas de repli sur σ fixe.
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=1.0, sigma_min=0.0)
+    assert _sigma_local(cfg, _selection(10, 0.5)) == 0.5
+
+
+def test_sigma_local_plancher() -> None:
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_min=5.0)
+    assert _sigma_local(cfg, _selection(20, 6.0)) == 5.0  # 6/3=2 relevé au plancher 5
+
+
+def test_sigma_local_densite_degeneree_retombe_sur_fixe() -> None:
+    # Distance nulle (points confondus) : pas de division par zéro, on garde σ fixe.
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_km=10.0)
+    assert _sigma_local(cfg, _selection(10, 0.0)) == 10.0
+
+
+def _pool_etale() -> list[Mutation]:
+    """Deux grappes à ~8 km : F fortement décoté au centre, faiblement au loin.
+
+    L'écart entre les deux fait que σ (combien le lointain compte) change le
+    coefficient F — condition pour que le σ adaptatif soit observable.
+    """
+    houses: list[Mutation] = []
+    for i in range(6):
+        bati = 90 + i
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.6, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.30)), lat=43.6, lon=1.44))
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.672, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.05)), lat=43.672, lon=1.44))
+    return houses
+
+
+def test_sigma_adaptatif_equivaut_a_sigma_fixe_rayon_sur_diviseur() -> None:
+    """S23 : en mode local, σ adaptatif = rayon_retenu / diviseur.
+
+    Preuve par équivalence : la maille calculée avec σ adaptatif (diviseur 2, rayon
+    10 → σ=5) est identique à celle avec σ fixe = 5, et diffère du σ fixe par défaut.
+    """
+    pool = _pool_etale()  # rayon retenu = 10 km
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    adaptatif = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, sigma_mode="rayon", sigma_diviseur=2.0),
+    )
+    fixe = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, sigma_km=5.0))
+    defaut = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+
+    assert adaptatif is not None and fixe is not None and defaut is not None
+    assert adaptatif.rayon_retenu_km == 10
+    assert adaptatif.coef_dpe == fixe.coef_dpe  # σ = 10/2 = 5
+    assert adaptatif.coef_dpe != defaut.coef_dpe  # ≠ σ fixe par défaut (10)
+
+
+def test_indice_local_desactive_extrait_les_bons_coefficients_dpe() -> None:
+    """S24 : sans indice, la colonne log(indice) disparaît et décale la position des
+    coefficients DPE dans beta — l'extraction doit suivre le décalage.
+
+    Points confondus → indice neutre : F doit valoir −0,20 dans les deux cas. Si
+    l'extraction était mal alignée (décalage d'un cran), F serait aberrant.
+    """
+    pool = _cluster(6, lat=43.6, lon=1.44)  # effet F = −0,20, tous au même point
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    avec = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    sans = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, indice_local=False))
+
+    assert avec is not None and sans is not None
+    assert round(avec.coef_dpe["F"], 2) == -0.20
+    assert round(sans.coef_dpe["F"], 2) == -0.20
+    assert set(avec.coef_dpe) == set(sans.coef_dpe) == {"D", "C", "F"}
+
+
+def test_effets_fixes_commune_changent_le_modele() -> None:
+    """S22 : les effets fixes commune contrôlent le niveau de prix par commune.
+
+    Deux communes au même endroit, à mix DPE différent et niveau de prix décalé :
+    sans effet fixe commune, l'écart de prix de la commune se confond avec le DPE.
+    """
+    houses: list[Mutation] = []
+    for i in range(8):
+        bati = 90 + i
+        # 31555 : D et F, prix de base.
+        houses.append(_house("D", bati, round(3000 * bati), lat=43.6, lon=1.44))
+        houses.append(_house("F", bati, round(3000 * bati * math.exp(-0.20)), lat=43.6, lon=1.44))
+        # 31149 : que du D, +30 % de niveau — décale le prix, pas le DPE.
+        d = replace(
+            _house("D", bati, round(3000 * bati * 1.3), lat=43.6, lon=1.44),
+            id_mutation=f"autre-{i}",
+            code_insee="31149",
+        )
+        houses.append(d)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    avec = compute_maille(
+        "31555", 43.6, 1.44, 2024, houses, config=replace(base, effets_fixes_commune=True)
+    )
+    sans = compute_maille(
+        "31555", 43.6, 1.44, 2024, houses, config=replace(base, effets_fixes_commune=False)
+    )
+
+    assert avec is not None and sans is not None
+    assert avec.coef_dpe != sans.coef_dpe
+
+
+def test_compute_maille_ecretage_residu_retire_l_aberrant() -> None:
+    """S32 au niveau maille : ``ecretage=residu`` retire le bien au résidu aberrant."""
+    conformes = _cluster(10, lat=43.6, lon=1.44)  # 30 ventes cohérentes
+    aberrant = _house("D", 100, 5_000_000, lat=43.6, lon=1.44)  # prix incohérent
+    pool = [*conformes, aberrant]
+    base = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        ecretage_seuil_n=10,
+    )
+
+    sans = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, ecretage="off"))
+    avec = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, ecretage="residu"))
+
+    assert sans is not None and avec is not None
+    assert avec.n_transactions < sans.n_transactions
+
+
+def test_compute_maille_utilise_les_radii_de_la_config() -> None:
+    """Les paliers de rayon viennent de la config : radii=(20,) retient 20, pas 15."""
+    points = _cluster(4, lat=43.71, lon=1.44)  # ~12 km du centre
+    base = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        radii_km=(20,),
+    )
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, points, config=base)
+
+    assert maille is not None
+    assert maille.rayon_retenu_km == 20
+
+
+def test_compute_maille_lit_les_seuils_de_la_config() -> None:
+    """La config descend jusqu'au calcul : durcir un seuil change le résultat.
+
+    Preuve de câblage : avec ``min_class_sample=1`` les trois classes du cluster
+    (4 ventes chacune) sont publiées ; à 5, aucune n'atteint le seuil et la maille
+    est refusée. Le paramètre vient donc bien de la config, pas d'une constante.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)  # 3 classes × 4 ventes
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10)
+
+    assert (
+        compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, min_class_sample=1))
+        is not None
+    )
+    assert (
+        compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, min_class_sample=5))
+        is None
+    )
+
+
 def test_compute_maille_mode_local() -> None:
     pool = _cluster(4, lat=43.6, lon=1.44)  # 12 ventes proches
 
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert isinstance(maille, MailleCoefficient)
@@ -81,7 +307,12 @@ def test_compute_maille_mode_departemental() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -112,9 +343,7 @@ def test_le_repli_departemental_ignore_les_departements_limitrophes() -> None:
         1.44,
         2024,
         proches + lointaines_31 + voisines_09,
-        seuil=10,
-        min_sample=10,
-        min_class_sample=1,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -128,7 +357,17 @@ def test_le_repli_departemental_ignore_les_departements_limitrophes() -> None:
 def test_compute_maille_refus_si_tout_insuffisant() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes, département aussi insuffisant
 
-    assert compute_maille("31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10) is None
+    assert (
+        compute_maille(
+            "31555",
+            43.6,
+            1.44,
+            2024,
+            pool,
+            config=replace(CalculConfig(), min_local_sample=10, min_sample=10),
+        )
+        is None
+    )
 
 
 def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
@@ -138,7 +377,10 @@ def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
     # pas sur le seuil de publication par classe.
     results = list(
         compute_communes(
-            [("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10, min_class_sample=1
+            [("31555", 43.6, 1.44)],
+            pool,
+            2024,
+            config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
         )
     )
 
@@ -152,7 +394,12 @@ def test_compute_communes_produit_une_ligne_par_commune_calculable() -> None:
 def test_compute_communes_saute_les_refus() -> None:
     pool = _cluster(2, lat=43.6, lon=1.44)  # 6 ventes < seuil → refus partout
 
-    results = compute_communes([("31555", 43.6, 1.44)], pool, 2024, seuil=10, min_sample=10)
+    results = compute_communes(
+        [("31555", 43.6, 1.44)],
+        pool,
+        2024,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10),
+    )
 
     assert list(results) == []
 
@@ -176,7 +423,12 @@ def test_compute_maille_departemental_pondere_tout_le_pool() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None
@@ -195,7 +447,12 @@ def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
     # min_class_sample=1 : ce test porte sur le mode/la pondération/l'IC, pas sur
     # le seuil de publication par classe (couvert par son propre test).
     maille = compute_maille(
-        "31555", 43.6, 1.44, 2024, pool, seuil=10, min_sample=10, min_class_sample=1
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
     )
 
     assert maille is not None

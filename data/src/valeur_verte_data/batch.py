@@ -16,11 +16,13 @@ from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
+from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
-from .degraded import MIN_LOCAL_SAMPLE, CoverageMode, decide_mode
+from .degraded import CoverageMode, decide_mode
 from .dvf import Mutation
-from .radius import MIN_SAMPLE, adaptive_selection
-from .regression import DEFAULT_SIGMA_KM, RegressionResult, _eligible, fit
+from .radius import RadiusSelection, adaptive_selection
+from .regression import RegressionResult, _eligible, fit
+from .trimming import ecreter_residu
 
 # σ « large » : pour l'ajustement départemental, toutes les ventes comptent ~également.
 DEPARTEMENTAL_SIGMA_KM = 1000.0
@@ -63,9 +65,13 @@ def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutatio
     return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
 
 
-def _classes_publiables(sample: Sequence[Mutation], seuil: int) -> set[str]:
+def _classes_publiables(
+    sample: Sequence[Mutation], seuil: int, *, restreindre_bati_ancien: bool = True
+) -> set[str]:
     """Classes DPE assez observées pour que leur coefficient veuille dire quelque chose."""
-    effectifs = Counter(row.dpe for row in _eligible(sample))
+    effectifs = Counter(
+        row.dpe for row in _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
+    )
     return {classe for classe, effectif in effectifs.items() if effectif >= seuil}
 
 
@@ -113,6 +119,24 @@ def _maille(
     )
 
 
+def _sigma_local(config: CalculConfig, selection: RadiusSelection) -> float:
+    """σ de pondération en mode local selon ``sigma_mode`` (S23), borné par ``sigma_min``.
+
+    - ``rayon`` : σ = rayon retenu / diviseur (proxy quantifié de densité).
+    - ``densite`` : σ = distance à la min_sample-ième vente / diviseur (densité
+      continue, distingue une ville très dense d'une ville dense).
+    - sinon : σ fixe.
+    """
+    if config.sigma_mode == "rayon":
+        sigma = selection.rayon_km / config.sigma_diviseur
+    elif config.sigma_mode == "densite":
+        distance = selection.distance_min_sample
+        sigma = distance / config.sigma_diviseur if distance > 0 else config.sigma_km
+    else:
+        return config.sigma_km
+    return max(sigma, config.sigma_min)
+
+
 def compute_maille(
     code_insee: str,
     centroid_lat: float,
@@ -120,17 +144,20 @@ def compute_maille(
     millesime: int,
     pool: Sequence[Mutation],
     *,
-    seuil: int = MIN_LOCAL_SAMPLE,
-    min_sample: int = MIN_SAMPLE,
-    sigma_km: float = DEFAULT_SIGMA_KM,
-    min_class_sample: int = MIN_CLASS_SAMPLE,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> MailleCoefficient | None:
     """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
-    selection = adaptive_selection(centroid_lat, centroid_lon, pool, min_sample=min_sample)
+    selection = adaptive_selection(
+        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
+    )
     departemental = _meme_departement(code_insee, pool)
-    n_local = len(_eligible(selection.sample))
-    n_departement = len(_eligible(departemental))
-    decision = decide_mode(n_local, n_departement, seuil=seuil)
+    n_local = len(
+        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    n_departement = len(
+        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
 
     if decision.mode is CoverageMode.REFUS:
         return None
@@ -138,18 +165,57 @@ def compute_maille(
     if decision.mode is CoverageMode.LOCAL:
         sample: Sequence[Mutation] = selection.sample
         rayon_km: int | None = selection.rayon_km
-        fit_sigma = sigma_km
+        fit_sigma = _sigma_local(config, selection)
     else:
         sample = departemental
         rayon_km = None
-        fit_sigma = DEPARTEMENTAL_SIGMA_KM
+        fit_sigma = config.departemental_sigma_km
 
-    publiables = _classes_publiables(sample, min_class_sample)
-    if len(publiables) < MIN_CLASSES_PUBLIEES:
+    if config.ecretage == "residu":
+        sample = ecreter_residu(
+            sample,
+            centroid_lat,
+            centroid_lon,
+            k=config.ecretage_k,
+            seuil_n=config.ecretage_seuil_n,
+            sigma_km=fit_sigma,
+            reference_dpe=config.reference_dpe,
+            voisins_indice_local=config.voisins_indice_local,
+            etendue_minimale_indice=config.etendue_minimale_indice,
+            restreindre_bati_ancien=config.restreindre_bati_ancien,
+        )
+
+    publiables = _classes_publiables(
+        sample, config.min_class_sample, restreindre_bati_ancien=config.restreindre_bati_ancien
+    )
+    if len(publiables) < config.min_classes_publiees:
         return None
 
-    result = fit(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
-    erreur = median_relative_error(sample, centroid_lat, centroid_lon, sigma_km=fit_sigma)
+    result = fit(
+        sample,
+        centroid_lat,
+        centroid_lon,
+        sigma_km=fit_sigma,
+        reference_dpe=config.reference_dpe,
+        voisins_indice_local=config.voisins_indice_local,
+        etendue_minimale_indice=config.etendue_minimale_indice,
+        restreindre_bati_ancien=config.restreindre_bati_ancien,
+        effets_fixes_commune=config.effets_fixes_commune,
+        indice_local=config.indice_local,
+    )
+    erreur = median_relative_error(
+        sample,
+        centroid_lat,
+        centroid_lon,
+        folds=config.cv_folds,
+        sigma_km=fit_sigma,
+        reference_dpe=config.reference_dpe,
+        voisins_indice_local=config.voisins_indice_local,
+        etendue_minimale_indice=config.etendue_minimale_indice,
+        restreindre_bati_ancien=config.restreindre_bati_ancien,
+        effets_fixes_commune=config.effets_fixes_commune,
+        indice_local=config.indice_local,
+    )
     return _maille(
         code_insee,
         millesime,
@@ -167,10 +233,7 @@ def compute_communes(
     pool: Sequence[Mutation],
     millesime: int,
     *,
-    seuil: int = MIN_LOCAL_SAMPLE,
-    min_sample: int = MIN_SAMPLE,
-    sigma_km: float = DEFAULT_SIGMA_KM,
-    min_class_sample: int = MIN_CLASS_SAMPLE,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> Iterator[MailleCoefficient]:
     """Calcule les mailles de plusieurs communes sur un pool chargé une seule fois.
 
@@ -178,16 +241,6 @@ def compute_communes(
     mémoire, puis on itère les communes. Les communes en refus sont omises.
     """
     for code_insee, lat, lon in communes:
-        maille = compute_maille(
-            code_insee,
-            lat,
-            lon,
-            millesime,
-            pool,
-            seuil=seuil,
-            min_sample=min_sample,
-            sigma_km=sigma_km,
-            min_class_sample=min_class_sample,
-        )
+        maille = compute_maille(code_insee, lat, lon, millesime, pool, config=config)
         if maille is not None:
             yield maille

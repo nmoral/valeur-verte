@@ -88,6 +88,31 @@ def test_adaptive_insuffisant_a_50km_signale_le_repli() -> None:
     assert len(selection.sample) == 1
 
 
+def test_distance_min_sample_est_la_distance_a_la_kieme_vente() -> None:
+    # Distances 0, ~1,1, ~2,2 km ; min_sample=2 → 2e plus proche ≈ 1,1 km.
+    points = [_at(43.6, 1.44), _at(43.62, 1.44), _at(43.61, 1.44)]
+
+    selection = adaptive_selection(43.6, 1.44, points, min_sample=2)
+
+    assert round(selection.distance_min_sample, 1) == 1.1
+
+
+def test_distance_min_sample_repli_sur_la_plus_lointaine_si_trop_peu() -> None:
+    # Deux points (0 et ~1,1 km) mais min_sample=5 : on retient la plus lointaine.
+    points = [_at(43.6, 1.44), _at(43.61, 1.44)]
+
+    selection = adaptive_selection(43.6, 1.44, points, min_sample=5)
+
+    assert round(selection.distance_min_sample, 1) == 1.1
+
+
+def test_distance_min_sample_nulle_sans_coordonnees() -> None:
+    selection = adaptive_selection(43.6, 1.44, [_sans_coord()], min_sample=3)
+
+    assert selection.distance_min_sample == 0.0
+    assert selection.sample == []
+
+
 def test_adaptive_ignore_les_coordonnees_absentes() -> None:
     selection = adaptive_selection(43.6, 1.44, [_sans_coord()], min_sample=1)
 

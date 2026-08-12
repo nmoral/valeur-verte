@@ -20,6 +20,7 @@ from typing import Protocol
 import httpx
 
 from .batch import compute_communes
+from .config import DEFAULT_CONFIG, CalculConfig, resolve_config
 from .db.coefficient_repository import delete_coefficient, upsert_coefficient
 from .db.pool_repository import load_pool
 from .db.runner import Connection, resolve_dsn
@@ -70,7 +71,12 @@ class RapportIngestion:
 
 
 def ingest_departement(
-    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str, millesime: int
+    fetcher: Fetcher,
+    conn: ConnexionTransactionnelle,
+    departement: str,
+    millesime: int,
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> RapportIngestion:
     """Ingère les ventes DVF de toutes les communes d'un département.
 
@@ -84,7 +90,7 @@ def ingest_departement(
 
     for rang, commune in enumerate(communes, 1):
         try:
-            inserees = ingest_commune(fetcher, conn, commune.code_insee, millesime)
+            inserees = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
         except httpx.HTTPStatusError as erreur:
             conn.rollback()
             if erreur.response.status_code == 404:
@@ -136,7 +142,12 @@ class RapportCalcul:
 
 
 def compute_departement(
-    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str, millesime: int
+    fetcher: Fetcher,
+    conn: ConnexionTransactionnelle,
+    departement: str,
+    millesime: int,
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
 ) -> RapportCalcul:
     """Calcule et écrit les coefficients de toutes les communes d'un département.
 
@@ -152,7 +163,7 @@ def compute_departement(
     rapport = RapportCalcul(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
     voisins = limitrophes(departement)
-    pool = load_pool(conn, departement, millesime, limitrophes=voisins)
+    pool = load_pool(conn, departement, millesime, limitrophes=voisins, type_local=config.segment)
     logger.info(
         "Pool du département %s (+ %s) : %d vente(s)",
         departement,
@@ -166,7 +177,8 @@ def compute_departement(
         if commune.centre_latitude is not None and commune.centre_longitude is not None
     ]
     calculees = {
-        maille.code_insee: maille for maille in compute_communes(coordonnees, pool, millesime)
+        maille.code_insee: maille
+        for maille in compute_communes(coordonnees, pool, millesime, config=config)
     }
 
     for code_insee, _, _ in coordonnees:
@@ -213,14 +225,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     import psycopg
 
+    config = resolve_config(os.environ)
     with psycopg.connect(resolve_dsn(os.environ), autocommit=False) as conn:
         if arguments.commande == "compute":
             rapport: RapportIngestion | RapportCalcul = compute_departement(
-                HttpFetcher(), conn, arguments.departement, arguments.millesime
+                HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
             )
         else:
             rapport = ingest_departement(
-                HttpFetcher(), conn, arguments.departement, arguments.millesime
+                HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
             )
 
     print(rapport.resume())

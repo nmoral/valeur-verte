@@ -17,7 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .dvf import Mutation
-from .radius import haversine_km
+from .radius import distances_km
 
 DEFAULT_SIGMA_KM = 10.0
 DEFAULT_REFERENCE_DPE = "D"
@@ -83,9 +83,28 @@ def is_pre_1989(periode: str | None) -> bool:
     return max(years) < 1989
 
 
-def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
-    """Filtre les mutations exploitables et restreint au bâti ancien (§5.2)."""
+def _eligible(sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = True) -> list[_Row]:
+    """Filtre les mutations exploitables (§5.2).
+
+    ``restreindre_bati_ancien`` restreint au bâti < 1989 (mesure du gain de
+    rénovation sans taux de capture) ; désactivé, le bâti récent entre aussi —
+    un logement récent en E existe et doit compter (S20).
+    """
+    rows, _ = _eligible_avec_source(sample, restreindre_bati_ancien=restreindre_bati_ancien)
+    return rows
+
+
+def _eligible_avec_source(
+    sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = True
+) -> tuple[list[_Row], list[Mutation]]:
+    """Comme ``_eligible``, mais renvoie aussi les mutations sources **alignées**.
+
+    L'écrêtage sur résidu (S32 V2) doit retirer des *mutations* de l'échantillon à
+    partir de résidus calculés sur des ``_Row`` : garder la correspondance rang ↔
+    mutation évite de dupliquer le prédicat d'éligibilité.
+    """
     rows: list[_Row] = []
+    sources: list[Mutation] = []
     for mutation in sample:
         if mutation.prix is None or mutation.surface_bati is None or mutation.surface_bati <= 0:
             continue
@@ -95,7 +114,7 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
             continue
         if mutation.latitude is None or mutation.longitude is None:
             continue
-        if not is_pre_1989(mutation.periode_construction):
+        if restreindre_bati_ancien and not is_pre_1989(mutation.periode_construction):
             continue
         rows.append(
             _Row(
@@ -110,7 +129,8 @@ def _eligible(sample: Iterable[Mutation]) -> list[_Row]:
                 lon=mutation.longitude,
             )
         )
-    return rows
+        sources.append(mutation)
+    return rows, sources
 
 
 @dataclass(frozen=True)
@@ -131,9 +151,12 @@ class _Model:
     beta: NDArray[np.float64]
     columns: _Columns
     apprentissage: list[_Row]
+    voisins: int
+    etendue_minimale: float
+    avec_indice: bool
 
 
-def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
+def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
     """Détermine les niveaux d'indicatrices (référence DPE + niveaux gardés)."""
     dpe_levels = sorted({row.dpe for row in rows})
     if reference_dpe in dpe_levels:
@@ -146,23 +169,34 @@ def _build_columns(rows: list[_Row], reference_dpe: str) -> _Columns:
         # La période est corrélée au DPE : sans elle, l'étiquette capte
         # l'effet de l'époque de construction (#115).
         periode=sorted({row.periode for row in rows})[1:],
-        commune=sorted({row.insee for row in rows})[1:],
+        # Effets fixes commune (S22) : désactivables, l'indice local et la
+        # pondération portent déjà la localité.
+        commune=sorted({row.insee for row in rows})[1:] if avec_commune else [],
         annee=sorted({row.annee for row in rows})[1:],
     )
 
 
 def _encode(
-    rows: list[_Row], columns: _Columns, apprentissage: list[_Row] | None = None
+    rows: list[_Row],
+    columns: _Columns,
+    apprentissage: list[_Row] | None = None,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+    avec_indice: bool = True,
 ) -> NDArray[np.float64]:
     """Matrice de design à colonnes **fixées** (pour ré-encoder un jeu de test)."""
     n = len(rows)
-    indice = _indice_local(rows, apprentissage)
     blocks = [
         np.ones((n, 1)),
         np.log(np.array([row.bati for row in rows], dtype=float))[:, None],
         np.log1p(np.array([row.terrain for row in rows], dtype=float))[:, None],
-        np.log(np.maximum(indice, 1.0))[:, None],
     ]
+    if avec_indice:
+        indice = _indice_local(
+            rows, apprentissage, voisins=voisins, etendue_minimale=etendue_minimale
+        )
+        blocks.append(np.log(np.maximum(indice, 1.0))[:, None])
     extractors: tuple[tuple[list[str], Callable[[_Row], str]], ...] = (
         (columns.dpe, lambda row: row.dpe),
         (columns.periode, lambda row: row.periode),
@@ -180,7 +214,13 @@ def _encode(
     return np.hstack(blocks)
 
 
-def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDArray[np.float64]:
+def _indice_local(
+    rows: list[_Row],
+    reference: list[_Row] | None = None,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+) -> NDArray[np.float64]:
     """Niveau de prix du quartier de chaque ligne, le bien lui-même exclu.
 
     Sans cette exclusion, l'indice contiendrait le prix qu'il sert à expliquer
@@ -196,7 +236,7 @@ def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDAr
         max(row.lat for row in voisinage) - min(row.lat for row in voisinage),
         max(row.lon for row in voisinage) - min(row.lon for row in voisinage),
     )
-    if etendue < ETENDUE_MINIMALE_INDICE:
+    if etendue < etendue_minimale:
         # Pas de quartiers à distinguer : indice neutre (log 1 = 0).
         return np.ones(len(rows))
 
@@ -212,42 +252,66 @@ def _indice_local(rows: list[_Row], reference: list[_Row] | None = None) -> NDAr
     if reference is None:
         np.fill_diagonal(ecarts, np.inf)
 
-    retenus = min(VOISINS_INDICE_LOCAL, ecarts.shape[1] - (1 if reference is None else 0))
+    retenus = min(voisins, ecarts.shape[1] - (1 if reference is None else 0))
     if retenus < 1:
         return np.ones(len(rows))
 
-    voisins = np.argsort(ecarts, axis=1)[:, :retenus]
-    return np.asarray(np.median(prix_m2[voisins], axis=1), dtype=float)
+    indices_voisins = np.argsort(ecarts, axis=1)[:, :retenus]
+    return np.asarray(np.median(prix_m2[indices_voisins], axis=1), dtype=float)
 
 
 def _weights(
     rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float
 ) -> NDArray[np.float64]:
-    return np.array(
-        [
-            gaussian_weight(haversine_km(center_lat, center_lon, row.lat, row.lon), sigma_km)
-            for row in rows
-        ],
-        dtype=float,
-    )
+    """Poids gaussien de chaque ligne, **vectorisé** (exp(-d²/2σ²))."""
+    lats = np.array([row.lat for row in rows], dtype=np.float64)
+    lons = np.array([row.lon for row in rows], dtype=np.float64)
+    distances = distances_km(center_lat, center_lon, lats, lons)
+    return np.asarray(np.exp(-(distances**2) / (2.0 * sigma_km**2)), dtype=np.float64)
 
 
 def _fit_model(
-    rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float, reference_dpe: str
+    rows: list[_Row],
+    center_lat: float,
+    center_lon: float,
+    sigma_km: float,
+    reference_dpe: str,
+    *,
+    voisins: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+    avec_commune: bool = True,
+    avec_indice: bool = True,
 ) -> _Model:
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
-    columns = _build_columns(rows, reference_dpe)
-    design = _encode(rows, columns)
+    columns = _build_columns(rows, reference_dpe, avec_commune=avec_commune)
+    design = _encode(
+        rows, columns, voisins=voisins, etendue_minimale=etendue_minimale, avec_indice=avec_indice
+    )
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
-    return _Model(beta=beta, columns=columns, apprentissage=rows)
+    return _Model(
+        beta=beta,
+        columns=columns,
+        apprentissage=rows,
+        voisins=voisins,
+        etendue_minimale=etendue_minimale,
+        avec_indice=avec_indice,
+    )
 
 
 def _predict(model: _Model, rows: list[_Row]) -> NDArray[np.float64]:
     """Prédit le **prix** des lignes ; le modèle travaille en logarithme."""
     predictions: NDArray[np.float64] = np.exp(
-        _encode(rows, model.columns, model.apprentissage) @ model.beta
+        _encode(
+            rows,
+            model.columns,
+            model.apprentissage,
+            voisins=model.voisins,
+            etendue_minimale=model.etendue_minimale,
+            avec_indice=model.avec_indice,
+        )
+        @ model.beta
     )
     return predictions
 
@@ -259,21 +323,39 @@ def fit(
     *,
     sigma_km: float = DEFAULT_SIGMA_KM,
     reference_dpe: str = DEFAULT_REFERENCE_DPE,
+    voisins_indice_local: int = VOISINS_INDICE_LOCAL,
+    etendue_minimale_indice: float = ETENDUE_MINIMALE_INDICE,
+    restreindre_bati_ancien: bool = True,
+    effets_fixes_commune: bool = True,
+    indice_local: bool = True,
 ) -> RegressionResult:
     """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
-    rows = _eligible(sample)
+    rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
     n = len(rows)
     if n == 0:
-        raise InsufficientSampleError("échantillon vide après restriction au bâti ancien")
+        raise InsufficientSampleError("échantillon vide après filtrage d'éligibilité")
 
-    model = _fit_model(rows, center_lat, center_lon, sigma_km, reference_dpe)
+    model = _fit_model(
+        rows,
+        center_lat,
+        center_lon,
+        sigma_km,
+        reference_dpe,
+        voisins=voisins_indice_local,
+        etendue_minimale=etendue_minimale_indice,
+        avec_commune=effets_fixes_commune,
+        avec_indice=indice_local,
+    )
     # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
     y = np.log(np.array([row.prix for row in rows], dtype=float))
     weights = _weights(rows, center_lat, center_lon, sigma_km)
 
+    # Colonnes fixes : const, log(bâti), log1p(terrain), [log(indice)]. Les DPE
+    # commencent après, donc leur position dépend de la présence de l'indice.
+    dpe_debut = 4 if indice_local else 3
     coef_dpe = {model.columns.reference_dpe: 0.0}
     for offset, level in enumerate(model.columns.dpe):
-        coef_dpe[level] = float(model.beta[4 + offset])
+        coef_dpe[level] = float(model.beta[dpe_debut + offset])
 
     predictions = np.log(_predict(model, rows))
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))
