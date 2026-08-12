@@ -31,6 +31,17 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertSelectorExists('input[name="siret"]');
     }
 
+    public function testLaPageInscriptionPorteLApercuEntrepriseEtSonScript(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', 'http://'.self::HOTE.'/inscription');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#entreprise-apercu');
+        self::assertSelectorExists('script[src="/js/inscription-siret.js"]');
+    }
+
     public function testUneInscriptionValideCreeLeCompteEtConnecte(): void
     {
         $client = static::createClient();
