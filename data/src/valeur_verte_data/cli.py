@@ -27,6 +27,7 @@ from .db.runner import Connection, resolve_dsn
 from .decoupage_source import fetch_communes_by_departement
 from .http import Fetcher, HttpFetcher
 from .ingest import ingest_commune
+from .invariants import evaluer_invariants_publication
 from .limitrophes import limitrophes
 
 logger = logging.getLogger("valeur_verte_data")
@@ -126,6 +127,10 @@ class RapportCalcul:
     communes_calculees: int = 0
     refus: list[str] = field(default_factory=list)
     echecs: list[str] = field(default_factory=list)
+    # INV-4 (#122) : mailles calculées mais non publiées faute de tenir les seuils
+    # de qualité (erreur médiane, R², n). Journalisées pour distinguer plus tard
+    # une faiblesse chronique d'une dérive nouvelle.
+    rejets_invariants: list[str] = field(default_factory=list)
     # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
     # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
     # batches dont on sait qu'ils étaient reproductibles.
@@ -141,6 +146,7 @@ class RapportCalcul:
             f"Département {self.departement}, millésime {self.millesime} : "
             f"{self.communes_calculees} coefficient(s), "
             f"{len(self.refus)} refus sous seuil, "
+            f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
         )
@@ -194,6 +200,16 @@ def compute_departement(
             delete_coefficient(conn, code_insee)
             conn.commit()
             rapport.refus.append(code_insee)
+            continue
+        verdict = evaluer_invariants_publication(maille, config)
+        if not verdict.publiable:
+            # INV-4 : une maille hors seuils de qualité n'est pas publiée, et son
+            # éventuel coefficient antérieur est effacé — #22 prend le relais sur
+            # la zone. Le motif est journalisé pour tracer la faiblesse.
+            delete_coefficient(conn, code_insee)
+            conn.commit()
+            rapport.rejets_invariants.append(code_insee)
+            logger.warning("%s : rejetée (INV-4) — %s", code_insee, "; ".join(verdict.raisons))
             continue
         try:
             upsert_coefficient(conn, maille)

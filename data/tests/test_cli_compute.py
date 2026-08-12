@@ -68,6 +68,11 @@ def _vente_ariegeoise() -> Mutation:
 # (≥ min_class_sample=20 par classe, avec marge après écrêtage).
 _POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(210)]
 
+# Le pool synthétique n'a aucun signal DPE réel (R² ≈ 0) : INV-4 (#122) le
+# rejetterait. Les tests qui vérifient le *plumbing* de publication (chargement,
+# débordement, écriture) neutralisent donc INV-4 par une config permissive.
+_CONFIG_PUBLIANTE = replace(CalculConfig(), r2_min=0.0, erreur_mediane_max_pct=100.0)
+
 
 class _FauxFetcher:
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
@@ -165,7 +170,7 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     """
     monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
 
-    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    cli.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE)
 
     ecrits = [str(params[0]) for _, params in connexion.ecritures if params]
     assert ecrits, "le test ne prouve rien si rien n'est écrit"
@@ -178,7 +183,9 @@ def test_les_communes_calculees_sont_ecrites(
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
     monkeypatch.setattr(cli, "load_pool", lambda *_, **__: _POOL)
 
-    rapport = cli.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    rapport = cli.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
+    )
 
     assert rapport.communes_calculees > 0
     assert len(connexion.ecritures) == rapport.communes_calculees
