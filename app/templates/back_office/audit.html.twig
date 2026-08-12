@@ -1,72 +1,133 @@
 {% extends 'back_office/base.html.twig' %}
 
-{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes protègent la crédibilité du chiffre, ce n'est pas de la validation de formulaire.</p>{% endblock %}
+{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes protègent la crédibilité du chiffre&nbsp;: ce n'est pas de la validation de formulaire.</p>{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .audit{max-width:640px}
+    .audit-body{padding:6px 16px 16px}
+    .audit-field{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;padding:13px 0;border-bottom:1px solid var(--rule)}
+    .audit-field:last-of-type{border-bottom:0}
+    .audit-field > label{font-size:13.5px;color:var(--slate);padding-top:8px}
+    .audit-control{display:flex;flex-direction:column;gap:5px}
+    .audit-inline{display:flex;align-items:center;gap:7px}
+    .audit input[type=text],.audit input[type=number],.audit select{
+        font:500 13px/1 'JetBrains Mono',monospace;padding:8px 10px;border:1px solid var(--rule-strong);
+        border-radius:2px;background:#fff;color:var(--ink);
+    }
+    .audit input#adresse{width:100%;text-align:left;font-family:'Public Sans',sans-serif}
+    .audit input[type=number]{width:104px;text-align:right}
+    .audit select{padding-right:6px}
+    .audit .unit{font:400 12px/1 'JetBrains Mono',monospace;color:var(--mute)}
+    .audit-field.has-error input,.audit-field.has-error select{border-color:var(--bad);background:#FDF4F3}
+    .form-error{font:400 12px/1.4 'Public Sans',sans-serif;color:var(--bad)}
+    .field-hint{font:400 11px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
+    .audit-actions{padding-top:16px}
+
+    .banner{margin:14px 16px 0;padding:11px 13px;border-radius:2px;font-size:13px;line-height:1.5}
+    .banner-bad{border:1px solid var(--bad);background:#FBEDEB;color:var(--bad)}
+    .banner-warn{border:1px solid #E4C687;background:#FBF3E6;color:var(--warn)}
+
+    .confirm{border-left:3px solid var(--ok)}
+    .confirm .panel-head h2{display:flex;align-items:center;gap:8px}
+    .confirm .ok-dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:block}
+    .confirm-body{padding:16px}
+    .confirm-body .addr{font:600 15px/1.3 'Public Sans',sans-serif;margin-bottom:8px}
+    .confirm-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font:500 12.5px/1 'JetBrains Mono',monospace;color:var(--slate)}
+    .confirm-meta .sep{color:var(--rule-strong)}
+    .confirm .note{margin-top:14px;padding-top:13px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--mute);line-height:1.5}
+</style>
+{% endblock %}
 
 {% block bo_content %}
 {% if saisie %}
-<div class="panel">
-    <div class="panel-head"><h2>Saisie validée</h2></div>
-    <p><strong>{{ saisie.adresse }}</strong></p>
-    <p class="mono">Surface bâtie {{ saisie.surfaceBatie }} m² · Terrain {{ saisie.surfaceTerrain }} m² · DPE {{ saisie.dpeAvant.value }} → {{ saisie.dpeApres.value }}{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}</p>
-    {% for avertissement in avertissements %}
-        <p class="alert" role="alert">{{ avertissement }}</p>
-    {% endfor %}
-    <p class="hint">Étape suivante : restitution — effectif, intervalle de confiance, rayon, millésime et indicateur de fiabilité.</p>
-    <p><a href="{{ path('back_office_audit') }}">Nouvelle saisie</a></p>
+<div class="panel confirm audit">
+    <div class="panel-head"><h2><span class="ok-dot"></span> Saisie validée</h2><span class="hint">prête pour la restitution</span></div>
+    <div class="confirm-body">
+        <p class="addr">{{ saisie.adresse }}</p>
+        <div class="confirm-meta">
+            <span>{{ saisie.surfaceBatie }} m² bâti</span><span class="sep">·</span>
+            <span>{{ saisie.surfaceTerrain }} m² terrain</span><span class="sep">·</span>
+            <span class="audit-inline">
+                <span class="dpe d-{{ saisie.dpeAvant.value|lower }}">{{ saisie.dpeAvant.value }}</span>
+                <span class="arrow">→</span>
+                <span class="dpe d-{{ saisie.dpeApres.value|lower }}">{{ saisie.dpeApres.value }}</span>
+            </span>
+            {% if saisie.nombrePieces %}<span class="sep">·</span><span>{{ saisie.nombrePieces }} pièces</span>{% endif %}
+        </div>
+        {% for avertissement in avertissements %}
+            <p class="banner banner-warn" role="alert" style="margin-left:0;margin-right:0">{{ avertissement }}</p>
+        {% endfor %}
+        <p class="note">Étape suivante&nbsp;: restitution — effectif, intervalle de confiance, rayon, millésime et indicateur de fiabilité.</p>
+        <a class="btn btn-ghost btn-sm" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
+    </div>
 </div>
 {% endif %}
 
-<div class="panel">
-    <div class="panel-head"><h2>Saisie mode audit</h2></div>
+<div class="panel audit">
+    <div class="panel-head"><h2>Saisie mode audit</h2><span class="hint">§9.8 — bornes de vraisemblance</span></div>
+
+    {% if erreurs.global is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.global }}</p>{% endif %}
+    {% if erreurs.dpe is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+
     <form method="post" action="{{ path('back_office_audit') }}" novalidate>
-        {% if erreurs.global is defined %}<p class="alert" role="alert">{{ erreurs.global }}</p>{% endif %}
-        {% if erreurs.dpe is defined %}<p class="alert" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+        <div class="audit-body">
+            <div class="audit-field{{ erreurs.adresse is defined ? ' has-error' : '' }}">
+                <label for="adresse">Adresse</label>
+                <div class="audit-control">
+                    <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="12 rue des Lilas, 31000 Toulouse" autofocus required>
+                    {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
+                </div>
+            </div>
 
-        <div class="field-group{{ erreurs.adresse is defined ? ' has-error' : '' }}">
-            <label for="adresse">Adresse</label>
-            <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" required>
-            {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
+            <div class="audit-field{{ erreurs.surfaceBatie is defined ? ' has-error' : '' }}">
+                <label for="surface_batie">Surface bâtie</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="surface_batie" name="surface_batie" value="{{ valeurs.surface_batie }}" min="20" max="400" inputmode="numeric" required><span class="unit">m²</span></span>
+                    {% if erreurs.surfaceBatie is defined %}<span class="form-error">{{ erreurs.surfaceBatie }}</span>{% else %}<span class="field-hint">entre 20 et 400 m²</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field{{ erreurs.surfaceTerrain is defined ? ' has-error' : '' }}">
+                <label for="surface_terrain">Surface terrain</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="surface_terrain" name="surface_terrain" value="{{ valeurs.surface_terrain }}" min="0" max="10000" inputmode="numeric" required><span class="unit">m²</span></span>
+                    {% if erreurs.surfaceTerrain is defined %}<span class="form-error">{{ erreurs.surfaceTerrain }}</span>{% else %}<span class="field-hint">de 0 à 10 000 m²</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label for="dpe_avant">DPE actuel</label>
+                <div class="audit-control">
+                    <select id="dpe_avant" name="dpe_avant">
+                        {% for dpe in dpe_options %}<option value="{{ dpe.value }}"{{ valeurs.dpe_avant == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="audit-field{{ erreurs.dpeApres is defined ? ' has-error' : '' }}">
+                <label for="dpe_apres">DPE cible</label>
+                <div class="audit-control">
+                    <select id="dpe_apres" name="dpe_apres">
+                        {% for dpe in dpe_options %}<option value="{{ dpe.value }}"{{ valeurs.dpe_apres == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>{% endfor %}
+                    </select>
+                    {% if erreurs.dpeApres is defined %}<span class="form-error">{{ erreurs.dpeApres }}</span>{% else %}<span class="field-hint">doit être meilleur que le DPE actuel</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label for="nombre_pieces">Nombre de pièces</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="nombre_pieces" name="nombre_pieces" value="{{ valeurs.nombre_pieces }}" min="1" inputmode="numeric"><span class="unit">optionnel</span></span>
+                    <span class="field-hint">contrôle de cohérence surface/pièces</span>
+                </div>
+            </div>
+
+            <div class="audit-actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
+                <button type="submit" class="btn">Valider la saisie</button>
+            </div>
         </div>
-
-        <div class="field-group{{ erreurs.surfaceBatie is defined ? ' has-error' : '' }}">
-            <label for="surface_batie">Surface bâtie (m²)</label>
-            <input type="number" id="surface_batie" name="surface_batie" value="{{ valeurs.surface_batie }}" min="20" max="400" inputmode="numeric" required>
-            {% if erreurs.surfaceBatie is defined %}<span class="form-error">{{ erreurs.surfaceBatie }}</span>{% else %}<span class="hint">Entre 20 et 400 m².</span>{% endif %}
-        </div>
-
-        <div class="field-group{{ erreurs.surfaceTerrain is defined ? ' has-error' : '' }}">
-            <label for="surface_terrain">Surface terrain (m²)</label>
-            <input type="number" id="surface_terrain" name="surface_terrain" value="{{ valeurs.surface_terrain }}" min="0" max="10000" inputmode="numeric" required>
-            {% if erreurs.surfaceTerrain is defined %}<span class="form-error">{{ erreurs.surfaceTerrain }}</span>{% else %}<span class="hint">De 0 à 10 000 m².</span>{% endif %}
-        </div>
-
-        <div class="field-group">
-            <label for="dpe_avant">DPE actuel</label>
-            <select id="dpe_avant" name="dpe_avant">
-                {% for dpe in dpe_options %}
-                    <option value="{{ dpe.value }}"{{ valeurs.dpe_avant == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="field-group{{ erreurs.dpeApres is defined ? ' has-error' : '' }}">
-            <label for="dpe_apres">DPE cible</label>
-            <select id="dpe_apres" name="dpe_apres">
-                {% for dpe in dpe_options %}
-                    <option value="{{ dpe.value }}"{{ valeurs.dpe_apres == dpe.value ? ' selected' : '' }}>{{ dpe.value }}</option>
-                {% endfor %}
-            </select>
-            {% if erreurs.dpeApres is defined %}<span class="form-error">{{ erreurs.dpeApres }}</span>{% else %}<span class="hint">Doit être meilleur que le DPE actuel.</span>{% endif %}
-        </div>
-
-        <div class="field-group">
-            <label for="nombre_pieces">Nombre de pièces (optionnel)</label>
-            <input type="number" id="nombre_pieces" name="nombre_pieces" value="{{ valeurs.nombre_pieces }}" min="1" inputmode="numeric">
-            <span class="hint">Sert au contrôle de cohérence surface/pièces.</span>
-        </div>
-
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
-        <button type="submit" class="btn-primary">Valider la saisie</button>
     </form>
 </div>
 {% endblock %}
