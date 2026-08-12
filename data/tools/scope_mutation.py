@@ -14,10 +14,14 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 _SECTION = "[tool.mutmut]"
 _ONLY_MUTATE = re.compile(r"^only_mutate\s*=.*$\n?", re.MULTILINE)
+
+# Codes de sortie : 0 = scopé, 2 = aucun fichier src/**.py, 3 = tous exclus.
+_RIEN_A_MUTER = 3
 
 
 def normaliser_fichiers(fichiers: list[str]) -> list[str]:
@@ -32,6 +36,18 @@ def normaliser_fichiers(fichiers: list[str]) -> list[str]:
         if chemin.startswith("src/") and chemin.endswith(".py"):
             retenus.add(chemin)
     return sorted(retenus)
+
+
+def fichiers_a_muter(pyproject: str, fichiers: list[str]) -> list[str]:
+    """Sous-ensemble des ``fichiers`` qui produira des mutants : hors ``do_not_mutate``.
+
+    Un fichier listé dans ``[tool.mutmut] do_not_mutate`` (couche entrée : ``cli``,
+    ``orchestration``) ne génère aucun mutant. Si tous les fichiers changés y sont,
+    il n'y a rien à muter — le gate ne doit pas échouer faute de décompte.
+    """
+    section = tomllib.loads(pyproject).get("tool", {}).get("mutmut", {})
+    exclus = set(section.get("do_not_mutate", []))
+    return [fichier for fichier in fichiers if fichier not in exclus]
 
 
 def inject_only_mutate(pyproject: str, fichiers: list[str]) -> str:
@@ -58,7 +74,14 @@ def main(argv: list[str]) -> int:
         print("Aucun fichier src/**.py à scoper.", file=sys.stderr)
         return 2
     chemin = Path("pyproject.toml")
-    chemin.write_text(inject_only_mutate(chemin.read_text("utf-8"), fichiers), "utf-8")
+    contenu = chemin.read_text("utf-8")
+    if not fichiers_a_muter(contenu, fichiers):
+        print(
+            "Fichiers changés tous exclus du mutation testing (do_not_mutate) — rien à muter.",
+            file=sys.stderr,
+        )
+        return _RIEN_A_MUTER
+    chemin.write_text(inject_only_mutate(contenu, fichiers), "utf-8")
     print("Mutation scopée sur : " + ", ".join(fichiers))
     return 0
 
