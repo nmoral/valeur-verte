@@ -90,7 +90,21 @@ def _eligible(sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = Tru
     rénovation sans taux de capture) ; désactivé, le bâti récent entre aussi —
     un logement récent en E existe et doit compter (S20).
     """
+    rows, _ = _eligible_avec_source(sample, restreindre_bati_ancien=restreindre_bati_ancien)
+    return rows
+
+
+def _eligible_avec_source(
+    sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = True
+) -> tuple[list[_Row], list[Mutation]]:
+    """Comme ``_eligible``, mais renvoie aussi les mutations sources **alignées**.
+
+    L'écrêtage sur résidu (S32 V2) doit retirer des *mutations* de l'échantillon à
+    partir de résidus calculés sur des ``_Row`` : garder la correspondance rang ↔
+    mutation évite de dupliquer le prédicat d'éligibilité.
+    """
     rows: list[_Row] = []
+    sources: list[Mutation] = []
     for mutation in sample:
         if mutation.prix is None or mutation.surface_bati is None or mutation.surface_bati <= 0:
             continue
@@ -115,7 +129,8 @@ def _eligible(sample: Iterable[Mutation], *, restreindre_bati_ancien: bool = Tru
                 lon=mutation.longitude,
             )
         )
-    return rows
+        sources.append(mutation)
+    return rows, sources
 
 
 @dataclass(frozen=True)

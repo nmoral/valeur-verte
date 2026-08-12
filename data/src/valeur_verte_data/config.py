@@ -39,10 +39,11 @@ class CalculConfig:
     terrain_max: float = 5_000.0
     segment: str = "Maison"
     restreindre_bati_ancien: bool = True
-    # Écrêtage de l'échantillon au calcul (S32) : "off" | "prix_m2" (V1).
+    # Écrêtage de l'échantillon au calcul (S32) : "off" | "prix_m2" (V1) | "residu" (V2).
     ecretage: str = "off"
-    ecretage_fraction: float = 0.01
+    ecretage_fraction: float = 0.01  # V1 : fraction retirée à chaque queue.
     ecretage_seuil_n: int = 100
+    ecretage_k: float = 3.0  # V2 : seuil en nombre de MAD sur le résidu pondéré.
 
 
 # Config historique par défaut, partagée comme valeur par défaut des signatures :
@@ -81,6 +82,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         ecretage=_str(env, "ECRETAGE", defaut.ecretage),
         ecretage_fraction=_float(env, "ECRETAGE_FRACTION", defaut.ecretage_fraction),
         ecretage_seuil_n=_int(env, "ECRETAGE_SEUIL_N", defaut.ecretage_seuil_n),
+        ecretage_k=_float(env, "ECRETAGE_K", defaut.ecretage_k),
     )
 
 
