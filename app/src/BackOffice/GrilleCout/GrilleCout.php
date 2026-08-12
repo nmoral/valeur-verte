@@ -45,18 +45,20 @@ final readonly class GrilleCout
     }
 
     /**
+     * Une grille couvre toujours les sept postes du barème (§9.2).
+     *
      * @return list<Poste>
      */
     public function postes(): array
     {
-        return array_values(array_filter(
-            Poste::cases(),
-            fn (Poste $poste): bool => isset($this->montants[$poste->name]),
-        ));
+        return Poste::cases();
     }
 
     public function montant(Poste $poste): Montant
     {
+        // Garde défensive exigée par l'analyse statique : une grille couvre toujours
+        // les sept postes (cf. parDefautNationale) et Poste est un enum fermé, donc
+        // cette branche est inatteignable en pratique.
         return $this->montants[$poste->name]
             ?? throw new \OutOfBoundsException(\sprintf('Le poste « %s » est absent de la grille.', $poste->name));
     }

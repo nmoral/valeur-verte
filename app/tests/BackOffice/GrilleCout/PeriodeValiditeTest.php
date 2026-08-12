@@ -46,6 +46,18 @@ final class PeriodeValiditeTest extends TestCase
         self::assertFalse($periode->estActiveLe(new \DateTimeImmutable('2026-09-02 09:00:00')));
     }
 
+    public function testFermerExactementALaDateDeDebutEstAutorise(): void
+    {
+        // Cas limite : une clôture à l'instant du début est valide (période de durée nulle),
+        // seule une clôture *antérieure* au début est refusée.
+        $debut = new \DateTimeImmutable('2026-08-12 09:00:00');
+
+        $periode = PeriodeValidite::depuis($debut)->fermerLe($debut);
+
+        self::assertEquals($debut, $periode->valideAu());
+        self::assertFalse($periode->estActiveLe($debut));
+    }
+
     public function testOnNePeutPasFermerUnePeriodeAvantSonDebut(): void
     {
         $periode = PeriodeValidite::depuis(new \DateTimeImmutable('2026-08-12 09:00:00'));
