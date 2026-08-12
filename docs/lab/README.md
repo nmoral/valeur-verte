@@ -39,6 +39,10 @@ bâti`, `coef m² terrain`, et le **gain E→C en %** (`exp(coef_C − coef_E) �
 En cas de refus, le runner imprime la cause (n éligible local/départemental, mode,
 classes publiables).
 
+## Récapitulatif
+
+- [`RECAP.md`](RECAP.md) — **config gagnante consolidée** + toutes les métriques de validation. Rejouable via `recap.py`.
+
 ## Résultats archivés
 
 - [`resultats-baseline.md`](resultats-baseline.md) — config par défaut, référence.
