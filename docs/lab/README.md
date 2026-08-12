@@ -1,0 +1,45 @@
+# Lab — expériences sur les stratégies de calcul
+
+Espace d'expérimentation pour départager les stratégies recensées dans
+[`../REVUE-STRATEGIES-CALCUL.md`](../REVUE-STRATEGIES-CALCUL.md). Chaque variante
+est calculée **en local** sur un dump figé, sur les mêmes communes-test, et son
+tableau de résultats est archivé ici (`resultats-<variante>.md`).
+
+## Principe
+
+- Base locale figée `vv_lab` (restaurée depuis `dumps/valeur_verte_2026-08-11_complet.dump`).
+- Le runner calcule **en mémoire** (aucune écriture en base) → pas de dump par
+  expérience : l'artefact réutilisable est le **tableau de résultats**.
+- La config vient de l'environnement (`VV_MOTEUR_*`) : une variante = mêmes
+  communes, config différente. Aucun changement de code pour les constantes.
+
+## Communes-test
+
+| Profil | Commune | INSEE |
+|---|---|---|
+| Urbain dense | Toulouse | `31555` |
+| Périurbain | Colomiers | `31149` |
+| Rural 31 | Cazères | `31135` |
+| Rural Ariège | Foix | `09122` |
+| Petit n / repli | Tarascon-sur-Ariège | `09306` |
+
+## Lancer une variante
+
+```bash
+cd data && source .venv/bin/activate
+export DATABASE_URL="postgresql://valeur_verte:valeur_verte@localhost:5432/vv_lab"
+# Baseline (défauts) :
+python ../docs/lab/runner.py
+# Variante (ex. S20 — sans restriction bâti ancien) :
+VV_MOTEUR_RESTREINDRE_BATI_ANCIEN=false python ../docs/lab/runner.py
+```
+
+Métriques comparées : `n`, `mode`, `rayon`, `r²`, `erreur médiane %`, `coef m²
+bâti`, `coef m² terrain`, et le **gain E→C en %** (`exp(coef_C − coef_E) − 1`).
+En cas de refus, le runner imprime la cause (n éligible local/départemental, mode,
+classes publiables).
+
+## Résultats archivés
+
+- [`resultats-baseline.md`](resultats-baseline.md) — config par défaut, référence.
+- [`resultats-S20.md`](resultats-S20.md) — sans restriction bâti ancien (< 1989).
