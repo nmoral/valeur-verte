@@ -19,7 +19,7 @@ final class QualificationsRgeViaApiAdemeTest extends TestCase
     public function testUneEntrepriseCertifieeRemonteSesDomainesDistincts(): void
     {
         $urlDemandee = null;
-        $client = new MockHttpClient(function (string $methode, string $url) use (&$urlDemandee): MockResponse {
+        $client = new MockHttpClient(static function (string $methode, string $url) use (&$urlDemandee): MockResponse {
             $urlDemandee = $url;
 
             return new MockResponse((string) json_encode([
