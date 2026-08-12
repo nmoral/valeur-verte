@@ -38,6 +38,10 @@ class CalculConfig:
     min_local_sample: int = 30
     min_class_sample: int = 20  # S21
     min_classes_publiees: int = 2
+    # INV-1 (#119) : une inversion de monotonie entre deux classes DPE adjacentes
+    # est tolérée si l'effectif de la moins fournie est sous ce seuil (petit
+    # échantillon = faiblesse statistique, pas un bug). Au-delà, anomalie bloquante.
+    inversion_dpe_seuil: int = 30
     sigma_km: float = 10.0  # utilisé seulement si sigma_mode="fixe"
     departemental_sigma_km: float = 1000.0
     # σ en mode local (S23) : "fixe" (σ ci-dessus) | "rayon" (σ = rayon_retenu /
@@ -90,6 +94,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         min_local_sample=_int(env, "MIN_LOCAL_SAMPLE", defaut.min_local_sample),
         min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),
         min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
+        inversion_dpe_seuil=_int(env, "INVERSION_DPE_SEUIL", defaut.inversion_dpe_seuil),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
         departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),
         sigma_mode=_str(env, "SIGMA_MODE", defaut.sigma_mode),

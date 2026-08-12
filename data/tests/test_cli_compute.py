@@ -19,6 +19,7 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
+from valeur_verte_data.invariants import ResultatMonotonie
 
 _COMMUNES = [
     {
@@ -74,6 +75,17 @@ _POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(210)]
 # rejetterait. Les tests qui vérifient le *plumbing* de publication (chargement,
 # débordement, écriture) neutralisent donc INV-4 par une config permissive.
 _CONFIG_PUBLIANTE = replace(CalculConfig(), r2_min=0.0, erreur_mediane_max_pct=100.0)
+
+
+def _neutraliser_monotonie(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Plumbing : le pool synthétique n'a aucun signal DPE, ses coefficients ne
+    sont pas monotones et INV-1 les rejetterait. On la neutralise pour isoler le
+    câblage de publication (chargement, débordement, écriture)."""
+    monkeypatch.setattr(
+        orchestration,
+        "evaluer_monotonie_dpe",
+        lambda maille, config: ResultatMonotonie(raisons=(), inversions_tolerees=()),
+    )
 
 
 class _FauxFetcher:
@@ -171,6 +183,7 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     département demandé, jamais du pool.
     """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
+    _neutraliser_monotonie(monkeypatch)
 
     orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -186,6 +199,7 @@ def test_les_communes_calculees_sont_ecrites(
 ) -> None:
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    _neutraliser_monotonie(monkeypatch)
 
     rapport = orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -308,6 +322,7 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     """Une écriture qui échoue est annulée (rollback) et tracée par son code commune,
     sans interrompre les autres — la maille n'est pas comptée comme calculée."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    _neutraliser_monotonie(monkeypatch)
 
     def _boom(*_: Any, **__: Any) -> None:
         raise RuntimeError("base indisponible")
@@ -413,3 +428,52 @@ def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
 
     assert connexion.ecritures == []
     assert "31555" in rapport.rejets_invariants
+
+
+def _maille_dpe(
+    code_insee: str, coef_dpe: dict[str, float], effectifs_dpe: dict[str, int]
+) -> MailleCoefficient:
+    return replace(
+        _maille_publiable(code_insee, 1000.0), coef_dpe=coef_dpe, effectifs_dpe=effectifs_dpe
+    )
+
+
+def test_inversion_dpe_bloquante_n_est_pas_publiee(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-1 câblé au gate : F/G inversées et toutes deux fournies → non publiée."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(
+        orchestration,
+        "compute_communes",
+        lambda *a, **k: [_maille_dpe("31555", {"F": -0.30, "G": -0.10}, {"F": 40, "G": 35})],
+    )
+    monkeypatch.setattr(orchestration, "read_adjacence", lambda *_: {})
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert connexion.ecritures == []
+    assert "31555" in rapport.rejets_invariants
+
+
+def test_inversion_dpe_toleree_est_publiee_et_journalisee(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-1 : F/G inversées mais G rare (12 < 30) → publiée, mais tracée."""
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(
+        orchestration,
+        "compute_communes",
+        lambda *a, **k: [_maille_dpe("31555", {"F": -0.30, "G": -0.10}, {"F": 40, "G": 12})],
+    )
+    monkeypatch.setattr(orchestration, "read_adjacence", lambda *_: {})
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]  # publiée
+    assert "31555" in rapport.inversions_dpe  # journalisée malgré tout
+    assert rapport.rejets_invariants == []

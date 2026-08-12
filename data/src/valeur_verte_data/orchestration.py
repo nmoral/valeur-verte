@@ -28,6 +28,7 @@ from .invariants import (
     detecter_ruptures_limitrophes,
     evaluer_coherence_geographique,
     evaluer_invariants_publication,
+    evaluer_monotonie_dpe,
 )
 from .limitrophes import limitrophes
 
@@ -90,6 +91,10 @@ class RapportCalcul:
     # écart de coef_m2_bati > facteur 2 avec une commune limitrophe (artefact de
     # bord probable, §3.2). La maille reste servie, le doute est signalé.
     alertes_bord: list[str] = field(default_factory=list)
+    # INV-1 (#119) : communes publiées malgré une inversion de monotonie DPE
+    # tolérée (classes adjacentes, la moins fournie sous le seuil). Journalisées
+    # pour distinguer plus tard une faiblesse chronique d'une dérive nouvelle.
+    inversions_dpe: list[str] = field(default_factory=list)
     # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
     # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
     # batches dont on sait qu'ils étaient reproductibles.
@@ -107,6 +112,7 @@ class RapportCalcul:
             f"{len(self.refus)} refus sous seuil, "
             f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.alertes_bord)} alerte(s) de bord, "
+            f"{len(self.inversions_dpe)} inversion(s) DPE tolérée(s), "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
         )
@@ -215,19 +221,29 @@ def compute_departement(
             conn.commit()
             rapport.refus.append(code_insee)
             continue
+        monotonie = evaluer_monotonie_dpe(maille, config)
         raisons = (
             evaluer_invariants_publication(maille, config).raisons
             + evaluer_coherence_geographique(maille, config).raisons
+            + monotonie.raisons
         )
         if raisons:
-            # INV-3/INV-4 : une maille hors seuils de qualité (erreur, R², n) ou
-            # au rayon aberrant n'est pas publiée, et son éventuel coefficient
-            # antérieur est effacé — #22 prend le relais. Le motif est journalisé.
+            # INV-1/INV-3/INV-4 : une maille hors seuils de qualité (erreur, R², n),
+            # au rayon aberrant ou à l'échelle DPE non monotone n'est pas publiée,
+            # et son éventuel coefficient antérieur est effacé — #22 prend le relais.
             delete_coefficient(conn, code_insee)
             conn.commit()
             rapport.rejets_invariants.append(code_insee)
             logger.warning("%s : rejetée (invariant) — %s", code_insee, "; ".join(raisons))
             continue
+        if monotonie.inversions_tolerees:
+            # INV-1 : inversion admise (petit échantillon) mais tracée malgré tout.
+            rapport.inversions_dpe.append(code_insee)
+            logger.info(
+                "%s : inversion DPE tolérée — %s",
+                code_insee,
+                "; ".join(monotonie.inversions_tolerees),
+            )
         alerte_bord = alertes.get(code_insee)
         if alerte_bord is not None:
             # INV-3 #3 : la maille reste publiée, mais un bandeau signale l'écart
