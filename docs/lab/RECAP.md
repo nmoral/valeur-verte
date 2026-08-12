@@ -16,6 +16,7 @@ local sur `vv_lab_nobornes` (7 départements ré-ingérés **sans bornes**, mill
 | `VV_MOTEUR_SIGMA_DIVISEUR` | `1.0` | S23 | | |
 | `VV_MOTEUR_SIGMA_MIN` | `3.0` | S23 | Plancher : protège le fragile d'un σ trop serré | |
 | `VV_MOTEUR_EFFETS_FIXES_COMMUNE` | `false` | **S22** | Les indicatrices commune sur-ajustaient (r² gonflé, erreur CV pire) ; l'indice local + σ portent déjà la localité | [S22](resultats-S22.md) |
+| `VV_MOTEUR_INDICE_LOCAL` | `true` (gardé) | **S24** | Ablation testée : le retirer dégrade l'erreur CV (Toulouse 12,3 → 17,5). Signal réel, complémentaire de σ — pas du sur-paramétrage | [S24](resultats-S24.md) |
 
 ## 2. Comment je valide une option (les critères)
 
@@ -116,8 +117,8 @@ CV baisse partout ; deux communes-test refusées au départ calculent désormais
   INV-1 les signaleront ; leur `errCV` élevée est déjà le drapeau.
 - **65481** : la seule maille où retirer les EF commune dégrade un peu — mailles
   ultra-isolées à traiter à part.
-- **S24 (indice local)** : ablation non testée — reste à voir si σ densité le rend
-  superflu (décale la position des coefs DPE, extraction à adapter).
+- **S24 (indice local)** : ablation testée → **gardé** (le retirer dégrade
+  l'erreur CV, surtout sur le dense). Bloc paramètres clos.
 - **Rappels de fond** : coefficients en log/% et non en € (unité des invariants),
   IC empirique heuristique (S29), pas d'historique des coefficients (S30 → REG-1),
   et le `log(exp)` du R² à simplifier (tâche de suivi).
