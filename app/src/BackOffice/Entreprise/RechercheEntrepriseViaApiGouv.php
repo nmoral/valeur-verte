@@ -51,7 +51,7 @@ final class RechercheEntrepriseViaApiGouv implements RechercheEntreprise
     private function premierResultat(Siret $siret): ?array
     {
         try {
-            $reponse = $this->rechercheEntreprises->request('GET', '/search', [
+            $reponse = $this->rechercheEntreprises->request('GET', 'search', [
                 'query' => ['q' => $siret->valeur(), 'page' => 1, 'per_page' => 1],
             ]);
 

@@ -51,7 +51,7 @@ final class QualificationsRgeViaApiAdeme implements QualificationsRge
     private function lignes(Siret $siret): ?array
     {
         try {
-            $reponse = $this->rgeAdeme->request('GET', '/lines', [
+            $reponse = $this->rgeAdeme->request('GET', 'lines', [
                 'query' => ['qs' => 'siret:'.$siret->valeur(), 'size' => 100],
             ]);
 

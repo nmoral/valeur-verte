@@ -28,7 +28,9 @@ final class RechercheEntrepriseControllerTest extends WebTestCase
         self::assertSame('Renov Habitat', $charge['raisonSociale']);
         self::assertSame('43.29A', $charge['codeNaf']);
         self::assertSame('rge', $charge['statutRge']);
-        self::assertContains('Isolation des murs', $charge['domainesRge']);
+        $domaines = $charge['domainesRge'];
+        self::assertIsArray($domaines);
+        self::assertContains('Isolation des murs', $domaines);
     }
 
     public function testUnSiretInconnuRenvoieUn404DeRepli(): void

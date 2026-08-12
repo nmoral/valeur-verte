@@ -76,7 +76,14 @@ final class RechercheEntrepriseViaApiGouvTest extends TestCase
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{results: list<array{
+     *     siren: string,
+     *     nom_complet: string,
+     *     nom_raison_sociale: string,
+     *     activite_principale: string,
+     *     tranche_effectif_salarie?: string,
+     *     matching_etablissements: list<array{siret: string, adresse: string, etat_administratif: string}>,
+     * }>, total_results: int}
      */
     private function resultatGouv(): array
     {
