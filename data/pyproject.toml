@@ -65,7 +65,14 @@ also_copy = ["tools"]
 # ne sait pas exclure le logging (do_not_mutate_patterns est du code mort). La
 # *décision* métier (INV-4 publiable/rejetée) est mutation-testée dans
 # invariants.py ; cette couche est couverte par tests fonctionnels + intégration.
+#
+# coefficient_repository : couche repository, logique **en SQL**. Ses mutants ne
+# se tuent que contre un vrai PostGIS (job `data-integration`), pas dans le job
+# `data-quality` qui joue la mutation sans base — sinon ils survivent tous et le
+# MSI d'une PR ne touchant que ce fichier s'effondre. Son comportement (upsert,
+# relecture de l'alerte, idempotence) est couvert par `test_coefficient_db.py`.
 do_not_mutate = [
     "src/valeur_verte_data/cli.py",
     "src/valeur_verte_data/orchestration.py",
+    "src/valeur_verte_data/db/coefficient_repository.py",
 ]
