@@ -145,12 +145,8 @@ def test_l_image_deployee_est_tracable_jusqu_au_commit(
 def test_l_image_app_est_construite_et_publiee() -> None:
     """L'app tourne sur le VPS : son image doit être bâtie depuis app/Dockerfile et publiée."""
     contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
-    assert "valeur-verte-app" in contenu, (
-        "Le workflow doit publier l'image « valeur-verte-app »."
-    )
-    assert "app/Dockerfile" in contenu, (
-        "L'image app doit être construite depuis app/Dockerfile."
-    )
+    assert "valeur-verte-app" in contenu, "Le workflow doit publier l'image « valeur-verte-app »."
+    assert "app/Dockerfile" in contenu, "L'image app doit être construite depuis app/Dockerfile."
 
 
 def test_l_app_est_demarree_au_deploiement() -> None:
