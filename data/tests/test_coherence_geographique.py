@@ -204,6 +204,7 @@ def test_ecart_au_dessus_du_facteur_2_est_signale() -> None:
     assert isinstance(rupture, RuptureLimitrophe)
     # Ordre canonique (a < b), quel que soit le sens de parcours de l'adjacence.
     assert (rupture.code_insee_a, rupture.code_insee_b) == ("31001", "31002")
+    assert (rupture.coef_a, rupture.coef_b) == (1000.0, 3000.0)
     assert rupture.facteur == 3.0
 
 
@@ -242,11 +243,14 @@ def test_le_facteur_provient_de_la_config() -> None:
 
 def test_coef_bati_non_positif_est_hors_perimetre() -> None:
     # Un coef_m2_bati ≤ 0 est une anomalie de signe (INV-2), pas de bord : le
-    # ratio n'a pas de sens, la paire est ignorée par INV-3.
-    mailles = [_maille_bati("31001", 0.0), _maille_bati("31002", 3000.0)]
+    # ratio n'a pas de sens (division par zéro), la paire est ignorée — des deux
+    # côtés, que le coef nul soit sur la commune a ou b de la paire canonique.
     adjacence = {"31001": ("31002",), "31002": ("31001",)}
+    coef_a_nul = [_maille_bati("31001", 0.0), _maille_bati("31002", 3000.0)]
+    coef_b_nul = [_maille_bati("31001", 3000.0), _maille_bati("31002", 0.0)]
 
-    assert detecter_ruptures_limitrophes(mailles, adjacence, CalculConfig()) == ()
+    assert detecter_ruptures_limitrophes(coef_a_nul, adjacence, CalculConfig()) == ()
+    assert detecter_ruptures_limitrophes(coef_b_nul, adjacence, CalculConfig()) == ()
 
 
 def test_ruptures_ordonnees_de_facon_deterministe() -> None:
@@ -283,10 +287,12 @@ def test_alertes_de_bord_marque_les_deux_communes() -> None:
 
 
 def test_alertes_de_bord_retient_le_pire_facteur() -> None:
-    # Une commune au carrefour de deux ruptures porte le facteur le plus fort.
+    # Une commune au carrefour de deux ruptures porte le facteur le plus fort,
+    # quel que soit l'ordre — ici le plus fort vient en premier (l'accumulateur
+    # doit le conserver face au suivant, plus faible).
     ruptures = (
-        RuptureLimitrophe("31001", "31002", 1000.0, 3000.0, 3.0),
         RuptureLimitrophe("31001", "31003", 1000.0, 5000.0, 5.0),
+        RuptureLimitrophe("31001", "31002", 1000.0, 3000.0, 3.0),
     )
 
     alertes = alertes_de_bord(ruptures)

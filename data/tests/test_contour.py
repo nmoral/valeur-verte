@@ -48,6 +48,16 @@ def test_parse_contour_accepte_un_multipolygone() -> None:
     assert json.loads(contour.contour)["type"] == "MultiPolygon"
 
 
+def test_parse_contour_normalise_de_facon_deterministe() -> None:
+    # INV-5 : JSON compact (sans espace) et clés triées, pour une ingestion
+    # reproductible et un ST_GeomFromGeoJSON stable.
+    contour = parse_contour(_payload(_POLYGON))
+
+    assert contour is not None
+    assert " " not in contour.contour
+    assert contour.contour.index('"coordinates"') < contour.contour.index('"type"')
+
+
 def test_parse_contour_porte_le_departement() -> None:
     contour = parse_contour(_payload(_POLYGON))
 
