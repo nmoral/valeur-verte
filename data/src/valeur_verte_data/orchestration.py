@@ -17,10 +17,10 @@ import httpx
 from .batch import compute_communes
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import delete_coefficient, upsert_coefficient
-from .db.limitrophe_repository import read_adjacence
+from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
-from .decoupage_source import fetch_communes_by_departement
+from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .http import Fetcher
 from .ingest import ingest_commune
 from .invariants import (
@@ -54,6 +54,7 @@ class RapportIngestion:
     millesime: int
     communes_traitees: int = 0
     mutations_inserees: int = 0
+    contours_charges: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
 
@@ -155,6 +156,7 @@ def ingest_departement(
         rapport.mutations_inserees += inserees
         logger.info("[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, inserees)
 
+    _charger_contours(fetcher, conn, departement, rapport)
     return rapport
 
 
@@ -199,10 +201,10 @@ def compute_departement(
     }
 
     # INV-3 (#121) : les ruptures de bord se jugent sur l'ensemble des mailles du
-    # département une fois toutes calculées, à partir de la contiguïté en base.
-    alertes = alertes_de_bord(
-        detecter_ruptures_limitrophes(calculees.values(), read_adjacence(conn, departement), config)
-    )
+    # département une fois toutes calculées, à partir de la contiguïté dérivée à
+    # l'ingestion (les contours du département et de ses voisins sont alors là).
+    adjacence = read_adjacence(conn, departement)
+    alertes = alertes_de_bord(detecter_ruptures_limitrophes(calculees.values(), adjacence, config))
 
     for code_insee, _, _ in coordonnees:
         maille = calculees.get(code_insee)
@@ -243,3 +245,30 @@ def compute_departement(
         rapport.communes_calculees += 1
 
     return rapport
+
+
+def _charger_contours(
+    fetcher: Fetcher,
+    conn: ConnexionTransactionnelle,
+    departement: str,
+    rapport: RapportIngestion,
+) -> None:
+    """Charge les contours communaux (INV-3, #121) en fin d'ingestion.
+
+    Les contours sont **auxiliaires** aux ventes DVF : une panne de geo.api ne
+    doit pas emporter une ingestion de plusieurs heures (§5). L'échec est annulé
+    et journalisé, sans marquer l'ingestion en erreur. La contiguïté est dérivée
+    dans la foulée (``ST_Touches``), une fois les nouveaux contours en base.
+    """
+    try:
+        contours = fetch_contours_by_departement(fetcher, departement)
+        if not contours:
+            return
+        for contour in contours:
+            upsert_contour(conn, contour.code_insee, contour.code_departement, contour.contour)
+        derive_limitrophes(conn)
+        conn.commit()
+        rapport.contours_charges = len(contours)
+    except Exception as erreur:  # noqa: BLE001 — les contours ne doivent pas emporter les ventes
+        conn.rollback()
+        logger.warning("%s : contours non chargés (%s)", departement, erreur)

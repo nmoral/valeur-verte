@@ -26,8 +26,12 @@ _COMMUNES = [
 ]
 
 _CONTOURS = [
-    CommuneContour("31555", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[2,44],[1,43]]]}'),
-    CommuneContour("31149", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[0,44],[1,43]]]}'),
+    CommuneContour(
+        "31555", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[2,44],[1,43]]]}'
+    ),
+    CommuneContour(
+        "31149", "31", '{"type":"Polygon","coordinates":[[[1,43],[1,44],[0,44],[1,43]]]}'
+    ),
 ]
 
 _CSV = (
@@ -186,17 +190,21 @@ def test_ingest_departement_stocke_les_contours(
     """INV-3 (#121) : l'ingestion charge aussi les contours, pour que la
     contiguïté soit calculable dès que le département et ses voisins sont là."""
     stockes: list[str] = []
+    derivations: list[str] = []
     monkeypatch.setattr(orchestration, "fetch_contours_by_departement", lambda f, d: _CONTOURS)
     monkeypatch.setattr(
         orchestration,
         "upsert_contour",
         lambda conn, code_insee, code_departement, contour: stockes.append(code_insee),
     )
+    monkeypatch.setattr(orchestration, "derive_limitrophes", lambda conn: derivations.append("x"))
 
     rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert stockes == ["31555", "31149"]
     assert rapport.contours_charges == 2
+    # La contiguïté est dérivée une fois les contours stockés (INV-3 #3).
+    assert derivations == ["x"]
 
 
 def test_un_echec_de_contour_n_interrompt_pas_l_ingestion(
