@@ -21,15 +21,20 @@ jobs:
       data: ${{ steps.filter.outputs.data }}
       app: ${{ steps.filter.outputs.app }}
       infra: ${{ steps.filter.outputs.infra }}
+      # Liste des sources data/ modifiées vs base, pour scoper le mutation testing (#151).
+      data_src_files: ${{ steps.filter.outputs.data_src_files }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          list-files: shell
           filters: |
             data:
               - 'data/**'
               - '.github/workflows/ci.yml'
+            data_src:
+              - 'data/src/**/*.py'
             app:
               - 'app/**'
             # Ce qui compose réellement l'image déployée, plus le déploiement
@@ -67,8 +72,13 @@ jobs:
         run: mypy src
       - name: Tests (pytest)
         run: pytest
-      - name: Mutation testing (mutmut, MSI >= 80 %)
-        run: ./tools/run-mutation.sh 80
+      # Scopé aux sources data/ modifiées vs base (#151) : mutation testing sur la
+      # « maille de code touchée » (CLAUDE.md §3), pas sur tout src/. Si aucune source
+      # n'a changé (PR docs/tests/CI seule), SCOPE_REQUIRED=1 fait ignorer l'étape.
+      - name: Mutation testing (mutmut, MSI >= 80 %, scopé aux fichiers changés)
+        env:
+          SCOPE_REQUIRED: "1"
+        run: ./tools/run-mutation.sh 80 ${{ needs.changes.outputs.data_src_files }}
 
   # Migrations + écriture en base jouées contre un vrai PostGIS (container).
   data-integration:
