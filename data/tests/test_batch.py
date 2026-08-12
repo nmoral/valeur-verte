@@ -96,6 +96,12 @@ def test_sigma_local_mode_densite() -> None:
     assert _sigma_local(cfg, _selection(20, 6.0)) == 2.0
 
 
+def test_sigma_local_densite_distance_faible_reste_proportionnelle() -> None:
+    # Densité très forte (0,5 km) : σ = 0,5 / diviseur, pas de repli sur σ fixe.
+    cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=1.0, sigma_min=0.0)
+    assert _sigma_local(cfg, _selection(10, 0.5)) == 0.5
+
+
 def test_sigma_local_plancher() -> None:
     cfg = replace(CalculConfig(), sigma_mode="densite", sigma_diviseur=3.0, sigma_min=5.0)
     assert _sigma_local(cfg, _selection(20, 6.0)) == 5.0  # 6/3=2 relevé au plancher 5
@@ -198,6 +204,43 @@ def test_effets_fixes_commune_changent_le_modele() -> None:
 
     assert avec is not None and sans is not None
     assert avec.coef_dpe != sans.coef_dpe
+
+
+def test_compute_maille_ecretage_residu_retire_l_aberrant() -> None:
+    """S32 au niveau maille : ``ecretage=residu`` retire le bien au résidu aberrant."""
+    conformes = _cluster(10, lat=43.6, lon=1.44)  # 30 ventes cohérentes
+    aberrant = _house("D", 100, 5_000_000, lat=43.6, lon=1.44)  # prix incohérent
+    pool = [*conformes, aberrant]
+    base = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        ecretage_seuil_n=10,
+    )
+
+    sans = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, ecretage="off"))
+    avec = compute_maille("31555", 43.6, 1.44, 2024, pool, config=replace(base, ecretage="residu"))
+
+    assert sans is not None and avec is not None
+    assert avec.n_transactions < sans.n_transactions
+
+
+def test_compute_maille_utilise_les_radii_de_la_config() -> None:
+    """Les paliers de rayon viennent de la config : radii=(20,) retient 20, pas 15."""
+    points = _cluster(4, lat=43.71, lon=1.44)  # ~12 km du centre
+    base = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        radii_km=(20,),
+    )
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, points, config=base)
+
+    assert maille is not None
+    assert maille.rayon_retenu_km == 20
 
 
 def test_compute_maille_lit_les_seuils_de_la_config() -> None:
