@@ -12,8 +12,12 @@ Logique pure, hors-ligne : l'appel HTTP est traité ailleurs.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+
+# Types GeoJSON surfaciques : seuls exploitables comme contour communal (#121).
+_TYPES_SURFACIQUES = frozenset({"Polygon", "MultiPolygon"})
 
 
 @dataclass(frozen=True)
@@ -66,6 +70,33 @@ def parse_commune(payload: Mapping[str, object]) -> Commune | None:
         centre_latitude=latitude,
         code_departement=_clean(payload.get("codeDepartement")),
     )
+
+
+@dataclass(frozen=True)
+class CommuneContour:
+    """Contour d'une commune (#121), en GeoJSON prêt pour ``ST_GeomFromGeoJSON``.
+
+    ``contour`` est une chaîne JSON **normalisée** (clés triées, compacte) : la
+    normalisation rend l'ingestion reproductible (INV-5) et évite de transporter
+    un ``Mapping`` mutable jusqu'à la base.
+    """
+
+    code_insee: str
+    contour: str
+
+
+def parse_contour(payload: Mapping[str, object]) -> CommuneContour | None:
+    """Extrait le contour surfacique d'une commune, ``None`` si absent/inexploitable."""
+    code_insee = _clean(payload.get("code"))
+    if code_insee is None:
+        return None
+    contour = payload.get("contour")
+    if not isinstance(contour, Mapping) or contour.get("type") not in _TYPES_SURFACIQUES:
+        return None
+    if not contour.get("coordinates"):
+        return None
+    normalise = json.dumps(contour, sort_keys=True, separators=(",", ":"))
+    return CommuneContour(code_insee=code_insee, contour=normalise)
 
 
 def parse_communes(payload: Iterable[Mapping[str, object]]) -> list[Commune]:
