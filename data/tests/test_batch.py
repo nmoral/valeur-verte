@@ -264,6 +264,28 @@ def test_compute_maille_lit_les_seuils_de_la_config() -> None:
     )
 
 
+def test_compute_maille_expose_l_effectif_par_classe_dpe() -> None:
+    """INV-1 (#119) : la maille porte l'effectif par classe DPE publiée, pas juste
+    le n global — la tolérance de monotonie en dépend (inversion admise si la
+    classe la moins fournie est sous 30). Effectifs volontairement inégaux."""
+
+    def _classe(dpe: str, effect: float, n: int) -> list[Mutation]:
+        return [
+            _house(dpe, 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(effect)), lat=43.6, lon=1.44)
+            for i in range(n)
+        ]
+
+    pool = _classe("C", 0.10, 6) + _classe("D", 0.0, 5) + _classe("F", -0.20, 4)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+
+    assert maille is not None
+    assert maille.effectifs_dpe == {"C": 6, "D": 5, "F": 4}
+    # Mêmes classes que le coefficient : l'effectif accompagne chaque coef publié.
+    assert set(maille.effectifs_dpe) == set(maille.coef_dpe)
+
+
 def test_compute_maille_mode_local() -> None:
     pool = _cluster(4, lat=43.6, lon=1.44)  # 12 ventes proches
 
