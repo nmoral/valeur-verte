@@ -1,0 +1,29 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Combinaisons nommées de postes, réutilisées en rendez-vous.</p>{% endblock %}
+
+{% block bo_content %}
+<div class="panel">
+    <div class="panel-head">
+        <h2>Bouquets types</h2>
+        <span class="hint">« Rénovation d'ampleur standard » est actif par défaut</span>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Nom</th><th>Postes couverts</th></tr>
+        </thead>
+        <tbody>
+            {% for bouquet in bouquets %}
+                <tr>
+                    <td>{{ bouquet.nom }}</td>
+                    <td>
+                        {% for poste in bouquet.postes %}
+                            <span class="tag">{{ poste.libelle }}</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
