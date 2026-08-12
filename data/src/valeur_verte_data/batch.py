@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
@@ -53,6 +53,9 @@ class MailleCoefficient:
     coef_dpe: dict[str, float]
     ic_dpe: dict[str, tuple[float, float]]
     alerte: str | None
+    # Effectif observé par classe DPE publiée (INV-1, #119) : porte la tolérance
+    # de monotonie. Défaut vide pour les mailles construites hors du moteur (tests).
+    effectifs_dpe: dict[str, int] = field(default_factory=dict)
 
 
 def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutation]:
@@ -65,14 +68,13 @@ def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutatio
     return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
 
 
-def _classes_publiables(
-    sample: Sequence[Mutation], seuil: int, *, restreindre_bati_ancien: bool = True
-) -> set[str]:
-    """Classes DPE assez observées pour que leur coefficient veuille dire quelque chose."""
-    effectifs = Counter(
+def _effectifs_dpe(
+    sample: Sequence[Mutation], *, restreindre_bati_ancien: bool = True
+) -> Counter[str]:
+    """Effectif observé par classe DPE dans l'échantillon éligible (§5.2)."""
+    return Counter(
         row.dpe for row in _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
     )
-    return {classe for classe, effectif in effectifs.items() if effectif >= seuil}
 
 
 def _intervals(
@@ -97,12 +99,14 @@ def _maille(
     erreur: float | None,
     alerte: str | None,
     publiables: set[str] | None = None,
+    effectifs: Counter[str] | None = None,
 ) -> MailleCoefficient:
     coef_dpe = (
         result.coef_dpe
         if publiables is None
         else {classe: coef for classe, coef in result.coef_dpe.items() if classe in publiables}
     )
+    effectifs_dpe = {} if effectifs is None else {classe: effectifs[classe] for classe in coef_dpe}
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=millesime,
@@ -116,6 +120,7 @@ def _maille(
         coef_dpe=coef_dpe,
         ic_dpe=_intervals(coef_dpe, erreur),
         alerte=alerte,
+        effectifs_dpe=effectifs_dpe,
     )
 
 
@@ -189,9 +194,10 @@ def compute_maille(
             restreindre_bati_ancien=config.restreindre_bati_ancien,
         )
 
-    publiables = _classes_publiables(
-        sample, config.min_class_sample, restreindre_bati_ancien=config.restreindre_bati_ancien
-    )
+    effectifs = _effectifs_dpe(sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    publiables = {
+        classe for classe, effectif in effectifs.items() if effectif >= config.min_class_sample
+    }
     if len(publiables) < config.min_classes_publiees:
         return None
 
@@ -229,6 +235,7 @@ def compute_maille(
         erreur,
         decision.alerte,
         publiables,
+        effectifs,
     )
 
 

@@ -1,0 +1,15 @@
+framework:
+    http_client:
+        scoped_clients:
+            # Identité de l'entreprise (raison sociale, adresse, NAF, effectif).
+            # Autowiring : « HttpClientInterface $rechercheEntreprises ».
+            recherche_entreprises:
+                base_uri: 'https://recherche-entreprises.api.gouv.fr/'
+                timeout: 3
+                max_duration: 5
+            # Qualifications RGE (données ouvertes ADEME).
+            # Autowiring : « HttpClientInterface $rgeAdeme ».
+            rge_ademe:
+                base_uri: 'https://data.ademe.fr/data-fair/api/v1/datasets/liste-des-entreprises-rge-2/'
+                timeout: 3
+                max_duration: 5

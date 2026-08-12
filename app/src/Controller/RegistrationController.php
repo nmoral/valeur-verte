@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\BackOffice\Entreprise\Siret;
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
 use App\Security\LimiteurInscription;
@@ -33,7 +34,8 @@ final class RegistrationController extends AbstractController
 
             if ([] === $erreurs) {
                 try {
-                    $user = $createurDeCompte->creer($email, $motDePasse);
+                    $siretConfirme = '' !== $siret ? Siret::depuis($siret) : null;
+                    $user = $createurDeCompte->creer($email, $motDePasse, $siretConfirme);
                     $security->login($user);
 
                     return $this->redirect(

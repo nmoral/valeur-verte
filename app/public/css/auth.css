@@ -41,3 +41,15 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
 .auth-note{font:400 12px/1.5 'JetBrains Mono',monospace;color:var(--mute);margin-top:14px;text-align:center}
 .auth-alt{font-size:14px;color:var(--slate);text-align:center}
 .auth-legal{font:400 11.5px/1.6 'JetBrains Mono',monospace;color:var(--mute);max-width:432px;text-align:center}
+
+/* Aperçu entreprise pré-rempli par le SIRET (ONB-2, #106) */
+.entreprise-apercu{margin:-6px 0 16px;padding:14px 16px;border:1px solid var(--brand-soft);
+  border-left:3px solid var(--brand);border-radius:2px;background:var(--brand-soft)}
+.entreprise-apercu-titre{font:600 11px/1 'JetBrains Mono',monospace;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--brand);margin-bottom:6px}
+.entreprise-nom{font:700 16px/1.25 'Archivo',sans-serif;color:var(--brand-ink)}
+.entreprise-adresse{font-size:13px;color:var(--slate);margin-top:2px}
+.entreprise-meta{font:400 12px/1.4 'JetBrains Mono',monospace;color:var(--slate-2);margin-top:4px}
+.entreprise-rge{margin-top:8px;font-size:13px;color:var(--slate)}
+.entreprise-badge{display:inline-block;padding:2px 8px;border-radius:2px;background:var(--brand);
+  color:#fff;font:600 11px/1.4 'JetBrains Mono',monospace;letter-spacing:.03em}

@@ -11,6 +11,9 @@ viennent de la config (source unique, configurable).
   le plafond (hors repli départemental). Les invariants #2 (monotonie du rayon)
   et #3 (facteur 2 entre communes limitrophes) vivent ailleurs (propriété du
   sélecteur, contrôle de fin de batch).
+- **INV-1 (#119)** — monotonie de l'échelle DPE : ``coef(A) > … > coef(G)``. Une
+  inversion entre classes adjacentes est tolérée (et journalisée) si la moins
+  fournie est sous le seuil ; sinon la maille n'est pas publiée.
 - **INV-2 (#120)** — signe et ordre de grandeur : reformulé pour le modèle
   log-prix (effets log, élasticités), on vérifie des signes/ordres (gain E→C > 0,
   effet de seuil, terrain < bâti) et des bornes de magnitude en log.
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 
 from .batch import MailleCoefficient
 from .config import DEFAULT_CONFIG, CalculConfig
@@ -187,3 +191,56 @@ def alertes_de_bord(ruptures: Iterable[RuptureLimitrophe]) -> dict[str, str]:
             if rupture.facteur > pire_facteur.get(code, 0.0):
                 pire_facteur[code] = rupture.facteur
     return {code: _ALERTE_BORD.format(facteur=facteur) for code, facteur in pire_facteur.items()}
+
+
+# Échelle DPE, de la classe la plus valorisée (A) à la moins (G) — l'ordre de
+# référence de la monotonie (#119). L'index dans cette chaîne donne le rang.
+_ECHELLE_DPE = "ABCDEFG"
+
+
+@dataclass(frozen=True)
+class ResultatMonotonie:
+    """Verdict de monotonie DPE (INV-1) : anomalies bloquantes + inversions tolérées.
+
+    ``raisons`` non vide ⇒ maille non publiée. ``inversions_tolerees`` est tracé
+    même quand la maille reste publiable : c'est le signal qui, six mois plus tard,
+    distingue une faiblesse chronique d'une dérive nouvelle.
+    """
+
+    raisons: tuple[str, ...]
+    inversions_tolerees: tuple[str, ...]
+
+    @property
+    def publiable(self) -> bool:
+        return not self.raisons
+
+
+def evaluer_monotonie_dpe(
+    maille: MailleCoefficient, config: CalculConfig = DEFAULT_CONFIG
+) -> ResultatMonotonie:
+    """Vérifie l'ordre ``coef(A) > … > coef(G)`` sur les classes publiées (#119).
+
+    Une inversion (classe meilleure au coef plus bas) n'est tolérée que si les deux
+    classes sont **adjacentes** dans l'échelle et que la moins fournie est sous
+    ``config.inversion_dpe_seuil`` ; toute autre inversion est une anomalie.
+    """
+    classes = sorted((c for c in maille.coef_dpe if c in _ECHELLE_DPE), key=_ECHELLE_DPE.index)
+
+    raisons: list[str] = []
+    tolerees: list[str] = []
+    for meilleure, moins_bonne in pairwise(classes):
+        coef_haut = maille.coef_dpe[meilleure]
+        coef_bas = maille.coef_dpe[moins_bonne]
+        if coef_haut >= coef_bas:
+            continue
+        adjacentes = _ECHELLE_DPE.index(moins_bonne) - _ECHELLE_DPE.index(meilleure) == 1
+        moins_fournie = min(
+            maille.effectifs_dpe.get(meilleure, 0), maille.effectifs_dpe.get(moins_bonne, 0)
+        )
+        trace = f"{meilleure}<{moins_bonne} (coef {coef_haut:.2f} < {coef_bas:.2f})"
+        if adjacentes and moins_fournie < config.inversion_dpe_seuil:
+            tolerees.append(trace)
+        else:
+            raisons.append(f"inversion {trace}")
+
+    return ResultatMonotonie(raisons=tuple(raisons), inversions_tolerees=tuple(tolerees))
