@@ -35,6 +35,9 @@ def test_defauts_sans_environnement() -> None:
     assert config.indice_local is True
     # Validation croisée
     assert config.cv_folds == 5
+    # Seuils de publication (INV-4)
+    assert config.erreur_mediane_max_pct == 20.0
+    assert config.r2_min == 0.30
     # Nettoyage
     assert config.price_min == 30_000.0
     assert config.price_max == 900_000.0
@@ -62,6 +65,12 @@ def test_config_est_immuable() -> None:
 
 def test_surcharge_float() -> None:
     assert resolve_config({"VV_MOTEUR_SIGMA_KM": "5"}).sigma_km == 5.0
+
+
+def test_surcharge_seuils_publication() -> None:
+    config = resolve_config({"VV_MOTEUR_ERREUR_MEDIANE_MAX_PCT": "15", "VV_MOTEUR_R2_MIN": "0.5"})
+    assert config.erreur_mediane_max_pct == 15.0
+    assert config.r2_min == 0.5
 
 
 def test_surcharge_int() -> None:

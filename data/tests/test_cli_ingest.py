@@ -162,3 +162,13 @@ def test_un_departement_sans_aucune_donnee_n_est_pas_un_succes(
     )
 
     assert rapport.est_en_echec
+
+
+def test_le_rapport_d_ingestion_porte_le_departement_et_le_millesime(
+    connexion: _FausseConnexion,
+) -> None:
+    """Le rapport identifie sans ambiguïté le batch qu'il décrit."""
+    rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert rapport.departement == "31"
+    assert rapport.millesime == 2024

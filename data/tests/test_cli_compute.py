@@ -286,3 +286,36 @@ def test_une_maille_rejetee_efface_le_coefficient_anterieur(
 
     suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
     assert len(suppressions) == 2
+
+
+def test_le_rapport_de_calcul_porte_le_departement_et_le_millesime(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Le rapport identifie sans ambiguïté le batch qu'il décrit."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert rapport.departement == "31"
+    assert rapport.millesime == 2024
+
+
+def test_un_echec_d_ecriture_est_trace_et_annule(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une écriture qui échoue est annulée (rollback) et tracée par son code commune,
+    sans interrompre les autres — la maille n'est pas comptée comme calculée."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+
+    def _boom(*_: Any, **__: Any) -> None:
+        raise RuntimeError("base indisponible")
+
+    monkeypatch.setattr(orchestration, "upsert_coefficient", _boom)
+
+    rapport = orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
+    )
+
+    assert set(rapport.echecs) == {"31555", "31149"}
+    assert rapport.communes_calculees == 0
+    assert connexion.rollbacks >= 1

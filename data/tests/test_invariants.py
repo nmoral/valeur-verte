@@ -50,11 +50,19 @@ def test_erreur_mediane_trop_haute_bloque_la_publication() -> None:
     assert any("médiane" in raison for raison in verdict.raisons)
 
 
+def test_erreur_mediane_egale_au_seuil_bloque() -> None:
+    # Seuil strict « < 20 % » : à 20 % pile, la maille n'est pas publiée.
+    verdict = evaluer_invariants_publication(_maille(erreur_mediane=20.0), CalculConfig())
+
+    assert verdict.publiable is False
+
+
 def test_erreur_mediane_absente_bloque_la_publication() -> None:
     # CV non calculable (échantillon trop petit) : on ne peut pas juger la fiabilité.
     verdict = evaluer_invariants_publication(_maille(erreur_mediane=None), CalculConfig())
 
     assert verdict.publiable is False
+    assert any("médiane" in raison for raison in verdict.raisons)
 
 
 def test_r2_trop_bas_bloque_la_publication() -> None:
@@ -62,6 +70,20 @@ def test_r2_trop_bas_bloque_la_publication() -> None:
 
     assert verdict.publiable is False
     assert any("R²" in raison for raison in verdict.raisons)
+
+
+def test_r2_egal_au_seuil_bloque() -> None:
+    # Seuil strict « R² > 0,30 » : à 0,30 pile, la maille n'est pas publiée.
+    verdict = evaluer_invariants_publication(_maille(r2=0.30), CalculConfig())
+
+    assert verdict.publiable is False
+
+
+def test_n_egal_au_seuil_est_publiable() -> None:
+    # Le plancher est « n ≥ 30 » : à 30 pile, la maille passe (bornes de #22).
+    verdict = evaluer_invariants_publication(_maille(n=30), CalculConfig())
+
+    assert verdict.publiable is True
 
 
 def test_n_sous_le_seuil_bloque_la_publication() -> None:
