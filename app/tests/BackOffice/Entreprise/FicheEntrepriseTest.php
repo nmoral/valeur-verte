@@ -32,6 +32,23 @@ final class FicheEntrepriseTest extends TestCase
         self::assertSame(['Isolation des murs', 'Menuiseries'], $fiche->domainesRge());
     }
 
+    public function testLesChampsTexteSontDetoures(): void
+    {
+        $fiche = FicheEntreprise::creer(
+            Siret::depuis('12345678901234'),
+            '  Renov Habitat  ',
+            '  12 rue des Lilas  ',
+            '  43.29A  ',
+            null,
+            StatutRge::NonRge,
+            [],
+        );
+
+        self::assertSame('Renov Habitat', $fiche->raisonSociale());
+        self::assertSame('12 rue des Lilas', $fiche->adresse());
+        self::assertSame('43.29A', $fiche->codeNaf());
+    }
+
     public function testUneFicheNonRgeResteValideSansDomaines(): void
     {
         $fiche = FicheEntreprise::creer(

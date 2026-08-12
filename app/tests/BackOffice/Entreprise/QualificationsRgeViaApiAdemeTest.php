@@ -37,7 +37,34 @@ final class QualificationsRgeViaApiAdemeTest extends TestCase
         self::assertSame(StatutRge::Rge, $qualification->statut());
         self::assertSame(['Isolation des murs', 'Menuiseries extérieures'], $qualification->domaines());
         self::assertStringContainsString(self::SIRET, (string) $urlDemandee);
+        self::assertStringContainsString('size=100', (string) $urlDemandee);
         self::assertNotContains('https://qualit-enr.org', $qualification->domaines(), 'Le site du certificateur ne doit jamais fuiter.');
+    }
+
+    public function testLesDomainesVidesOuBlancsSontIgnores(): void
+    {
+        $client = new MockHttpClient(new MockResponse((string) json_encode([
+            'total' => 3,
+            'results' => [
+                ['siret' => self::SIRET, 'domaine' => '  Isolation des combles  '],
+                ['siret' => self::SIRET, 'domaine' => '   '],
+                ['siret' => self::SIRET],
+            ],
+        ])));
+
+        $qualification = (new QualificationsRgeViaApiAdeme($client))->pourSiret(Siret::depuis(self::SIRET));
+
+        self::assertSame(StatutRge::Rge, $qualification->statut());
+        self::assertSame(['Isolation des combles'], $qualification->domaines());
+    }
+
+    public function testUnStatutHttpNon200DonneUnStatutIndetermine(): void
+    {
+        $client = new MockHttpClient(new MockResponse((string) json_encode(['results' => []]), ['http_code' => 503]));
+
+        $qualification = (new QualificationsRgeViaApiAdeme($client))->pourSiret(Siret::depuis(self::SIRET));
+
+        self::assertSame(StatutRge::Indetermine, $qualification->statut());
     }
 
     public function testUneEntrepriseSansLigneEstNonRge(): void
