@@ -97,6 +97,11 @@ final readonly class Restitution
         return $this->portee;
     }
 
+    public function palier(): PalierFiabilite
+    {
+        return $this->palier;
+    }
+
     /**
      * @return array<string, string>
      */

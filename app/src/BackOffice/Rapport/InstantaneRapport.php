@@ -9,6 +9,8 @@ use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\Couleur;
 use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Pdf\ReferenceRapport;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
 
 /**
@@ -118,6 +120,9 @@ final readonly class InstantaneRapport
                 'millesime' => $this->restitution->millesime(),
                 'prix_base_euros' => $this->restitution->prixBaseEuros(),
                 'prix_saisi_par_le_pro' => $this->restitution->prixSaisiParLePro(),
+                'mode' => $this->restitution->portee()->value,
+                'palier' => $this->restitution->palier()->value,
+                'bandes_appliquees' => $this->restitution->bandesAppliquees(),
             ],
             'calcul' => $this->contexte?->toArray(),
             'marque' => [
@@ -152,16 +157,20 @@ final readonly class InstantaneRapport
         }
 
         $restitution = self::sousTableau($restitution);
+        $rayonKm = self::entierOuNull($restitution['rayon_km']);
 
         return Restitution::depuis(
             self::entier($restitution['montant_euros']),
             self::entier($restitution['borne_basse_euros']),
             self::entier($restitution['borne_haute_euros']),
             self::entier($restitution['n']),
-            self::entierOuNull($restitution['rayon_km']),
+            $rayonKm,
             self::entier($restitution['millesime']),
             self::entier($restitution['prix_base_euros']),
             self::booleen($restitution['prix_saisi_par_le_pro']),
+            PorteeEstimation::depuis(self::texteOuNull($restitution['mode'] ?? null), $rayonKm),
+            PalierFiabilite::depuis(self::texteOuNull($restitution['palier'] ?? null)),
+            self::mappingTexte($restitution['bandes_appliquees'] ?? []),
         );
     }
 
@@ -194,6 +203,25 @@ final readonly class InstantaneRapport
         }
 
         return $tableau;
+    }
+
+    /**
+     * Bandes DPE appliquées (#169), relues du JSONB : mapping classe → bande,
+     * toutes valeurs textuelles. Absent des instantanés antérieurs → mapping vide.
+     *
+     * @return array<string, string>
+     */
+    private static function mappingTexte(mixed $valeur): array
+    {
+        \assert(\is_array($valeur));
+
+        $mapping = [];
+        foreach ($valeur as $cle => $sousValeur) {
+            \assert(\is_string($sousValeur));
+            $mapping[(string) $cle] = $sousValeur;
+        }
+
+        return $mapping;
     }
 
     /**
