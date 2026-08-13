@@ -75,6 +75,33 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertStringContainsString('69 972', (string) $client->getResponse()->getContent());
     }
 
+    public function testLaRestitutionAfficheLePrixDeBaseParDefaut(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client);
+
+        $html = (string) $client->getResponse()->getContent();
+        // Prix de base = 1635 × 90 = 147 150 €, issu de la médiane de la commune.
+        self::assertStringContainsString('147 150', $html);
+        self::assertStringContainsString('médiane de la commune', $html);
+    }
+
+    public function testLaRestitutionAfficheLePrixSaisiParLePro(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client, valeurBien: '200000');
+
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('200 000', $html);
+        self::assertStringContainsString('valeur que vous avez saisie', $html);
+    }
+
     public function testUneCommuneHorsCouvertureResteValideMaisSansChiffre(): void
     {
         $client = $this->client();
