@@ -171,7 +171,13 @@ Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur
 
 Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départemental),
 `n_transactions`, `r2`, `erreur_mediane`, `coef_m2_bati`, `coef_m2_terrain`,
-`coef_dpe` (JSONB), `ic_dpe` (JSONB), `alerte`, `palier`, `calcule_le`.
+`coef_dpe` (JSONB), `ic_dpe` (JSONB), `alerte`, `palier`, `mode`, `bandes`, `calcule_le`.
+- **`mode`** : cran de la cascade retenu (`local`/`epci`/`departemental`, #169) — la
+  restitution en dérive la granularité affichée et la fiabilité (EPCI et DÉPT ont tous
+  deux `rayon` null, seul `mode` les distingue).
+- **`bandes`** (#169, crans EPCI/DÉPT) : mapping `classe DPE → représentant` des bandes
+  fusionnées (ex. `{"F": "F", "G": "F"}`), **vide au cran LOCAL**. Sans lui, une maison
+  d'une classe fusionnée (G) n'aurait aucun coefficient côté restitution.
 - **`palier`** (#169, `degraded.palier_erreur`) : tier de fiabilité de la maille —
   `STANDARD` si `erreur_mediane < erreur_mediane_max_pct` (20 %), `DEGRADE` si sous
   `erreur_mediane_max_pct_degrade` (30 %). Distinct de `alerte` (réservé à INV-3

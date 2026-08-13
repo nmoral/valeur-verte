@@ -60,6 +60,11 @@ class MailleCoefficient:
     # erreurs 20-30 % au lieu du refus sec. Défaut STANDARD pour les mailles
     # construites hors du moteur (tests).
     palier: PalierFiabilite = PalierFiabilite.STANDARD
+    # Mapping classe DPE → représentant de bande (#169), pour les crans EPCI/DÉPT
+    # où des classes adjacentes ont été fusionnées (ex. ``{"F": "F", "G": "F"}``).
+    # **Vide au cran LOCAL** (classes pleines). Indispensable à la restitution : sans
+    # lui, une maison d'une classe fusionnée (G) n'aurait aucun coefficient servable.
+    bandes: dict[str, str] = field(default_factory=dict)
     # Effectif observé par classe DPE publiée (INV-1, #119) : porte la tolérance
     # de monotonie. Défaut vide pour les mailles construites hors du moteur (tests).
     effectifs_dpe: dict[str, int] = field(default_factory=dict)
@@ -317,7 +322,7 @@ def _maille_par_bandes(
         else mutation
         for mutation in sample
     ]
-    return _compute_from_sample(
+    maille = _compute_from_sample(
         code_insee,
         centroid_lat,
         centroid_lon,
@@ -329,6 +334,9 @@ def _maille_par_bandes(
         alerte=None,
         config=config,
     )
+    # Le mapping des bandes voyage avec la maille : la restitution en a besoin pour
+    # relier une classe fusionnée (G) au coefficient de son représentant (F).
+    return maille if maille is None else replace(maille, bandes=bandes)
 
 
 def compute_maille_epci(
