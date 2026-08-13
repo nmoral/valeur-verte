@@ -13,6 +13,16 @@
     var boutonGeoloc = document.getElementById('adresse-geoloc');
     var erreurGeoloc = document.getElementById('adresse-geoloc-erreur');
     var spinner = document.getElementById('adresse-spin');
+    var champInsee = document.getElementById('code_insee');
+
+    // Le code INSEE identifie la maille du moteur (§10.6) : il n'est fiable que
+    // s'il provient d'une adresse choisie dans la liste. Une saisie manuelle
+    // l'invalide, sinon on chiffrerait sur la mauvaise commune.
+    function fixerInsee(citycode) {
+        if (champInsee) {
+            champInsee.value = citycode || '';
+        }
+    }
 
     function chargement(actif) {
         if (spinner) {
@@ -30,8 +40,9 @@
         indexActif = -1;
     }
 
-    function choisir(label) {
+    function choisir(label, citycode) {
         champ.value = label;
+        fixerInsee(citycode);
         masquer();
         champ.focus();
     }
@@ -49,12 +60,14 @@
             if ('' === label) {
                 return;
             }
+            var citycode = feature.properties && feature.properties.citycode ? feature.properties.citycode : '';
             var item = document.createElement('li');
             item.setAttribute('role', 'option');
             item.textContent = label;
+            item.dataset.citycode = citycode;
             item.addEventListener('mousedown', function (evenement) {
                 evenement.preventDefault();
-                choisir(label);
+                choisir(label, citycode);
             });
             liste.appendChild(item);
         });
@@ -91,6 +104,9 @@
     }
 
     champ.addEventListener('input', function () {
+        // Toute frappe invalide la commune choisie : on repart sans code INSEE
+        // jusqu'à une nouvelle sélection dans la liste.
+        fixerInsee('');
         if (minuteur) {
             window.clearTimeout(minuteur);
         }
@@ -112,7 +128,7 @@
             surligner(items);
         } else if ('Enter' === evenement.key && indexActif >= 0) {
             evenement.preventDefault();
-            choisir(items[indexActif].textContent || '');
+            choisir(items[indexActif].textContent || '', items[indexActif].dataset.citycode || '');
         } else if ('Escape' === evenement.key) {
             masquer();
         }
@@ -149,6 +165,7 @@
                     return;
                 }
                 champ.value = features[0].properties.label || '';
+                fixerInsee(features[0].properties.citycode || '');
                 derniere = champ.value;
                 afficher(features);
                 champ.focus();
