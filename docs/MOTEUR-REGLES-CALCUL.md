@@ -115,9 +115,10 @@ Ce choix interne à `compute_maille` reste piloté par l'**effectif** (n). Mais 
 niveau de l'orchestration, une **cascade géographique** (#169) l'enveloppe : si le
 cran LOCAL ne produit pas de maille **publiable** (absente, ou calculée mais hors
 invariants par-maille — INV-4 erreur ≤ 30 %, INV-2, INV-1, INV-3 rayon), on **descend
-au cran EPCI** (`compute_maille_epci` : une régression sur les ventes des communes du
-même EPCI, avec bandes DPE) avant de refuser. Le cran DÉPARTEMENT reste à câbler
-(voir §14).
+d'un cran** : d'abord **EPCI** (`compute_maille_epci` : ventes des communes du même
+EPCI, avec bandes), puis **DÉPARTEMENT** (`compute_maille_departement` : ventes du seul
+département, avec bandes) en dernier filet. Le premier cran qui publie l'emporte ;
+si aucun ne tient, la commune sort hors zone.
 
 ## 8. Écrêtage des outliers (`trimming.ecreter_residu`, S32 V2)
 
@@ -221,13 +222,15 @@ se câble par petits pas TDD. État :
 - ✅ **Cran EPCI** (bandes adaptatives) : `batch.compute_maille_epci` poole les ventes
   des communes du même EPCI (une régression par EPCI, σ uniforme) avec bandes
   monotones ; câblé dans `orchestration` en repli d'un LOCAL non publiable (§7).
-- ⏳ **Cran DÉPARTEMENT** : bandes adaptatives + anti-inversion sur le repli départemental.
+- ✅ **Cran DÉPARTEMENT** : `batch.compute_maille_departement` poole les ventes du seul
+  département (voisins exclus) avec bandes monotones ; câblé en dernier cran de la
+  cascade dans `orchestration` (§7). Cœur des crans EPCI/DÉPT factorisé (`_maille_par_bandes`).
 - ⏳ **Persistance** : `coefficient_maille` doit porter `palier`/bandes/EPCI (contrat data→app).
 - ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
 
-Ce référentiel décrit le moteur **tel qu'il tourne** : la cascade descend LOCAL →
-EPCI (le cran DÉPARTEMENT avec bandes reste à brancher, ainsi que la persistance du
-`palier`/bandes et la restitution).
+Ce référentiel décrit le moteur **tel qu'il tourne** : la cascade géographique
+complète LOCAL → EPCI → DÉPARTEMENT est branchée ; restent la **persistance** du
+`palier`/bandes dans `coefficient_maille` et la **restitution** `app`.
 
 ## 15. Décisions & réglages (traçabilité)
 

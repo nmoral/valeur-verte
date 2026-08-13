@@ -14,7 +14,12 @@ from typing import Protocol
 
 import httpx
 
-from .batch import MailleCoefficient, compute_communes, compute_maille_epci
+from .batch import (
+    MailleCoefficient,
+    compute_communes,
+    compute_maille_departement,
+    compute_maille_epci,
+)
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import delete_coefficient, upsert_coefficient
 from .db.epci_repository import communes_de_meme_epci, upsert_epci
@@ -261,6 +266,17 @@ def compute_departement(
                 monotonie_epci = evaluer_monotonie_dpe(epci, config)
                 if not _raisons_de_rejet(epci, monotonie_epci, config):
                     retenue, monotonie = epci, monotonie_epci
+
+        if retenue is None:
+            # Dernier filet #169 : le cran DÉPARTEMENT (ventes du seul département,
+            # avec bandes) garantit une estimation là où le local et l'EPCI ont cédé.
+            dept = compute_maille_departement(
+                code_insee, latitude, longitude, millesime, pool, config=config
+            )
+            if dept is not None:
+                monotonie_dept = evaluer_monotonie_dpe(dept, config)
+                if not _raisons_de_rejet(dept, monotonie_dept, config):
+                    retenue, monotonie = dept, monotonie_dept
 
         if retenue is None:
             # Aucun cran ne publie : on efface une éventuelle valeur antérieure
