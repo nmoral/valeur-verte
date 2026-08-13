@@ -51,6 +51,8 @@ final class CoefficientsControllerTest extends WebTestCase
         // La maille signalée (erreur médiane 42 %) remonte en première ligne.
         self::assertSelectorTextContains('tbody tr:first-child', '32002');
         self::assertSelectorTextContains('tbody tr:first-child', 'erreur_mediane_elevee');
+        // La liste est paginée : le compteur total est affiché.
+        self::assertSelectorTextContains('.pager', '2 mailles');
     }
 
     private function connecterAdmin(KernelBrowser $client): void

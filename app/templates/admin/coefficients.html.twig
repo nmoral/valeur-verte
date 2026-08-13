@@ -22,7 +22,7 @@
             </tr>
         </thead>
         <tbody>
-        {% for maille in mailles %}
+        {% for maille in page.mailles %}
             <tr{{ maille.estAberrante ? ' class="alerte"' : '' }}>
                 <td>{{ maille.codeInsee }}</td>
                 <td>{{ maille.millesime }}</td>
@@ -39,4 +39,14 @@
         {% endfor %}
         </tbody>
     </table>
+
+    <nav class="pager" aria-label="Pagination des coefficients">
+        <span class="pager-info">Page {{ page.page }} / {{ page.pages }} — {{ page.total }} mailles</span>
+        {% if page.page > 1 %}
+            <a href="{{ path('admin_coefficients') }}?page={{ page.page - 1 }}">← Précédent</a>
+        {% endif %}
+        {% if page.page < page.pages %}
+            <a href="{{ path('admin_coefficients') }}?page={{ page.page + 1 }}">Suivant →</a>
+        {% endif %}
+    </nav>
 {% endblock %}
