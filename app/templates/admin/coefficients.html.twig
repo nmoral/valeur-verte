@@ -6,6 +6,8 @@
 
 {% block admin_subtitle %}<p>Une maille signalée doit être vérifiée avant qu'un pro ne l'affiche à un client. Gain E→C exprimé en log.</p>{% endblock %}
 
+{% block admin_actions %}<a class="btn" href="{{ path('admin_seuils_supervision') }}">Régler les seuils d'alerte</a>{% endblock %}
+
 {% block admin_content %}
     <table>
         <thead>
