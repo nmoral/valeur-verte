@@ -16,7 +16,7 @@ import pytest
 
 from valeur_verte_data import cli, orchestration
 from valeur_verte_data.batch import MailleCoefficient
-from valeur_verte_data.config import CalculConfig
+from valeur_verte_data.config import CalculConfig, resolve_config
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
 from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
@@ -158,6 +158,31 @@ def test_le_pool_du_departement_n_est_charge_qu_une_fois(
     assert chargements == ["31"]
 
 
+def test_le_pool_est_charge_sur_la_fenetre_de_millesimes(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """La fenêtre glissante (#177) est pilotée par la config et transmise au pool.
+
+    Le millésime publié reste le millésime de référence (N) ; seule la profondeur
+    d'estimation change. L'orchestration ne connaît pas la requête SQL, elle
+    transmet la taille de fenêtre lue dans la config.
+    """
+    fenetres: list[int] = []
+
+    def _charger(
+        conn: Any, departement: str, millesime: int, *, fenetre: int = 1, **_: Any
+    ) -> list[Mutation]:
+        fenetres.append(fenetre)
+        return _POOL
+
+    monkeypatch.setattr(orchestration, "load_pool", _charger)
+
+    config = resolve_config({"VV_MOTEUR_FENETRE_MILLESIMES": "3"})
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+
+    assert fenetres == [3]
+
+
 def test_le_pool_deborde_sur_les_departements_limitrophes(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -169,6 +194,7 @@ def test_le_pool_deborde_sur_les_departements_limitrophes(
         departement: str,
         millesime: int,
         *,
+        fenetre: int = 1,
         limitrophes: tuple[str, ...] = (),
         type_local: str = "Maison",
     ) -> list[Mutation]:
