@@ -40,6 +40,8 @@ def test_defauts_sans_environnement() -> None:
     assert config.cv_folds == 5
     # Seuils de publication (INV-4)
     assert config.erreur_mediane_max_pct == 20.0
+    # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »
+    assert config.erreur_mediane_max_pct_degrade == 30.0
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -78,6 +80,11 @@ def test_surcharge_seuils_publication() -> None:
     config = resolve_config({"VV_MOTEUR_ERREUR_MEDIANE_MAX_PCT": "15", "VV_MOTEUR_R2_MIN": "0.5"})
     assert config.erreur_mediane_max_pct == 15.0
     assert config.r2_min == 0.5
+
+
+def test_surcharge_seuil_degrade() -> None:
+    config = resolve_config({"VV_MOTEUR_ERREUR_MEDIANE_MAX_PCT_DEGRADE": "25"})
+    assert config.erreur_mediane_max_pct_degrade == 25.0
 
 
 def test_surcharge_int() -> None:
