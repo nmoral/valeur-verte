@@ -1,0 +1,72 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Configuration · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Configuration{% endblock %}
+
+{% block admin_subtitle %}<p>Tous les réglages sur une page. Chaque section est enregistrée indépendamment, sans recharger. Les changements sont tracés au journal d'audit.</p>{% endblock %}
+
+{% block admin_content %}
+    <section class="config-bloc">
+        <h2>Seuil d'essai</h2>
+        <p>Nombre de rapports offerts avant la bascule payant.</p>
+        <form data-async method="post" action="{{ path('admin_seuil_essai') }}">
+            <label for="cfg_seuil">Seuil (nombre de rapports)</label>
+            <input type="number" id="cfg_seuil" name="seuil" min="1" step="1" value="{{ seuil_essai }}" required>
+            <button type="submit">Enregistrer</button>
+            <span class="feedback" role="status" aria-live="polite"></span>
+        </form>
+    </section>
+
+    <section class="config-bloc">
+        <h2>Seuils d'alerte des coefficients</h2>
+        <p>Au-delà, une maille est signalée en supervision. Le gain E→C est un effet log.</p>
+        <form data-async method="post" action="{{ path('admin_seuils_supervision') }}">
+            <label for="cfg_erreur">Erreur médiane maximale (%)</label>
+            <input type="number" id="cfg_erreur" name="erreur_mediane_max" min="1" step="0.5" value="{{ seuils_supervision.erreurMedianeMaxPct }}" required>
+
+            <label for="cfg_gain">Gain E→C maximal (log)</label>
+            <input type="number" id="cfg_gain" name="gain_ec_max" min="0.01" step="0.01" value="{{ seuils_supervision.gainEcMaxLog }}" required>
+
+            <button type="submit">Enregistrer</button>
+            <span class="feedback" role="status" aria-live="polite"></span>
+        </form>
+    </section>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    document.querySelectorAll('form[data-async]').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var feedback = form.querySelector('.feedback');
+            feedback.textContent = 'Enregistrement…';
+            feedback.className = 'feedback';
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form)
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (resultat) {
+                    if (resultat.ok && resultat.data.ok) {
+                        feedback.textContent = 'Enregistré ✓';
+                        feedback.className = 'feedback ok';
+                    } else {
+                        feedback.textContent = resultat.data.erreur || 'Valeur refusée';
+                        feedback.className = 'feedback erreur';
+                    }
+                })
+                .catch(function () {
+                    feedback.textContent = 'Erreur réseau';
+                    feedback.className = 'feedback erreur';
+                });
+        });
+    });
+</script>
+{% endblock %}
