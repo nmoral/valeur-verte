@@ -63,6 +63,18 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertSelectorExists('.banner-fiabilite');
     }
 
+    public function testLeProPeutAjusterLaValeurDuBien(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        // E→C, Δ = 0,30 ; valeur du bien forcée à 200 000 € → 200000 × (e^0,30 − 1).
+        $this->soumettre($client, valeurBien: '200000');
+
+        self::assertStringContainsString('69 972', (string) $client->getResponse()->getContent());
+    }
+
     public function testUneCommuneHorsCouvertureResteValideMaisSansChiffre(): void
     {
         $client = $this->client();
@@ -113,7 +125,7 @@ final class AuditRestitutionTest extends WebTestCase
         );
     }
 
-    private function soumettre(KernelBrowser $client): void
+    private function soumettre(KernelBrowser $client, string $valeurBien = ''): void
     {
         $client->followRedirects();
         $crawler = $client->request('GET', self::URL);
@@ -127,6 +139,7 @@ final class AuditRestitutionTest extends WebTestCase
             'dpe_avant' => 'E',
             'dpe_apres' => 'C',
             'code_insee' => self::CODE_INSEE,
+            'valeur_bien' => $valeurBien,
             '_csrf_token' => $token,
         ]);
     }
