@@ -1,0 +1,40 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Supervision des coefficients · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Supervision des coefficients{% endblock %}
+
+{% block admin_subtitle %}<p>Une maille signalée doit être vérifiée avant qu'un pro ne l'affiche à un client. Gain E→C exprimé en log.</p>{% endblock %}
+
+{% block admin_content %}
+    <table>
+        <thead>
+            <tr>
+                <th>Code INSEE</th>
+                <th>Millésime</th>
+                <th>n</th>
+                <th>Rayon</th>
+                <th>Erreur médiane</th>
+                <th>Gain E→C (log)</th>
+                <th>Signalement</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for maille in mailles %}
+            <tr{{ maille.estAberrante ? ' class="alerte"' : '' }}>
+                <td>{{ maille.codeInsee }}</td>
+                <td>{{ maille.millesime }}</td>
+                <td>{{ maille.n }}</td>
+                <td>{{ maille.rayonKm is null ? 'départemental' : maille.rayonKm ~ ' km' }}</td>
+                <td>{{ maille.erreurMediane|number_format(1) }} %</td>
+                <td>{{ maille.gainEcLog is null ? '—' : maille.gainEcLog|number_format(2) }}</td>
+                <td>{{ maille.estAberrante ? maille.raisons|join(', ') : '—' }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7">Aucun coefficient publié pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
