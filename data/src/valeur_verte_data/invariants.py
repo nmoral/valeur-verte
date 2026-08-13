@@ -14,6 +14,9 @@ viennent de la config (source unique, configurable).
 - **INV-1 (#119)** — monotonie de l'échelle DPE : ``coef(A) > … > coef(G)``. Une
   inversion entre classes adjacentes est tolérée (et journalisée) si la moins
   fournie est sous le seuil ; sinon la maille n'est pas publiée.
+- **INV-2 (#120)** — signe et ordre de grandeur : reformulé pour le modèle
+  log-prix (effets log, élasticités), on vérifie des signes/ordres (gain E→C > 0,
+  effet de seuil, terrain < bâti) et des bornes de magnitude en log.
 """
 
 from __future__ import annotations
@@ -73,6 +76,46 @@ def evaluer_coherence_geographique(
         and maille.rayon_retenu_km > config.rayon_max_km
     ):
         raisons.append(f"rayon {maille.rayon_retenu_km} km > {config.rayon_max_km} km")
+
+    return VerdictPublication(publiable=not raisons, raisons=tuple(raisons))
+
+
+def evaluer_signe_ordre_grandeur(
+    maille: MailleCoefficient, config: CalculConfig = DEFAULT_CONFIG
+) -> VerdictPublication:
+    """INV-2 (#120), reformulé en log : signes, ordres et magnitudes plausibles.
+
+    Les ``coef_dpe`` sont des effets log (gains de rénovation) ; ``coef_m2_bati``
+    et ``coef_m2_terrain`` des élasticités. Les contrôles DPE ne s'appliquent que
+    si les classes concernées sont publiées.
+    """
+    raisons: list[str] = []
+    coef = maille.coef_dpe
+
+    if "E" in coef and "C" in coef:
+        gain_ec = coef["C"] - coef["E"]
+        if gain_ec <= 0:
+            raisons.append(f"gain E→C {gain_ec:.2f} ≤ 0 (non positif)")
+        elif gain_ec > config.gain_dpe_ec_max:
+            raisons.append(f"gain E→C {gain_ec:.2f} > {config.gain_dpe_ec_max:.2f}")
+        if "D" in coef:
+            gain_ed = coef["D"] - coef["E"]
+            if gain_ed >= gain_ec:
+                raisons.append(f"gain E→D {gain_ed:.2f} ≥ gain E→C {gain_ec:.2f} (seuil rompu)")
+
+    bati = maille.coef_m2_bati
+    terrain = maille.coef_m2_terrain
+    if bati <= 0:
+        raisons.append(f"élasticité bâti {bati:.2f} ≤ 0")
+    elif not config.elasticite_bati_min <= bati <= config.elasticite_bati_max:
+        raisons.append(
+            f"élasticité bâti {bati:.2f} hors "
+            f"[{config.elasticite_bati_min:.2f} ; {config.elasticite_bati_max:.2f}]"
+        )
+    if terrain <= 0:
+        raisons.append(f"élasticité terrain {terrain:.2f} ≤ 0")
+    elif terrain >= bati:
+        raisons.append(f"élasticité terrain {terrain:.2f} ≥ bâti {bati:.2f}")
 
     return VerdictPublication(publiable=not raisons, raisons=tuple(raisons))
 

@@ -19,7 +19,7 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
-from valeur_verte_data.invariants import ResultatMonotonie
+from valeur_verte_data.invariants import ResultatMonotonie, VerdictPublication
 
 _COMMUNES = [
     {
@@ -85,6 +85,16 @@ def _neutraliser_monotonie(monkeypatch: pytest.MonkeyPatch) -> None:
         orchestration,
         "evaluer_monotonie_dpe",
         lambda maille, config: ResultatMonotonie(raisons=(), inversions_tolerees=()),
+    )
+
+
+def _neutraliser_signe_ordre(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Plumbing : les coefficients du pool synthétique (signe/ordre invraisemblables)
+    seraient rejetés par INV-2. On la neutralise pour isoler le câblage de publication."""
+    monkeypatch.setattr(
+        orchestration,
+        "evaluer_signe_ordre_grandeur",
+        lambda maille, config: VerdictPublication(publiable=True, raisons=()),
     )
 
 
@@ -184,6 +194,7 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL + [_vente_ariegeoise()])
     _neutraliser_monotonie(monkeypatch)
+    _neutraliser_signe_ordre(monkeypatch)
 
     orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -200,6 +211,7 @@ def test_les_communes_calculees_sont_ecrites(
     """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     _neutraliser_monotonie(monkeypatch)
+    _neutraliser_signe_ordre(monkeypatch)
 
     rapport = orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -323,6 +335,7 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     sans interrompre les autres — la maille n'est pas comptée comme calculée."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     _neutraliser_monotonie(monkeypatch)
+    _neutraliser_signe_ordre(monkeypatch)
 
     def _boom(*_: Any, **__: Any) -> None:
         raise RuntimeError("base indisponible")
@@ -338,8 +351,9 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     assert connexion.rollbacks >= 1
 
 
-def _maille_publiable(code_insee: str, coef_m2_bati: float) -> MailleCoefficient:
-    """Maille saine (passe INV-4 et INV-3 #1), coef_m2_bati contrôlé pour INV-3 #3."""
+def _maille_publiable(code_insee: str, coef_m2_bati: float = 0.90) -> MailleCoefficient:
+    """Maille saine (passe INV-2/INV-3 #1/INV-4). ``coef_m2_bati`` est une
+    élasticité (log-prix), pilotée pour tester la rupture INV-3 #3."""
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=2024,
@@ -349,7 +363,7 @@ def _maille_publiable(code_insee: str, coef_m2_bati: float) -> MailleCoefficient
         r2=0.5,
         erreur_mediane=15.0,
         coef_m2_bati=coef_m2_bati,
-        coef_m2_terrain=100.0,
+        coef_m2_terrain=0.30,
         coef_dpe={"D": 0.0, "F": -0.20},
         ic_dpe={},
         alerte=None,
@@ -366,7 +380,7 @@ def test_rupture_limitrophe_publie_avec_alerte(
     monkeypatch.setattr(
         orchestration,
         "compute_communes",
-        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 3000.0)],
+        lambda *a, **k: [_maille_publiable("31555", 0.5), _maille_publiable("31149", 1.2)],
     )
     monkeypatch.setattr(
         orchestration,
@@ -394,7 +408,7 @@ def test_sans_rupture_aucune_alerte_de_bord(
     monkeypatch.setattr(
         orchestration,
         "compute_communes",
-        lambda *a, **k: [_maille_publiable("31555", 1000.0), _maille_publiable("31149", 1500.0)],
+        lambda *a, **k: [_maille_publiable("31555", 0.5), _maille_publiable("31149", 0.6)],
     )
     monkeypatch.setattr(
         orchestration,
@@ -433,9 +447,8 @@ def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
 def _maille_dpe(
     code_insee: str, coef_dpe: dict[str, float], effectifs_dpe: dict[str, int]
 ) -> MailleCoefficient:
-    return replace(
-        _maille_publiable(code_insee, 1000.0), coef_dpe=coef_dpe, effectifs_dpe=effectifs_dpe
-    )
+    # Élasticité par défaut (valide INV-2) : ce témoin isole le comportement INV-1.
+    return replace(_maille_publiable(code_insee), coef_dpe=coef_dpe, effectifs_dpe=effectifs_dpe)
 
 
 def test_inversion_dpe_bloquante_n_est_pas_publiee(

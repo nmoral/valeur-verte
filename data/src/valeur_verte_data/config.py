@@ -63,6 +63,12 @@ class CalculConfig:
     # (seuil #22, source unique). Ces bornes sont configurables, pas codées en dur.
     erreur_mediane_max_pct: float = 20.0
     r2_min: float = 0.30
+    # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
+    # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
+    # de l'élasticité du m² bâti. Configurables — dépendent du marché couvert.
+    gain_dpe_ec_max: float = 0.70
+    elasticite_bati_min: float = 0.30
+    elasticite_bati_max: float = 1.50
     price_min: float = 30_000.0
     price_max: float = 900_000.0
     bati_min: float = 50.0
@@ -110,6 +116,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
         erreur_mediane_max_pct=_float(env, "ERREUR_MEDIANE_MAX_PCT", defaut.erreur_mediane_max_pct),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
+        gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
+        elasticite_bati_min=_float(env, "ELASTICITE_BATI_MIN", defaut.elasticite_bati_min),
+        elasticite_bati_max=_float(env, "ELASTICITE_BATI_MAX", defaut.elasticite_bati_max),
         price_min=_float(env, "PRICE_MIN", defaut.price_min),
         price_max=_float(env, "PRICE_MAX", defaut.price_max),
         bati_min=_float(env, "BATI_MIN", defaut.bati_min),
