@@ -43,18 +43,38 @@ def test_une_maille_saine_est_publiable() -> None:
     assert verdict.raisons == ()
 
 
-def test_erreur_mediane_trop_haute_bloque_la_publication() -> None:
+def test_erreur_au_seuil_standard_reste_publiable() -> None:
+    # #169 : le gate de publication est désormais le **plafond dégradé** (30 %),
+    # pas le seuil standard (20 %). À 20 % pile, la maille est publiée en tier
+    # dégradé (son palier porte le bandeau) au lieu du refus sec.
+    verdict = evaluer_invariants_publication(_maille(erreur_mediane=20.0), CalculConfig())
+
+    assert verdict.publiable is True
+    assert verdict.raisons == ()
+
+
+def test_erreur_dans_le_tier_degrade_est_publiable() -> None:
+    # #169 : entre seuil standard et plafond dégradé (20-30 %), la maille passe.
+    # C'est le levier qui ouvre le rural (1-3 % → 30-68 % de communes publiées).
     verdict = evaluer_invariants_publication(_maille(erreur_mediane=25.0), CalculConfig())
+
+    assert verdict.publiable is True
+    assert verdict.raisons == ()
+
+
+def test_erreur_au_plafond_degrade_bloque() -> None:
+    # Plafond strict « < 30 % » : à 30 % pile, la maille n'est pas publiée.
+    verdict = evaluer_invariants_publication(_maille(erreur_mediane=30.0), CalculConfig())
 
     assert verdict.publiable is False
     assert any("médiane" in raison for raison in verdict.raisons)
 
 
-def test_erreur_mediane_egale_au_seuil_bloque() -> None:
-    # Seuil strict « < 20 % » : à 20 % pile, la maille n'est pas publiée.
-    verdict = evaluer_invariants_publication(_maille(erreur_mediane=20.0), CalculConfig())
+def test_erreur_au_dela_du_plafond_degrade_bloque() -> None:
+    verdict = evaluer_invariants_publication(_maille(erreur_mediane=35.0), CalculConfig())
 
     assert verdict.publiable is False
+    assert any("médiane" in raison for raison in verdict.raisons)
 
 
 def test_erreur_mediane_absente_bloque_la_publication() -> None:
@@ -102,11 +122,13 @@ def test_les_raisons_se_cumulent() -> None:
     assert len(verdict.raisons) == 3
 
 
-def test_les_seuils_proviennent_de_la_config() -> None:
-    # Une erreur médiane de 25 % passe si le seuil est relevé à 30 % : la borne
-    # est une constante configurable unique, pas codée en dur (cohérence #31).
-    permissif = replace(CalculConfig(), erreur_mediane_max_pct=30.0)
+def test_le_gate_de_publication_lit_le_plafond_degrade_de_la_config() -> None:
+    # #169 : le gate d'erreur est le **plafond dégradé**. Une erreur de 35 % bloque
+    # au défaut (30 %) mais passe si le plafond est relevé à 40 % : la borne est une
+    # constante configurable unique (``erreur_mediane_max_pct_degrade``), pas codée en dur.
+    assert evaluer_invariants_publication(_maille(erreur_mediane=35.0), CalculConfig()).publiable is False
 
-    verdict = evaluer_invariants_publication(_maille(erreur_mediane=25.0), permissif)
+    permissif = replace(CalculConfig(), erreur_mediane_max_pct_degrade=40.0)
+    verdict = evaluer_invariants_publication(_maille(erreur_mediane=35.0), permissif)
 
     assert verdict.publiable is True
