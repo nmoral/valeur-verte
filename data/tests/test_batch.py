@@ -12,6 +12,7 @@ from valeur_verte_data.batch import (
     _sigma_local,
     compute_communes,
     compute_maille,
+    compute_maille_epci,
 )
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
@@ -48,6 +49,51 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
             prix = round(3000.0 * bati**0.9 * math.exp(effect))
             houses.append(_house(dpe, bati, prix, lat=lat, lon=lon))
     return houses
+
+
+def _cluster_commune(code_insee: str, count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Cluster de ventes rattachées à une commune donnée (id_mutation unique)."""
+    return [
+        replace(vente, code_insee=code_insee, id_mutation=f"{code_insee}-{vente.id_mutation}")
+        for vente in _cluster(count_per_class, lat=lat, lon=lon)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# #169 — Cran EPCI de la cascade. Quand le LOCAL échoue, on descend d'un cran :
+# une régression sur les ventes des communes du même EPCI (granularité entre
+# local et département). Pooling ici ; bandes DPE au cycle suivant.
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_epci_poole_les_communes_de_l_epci() -> None:
+    """La régression EPCI poole les ventes des communes du même EPCI et ignore
+    celles hors EPCI présentes dans le pool départemental (une régression par EPCI).
+    """
+    dans_epci = _cluster_commune("31555", 5, lat=43.6, lon=1.44) + _cluster_commune(
+        "31149", 5, lat=43.6, lon=1.44
+    )
+    hors_epci = _cluster_commune("31999", 5, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_class_sample=1)
+
+    maille = compute_maille_epci(
+        "31555", 43.6, 1.44, 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
+    )
+
+    assert maille is not None
+    assert maille.mode is CoverageMode.EPCI
+    assert maille.rayon_retenu_km is None
+    assert maille.n_transactions == len(dans_epci)
+
+
+def test_compute_maille_epci_refuse_sans_classe_exploitable() -> None:
+    """Sans deux classes DPE au seuil, l'EPCI refuse aussi (le gate de publication
+    par classe s'applique à tous les crans) — la bascule au département suivra."""
+    pool = [_maison_classe("D", i) for i in range(40)]  # une seule classe
+
+    maille = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=CalculConfig())
+
+    assert maille is None
 
 
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
