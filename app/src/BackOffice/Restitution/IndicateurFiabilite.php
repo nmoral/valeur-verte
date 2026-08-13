@@ -32,4 +32,40 @@ enum IndicateurFiabilite: string
 
         return self::Correct;
     }
+
+    public function pastille(): string
+    {
+        return match ($this) {
+            self::Solide => '🟢',
+            self::Correct => '🟠',
+            self::Fragile => '🔴',
+        };
+    }
+
+    public function couleur(): string
+    {
+        return match ($this) {
+            self::Solide => 'vert',
+            self::Correct => 'orange',
+            self::Fragile => 'rouge',
+        };
+    }
+
+    public function libelle(): string
+    {
+        return match ($this) {
+            self::Solide => 'Solide',
+            self::Correct => 'Correct',
+            self::Fragile => 'Fragile',
+        };
+    }
+
+    /**
+     * Seul le niveau Fragile impose le bandeau d'avertissement (§5.3) : repli
+     * départemental ou effectif insuffisant doivent être signalés au lecteur.
+     */
+    public function exigeBandeau(): bool
+    {
+        return self::Fragile === $this;
+    }
 }
