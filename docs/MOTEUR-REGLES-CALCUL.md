@@ -56,8 +56,22 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 - `surface_terrain` absente → traitée comme **0** (log1p).
 
 **Pool** (`pool_repository.load_pool`) : ventes du département **+ départements
-limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), millésime donné,
-`type_local='Maison'`, triées par `id_mutation` (ordre canonique INV-5).
+limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), sur la **fenêtre de
+millésimes** demandée, `type_local='Maison'`, triées par `id_mutation` (ordre
+canonique INV-5).
+
+- **Fenêtre glissante** (#177, `fenetre_millesimes`) : le pool empile les
+  `fenetre_millesimes` derniers millésimes finissant au millésime de référence N
+  (ex. `fenetre=3` → N, N-1, N-2), en une requête (`millesime = ANY(...)`). Le
+  bénéfice vert est structurel et lent : l'estimer sur plusieurs années réduit la
+  variance de rééchantillonnage (élasticités, classes DPE rares en rural) et rend
+  les écarts REG-1 inter-millésimes faibles par construction (fenêtres
+  recouvrantes). La maille reste **publiée sous le millésime N** ; ce sont les
+  effets fixes année (§4) qui absorbent la tendance de niveau, l'étiquette DPE
+  mesurant l'effet **structurel moyen** de la fenêtre.
+- **Défaut = 1** (mono-millésime, comportement historique exact). La bascule à 3
+  se pilote par `VV_MOTEUR_FENETRE_MILLESIMES` le temps de valider sur plusieurs
+  départements (protocole VPS #129) avant d'en faire le défaut.
 
 ## 4. Modèle de régression (`regression.fit`)
 
@@ -81,6 +95,11 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
   Neutre (log 1 = 0) si l'étendue de l'échantillon < `etendue_minimale_indice` (0,002°).
 - **Effets fixes période** : **gardés** (corrélés au DPE ; sans eux l'étiquette capte
   l'époque de construction — mitigation #115).
+- **Effets fixes année** : indicatrices par millésime présent dans le pool. Sur une
+  fenêtre glissante multi-années (#177, §3), elles **captent la tendance de niveau**
+  entre millésimes, de sorte que l'étiquette DPE mesure l'effet **structurel moyen**
+  de la fenêtre et non la dérive de marché. Sur un pool mono-millésime, aucune
+  indicatrice année n'est générée (un seul niveau).
 - **Effets fixes commune** : **désactivés** (S22, `effets_fixes_commune=false`) — ils
   sur-ajustaient (r² gonflé, erreur CV pire) ; l'indice local + σ portent la localité.
 
@@ -221,6 +240,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `min_local_sample` | 30 | seuil mode + n mini INV-4 |
 | `min_class_sample` | 20 | S21, publication classe |
 | `min_classes_publiees` | 2 | dont la référence |
+| `fenetre_millesimes` | 1 | #177 — millésimes empilés (fenêtre glissante) ; 1 = mono-millésime historique |
 | `inversion_dpe_seuil` | 30 | tolérance INV-1 |
 | `sigma_mode` / `sigma_diviseur` / `sigma_min` | `densite` / 1,0 / 3,0 | S23 |
 | `departemental_sigma_km` | 1000 | repli quasi-uniforme |

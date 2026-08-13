@@ -229,7 +229,14 @@ def compute_departement(
     rapport = RapportCalcul(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
     voisins = limitrophes(departement)
-    pool = load_pool(conn, departement, millesime, limitrophes=voisins, type_local=config.segment)
+    pool = load_pool(
+        conn,
+        departement,
+        millesime,
+        fenetre=config.fenetre_millesimes,
+        limitrophes=voisins,
+        type_local=config.segment,
+    )
     logger.info(
         "Pool du département %s (+ %s) : %d vente(s)",
         departement,
