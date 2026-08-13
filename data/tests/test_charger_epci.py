@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from valeur_verte_data import orchestration
+from valeur_verte_data import cli, orchestration
 from valeur_verte_data.decoupage import Commune
 
 
@@ -88,3 +88,31 @@ def test_sans_commune_ne_committe_pas(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert n == 0
     assert conn.commits == 0
+
+
+def test_la_commande_load_epci_charge_le_departement(monkeypatch: pytest.MonkeyPatch) -> None:
+    """load-epci délègue à charger_epci_departement pour le département donné."""
+    appels: list[str] = []
+    conn = _FausseConnexion()
+
+    class _Ctx:
+        def __enter__(self) -> _FausseConnexion:
+            return conn
+
+        def __exit__(self, *args: object) -> bool:
+            return False
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://hote/base")
+    monkeypatch.setattr("psycopg.connect", lambda *a, **k: _Ctx())
+    monkeypatch.setattr(cli, "charger_epci_departement", lambda f, c, d: appels.append(d) or 3)
+
+    code = cli.main(["load-epci", "--departement", "52"])
+
+    assert code == 0
+    assert appels == ["52"]
+
+
+def test_la_commande_load_epci_ne_prend_pas_de_millesime() -> None:
+    """L'EPCI est indépendant du millésime : --millesime n'existe pas ici."""
+    with pytest.raises(SystemExit):
+        cli.main(["load-epci", "--departement", "52", "--millesime", "2024"])

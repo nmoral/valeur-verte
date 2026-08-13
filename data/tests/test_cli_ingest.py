@@ -18,7 +18,7 @@ import httpx
 import pytest
 
 from valeur_verte_data import cli, orchestration
-from valeur_verte_data.decoupage import CommuneContour
+from valeur_verte_data.decoupage import Commune, CommuneContour
 
 _COMMUNES = [
     {"code": "31555", "nom": "Toulouse", "codeDepartement": "31"},
@@ -223,3 +223,41 @@ def test_un_echec_de_contour_n_interrompt_pas_l_ingestion(
     # Les ventes sont bien ingérées malgré l'échec des contours.
     assert rapport.communes_traitees == 2
     assert rapport.contours_charges == 0
+
+
+def test_ingest_departement_charge_l_epci(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """L'ingestion enregistre aussi l'appartenance EPCI des communes (#169)."""
+    communes = [
+        Commune("31555", "Toulouse", "200001", (), 1.44, 43.6, "31"),
+        Commune("31149", "Colomiers", "200001", (), 1.44, 43.6, "31"),
+    ]
+    enregistres: list[str] = []
+    monkeypatch.setattr(orchestration, "fetch_communes_by_departement", lambda f, d: communes)
+    monkeypatch.setattr(
+        orchestration, "upsert_epci", lambda conn, code_insee, code_epci: enregistres.append(code_insee)
+    )
+
+    rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert enregistres == ["31555", "31149"]
+    assert rapport.epci_charges == 2
+
+
+def test_un_echec_epci_n_interrompt_pas_l_ingestion(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """L'EPCI est auxiliaire aux ventes : son échec ne fait pas capoter l'ingestion (§5)."""
+
+    def _boom(conn: Any, code_insee: str, code_epci: str) -> None:
+        raise RuntimeError("écriture EPCI impossible")
+
+    communes = [Commune("31555", "Toulouse", "200001", (), 1.44, 43.6, "31")]
+    monkeypatch.setattr(orchestration, "fetch_communes_by_departement", lambda f, d: communes)
+    monkeypatch.setattr(orchestration, "upsert_epci", _boom)
+
+    rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert rapport.communes_traitees == 1
+    assert rapport.epci_charges == 0
