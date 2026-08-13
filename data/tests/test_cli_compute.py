@@ -641,3 +641,16 @@ def test_premiere_publication_sans_precedent_publie_sans_comparer(
 
     assert [m.code_insee for m in ecrites] == ["31555"]
     assert rapport.ecarts.lignes == []
+
+
+def test_compute_accepte_une_option_rapport_ecarts() -> None:
+    """REG-1 : la commande compute peut écrire le rapport d'écarts en CSV."""
+    args = cli._analyser(
+        ["compute", "--departement", "09", "--millesime", "2024", "--rapport-ecarts", "/tmp/e.csv"]
+    )
+    assert args.rapport_ecarts == "/tmp/e.csv"
+
+
+def test_compute_sans_rapport_ecarts_est_none_par_defaut() -> None:
+    args = cli._analyser(["compute", "--departement", "09", "--millesime", "2024"])
+    assert args.rapport_ecarts is None
