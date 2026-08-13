@@ -9,6 +9,10 @@
         <ini name="error_reporting" value="-1" />
         <env name="APP_ENV" value="test" force="true" />
         <env name="KERNEL_CLASS" value="App\Kernel" />
+        <!-- Sans Monolog, le logger de secours écrit sur stderr : en mode « quiet »,
+             il se limite aux erreurs et n'inonde plus la sortie des tests de
+             lignes « [debug] Notified event … ». -->
+        <env name="SHELL_VERBOSITY" value="-1" force="true" />
     </php>
     <extensions>
         <!-- Chaque test tourne dans une transaction annulée à la fin : base isolée et rapide. -->

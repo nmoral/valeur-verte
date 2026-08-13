@@ -12,7 +12,7 @@ final class BrandingControllerTest extends WebTestCase
     public function testLEcranAfficheLeFormulaireEtLApercuAvecLaMarqueCourante(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/back-office/marque');
+        $client->request('GET', '/marque');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Votre marque');
@@ -26,13 +26,13 @@ final class BrandingControllerTest extends WebTestCase
     public function testEnregistrerUneMarqueValideLaPersisteEtRedirige(): void
     {
         $client = static::createClient();
-        $client->request('POST', '/back-office/marque', [
+        $client->request('POST', '/marque', [
             'couleur' => '#B8480F',
             'numero_rge' => 'QB/54321',
             'telephone' => '05 61 00 00 00',
         ]);
 
-        self::assertResponseRedirects('/back-office/marque');
+        self::assertResponseRedirects('/marque');
 
         $branding = self::getContainer()->get(BrandingRepository::class);
         self::assertInstanceOf(BrandingRepository::class, $branding);
@@ -44,7 +44,7 @@ final class BrandingControllerTest extends WebTestCase
     public function testUneCouleurInvalideEstRefuseeSansRienEnregistrer(): void
     {
         $client = static::createClient();
-        $client->request('POST', '/back-office/marque', ['couleur' => 'pas-une-couleur']);
+        $client->request('POST', '/marque', ['couleur' => 'pas-une-couleur']);
 
         self::assertResponseStatusCodeSame(422);
 

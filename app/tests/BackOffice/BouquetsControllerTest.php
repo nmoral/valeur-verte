@@ -11,7 +11,7 @@ final class BouquetsControllerTest extends WebTestCase
     public function testLEcranListeLeBouquetParDefautAvecSesPostes(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/back-office/bouquets');
+        $client->request('GET', '/bouquets');
 
         self::assertResponseIsSuccessful();
 

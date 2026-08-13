@@ -1,0 +1,179 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Ce que vous avez constaté sur place. Les bornes évitent qu'un chiffre absurde n'atterrisse devant le client.</p>{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .audit{max-width:660px}
+    .audit-body{padding:4px 16px 18px}
+    .audit-field{display:grid;grid-template-columns:1fr;gap:7px;padding:15px 0;border-bottom:1px solid var(--rule)}
+    .audit-field:last-of-type{border-bottom:0}
+    .audit-field > label{font:500 13.5px/1.3 'Public Sans',sans-serif;color:var(--slate)}
+    .audit-control{display:flex;flex-direction:column;gap:6px;min-width:0}
+    .audit-inline{display:flex;align-items:center;gap:8px}
+    .audit input[type=text],.audit input[type=number]{
+        font:500 14px/1.2 'JetBrains Mono',monospace;padding:11px 12px;border:1px solid var(--rule-strong);
+        border-radius:3px;background:#fff;color:var(--ink);width:100%;
+    }
+    .audit input[type=number]{max-width:150px;text-align:right}
+    .audit input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+    .audit .unit{font:400 12px/1 'JetBrains Mono',monospace;color:var(--mute)}
+    .audit-field.has-error input{border-color:var(--bad);background:#FDF4F3}
+    .form-error{font:400 12.5px/1.4 'Public Sans',sans-serif;color:var(--bad)}
+    .field-hint{font:400 11.5px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
+
+    /* Adresse + autocomplétion + géolocalisation */
+    .adresse-wrap{position:relative}
+    .adresse-champ{display:flex;gap:8px}
+    .adresse-input{position:relative;flex:1;min-width:0}
+    .adresse-input input{width:100%;padding-right:38px}
+    .adresse-spin{position:absolute;top:50%;right:12px;width:16px;height:16px;margin-top:-8px;
+        border:2px solid var(--rule-strong);border-top-color:var(--brand);border-radius:50%;
+        animation:adresse-spin .6s linear infinite;pointer-events:none}
+    .adresse-spin[hidden]{display:none}
+    @keyframes adresse-spin{to{transform:rotate(360deg)}}
+    .geoloc-btn{flex:0 0 auto;width:46px;border:1px solid var(--rule-strong);border-radius:3px;background:#fff;font-size:19px;line-height:1;cursor:pointer}
+    .geoloc-btn:hover{background:var(--brand-soft);border-color:var(--brand)}
+    .geoloc-btn[disabled]{opacity:.55;cursor:default}
+    .geoloc-btn.charge{animation:geoloc-pulse 1s ease-in-out infinite}
+    @keyframes geoloc-pulse{50%{opacity:.4}}
+    .suggestions{position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:30;margin:0;padding:0;list-style:none;
+        background:#fff;border:1px solid var(--rule-strong);border-radius:3px;box-shadow:0 6px 20px rgba(17,24,32,.12);
+        max-height:260px;overflow:auto;display:none}
+    .suggestions.show{display:block}
+    .suggestions li{padding:11px 12px;font-size:14px;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--rule)}
+    .suggestions li:last-child{border-bottom:0}
+    .suggestions li:hover,.suggestions li.actif{background:var(--brand-soft);color:var(--brand)}
+
+    /* DPE en gros boutons (accessibles, tactiles) */
+    .dpe-group{display:flex;flex-wrap:wrap;gap:7px}
+    .dpe-choice{cursor:pointer}
+    .dpe-choice input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+    .dpe-choice span{display:grid;place-items:center;width:46px;height:46px;border-radius:5px;border:2px solid transparent;
+        font:800 16px/1 'Archivo',sans-serif;color:#fff;user-select:none}
+    .dpe-choice .d-c,.dpe-choice .d-d{color:#2A2A18}
+    .dpe-choice input:checked + span{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+    .dpe-choice input:focus-visible + span{outline:2px solid var(--brand);outline-offset:2px}
+
+    /* Bandeaux */
+    .banner{margin:0 0 14px;padding:12px 14px;border-radius:3px;font-size:13.5px;line-height:1.5}
+    .banner-bad{border:1px solid var(--bad);background:#FBEDEB;color:var(--bad)}
+    .banner-warn{border:1px solid #E4C687;background:#FBF3E6;color:var(--warn)}
+
+    .audit-actions{padding-top:18px}
+    .audit-actions .btn{width:100%;padding:14px 16px;font-size:14.5px}
+
+    /* Confirmation */
+    .confirm{border-left:3px solid var(--ok)}
+    .confirm .panel-head h2{display:flex;align-items:center;gap:8px}
+    .confirm .ok-dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+    .confirm-body{padding:16px}
+    .confirm-body .addr{font:600 16px/1.3 'Public Sans',sans-serif;margin-bottom:9px}
+    .confirm-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px;font:500 12.5px/1.6 'JetBrains Mono',monospace;color:var(--slate)}
+    .confirm-meta .sep{color:var(--rule-strong)}
+    .confirm .note{margin-top:15px;padding-top:14px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--mute);line-height:1.5}
+
+    /* Tablette / desktop : label à gauche, contrôle à droite, bouton compact */
+    @media (min-width:560px){
+        .audit-field{grid-template-columns:150px 1fr;gap:18px;align-items:start;padding:14px 0}
+        .audit-field > label{font-weight:400;padding-top:11px}
+        .audit-actions{display:grid;grid-template-columns:150px 1fr;gap:18px}
+        .audit-actions .btn{grid-column:2;width:auto;justify-self:start;padding:12px 20px}
+    }
+</style>
+{% endblock %}
+
+{% block bo_content %}
+{% set avant_choisi = valeurs.dpe_avant != '' ? valeurs.dpe_avant : 'E' %}
+{% set apres_choisi = valeurs.dpe_apres != '' ? valeurs.dpe_apres : 'C' %}
+
+<div class="panel audit">
+    <div class="panel-head"><h2>Saisie mode audit</h2></div>
+
+    <form method="post" action="{{ path('back_office_audit') }}" novalidate>
+        <div class="audit-body">
+            {% if erreurs.global is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.global }}</p>{% endif %}
+            {% if erreurs.dpe is defined %}<p class="banner banner-bad" role="alert">{{ erreurs.dpe }}</p>{% endif %}
+
+            <div class="audit-field{{ erreurs.adresse is defined ? ' has-error' : '' }}">
+                <label for="adresse">Adresse</label>
+                <div class="audit-control">
+                    <div class="adresse-wrap">
+                        <div class="adresse-champ">
+                            <div class="adresse-input">
+                                <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                                <span class="adresse-spin" id="adresse-spin" hidden aria-hidden="true"></span>
+                            </div>
+                            <button type="button" id="adresse-geoloc" class="geoloc-btn" title="Renseigner depuis ma position" aria-label="Renseigner l'adresse depuis ma position">📍</button>
+                        </div>
+                        <ul id="adresse-suggestions" class="suggestions" role="listbox"></ul>
+                    </div>
+                    {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
+                    <span id="adresse-geoloc-erreur" class="field-hint" role="alert" hidden></span>
+                </div>
+            </div>
+
+            <div class="audit-field{{ erreurs.surfaceBatie is defined ? ' has-error' : '' }}">
+                <label for="surface_batie">Surface bâtie</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="surface_batie" name="surface_batie" value="{{ valeurs.surface_batie }}" min="20" max="400" inputmode="numeric" required><span class="unit">m²</span></span>
+                    {% if erreurs.surfaceBatie is defined %}<span class="form-error">{{ erreurs.surfaceBatie }}</span>{% else %}<span class="field-hint">entre 20 et 400 m²</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field{{ erreurs.surfaceTerrain is defined ? ' has-error' : '' }}">
+                <label for="surface_terrain">Surface terrain</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="surface_terrain" name="surface_terrain" value="{{ valeurs.surface_terrain }}" min="0" max="10000" inputmode="numeric" required><span class="unit">m²</span></span>
+                    {% if erreurs.surfaceTerrain is defined %}<span class="form-error">{{ erreurs.surfaceTerrain }}</span>{% else %}<span class="field-hint">de 0 à 10 000 m²</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label>DPE actuel</label>
+                <div class="dpe-group" role="radiogroup" aria-label="DPE actuel">
+                    {% for dpe in dpe_options %}
+                        <label class="dpe-choice"><input type="radio" name="dpe_avant" value="{{ dpe.value }}"{{ dpe.value == avant_choisi ? ' checked' : '' }}><span class="d-{{ dpe.value|lower }}">{{ dpe.value }}</span></label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="audit-field{{ erreurs.dpeApres is defined ? ' has-error' : '' }}">
+                <label>DPE cible</label>
+                <div class="audit-control">
+                    <div class="dpe-group" role="radiogroup" aria-label="DPE cible">
+                        {% for dpe in dpe_options %}
+                            <label class="dpe-choice"><input type="radio" name="dpe_apres" value="{{ dpe.value }}"{{ dpe.value == apres_choisi ? ' checked' : '' }}><span class="d-{{ dpe.value|lower }}">{{ dpe.value }}</span></label>
+                        {% endfor %}
+                    </div>
+                    {% if erreurs.dpeApres is defined %}<span class="form-error">{{ erreurs.dpeApres }}</span>{% else %}<span class="field-hint">doit être meilleur que le DPE actuel</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label for="nombre_pieces">Nombre de pièces</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="nombre_pieces" name="nombre_pieces" value="{{ valeurs.nombre_pieces }}" min="1" inputmode="numeric"><span class="unit">optionnel</span></span>
+                    <span class="field-hint">contrôle de cohérence surface/pièces</span>
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label for="valeur_bien">Valeur estimée du bien</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="valeur_bien" name="valeur_bien" value="{{ valeurs.valeur_bien|default('') }}" min="0" inputmode="numeric"><span class="unit">€ · optionnel</span></span>
+                    <span class="field-hint">par défaut : prix médian de la commune × surface bâtie</span>
+                </div>
+            </div>
+
+            <div class="audit-actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
+                <input type="hidden" name="code_insee" id="code_insee" value="{{ valeurs.code_insee|default('') }}">
+                <button type="submit" class="btn">Valider la saisie</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block javascripts %}<script src="{{ asset('js/audit-adresse.js') }}" defer></script>{% endblock %}

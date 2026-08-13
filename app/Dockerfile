@@ -16,10 +16,12 @@ ENV APP_ENV=prod \
     COMPOSER_ALLOW_SUPERUSER=1
 
 # pdo_pgsql : la base est PostgreSQL/PostGIS. intl/zip/opcache : socle Symfony.
+# gd : rendu des images (logo du pro) par mpdf lors de la génération du PDF (#32).
 RUN install-php-extensions \
         intl \
         opcache \
         zip \
+        gd \
         pdo_pgsql \
         @composer
 

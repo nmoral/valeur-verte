@@ -29,10 +29,25 @@ services:
     # Notification admin d'un usage anormal (#44) : impl d'attente par log (#50).
     App\Notification\NotificationAdmin: '@App\Notification\NotificationAdminViaLog'
 
+    # Cache-busting des assets : versionne par hash du fichier servi.
+    App\Asset\VersionParContenu:
+        arguments:
+            $repertoirePublic: '%kernel.project_dir%/public'
+
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
         arguments:
             $inscriptionIpLimiter: '@limiter.inscription_ip'
+
+    # Lecture des coefficients et du prix de marché dans le schéma « data »
+    # (lecture seule pour « app ») : chaîne de calcul économique (#25).
+    App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'
+    App\BackOffice\Estimation\FournisseurPrixMaille: '@App\BackOffice\Estimation\PrixMailleDbal'
+
+    # Génération du PDF (#32) : moteur de conversion mpdf et fabrique
+    # d'identifiants de rapport aléatoires (§9.6).
+    App\BackOffice\Pdf\ConvertisseurPdf: '@App\BackOffice\Pdf\MpdfConvertisseur'
+    App\BackOffice\Pdf\GenerateurReferenceRapport: '@App\BackOffice\Pdf\ReferenceRapportAleatoire'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -51,3 +66,12 @@ when@test:
         App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire: ~
         App\BackOffice\Entreprise\RechercheEntreprise: '@App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire'
         App\BackOffice\Entreprise\QualificationsRge: '@App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire'
+
+        # Estimation (#25/#31) : doubles en mémoire configurables par test, aucune
+        # lecture du schéma « data ». Publics pour être configurés depuis les tests.
+        App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire:
+            public: true
+        App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire:
+            public: true
+        App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire'
+        App\BackOffice\Estimation\FournisseurPrixMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire'
