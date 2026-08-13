@@ -67,6 +67,24 @@ def _vente_ariegeoise() -> Mutation:
     return replace(vente, id_mutation="m-09", code_insee="09122")
 
 
+def _maille_publiable(code_insee: str, mode: CoverageMode) -> MailleCoefficient:
+    """Maille qui passe tous les invariants par-maille (INV-4/INV-3/INV-2/INV-1)."""
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        mode=mode,
+        rayon_retenu_km=None,
+        n_transactions=40,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=1.0,
+        coef_m2_terrain=0.5,
+        coef_dpe={"D": 0.0, "F": -0.20},
+        ic_dpe={},
+        alerte=None,
+    )
+
+
 # Assez de ventes pour dépasser le seuil local et publier chaque classe DPE
 # (≥ min_class_sample=20 par classe, avec marge après écrêtage).
 _POOL = [_vente(i, "ABCDEFG"[i % 7], 200000 + i * 900) for i in range(210)]
@@ -301,6 +319,41 @@ def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
     assert connexion.ecritures == []
     assert rapport.communes_calculees == 0
     assert set(rapport.rejets_invariants) == {"31555", "31149"}
+
+
+def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#169 cascade : quand le LOCAL ne produit rien de publiable, la commune
+    descend au cran EPCI (ventes des communes du même EPCI) avant de refuser.
+    31555 a un EPCI publiable → écrite en mode EPCI ; 31149 sans EPCI → refus.
+    """
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        orchestration,
+        "communes_de_meme_epci",
+        lambda conn, code: ("31555", "31149") if code == "31555" else (),
+    )
+    maille_epci = _maille_publiable("31555", CoverageMode.EPCI)
+    monkeypatch.setattr(
+        orchestration,
+        "compute_maille_epci",
+        lambda code, lat, lon, mil, membres, pool, config: (
+            maille_epci if code == "31555" else None
+        ),
+    )
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]
+    assert ecrites[0].mode is CoverageMode.EPCI
+    assert rapport.communes_calculees == 1
+    assert rapport.refus == ["31149"]
 
 
 def test_une_maille_rejetee_efface_le_coefficient_anterieur(
