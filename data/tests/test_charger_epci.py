@@ -68,7 +68,9 @@ def test_ignore_les_communes_sans_epci(monkeypatch: pytest.MonkeyPatch) -> None:
     communes = [_commune("52001", "200068658"), _commune("52333", None)]
     monkeypatch.setattr(orchestration, "fetch_communes_by_departement", lambda f, d: communes)
     monkeypatch.setattr(
-        orchestration, "upsert_epci", lambda conn, code_insee, code_epci: enregistres.append(code_insee)
+        orchestration,
+        "upsert_epci",
+        lambda conn, code_insee, code_epci: enregistres.append(code_insee),
     )
 
     n = orchestration.charger_epci_departement(object(), conn, "52")

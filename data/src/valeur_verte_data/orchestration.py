@@ -17,6 +17,7 @@ import httpx
 from .batch import compute_communes
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import delete_coefficient, upsert_coefficient
+from .db.epci_repository import upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
@@ -286,6 +287,27 @@ def load_contours_departement(
     derive_limitrophes(conn)
     conn.commit()
     return len(contours)
+
+
+def charger_epci_departement(
+    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str
+) -> int:
+    """Charge l'appartenance EPCI des communes d'un département (#169).
+
+    Comme les contours, l'EPCI vient de geo.api.gouv.fr (champ ``codeEpci`` porté
+    par ``fetch_communes_by_departement``). Les communes sans EPCI (rare) sont
+    ignorées ; une seule transaction est committée s'il y a eu un enregistrement.
+    Chargeable après coup sur un département déjà ingéré, sans re-télécharger DVF.
+    """
+    enregistres = 0
+    for commune in fetch_communes_by_departement(fetcher, departement):
+        if commune.code_epci is None:
+            continue
+        upsert_epci(conn, commune.code_insee, commune.code_epci)
+        enregistres += 1
+    if enregistres:
+        conn.commit()
+    return enregistres
 
 
 def _charger_contours(
