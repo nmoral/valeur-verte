@@ -89,7 +89,7 @@
     {% endif %}
 
     <div class="resultat-actions">
-        <button type="button" class="btn" disabled title="Disponible avec la génération du PDF (#32)">Télécharger le PDF<span class="soon">bientôt</span></button>
+        <a class="btn" href="{{ path('back_office_audit_pdf') }}">Télécharger le PDF</a>
         <a class="btn btn-ghost" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
     </div>
 </div>

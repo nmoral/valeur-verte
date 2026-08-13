@@ -1,0 +1,95 @@
+{% apply spaceless %}
+{% set couleur = branding.couleurPrincipale.hex %}
+<html>
+<head>
+<style>
+    body{font-family:sans-serif;color:#1a2b2f;font-size:12px;line-height:1.5}
+    h1,h2,h3,p{margin:0}
+    .bandeau{background:{{ couleur }};color:#ffffff;padding:16px 20px}
+    .bandeau .logo{width:44px;height:44px}
+    .bandeau .marque{font-size:18px;font-weight:bold;vertical-align:middle}
+    .corps{padding:20px}
+    .eyebrow{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80}
+    .adresse{font-size:17px;font-weight:bold;margin-top:4px}
+    .bien{color:#6b7c80;margin-top:3px}
+    .hero{margin-top:18px;padding:16px 0;border-top:1px solid #dfe6e7;border-bottom:1px solid #dfe6e7}
+    .hero-label{color:#6b7c80}
+    .montant{font-size:32px;font-weight:bold;color:{{ couleur }}}
+    .fourchette{color:#41585d;margin-top:4px}
+    .fiabilite{margin-top:8px;font-weight:bold}
+    .fiabilite-solide{color:#1a7a43}
+    .fiabilite-correct{color:#8a5712}
+    .fiabilite-fragile{color:#b4271f}
+    .bandeau-alerte{margin-top:14px;padding:10px 12px;border:1px solid #f0c9c3;background:#fbecea;color:#b4271f;border-radius:3px}
+    .bandeau-info{margin-top:14px;padding:10px 12px;border:1px solid #f0dbae;background:#fcf2df;color:#8a5712;border-radius:3px}
+    table.stats{width:100%;margin-top:16px;border-collapse:collapse}
+    table.stats td{width:33%;padding:10px 12px;border:1px solid #dfe6e7}
+    .stat-k{color:#6b7c80;font-size:10px;text-transform:uppercase}
+    .stat-v{font-size:15px;font-weight:bold}
+    .prix{margin-top:14px;color:#41585d}
+    .marque-bloc{margin-top:22px;padding-top:12px;border-top:1px solid #dfe6e7;color:#41585d}
+    .marque-bloc .l{padding:3px 0}
+    .pied{font-size:9px;color:#6b7c80;border-top:1px solid #dfe6e7;padding-top:6px}
+</style>
+</head>
+<body>
+
+<htmlpagefooter name="pied">
+    <div class="pied">
+        Rapport {{ reference }} · valeur-verte · établi à partir de données publiques (DVF, ADEME)
+    </div>
+</htmlpagefooter>
+<sethtmlpagefooter name="pied" value="on" />
+
+<table width="100%" class="bandeau" cellpadding="0" cellspacing="0"><tr>
+    <td width="52">
+        {% if branding.logoUrl %}<img class="logo" src="{{ branding.logoUrl }}" alt="logo">{% endif %}
+    </td>
+    <td><span class="marque">Valeur Verte</span></td>
+</tr></table>
+
+<div class="corps">
+    <p class="eyebrow">Rapport de valeur verte · mode audit</p>
+    <p class="adresse">{{ saisie.adresse }}</p>
+    <p class="bien">{{ saisie.surfaceBatie }} m² bâti · {{ saisie.surfaceTerrain }} m² terrain{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}
+        &nbsp;·&nbsp; DPE {{ dpe_badge(saisie.dpeAvant.value) }} → {{ dpe_badge(saisie.dpeApres.value) }}</p>
+
+    {% for avertissement in avertissements %}
+        <div class="bandeau-info">{{ avertissement }}</div>
+    {% endfor %}
+
+    {% if restitution %}
+        {% set fiabilite = restitution.fiabilite %}
+        <div class="hero">
+            <p class="hero-label">Valeur verte créée par la rénovation</p>
+            <p class="montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
+            <p class="fourchette">fourchette {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} € – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €</p>
+            <p class="fiabilite fiabilite-{{ fiabilite.couleur }}">Fiabilité : {{ fiabilite.libelle }}</p>
+        </div>
+
+        {% if fiabilite.exigeBandeau %}
+            <div class="bandeau-alerte">Estimation fragile : effectif réduit ou repli départemental. À interpréter avec prudence.</div>
+        {% endif %}
+
+        <table class="stats" cellpadding="0" cellspacing="0"><tr>
+            <td><span class="stat-k">Transactions</span><br><span class="stat-v">{{ restitution.n|number_format(0, ',', ' ') }}</span></td>
+            <td><span class="stat-k">Rayon retenu</span><br><span class="stat-v">{{ restitution.rayonKm ? restitution.rayonKm ~ ' km' : 'départemental' }}</span></td>
+            <td><span class="stat-k">Millésime</span><br><span class="stat-v">{{ restitution.millesime }}</span></td>
+        </tr></table>
+
+        <p class="prix">Prix de base : <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong>
+            ({{ restitution.prixSaisiParLePro ? 'valeur saisie par le professionnel' : 'médiane de la commune' }})</p>
+    {% else %}
+        <div class="bandeau-alerte">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes).</div>
+    {% endif %}
+
+    <div class="marque-bloc">
+        {% if branding.numeroRge %}<div class="l">Numéro RGE : {{ branding.numeroRge }}</div>{% endif %}
+        {% if branding.telephone %}<div class="l">Téléphone : {{ branding.telephone }}</div>{% endif %}
+        {% if branding.mentionsLegales %}<div class="l">{{ branding.mentionsLegales }}</div>{% endif %}
+    </div>
+</div>
+
+</body>
+</html>
+{% endapply %}
