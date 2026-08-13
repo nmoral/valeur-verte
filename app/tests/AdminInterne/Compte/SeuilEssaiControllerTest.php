@@ -60,6 +60,37 @@ final class SeuilEssaiControllerTest extends WebTestCase
         self::assertSame(10, $this->seuils()->courant()->valeur());
     }
 
+    public function testUnPostAsyncValideRenvoieUnJsonOk(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_ADMIN.'/comptes/seuil', ['seuil' => '15']);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'application/json');
+        $charge = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($charge);
+        self::assertTrue($charge['ok']);
+        self::assertSame(15, $this->seuils()->courant()->valeur());
+    }
+
+    public function testUnPostAsyncInvalideRenvoieUnJson422(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+        $this->seuils()->enregistrer(SeuilEssai::de(10));
+
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_ADMIN.'/comptes/seuil', ['seuil' => '0']);
+
+        self::assertResponseStatusCodeSame(422);
+        $charge = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($charge);
+        self::assertFalse($charge['ok']);
+        self::assertArrayHasKey('erreur', $charge);
+        self::assertSame(10, $this->seuils()->courant()->valeur());
+    }
+
     private function connecterAdmin(KernelBrowser $client): void
     {
         $repository = self::getContainer()->get(UserRepository::class);
