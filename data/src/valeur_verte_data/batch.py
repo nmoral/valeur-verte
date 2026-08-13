@@ -289,6 +289,48 @@ def compute_maille(
     )
 
 
+def _maille_par_bandes(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    sample: Sequence[Mutation],
+    *,
+    mode: CoverageMode,
+    sigma: float,
+    config: CalculConfig,
+) -> MailleCoefficient | None:
+    """Cœur commun des crans **EPCI** et **DÉPARTEMENT** de la cascade (#169).
+
+    Applique les **bandes DPE monotones** (fusion des classes adjacentes
+    sous-effectif + anti-inversion, ``bandes_monotones``) à l'échantillon fourni —
+    déjà filtré et trié par l'appelant — puis relabellise et enchaîne la chaîne
+    standard à pondération uniforme. ``rayon=None`` (cran non local), ``alerte=None``
+    (le ``mode`` porte le signal de granularité). ``None`` si moins de deux bandes.
+    """
+    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
+    if bandes is None:
+        return None
+    releve = [
+        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
+        if mutation.etiquette_dpe in bandes
+        else mutation
+        for mutation in sample
+    ]
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        releve,
+        mode=mode,
+        rayon_km=None,
+        fit_sigma=sigma,
+        alerte=None,
+        config=config,
+    )
+
+
 def compute_maille_epci(
     code_insee: str,
     centroid_lat: float,
@@ -307,37 +349,23 @@ def compute_maille_epci(
     départemental) — tous les biens de l'EPCI comptent également, la géographie
     fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
 
-    Les classes DPE adjacentes sous-effectif sont fusionnées en **bandes
-    adaptatives + anti-inversion** (``bandes_monotones``) : le pool plus large de
-    l'EPCI garde un DPE plus fin que le département, sans exiger deux classes
-    pleines. Renvoie ``None`` si moins de deux bandes subsistent (le repli
-    départemental prendra alors le relais).
+    Les classes DPE adjacentes sous-effectif sont fusionnées en bandes adaptatives
+    (le pool plus large garde un DPE plus fin que le département, sans exiger deux
+    classes pleines). ``None`` si moins de deux bandes (le département prend le relais).
     """
     membres = set(communes_epci)
     sample = sorted(
         (mutation for mutation in pool if mutation.code_insee in membres),
         key=lambda mutation: mutation.id_mutation,
     )
-    sigma = config.departemental_sigma_km
-    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
-    if bandes is None:
-        return None
-    sample = [
-        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
-        if mutation.etiquette_dpe in bandes
-        else mutation
-        for mutation in sample
-    ]
-    return _compute_from_sample(
+    return _maille_par_bandes(
         code_insee,
         centroid_lat,
         centroid_lon,
         millesime,
         sample,
         mode=CoverageMode.EPCI,
-        rayon_km=None,
-        fit_sigma=sigma,
-        alerte=None,
+        sigma=config.departemental_sigma_km,
         config=config,
     )
 
@@ -363,26 +391,14 @@ def compute_maille_departement(
         _meme_departement(code_insee, pool),
         key=lambda mutation: mutation.id_mutation,
     )
-    sigma = config.departemental_sigma_km
-    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
-    if bandes is None:
-        return None
-    sample = [
-        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
-        if mutation.etiquette_dpe in bandes
-        else mutation
-        for mutation in sample
-    ]
-    return _compute_from_sample(
+    return _maille_par_bandes(
         code_insee,
         centroid_lat,
         centroid_lon,
         millesime,
         sample,
         mode=CoverageMode.DEPARTEMENTAL,
-        rayon_km=None,
-        fit_sigma=sigma,
-        alerte=None,
+        sigma=config.departemental_sigma_km,
         config=config,
     )
 
