@@ -111,11 +111,13 @@ Avec `seuil = min_local_sample = 30`, `n_local` = éligibles dans la sélection,
 | sinon `n_departement ≥ 30` | **DÉPARTEMENTAL** | σ=1000, rayon=null, **bandeau dégradé** |
 | sinon | **REFUS** | pas de coefficient |
 
-⚠️ Ce choix de mode reste piloté par l'**effectif** (n), pas par la qualité : un
-LOCAL suffisant en n mais hors seuils de qualité **ne cascade pas** encore vers un
-cran plus grossier (EPCI/DÉPT). Depuis #169 il est toutefois **publié en tier
-dégradé** si son erreur reste < 30 % (§11) ; au-delà, refus. La cascade géographique
-LOCAL → EPCI → DÉPARTEMENT est en cours de câblage — voir §14.
+Ce choix interne à `compute_maille` reste piloté par l'**effectif** (n). Mais au
+niveau de l'orchestration, une **cascade géographique** (#169) l'enveloppe : si le
+cran LOCAL ne produit pas de maille **publiable** (absente, ou calculée mais hors
+invariants par-maille — INV-4 erreur ≤ 30 %, INV-2, INV-1, INV-3 rayon), on **descend
+au cran EPCI** (`compute_maille_epci` : une régression sur les ventes des communes du
+même EPCI, avec bandes DPE) avant de refuser. Le cran DÉPARTEMENT reste à câbler
+(voir §14).
 
 ## 8. Écrêtage des outliers (`trimming.ecreter_residu`, S32 V2)
 
@@ -216,13 +218,16 @@ se câble par petits pas TDD. État :
 
 - ✅ **Palier dégradé au LOCAL** : la maille porte son `palier` (§12) et INV-4 publie
   le tier dégradé jusqu'à 30 % (§11) — ouvre le rural sans descendre de cran.
-- ⏳ **Cran EPCI** (bandes adaptatives) : régression par EPCI quand le LOCAL échoue.
+- ✅ **Cran EPCI** (bandes adaptatives) : `batch.compute_maille_epci` poole les ventes
+  des communes du même EPCI (une régression par EPCI, σ uniforme) avec bandes
+  monotones ; câblé dans `orchestration` en repli d'un LOCAL non publiable (§7).
 - ⏳ **Cran DÉPARTEMENT** : bandes adaptatives + anti-inversion sur le repli départemental.
 - ⏳ **Persistance** : `coefficient_maille` doit porter `palier`/bandes/EPCI (contrat data→app).
 - ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
 
-Ce référentiel décrit le moteur **tel qu'il tourne** : les crans EPCI/DÉPT ne sont
-pas encore branchés, un échec LOCAL sous 30 % publie, au-delà refuse (pas de repli).
+Ce référentiel décrit le moteur **tel qu'il tourne** : la cascade descend LOCAL →
+EPCI (le cran DÉPARTEMENT avec bandes reste à brancher, ainsi que la persistance du
+`palier`/bandes et la restitution).
 
 ## 15. Décisions & réglages (traçabilité)
 

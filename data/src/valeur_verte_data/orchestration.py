@@ -14,17 +14,19 @@ from typing import Protocol
 
 import httpx
 
-from .batch import compute_communes
+from .batch import MailleCoefficient, compute_communes, compute_maille_epci
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import delete_coefficient, upsert_coefficient
-from .db.epci_repository import upsert_epci
+from .db.epci_repository import communes_de_meme_epci, upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
+from .degraded import CoverageMode
 from .http import Fetcher
 from .ingest import ingest_commune
 from .invariants import (
+    ResultatMonotonie,
     alertes_de_bord,
     detecter_ruptures_limitrophes,
     evaluer_coherence_geographique,
@@ -170,6 +172,24 @@ def ingest_departement(
     return rapport
 
 
+def _raisons_de_rejet(
+    maille: MailleCoefficient, monotonie: ResultatMonotonie, config: CalculConfig
+) -> tuple[str, ...]:
+    """Motifs de non-publication **par maille** (INV-4, INV-3 rayon, INV-2, INV-1).
+
+    Batterie d'invariants par maille consommée à **chaque cran** de la cascade
+    (#169) : une maille qui en viole un ne publie pas à ce cran, on descend d'un
+    cran. L'INV-3 de **bord** (rupture entre communes limitrophes) est inter-maille
+    et reste jugé après coup, sur l'ensemble des mailles locales.
+    """
+    return (
+        evaluer_invariants_publication(maille, config).raisons
+        + evaluer_coherence_geographique(maille, config).raisons
+        + evaluer_signe_ordre_grandeur(maille, config).raisons
+        + monotonie.raisons
+    )
+
+
 def compute_departement(
     fetcher: Fetcher,
     conn: ConnexionTransactionnelle,
@@ -216,32 +236,47 @@ def compute_departement(
     adjacence = read_adjacence(conn, departement)
     alertes = alertes_de_bord(detecter_ruptures_limitrophes(calculees.values(), adjacence, config))
 
-    for code_insee, _, _ in coordonnees:
-        maille = calculees.get(code_insee)
-        if maille is None:
-            # Le refus doit effacer une éventuelle valeur antérieure, sinon un
-            # coefficient invalidé par ce calcul continuerait d'être servi.
+    for code_insee, latitude, longitude in coordonnees:
+        local = calculees.get(code_insee)
+        retenue: MailleCoefficient | None = None
+        monotonie: ResultatMonotonie | None = None
+        if local is not None:
+            monotonie_locale = evaluer_monotonie_dpe(local, config)
+            if not _raisons_de_rejet(local, monotonie_locale, config):
+                retenue, monotonie = local, monotonie_locale
+
+        if retenue is None:
+            # Cascade #169 : le cran LOCAL ne publie rien de conforme (absent, ou
+            # calculé mais hors invariants par-maille) → on descend au cran EPCI
+            # (une régression par EPCI avec bandes) avant de refuser.
+            membres = communes_de_meme_epci(conn, code_insee)
+            epci = (
+                compute_maille_epci(
+                    code_insee, latitude, longitude, millesime, membres, pool, config=config
+                )
+                if membres
+                else None
+            )
+            if epci is not None:
+                monotonie_epci = evaluer_monotonie_dpe(epci, config)
+                if not _raisons_de_rejet(epci, monotonie_epci, config):
+                    retenue, monotonie = epci, monotonie_epci
+
+        if retenue is None:
+            # Aucun cran ne publie : on efface une éventuelle valeur antérieure
+            # (sinon un coefficient invalidé continuerait d'être servi, #115). On
+            # distingue le refus sec (rien de calculable) du rejet d'invariant
+            # (calculé mais hors seuils) pour garder le rapport lisible.
             delete_coefficient(conn, code_insee)
             conn.commit()
-            rapport.refus.append(code_insee)
+            if local is None:
+                rapport.refus.append(code_insee)
+            else:
+                rapport.rejets_invariants.append(code_insee)
+                logger.warning("%s : rejetée (invariant), aucun cran de repli", code_insee)
             continue
-        monotonie = evaluer_monotonie_dpe(maille, config)
-        raisons = (
-            evaluer_invariants_publication(maille, config).raisons
-            + evaluer_coherence_geographique(maille, config).raisons
-            + evaluer_signe_ordre_grandeur(maille, config).raisons
-            + monotonie.raisons
-        )
-        if raisons:
-            # INV-1/INV-2/INV-3/INV-4 : une maille hors seuils de qualité (erreur,
-            # R², n), au rayon aberrant, à l'échelle DPE non monotone ou aux
-            # coefficients de signe/ordre invraisemblable n'est pas publiée ; son
-            # coefficient antérieur est effacé — #22 prend le relais. Motif journalisé.
-            delete_coefficient(conn, code_insee)
-            conn.commit()
-            rapport.rejets_invariants.append(code_insee)
-            logger.warning("%s : rejetée (invariant) — %s", code_insee, "; ".join(raisons))
-            continue
+
+        assert monotonie is not None  # posé conjointement à ``retenue``
         if monotonie.inversions_tolerees:
             # INV-1 : inversion admise (petit échantillon) mais tracée malgré tout.
             rapport.inversions_dpe.append(code_insee)
@@ -250,14 +285,14 @@ def compute_departement(
                 code_insee,
                 "; ".join(monotonie.inversions_tolerees),
             )
-        alerte_bord = alertes.get(code_insee)
+        # INV-3 #3 : l'alerte de bord se juge sur l'adjacence des mailles **locales**
+        # (décision « publier avec alerte ») ; un repli EPCI, plus grossier, ne la porte pas.
+        alerte_bord = alertes.get(code_insee) if retenue.mode is CoverageMode.LOCAL else None
         if alerte_bord is not None:
-            # INV-3 #3 : la maille reste publiée, mais un bandeau signale l'écart
-            # de bord avec une commune limitrophe (décision « publier avec alerte »).
-            maille = replace(maille, alerte=alerte_bord)
+            retenue = replace(retenue, alerte=alerte_bord)
             rapport.alertes_bord.append(code_insee)
         try:
-            upsert_coefficient(conn, maille)
+            upsert_coefficient(conn, retenue)
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
             conn.rollback()
             rapport.echecs.append(code_insee)
