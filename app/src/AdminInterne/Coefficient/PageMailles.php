@@ -31,7 +31,7 @@ final readonly class PageMailles
         $pages = max(1, (int) ceil($total / $taille));
         $page = max(1, min($page, $pages));
 
-        $mailles = array_values(\array_slice($toutes, ($page - 1) * $taille, $taille));
+        $mailles = \array_slice($toutes, ($page - 1) * $taille, $taille);
 
         return new self($mailles, $page, $pages, $total);
     }
