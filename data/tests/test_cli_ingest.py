@@ -236,7 +236,9 @@ def test_ingest_departement_charge_l_epci(
     enregistres: list[str] = []
     monkeypatch.setattr(orchestration, "fetch_communes_by_departement", lambda f, d: communes)
     monkeypatch.setattr(
-        orchestration, "upsert_epci", lambda conn, code_insee, code_epci: enregistres.append(code_insee)
+        orchestration,
+        "upsert_epci",
+        lambda conn, code_insee, code_epci: enregistres.append(code_insee),
     )
 
     rapport = orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
