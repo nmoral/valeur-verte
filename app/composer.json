@@ -8,6 +8,7 @@
         "doctrine/doctrine-bundle": "^3.3",
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.6",
+        "mpdf/mpdf": "^8.2.5",
         "symfony/asset": "^8.1",
         "symfony/console": "^8.1",
         "symfony/dotenv": "^8.1",

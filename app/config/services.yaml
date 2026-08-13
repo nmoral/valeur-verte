@@ -44,6 +44,11 @@ services:
     App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'
     App\BackOffice\Estimation\FournisseurPrixMaille: '@App\BackOffice\Estimation\PrixMailleDbal'
 
+    # Génération du PDF (#32) : moteur de conversion mpdf et fabrique
+    # d'identifiants de rapport aléatoires (§9.6).
+    App\BackOffice\Pdf\ConvertisseurPdf: '@App\BackOffice\Pdf\MpdfConvertisseur'
+    App\BackOffice\Pdf\GenerateurReferenceRapport: '@App\BackOffice\Pdf\ReferenceRapportAleatoire'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
