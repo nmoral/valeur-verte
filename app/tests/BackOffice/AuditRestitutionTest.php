@@ -30,7 +30,7 @@ final class AuditRestitutionTest extends WebTestCase
         $this->soumettre($client);
 
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Saisie validée', $html);
+        self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
         self::assertStringContainsString('134 transactions', $html);
         self::assertStringContainsString('rayon de 10 km', $html);
         self::assertStringContainsString('2024', $html);
@@ -58,7 +58,7 @@ final class AuditRestitutionTest extends WebTestCase
         $this->soumettre($client);
 
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Saisie validée', $html);
+        self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
         self::assertSelectorExists('.fiabilite-rouge');
         self::assertSelectorExists('.banner-fiabilite');
     }
@@ -110,7 +110,7 @@ final class AuditRestitutionTest extends WebTestCase
         $this->soumettre($client);
 
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Saisie validée', $html);
+        self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
         self::assertStringContainsString('estimation', strtolower($html));
         self::assertSelectorNotExists('.fiabilite');
     }

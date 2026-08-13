@@ -47,10 +47,11 @@ final class AuditControllerTest extends WebTestCase
         ]);
 
         self::assertResponseIsSuccessful();
+        // Le succès mène à la page de restitution dédiée (§5.3), pas au formulaire.
+        self::assertStringContainsString('/audit/resultat', $client->getRequest()->getUri());
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Saisie validée', $html);
         self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
-        self::assertSelectorNotExists('.form-error');
+        self::assertSelectorNotExists('form[action$="/audit"]');
     }
 
     public function testUneSaisieHorsBorneEstBloquee(): void
@@ -69,7 +70,8 @@ final class AuditControllerTest extends WebTestCase
         $html = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('surface bâtie', $html);
         self::assertStringContainsString('DPE cible', $html);
-        self::assertStringNotContainsString('Saisie validée', $html);
+        // Un blocage reste sur le formulaire : pas de restitution.
+        self::assertSelectorNotExists('.restitution-phrase');
     }
 
     public function testUnRatioSurfacePiecesDouteuxAvertitSansBloquer(): void
@@ -86,8 +88,9 @@ final class AuditControllerTest extends WebTestCase
         ]);
 
         self::assertResponseIsSuccessful();
+        // L'avertissement non bloquant est reporté sur la page de restitution.
+        self::assertStringContainsString('/audit/resultat', $client->getRequest()->getUri());
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Saisie validée', $html);
         self::assertStringContainsString('surface/pièces', $html);
     }
 
