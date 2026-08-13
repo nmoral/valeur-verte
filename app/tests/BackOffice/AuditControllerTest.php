@@ -96,6 +96,10 @@ final class AuditControllerTest extends WebTestCase
      */
     private function soumettre(KernelBrowser $client, array $valeurs): void
     {
+        // Le succès répond en Post/Redirect/Get : on suit la redirection pour
+        // atterrir sur la confirmation ; un 422 (blocage) ne redirige pas.
+        $client->followRedirects();
+
         $crawler = $client->request('GET', self::URL);
         self::assertInstanceOf(Crawler::class, $crawler);
         $formulaire = $crawler->selectButton('Valider la saisie')->form();
