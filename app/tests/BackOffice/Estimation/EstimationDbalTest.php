@@ -37,7 +37,12 @@ final class EstimationDbalTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        $this->prive->executeStatement('TRUNCATE data.coefficient_maille, data.vente');
+        // DELETE (verrou ROW EXCLUSIVE) et non TRUNCATE (ACCESS EXCLUSIVE) : la
+        // transaction DAMA de la connexion « app » tient encore un ACCESS SHARE
+        // sur ces tables (elle vient de les lire) et n'est annulée qu'après ce
+        // tearDown — un TRUNCATE s'y bloquerait.
+        $this->prive->executeStatement('DELETE FROM data.coefficient_maille');
+        $this->prive->executeStatement('DELETE FROM data.vente');
         $this->prive->close();
         parent::tearDown();
     }
