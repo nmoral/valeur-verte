@@ -22,8 +22,15 @@
     .form-error{font:400 12.5px/1.4 'Public Sans',sans-serif;color:var(--bad)}
     .field-hint{font:400 11.5px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
 
-    /* Adresse + autocomplétion */
+    /* Adresse + autocomplétion + géolocalisation */
     .adresse-wrap{position:relative}
+    .adresse-champ{display:flex;gap:8px}
+    .adresse-champ input{flex:1;min-width:0}
+    .geoloc-btn{flex:0 0 auto;width:46px;border:1px solid var(--rule-strong);border-radius:3px;background:#fff;font-size:19px;line-height:1;cursor:pointer}
+    .geoloc-btn:hover{background:var(--brand-soft);border-color:var(--brand)}
+    .geoloc-btn[disabled]{opacity:.55;cursor:default}
+    .geoloc-btn.charge{animation:geoloc-pulse 1s ease-in-out infinite}
+    @keyframes geoloc-pulse{50%{opacity:.4}}
     .suggestions{position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:30;margin:0;padding:0;list-style:none;
         background:#fff;border:1px solid var(--rule-strong);border-radius:3px;box-shadow:0 6px 20px rgba(17,24,32,.12);
         max-height:260px;overflow:auto;display:none}
@@ -110,10 +117,14 @@
                 <label for="adresse">Adresse</label>
                 <div class="audit-control">
                     <div class="adresse-wrap">
-                        <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                        <div class="adresse-champ">
+                            <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                            <button type="button" id="adresse-geoloc" class="geoloc-btn" title="Renseigner depuis ma position" aria-label="Renseigner l'adresse depuis ma position">📍</button>
+                        </div>
                         <ul id="adresse-suggestions" class="suggestions" role="listbox"></ul>
                     </div>
                     {% if erreurs.adresse is defined %}<span class="form-error">{{ erreurs.adresse }}</span>{% endif %}
+                    <span id="adresse-geoloc-erreur" class="field-hint" role="alert" hidden></span>
                 </div>
             </div>
 

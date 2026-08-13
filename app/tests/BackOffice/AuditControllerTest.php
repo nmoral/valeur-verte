@@ -30,6 +30,8 @@ final class AuditControllerTest extends WebTestCase
         // Autocomplétion d'adresse (progressive enhancement).
         self::assertSelectorExists('#adresse-suggestions');
         self::assertSelectorExists('script[src="/js/audit-adresse.js"]');
+        // Géolocalisation : proposer l'adresse depuis la position.
+        self::assertSelectorExists('#adresse-geoloc');
     }
 
     public function testUneSaisieValideMeneAUneConfirmation(): void

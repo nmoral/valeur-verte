@@ -10,6 +10,9 @@
         return;
     }
 
+    var boutonGeoloc = document.getElementById('adresse-geoloc');
+    var erreurGeoloc = document.getElementById('adresse-geoloc-erreur');
+
     var minuteur = null;
     var derniere = '';
     var indexActif = -1;
@@ -107,4 +110,63 @@
     champ.addEventListener('blur', function () {
         window.setTimeout(masquer, 150);
     });
+
+    function messageGeoloc(texte) {
+        if (!erreurGeoloc) {
+            return;
+        }
+        erreurGeoloc.textContent = texte;
+        erreurGeoloc.hidden = '' === texte;
+    }
+
+    function finGeoloc() {
+        boutonGeoloc.disabled = false;
+        boutonGeoloc.classList.remove('charge');
+    }
+
+    function depuisPosition(position) {
+        var url = 'https://api-adresse.data.gouv.fr/reverse/?lon=' + position.coords.longitude + '&lat=' + position.coords.latitude;
+        fetch(url)
+            .then(function (reponse) {
+                return reponse.ok ? reponse.json() : Promise.reject(reponse.status);
+            })
+            .then(function (donnees) {
+                var features = donnees.features || [];
+                if (0 === features.length) {
+                    messageGeoloc('Aucune adresse trouvée autour de votre position.');
+                    return;
+                }
+                champ.value = features[0].properties.label || '';
+                derniere = champ.value;
+                afficher(features);
+                champ.focus();
+            })
+            .catch(function () {
+                messageGeoloc('Impossible de retrouver l\'adresse. Saisissez-la à la main.');
+            })
+            .finally(finGeoloc);
+    }
+
+    function geolocaliser() {
+        if (!navigator.geolocation) {
+            messageGeoloc('La géolocalisation n\'est pas disponible sur cet appareil.');
+            return;
+        }
+        messageGeoloc('');
+        boutonGeoloc.disabled = true;
+        boutonGeoloc.classList.add('charge');
+
+        navigator.geolocation.getCurrentPosition(
+            depuisPosition,
+            function () {
+                messageGeoloc('Position refusée ou indisponible. Saisissez l\'adresse à la main.');
+                finGeoloc();
+            },
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+        );
+    }
+
+    if (boutonGeoloc) {
+        boutonGeoloc.addEventListener('click', geolocaliser);
+    }
 })();
