@@ -50,26 +50,25 @@ final class SupervisionCoefficientsTest extends KernelTestCase
     {
         $supervision = new SupervisionCoefficients($this->app, $this->seuils());
 
-        $mailles = $supervision->mailles();
+        // Le lecteur trie par code_insee : [32001, 32002, 32003].
+        [$saine, $erreurElevee, $gainNegatif] = $supervision->mailles();
 
-        self::assertCount(3, $mailles);
-        $parCode = [];
-        foreach ($mailles as $maille) {
-            $parCode[$maille->codeInsee()] = $maille;
-        }
+        self::assertSame('32001', $saine->codeInsee());
+        self::assertSame('32002', $erreurElevee->codeInsee());
+        self::assertSame('32003', $gainNegatif->codeInsee());
 
         // Maille saine : gain E→C = 0,10 − (−0,20) = 0,30, erreur 17 %.
-        self::assertFalse($parCode['32001']->estAberrante());
-        self::assertSame(134, $parCode['32001']->n());
-        self::assertSame(10, $parCode['32001']->rayonKm());
+        self::assertFalse($saine->estAberrante());
+        self::assertSame(134, $saine->n());
+        self::assertSame(10, $saine->rayonKm());
 
         // Erreur médiane au-dessus du défaut (30 %).
-        self::assertTrue($parCode['32002']->estAberrante());
-        self::assertContains('erreur_mediane_elevee', $parCode['32002']->raisons());
+        self::assertTrue($erreurElevee->estAberrante());
+        self::assertContains('erreur_mediane_elevee', $erreurElevee->raisons());
 
         // Gain E→C négatif : 0,05 → −0,10 = −0,15.
-        self::assertTrue($parCode['32003']->estAberrante());
-        self::assertContains('gain_ec_incoherent', $parCode['32003']->raisons());
+        self::assertTrue($gainNegatif->estAberrante());
+        self::assertContains('gain_ec_incoherent', $gainNegatif->raisons());
     }
 
     private function seuils(): SeuilsSupervisionRepository
