@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from valeur_verte_data.batch import MailleCoefficient
-from valeur_verte_data.db.coefficient_repository import upsert_coefficient
+from valeur_verte_data.db.coefficient_repository import archiver_coefficient, upsert_coefficient
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 
 
@@ -102,3 +102,19 @@ def test_upsert_coefficient_persiste_cran_palier_bandes_effectifs() -> None:
     assert params[12] == "degrade"  # palier
     assert json.loads(params[13]) == {"F": "F", "G": "F"}  # bandes
     assert json.loads(params[14]) == {"D": 20, "F": 18}  # effectifs_dpe
+
+
+def test_archiver_coefficient_versionne_par_millesime() -> None:
+    """REG-1 (#129) : l'archivage conserve chaque millésime (clé code_insee+millesime),
+    séparément de la table vive coefficient_maille, pour comparer les coefficients d'un
+    millésime au précédent sans casser le contrat de lecture app (une ligne / commune)."""
+    conn = _FakeConnection()
+
+    archiver_coefficient(conn, _maille())
+
+    query, params = conn.calls[0]
+    assert "coefficient_maille_historique" in query
+    assert "on conflict (code_insee, millesime)" in query.lower()
+    assert params is not None
+    assert params[0] == "31555"
+    assert params[1] == 2024
