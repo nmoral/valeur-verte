@@ -8,7 +8,13 @@ effectifs par classe → mapping ``classe → représentant de bande``.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
+
+from .config import CalculConfig
+from .dvf import Mutation
+from .regression import _eligible, fit
 
 # Échelle DPE, de la mieux valorisée (A) à la moins (G) : l'index donne le rang.
 _ECHELLE_DPE = "ABCDEFG"
@@ -110,3 +116,56 @@ def fusionner_inversions(
             }
 
     return dict(bandes)
+
+
+def bandes_monotones(
+    sample: Sequence[Mutation],
+    center_lat: float,
+    center_lon: float,
+    sigma_km: float,
+    config: CalculConfig,
+) -> dict[str, str] | None:
+    """Détermine le banding produisant un ajustement DPE **monotone**.
+
+    Enchaîne : bandes par effectif → ajustement → fusion de la première inversion →
+    ré-ajustement, jusqu'à ce que le banding ne change plus (monotonie atteinte).
+    Renvoie le mapping ``classe → représentant`` à appliquer, ou ``None`` si moins de
+    deux bandes subsistent (échantillon trop pauvre ou effondrement des inversions).
+
+    Ne consomme que ``fit`` : l'appelant relabelle ensuite l'échantillon avec ce
+    mapping et rejoue le chemin standard (écrêtage, validation croisée, invariants).
+    """
+    effectifs = Counter(
+        row.dpe for row in _eligible(sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    mapping = bandes_adaptatives(effectifs, config.min_class_sample, reference=config.reference_dpe)
+    if not mapping:
+        return None
+
+    for _ in range(len(_ECHELLE_DPE)):
+        relabelle = [
+            replace(mutation, etiquette_dpe=mapping[mutation.etiquette_dpe])
+            if mutation.etiquette_dpe in mapping
+            else mutation
+            for mutation in sample
+        ]
+        resultat = fit(
+            relabelle,
+            center_lat,
+            center_lon,
+            sigma_km=sigma_km,
+            reference_dpe=config.reference_dpe,
+            voisins_indice_local=config.voisins_indice_local,
+            etendue_minimale_indice=config.etendue_minimale_indice,
+            restreindre_bati_ancien=config.restreindre_bati_ancien,
+            effets_fixes_commune=config.effets_fixes_commune,
+            indice_local=config.indice_local,
+        )
+        fusion = fusionner_inversions(mapping, resultat.coef_dpe, reference=config.reference_dpe)
+        if fusion == mapping:
+            return mapping
+        mapping = fusion
+        if len(set(mapping.values())) < 2:
+            return None
+
+    return mapping
