@@ -29,9 +29,17 @@ final class EstimationDbalTest extends KernelTestCase
         $manager = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $manager);
         $this->app = $manager->getConnection();
-        $params = (new DsnParser(['postgresql' => 'pdo_pgsql']))
-            ->parse('postgresql://valeur_verte:valeur_verte@db:5432/valeur_verte_test?serverVersion=16&charset=utf8');
-        $this->prive = DriverManager::getConnection($params);
+
+        // Connexion privilégiée pour provisionner le schéma « data » (le rôle app
+        // n'y a que le SELECT). On reprend l'hôte/port/base de la connexion
+        // applicative — « db » dans la stack locale, « 127.0.0.1 » en CI — et on
+        // n'y substitue que le rôle superutilisateur, identique dans les deux.
+        $params = $this->app->getParams();
+        $hote = \is_string($params['host'] ?? null) ? $params['host'] : '127.0.0.1';
+        $port = is_numeric($params['port'] ?? null) ? (int) $params['port'] : 5432;
+        $base = $this->app->getDatabase() ?? 'valeur_verte_test';
+        $dsn = \sprintf('postgresql://valeur_verte:valeur_verte@%s:%d/%s?serverVersion=16&charset=utf8', $hote, $port, $base);
+        $this->prive = DriverManager::getConnection((new DsnParser(['postgresql' => 'pdo_pgsql']))->parse($dsn));
         $this->provisionner();
     }
 
