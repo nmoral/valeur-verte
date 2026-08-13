@@ -65,6 +65,12 @@ class CalculConfig:
     # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »,
     # servi avec bandeau au-delà du seuil standard et sous celui-ci.
     erreur_mediane_max_pct_degrade: float = 30.0
+    # Écarts entre millésimes (REG-1, #129) : un coefficient qui bouge de plus de
+    # ecart_alerte_pct au recalcul est signalé pour revue ; au-delà de
+    # ecart_blocage_pct la publication de la maille est bloquée (l'ancienne valeur
+    # reste servie jusqu'à validation manuelle). Écart mesuré sur l'effet exp(coef).
+    ecart_alerte_pct: float = 10.0
+    ecart_blocage_pct: float = 25.0
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -121,6 +127,8 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         erreur_mediane_max_pct_degrade=_float(
             env, "ERREUR_MEDIANE_MAX_PCT_DEGRADE", defaut.erreur_mediane_max_pct_degrade
         ),
+        ecart_alerte_pct=_float(env, "ECART_ALERTE_PCT", defaut.ecart_alerte_pct),
+        ecart_blocage_pct=_float(env, "ECART_BLOCAGE_PCT", defaut.ecart_blocage_pct),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
         elasticite_bati_min=_float(env, "ELASTICITE_BATI_MIN", defaut.elasticite_bati_min),

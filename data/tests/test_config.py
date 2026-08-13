@@ -42,6 +42,9 @@ def test_defauts_sans_environnement() -> None:
     assert config.erreur_mediane_max_pct == 20.0
     # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »
     assert config.erreur_mediane_max_pct_degrade == 30.0
+    # Écarts entre millésimes (REG-1, #129) : alerte à 10 %, blocage à 25 %
+    assert config.ecart_alerte_pct == 10.0
+    assert config.ecart_blocage_pct == 25.0
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -85,6 +88,14 @@ def test_surcharge_seuils_publication() -> None:
 def test_surcharge_seuil_degrade() -> None:
     config = resolve_config({"VV_MOTEUR_ERREUR_MEDIANE_MAX_PCT_DEGRADE": "25"})
     assert config.erreur_mediane_max_pct_degrade == 25.0
+
+
+def test_surcharge_seuils_ecart_millesime() -> None:
+    config = resolve_config(
+        {"VV_MOTEUR_ECART_ALERTE_PCT": "8", "VV_MOTEUR_ECART_BLOCAGE_PCT": "20"}
+    )
+    assert config.ecart_alerte_pct == 8.0
+    assert config.ecart_blocage_pct == 20.0
 
 
 def test_surcharge_int() -> None:
