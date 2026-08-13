@@ -29,6 +29,11 @@ services:
     # Notification admin d'un usage anormal (#44) : impl d'attente par log (#50).
     App\Notification\NotificationAdmin: '@App\Notification\NotificationAdminViaLog'
 
+    # Cache-busting des assets : versionne par hash du fichier servi.
+    App\Asset\VersionParContenu:
+        arguments:
+            $repertoirePublic: '%kernel.project_dir%/public'
+
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
         arguments:

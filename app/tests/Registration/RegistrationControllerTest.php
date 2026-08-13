@@ -39,7 +39,7 @@ final class RegistrationControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('#entreprise-apercu');
-        self::assertSelectorExists('script[src="/js/inscription-siret.js"]');
+        self::assertSelectorExists('script[src^="/js/inscription-siret.js"]');
     }
 
     public function testUneInscriptionValideCreeLeCompteEtConnecte(): void
