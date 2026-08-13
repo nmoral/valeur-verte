@@ -111,8 +111,11 @@ Avec `seuil = min_local_sample = 30`, `n_local` = éligibles dans la sélection,
 | sinon `n_departement ≥ 30` | **DÉPARTEMENTAL** | σ=1000, rayon=null, **bandeau dégradé** |
 | sinon | **REFUS** | pas de coefficient |
 
-⚠️ Un échec LOCAL **ne cascade pas** vers départemental : c'est un refus sec. (La
-cascade géographique complète est en conception — voir §12.)
+⚠️ Ce choix de mode reste piloté par l'**effectif** (n), pas par la qualité : un
+LOCAL suffisant en n mais hors seuils de qualité **ne cascade pas** encore vers un
+cran plus grossier (EPCI/DÉPT). Depuis #169 il est toutefois **publié en tier
+dégradé** si son erreur reste < 30 % (§11) ; au-delà, refus. La cascade géographique
+LOCAL → EPCI → DÉPARTEMENT est en cours de câblage — voir §14.
 
 ## 8. Écrêtage des outliers (`trimming.ecreter_residu`, S32 V2)
 
@@ -140,7 +143,9 @@ Actif si `ecretage="residu"` (défaut) **et** `n ≥ ecretage_seuil_n = 100`. Pr
 Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur effacé).
 
 - **INV-4** (`evaluer_invariants_publication`) — qualité :
-  - `erreur_mediane < erreur_mediane_max_pct` (**20 %**) ;
+  - `erreur_mediane < erreur_mediane_max_pct_degrade` (**30 %**, plafond dégradé #169) —
+    entre le seuil standard `erreur_mediane_max_pct` (**20 %**) et ce plafond, la maille
+    est **publiée en tier dégradé** (son `palier` porte le bandeau) au lieu du refus sec ;
   - `r2 > r2_min` (**0,30**) — garde-fou technique, jamais exposé ;
   - `n_transactions ≥ min_local_sample` (**30**).
 - **INV-2** (`evaluer_signe_ordre_grandeur`) — signes/ordres en log (si classes publiées) :
@@ -167,10 +172,9 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 - **`palier`** (#169, `degraded.palier_erreur`) : tier de fiabilité de la maille —
   `STANDARD` si `erreur_mediane < erreur_mediane_max_pct` (20 %), `DEGRADE` si sous
   `erreur_mediane_max_pct_degrade` (30 %). Distinct de `alerte` (réservé à INV-3
-  bord) : la restitution en dérive le bandeau « estimation dégradée ». ⚠️ **Marqué
-  mais pas encore publié** au cran DEGRADE : INV-4 rejette toujours ≥ 20 %
-  (ouverture du gate à 30 % = cycle suivant de la cascade, cf. §14). Non persisté
-  aujourd'hui (contrat `coefficient_maille` à étendre).
+  bord) : la restitution en dérive le bandeau « estimation dégradée ». Le tier
+  DEGRADE est désormais **publié** (INV-4 gate au plafond 30 %). ⚠️ Non persisté
+  aujourd'hui (contrat `coefficient_maille` à étendre — cf. §14).
 - **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
 - ⚠️ **`effectifs_dpe` n'est PAS persisté** (porté en mémoire dans le batch) → bloque
   aujourd'hui la tolérance INV-1 au rechargement (RECAP §6).
@@ -197,20 +201,28 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `effets_fixes_commune` | `false` | S22 |
 | `indice_local` | `true` | S24 |
 | `cv_folds` | 5 | validation croisée |
-| `erreur_mediane_max_pct` | 20 | juge INV-4 |
-| `erreur_mediane_max_pct_degrade` | 30 | palier dégradé rural (#169, câblage en cours — cf. §14) |
+| `erreur_mediane_max_pct` | 20 | seuil du tier standard (classe le `palier`) |
+| `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |
 | `ecretage` / `ecretage_seuil_n` / `ecretage_k` | `residu` / 100 / 3,0 | S32 |
 | `price_min/max`, `bati_min/max`, `terrain_min/max` | 30k/900k, 50/250, 50/5000 | §7 — **non appliqué en prod (sans bornes)** |
 
-## 14. En conception — non implémenté
+## 14. Couverture rurale (#169) — livraison en cours
 
-La **couverture rurale** (cascade LOCAL → EPCI → DÉPARTEMENT, palier dégradé erreur
-≤ 30 %, bandes DPE adaptatives + anti-inversion, amplitude = fiabilité affichée) est
-**conçue mais pas codée** : voir [`docs/lab/resultats-couverture-rurale.md`](lab/resultats-couverture-rurale.md).
-Tant qu'elle n'est pas livrée, ce référentiel décrit le moteur **tel qu'il tourne**.
+La **cascade de couverture** (voir [`docs/lab/resultats-couverture-rurale.md`](lab/resultats-couverture-rurale.md))
+se câble par petits pas TDD. État :
+
+- ✅ **Palier dégradé au LOCAL** : la maille porte son `palier` (§12) et INV-4 publie
+  le tier dégradé jusqu'à 30 % (§11) — ouvre le rural sans descendre de cran.
+- ⏳ **Cran EPCI** (bandes adaptatives) : régression par EPCI quand le LOCAL échoue.
+- ⏳ **Cran DÉPARTEMENT** : bandes adaptatives + anti-inversion sur le repli départemental.
+- ⏳ **Persistance** : `coefficient_maille` doit porter `palier`/bandes/EPCI (contrat data→app).
+- ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
+
+Ce référentiel décrit le moteur **tel qu'il tourne** : les crans EPCI/DÉPT ne sont
+pas encore branchés, un échec LOCAL sous 30 % publie, au-delà refuse (pas de repli).
 
 ## 15. Décisions & réglages (traçabilité)
 

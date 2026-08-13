@@ -3,7 +3,8 @@
 Fin de calcul, par maille : une maille dont l'erreur médiane, le R² ou le n
 ne tiennent pas les seuils **n'est pas publiée** (elle remonte en alerte, #22
 prend le relais). Les seuils viennent d'une **source unique** configurable :
-erreur médiane < 20 %, R² > 0,30, n ≥ 30 (= ``min_local_sample``, seuil #22).
+erreur médiane < plafond dégradé 30 % (#169 — 20-30 % = tier dégradé publié),
+R² > 0,30, n ≥ 30 (= ``min_local_sample``).
 """
 
 from __future__ import annotations
@@ -126,7 +127,8 @@ def test_le_gate_de_publication_lit_le_plafond_degrade_de_la_config() -> None:
     # #169 : le gate d'erreur est le **plafond dégradé**. Une erreur de 35 % bloque
     # au défaut (30 %) mais passe si le plafond est relevé à 40 % : la borne est une
     # constante configurable unique (``erreur_mediane_max_pct_degrade``), pas codée en dur.
-    assert evaluer_invariants_publication(_maille(erreur_mediane=35.0), CalculConfig()).publiable is False
+    strict = evaluer_invariants_publication(_maille(erreur_mediane=35.0), CalculConfig())
+    assert strict.publiable is False
 
     permissif = replace(CalculConfig(), erreur_mediane_max_pct_degrade=40.0)
     verdict = evaluer_invariants_publication(_maille(erreur_mediane=35.0), permissif)
