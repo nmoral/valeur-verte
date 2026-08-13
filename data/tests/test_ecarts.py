@@ -164,12 +164,22 @@ def test_ecart_maille_nomme_la_classe_dpe_en_cause() -> None:
     assert resultat.coefficient == "DPE F"
 
 
+def test_ecart_maille_nomme_l_elasticite_terrain_en_cause() -> None:
+    # Terrain 0,30 → 0,50 = +67 %, le reste stable : le coefficient en cause est le terrain.
+    ancien = _maille({"D": 0.0, "F": -0.20}, terrain=0.30)
+    nouveau = _maille({"D": 0.0, "F": -0.20}, terrain=0.50)
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.BLOCAGE
+    assert resultat.coefficient == "élasticité terrain"
+
+
 def test_ecart_maille_structurel_nomme_les_classes_publiees() -> None:
     ancien = _maille({"D": 0.0, "F": -0.20})
     nouveau = _maille({"D": 0.0, "F": -0.20, "C": 0.10})
     resultat = ecart_maille(ancien, nouveau, **_SEUILS)
     assert resultat.classe is ClasseEcart.ALERTE
     assert resultat.coefficient == "classes publiées"
+    assert resultat.ecart == 0.0  # le cas structurel ne porte pas d'écart numérique
 
 
 # --- RapportEcarts : le rapport dédié, une ligne par maille comparée (REG-1) ---
