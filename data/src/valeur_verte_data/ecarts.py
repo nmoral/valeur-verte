@@ -9,6 +9,7 @@ signalée pour revue manuelle), ou blocage (publication de la maille suspendue,
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,20 @@ class ClasseEcart(Enum):
 _GRAVITE = (ClasseEcart.NORMAL, ClasseEcart.ALERTE, ClasseEcart.BLOCAGE)
 
 
+@dataclass(frozen=True)
+class EcartMaille:
+    """Écart d'une maille à son millésime précédent, prêt pour le rapport REG-1.
+
+    ``classe`` = ampleur (le pire coefficient) ; ``ecart`` = écart relatif de ce
+    coefficient (``inf`` pour une apparition depuis zéro) ; ``coefficient`` = libellé
+    du coefficient en cause (« DPE F », « élasticité bâti », « classes publiées »).
+    """
+
+    classe: ClasseEcart
+    ecart: float
+    coefficient: str
+
+
 def classer_ecart(
     ancien: float, nouveau: float, *, seuil_alerte: float, seuil_blocage: float
 ) -> ClasseEcart:
@@ -42,9 +57,17 @@ def classer_ecart(
     (``nouveau`` non nul) est un changement majeur → ``BLOCAGE`` ; deux valeurs nulles
     (ex. la référence D) n'ont aucun écart → ``NORMAL``.
     """
+    return _classer(_ecart_relatif(ancien, nouveau), seuil_alerte, seuil_blocage)
+
+
+def _ecart_relatif(ancien: float, nouveau: float) -> float:
+    """Écart relatif ``|nouveau − ancien| / |ancien|`` ; ``inf`` si apparition (ancien nul)."""
     if ancien == 0:
-        return ClasseEcart.NORMAL if nouveau == 0 else ClasseEcart.BLOCAGE
-    ecart = abs(nouveau - ancien) / abs(ancien)
+        return 0.0 if nouveau == 0 else math.inf
+    return abs(nouveau - ancien) / abs(ancien)
+
+
+def _classer(ecart: float, seuil_alerte: float, seuil_blocage: float) -> ClasseEcart:
     if ecart < seuil_alerte:
         return ClasseEcart.NORMAL
     if ecart <= seuil_blocage:
@@ -58,7 +81,7 @@ def ecart_maille(
     *,
     seuil_alerte: float,
     seuil_blocage: float,
-) -> ClasseEcart:
+) -> EcartMaille:
     """Classe l'écart d'une maille à son millésime précédent, au **pire** coefficient.
 
     Chaque coefficient est comparé (§REG-1) :
@@ -73,13 +96,18 @@ def ecart_maille(
     une classe qui apparaît ou disparaît) est un changement structurel à revoir → au
     moins ``ALERTE``, même si les coefficients partagés sont stables.
     """
-    seuils = {"seuil_alerte": seuil_alerte, "seuil_blocage": seuil_blocage}
-    classes = [
-        classer_ecart(math.exp(ancien.coef_dpe[dpe]), math.exp(nouveau.coef_dpe[dpe]), **seuils)
+    # (libellé, valeur ancienne, valeur nouvelle) — DPE sur exp(coef), élasticités brutes.
+    candidats: list[tuple[str, float, float]] = [
+        (f"DPE {dpe}", math.exp(ancien.coef_dpe[dpe]), math.exp(nouveau.coef_dpe[dpe]))
         for dpe in ancien.coef_dpe.keys() & nouveau.coef_dpe.keys()
     ]
-    classes.append(classer_ecart(ancien.coef_m2_bati, nouveau.coef_m2_bati, **seuils))
-    classes.append(classer_ecart(ancien.coef_m2_terrain, nouveau.coef_m2_terrain, **seuils))
+    candidats.append(("élasticité bâti", ancien.coef_m2_bati, nouveau.coef_m2_bati))
+    candidats.append(("élasticité terrain", ancien.coef_m2_terrain, nouveau.coef_m2_terrain))
+    evalues = [
+        EcartMaille(_classer(ecart, seuil_alerte, seuil_blocage), ecart, libelle)
+        for libelle, avant, apres in candidats
+        for ecart in (_ecart_relatif(avant, apres),)
+    ]
     if ancien.coef_dpe.keys() != nouveau.coef_dpe.keys():
-        classes.append(ClasseEcart.ALERTE)
-    return max(classes, key=_GRAVITE.index)
+        evalues.append(EcartMaille(ClasseEcart.ALERTE, 0.0, "classes publiées"))
+    return max(evalues, key=lambda r: (_GRAVITE.index(r.classe), r.ecart))
