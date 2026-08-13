@@ -32,4 +32,9 @@ class Tenant
     {
         return $this->id;
     }
+
+    public function creeLe(): \DateTimeImmutable
+    {
+        return $this->creeLe;
+    }
 }
