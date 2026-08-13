@@ -26,11 +26,11 @@ services:
     # remplacée par le journal d'audit persistant (#50).
     App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
 
-    # Notification admin d'un usage anormal (#44) : impl d'attente par log (#50).
-    App\Notification\NotificationAdmin: '@App\Notification\NotificationAdminViaLog'
-
     # Journal d'audit de l'admin interne (#50) : registre append-only persisté.
     App\AdminInterne\JournalAudit\JournalAudit: '@App\AdminInterne\JournalAudit\JournalAuditDoctrine'
+
+    # Notification admin d'un usage anormal (#44) : inscrite au journal d'audit (#50).
+    App\Notification\NotificationAdmin: '@App\AdminInterne\JournalAudit\NotificationAdminViaJournal'
 
     # Cache-busting des assets : versionne par hash du fichier servi.
     App\Asset\VersionParContenu:
