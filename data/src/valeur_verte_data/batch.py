@@ -150,44 +150,27 @@ def _sigma_local(config: CalculConfig, selection: RadiusSelection) -> float:
     return max(sigma, config.sigma_min)
 
 
-def compute_maille(
+def _compute_from_sample(
     code_insee: str,
     centroid_lat: float,
     centroid_lon: float,
     millesime: int,
-    pool: Sequence[Mutation],
+    sample: Sequence[Mutation],
     *,
-    config: CalculConfig = DEFAULT_CONFIG,
+    mode: CoverageMode,
+    rayon_km: int | None,
+    fit_sigma: float,
+    alerte: str | None,
+    config: CalculConfig,
 ) -> MailleCoefficient | None:
-    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
-    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
-    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
-    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
-    pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
-    selection = adaptive_selection(
-        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
-    )
-    departemental = _meme_departement(code_insee, pool)
-    n_local = len(
-        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
-    )
-    n_departement = len(
-        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
-    )
-    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
+    """Chaîne commune post-sélection, partagée par tous les crans de la cascade.
 
-    if decision.mode is CoverageMode.REFUS:
-        return None
-
-    if decision.mode is CoverageMode.LOCAL:
-        sample: Sequence[Mutation] = selection.sample
-        rayon_km: int | None = selection.rayon_km
-        fit_sigma = _sigma_local(config, selection)
-    else:
-        sample = departemental
-        rayon_km = None
-        fit_sigma = config.departemental_sigma_km
-
+    Une fois l'échantillon et la pondération (``fit_sigma``) choisis — cran LOCAL,
+    EPCI ou DÉPARTEMENT — le traitement est identique : écrêtage → gate de
+    publication par classe → régression → erreur médiane → palier de fiabilité.
+    Renvoie ``None`` si moins de ``min_classes_publiees`` classes tiennent le seuil.
+    L'appelant fournit un ``sample`` déjà en ordre canonique (INV-5).
+    """
     if config.ecretage == "residu":
         sample = ecreter_residu(
             sample,
@@ -242,14 +225,66 @@ def compute_maille(
     return _maille(
         code_insee,
         millesime,
-        decision.mode,
+        mode,
         rayon_km,
         result,
         erreur,
-        decision.alerte,
+        alerte,
         palier,
         publiables,
         effectifs,
+    )
+
+
+def compute_maille(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
+    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
+    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
+    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
+    pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
+    selection = adaptive_selection(
+        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
+    )
+    departemental = _meme_departement(code_insee, pool)
+    n_local = len(
+        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    n_departement = len(
+        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
+
+    if decision.mode is CoverageMode.REFUS:
+        return None
+
+    if decision.mode is CoverageMode.LOCAL:
+        sample: Sequence[Mutation] = selection.sample
+        rayon_km: int | None = selection.rayon_km
+        fit_sigma = _sigma_local(config, selection)
+    else:
+        sample = departemental
+        rayon_km = None
+        fit_sigma = config.departemental_sigma_km
+
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=decision.mode,
+        rayon_km=rayon_km,
+        fit_sigma=fit_sigma,
+        alerte=decision.alerte,
+        config=config,
     )
 
 
