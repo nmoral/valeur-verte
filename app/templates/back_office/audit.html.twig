@@ -25,7 +25,13 @@
     /* Adresse + autocomplétion + géolocalisation */
     .adresse-wrap{position:relative}
     .adresse-champ{display:flex;gap:8px}
-    .adresse-champ input{flex:1;min-width:0}
+    .adresse-input{position:relative;flex:1;min-width:0}
+    .adresse-input input{width:100%;padding-right:38px}
+    .adresse-spin{position:absolute;top:50%;right:12px;width:16px;height:16px;margin-top:-8px;
+        border:2px solid var(--rule-strong);border-top-color:var(--brand);border-radius:50%;
+        animation:adresse-spin .6s linear infinite;pointer-events:none}
+    .adresse-spin[hidden]{display:none}
+    @keyframes adresse-spin{to{transform:rotate(360deg)}}
     .geoloc-btn{flex:0 0 auto;width:46px;border:1px solid var(--rule-strong);border-radius:3px;background:#fff;font-size:19px;line-height:1;cursor:pointer}
     .geoloc-btn:hover{background:var(--brand-soft);border-color:var(--brand)}
     .geoloc-btn[disabled]{opacity:.55;cursor:default}
@@ -118,7 +124,10 @@
                 <div class="audit-control">
                     <div class="adresse-wrap">
                         <div class="adresse-champ">
-                            <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                            <div class="adresse-input">
+                                <input type="text" id="adresse" name="adresse" value="{{ valeurs.adresse }}" placeholder="Commencez à taper l'adresse…" autocomplete="off" autofocus required>
+                                <span class="adresse-spin" id="adresse-spin" hidden aria-hidden="true"></span>
+                            </div>
                             <button type="button" id="adresse-geoloc" class="geoloc-btn" title="Renseigner depuis ma position" aria-label="Renseigner l'adresse depuis ma position">📍</button>
                         </div>
                         <ul id="adresse-suggestions" class="suggestions" role="listbox"></ul>

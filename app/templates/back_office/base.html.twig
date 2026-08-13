@@ -20,6 +20,9 @@
             <span class="lien-off" title="À venir">Entreprise</span>
         </nav>
         {% block sidebar_footer %}{% endblock %}
+        <div class="side-footer">
+            <a href="{{ path('logout') }}" class="side-logout"><span aria-hidden="true">⏻</span> Se déconnecter</a>
+        </div>
     </aside>
 
     <main>

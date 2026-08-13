@@ -136,3 +136,9 @@ tbody tr:hover{background:var(--sub)}
   main{padding:18px 16px 50px}
   table{display:block;overflow-x:auto}
 }
+
+/* Déconnexion en pied de sidebar */
+.side-footer{padding:10px;border-top:1px solid var(--rule)}
+.side-logout{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:2px;font-size:14px;color:var(--slate);text-decoration:none}
+.side-logout span{font-size:15px;line-height:1}
+.side-logout:hover{background:var(--paper);color:var(--bad)}

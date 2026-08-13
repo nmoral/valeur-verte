@@ -12,6 +12,13 @@
 
     var boutonGeoloc = document.getElementById('adresse-geoloc');
     var erreurGeoloc = document.getElementById('adresse-geoloc-erreur');
+    var spinner = document.getElementById('adresse-spin');
+
+    function chargement(actif) {
+        if (spinner) {
+            spinner.hidden = !actif;
+        }
+    }
 
     var minuteur = null;
     var derniere = '';
@@ -68,6 +75,7 @@
             return;
         }
         derniere = requete;
+        chargement(true);
 
         fetch('https://api-adresse.data.gouv.fr/search/?limit=5&q=' + encodeURIComponent(requete))
             .then(function (reponse) {
@@ -76,7 +84,10 @@
             .then(function (donnees) {
                 afficher(donnees.features || []);
             })
-            .catch(masquer);
+            .catch(masquer)
+            .finally(function () {
+                chargement(false);
+            });
     }
 
     champ.addEventListener('input', function () {
@@ -122,6 +133,7 @@
     function finGeoloc() {
         boutonGeoloc.disabled = false;
         boutonGeoloc.classList.remove('charge');
+        chargement(false);
     }
 
     function depuisPosition(position) {
@@ -155,6 +167,7 @@
         messageGeoloc('');
         boutonGeoloc.disabled = true;
         boutonGeoloc.classList.add('charge');
+        chargement(true);
 
         navigator.geolocation.getCurrentPosition(
             depuisPosition,
