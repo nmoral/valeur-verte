@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\AdminInterne\JournalAudit;
 
 use App\AdminInterne\JournalAudit\EvenementAudit;
-use DateTimeImmutable;
-use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class EvenementAuditTest extends TestCase
 {
     public function testUnEvenementConserveQuiQuoiSurQuoiEtQuand(): void
     {
-        $survenuLe = new DateTimeImmutable('2026-08-13 10:00:00');
+        $survenuLe = new \DateTimeImmutable('2026-08-13 10:00:00');
 
         $evenement = new EvenementAudit(
             acteur: 'n.moral@live.fr',
@@ -32,14 +30,14 @@ final class EvenementAuditTest extends TestCase
 
     public function testUneActionVideEstRejetee(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
 
         new EvenementAudit(
             acteur: 'n.moral@live.fr',
             action: '   ',
             cible: 'maille:31555',
             contexte: [],
-            survenuLe: new DateTimeImmutable('2026-08-13 10:00:00'),
+            survenuLe: new \DateTimeImmutable('2026-08-13 10:00:00'),
         );
     }
 }
