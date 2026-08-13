@@ -51,7 +51,9 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
     return houses
 
 
-def _cluster_commune(code_insee: str, count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+def _cluster_commune(
+    code_insee: str, count_per_class: int, *, lat: float, lon: float
+) -> list[Mutation]:
     """Cluster de ventes rattachées à une commune donnée (id_mutation unique)."""
     return [
         replace(vente, code_insee=code_insee, id_mutation=f"{code_insee}-{vente.id_mutation}")

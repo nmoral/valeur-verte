@@ -21,9 +21,10 @@ REFUS_MESSAGE = "Données insuffisantes pour produire une estimation sur cette z
 
 
 class CoverageMode(Enum):
-    """Origine du coefficient retenu pour une maille."""
+    """Origine du coefficient retenu pour une maille (crans de la cascade #169)."""
 
     LOCAL = "local"
+    EPCI = "epci"
     DEPARTEMENTAL = "departemental"
     REFUS = "refus"
 

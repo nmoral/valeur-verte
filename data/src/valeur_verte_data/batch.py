@@ -288,6 +288,46 @@ def compute_maille(
     )
 
 
+def compute_maille_epci(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    communes_epci: Sequence[str],
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la maille d'une commune au cran EPCI de la cascade (#169).
+
+    Cran intermédiaire entre le local et le département : on poole les ventes des
+    communes de ``communes_epci`` (fournies par l'appelant depuis le référentiel
+    ``commune_epci``) en **une régression par EPCI**, à pondération uniforme (σ
+    départemental) — tous les biens de l'EPCI comptent également, la géographie
+    fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
+
+    Renvoie ``None`` si le gate de publication par classe n'est pas tenu (à ce
+    stade sans bandes DPE — le repli départemental prendra alors le relais).
+    """
+    membres = set(communes_epci)
+    sample = sorted(
+        (mutation for mutation in pool if mutation.code_insee in membres),
+        key=lambda mutation: mutation.id_mutation,
+    )
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=CoverageMode.EPCI,
+        rayon_km=None,
+        fit_sigma=config.departemental_sigma_km,
+        alerte=None,
+        config=config,
+    )
+
+
 def compute_communes(
     communes: Iterable[tuple[str, float, float]],
     pool: Sequence[Mutation],
