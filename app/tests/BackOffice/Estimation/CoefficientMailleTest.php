@@ -85,7 +85,6 @@ final class CoefficientMailleTest extends TestCase
         int $millesime = 2024,
     ): CoefficientMaille {
         return CoefficientMaille::depuis(
-            codeInsee: '32013',
             millesime: $millesime,
             rayonKm: $rayonKm,
             n: $n,
