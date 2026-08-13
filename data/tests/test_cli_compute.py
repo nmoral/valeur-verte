@@ -18,8 +18,8 @@ from valeur_verte_data import cli, orchestration
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
-from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
 from valeur_verte_data.dvf import Mutation
+from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
 from valeur_verte_data.invariants import ResultatMonotonie, VerdictPublication
 
 _COMMUNES = [
