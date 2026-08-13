@@ -155,8 +155,7 @@ def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -
     ]
     # Voisin ariégeois (09), présent au pool mais hors du département calculé.
     voisin_09 = [
-        replace(vente, code_insee="09122", id_mutation=f"09-{i}")
-        for i, vente in enumerate(amples)
+        replace(vente, code_insee="09122", id_mutation=f"09-{i}") for i, vente in enumerate(amples)
     ]
     pool = amples + rares_f + rares_g + voisin_09
     cfg = replace(CalculConfig(), min_class_sample=10)

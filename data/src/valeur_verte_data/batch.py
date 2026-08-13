@@ -342,6 +342,51 @@ def compute_maille_epci(
     )
 
 
+def compute_maille_departement(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la maille d'une commune au cran DÉPARTEMENT (#169) — dernier filet.
+
+    Poole les ventes du **seul département** de la commune (``_meme_departement`` :
+    le débordement sur les voisins nourrit le calcul *local*, pas ce repli — #91), à
+    pondération uniforme (σ départemental), avec bandes DPE adaptatives +
+    anti-inversion. ``mode=DEPARTEMENTAL``, sans rayon. Renvoie ``None`` si moins de
+    deux bandes subsistent (la commune sort alors hors zone).
+    """
+    sample = sorted(
+        _meme_departement(code_insee, pool),
+        key=lambda mutation: mutation.id_mutation,
+    )
+    sigma = config.departemental_sigma_km
+    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
+    if bandes is None:
+        return None
+    sample = [
+        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
+        if mutation.etiquette_dpe in bandes
+        else mutation
+        for mutation in sample
+    ]
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=CoverageMode.DEPARTEMENTAL,
+        rayon_km=None,
+        fit_sigma=sigma,
+        alerte=None,
+        config=config,
+    )
+
+
 def compute_communes(
     communes: Iterable[tuple[str, float, float]],
     pool: Sequence[Mutation],
