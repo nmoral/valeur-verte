@@ -15,7 +15,7 @@ from valeur_verte_data.batch import (
 )
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
-from valeur_verte_data.degraded import CoverageMode
+from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.radius import RadiusSelection
 
@@ -286,6 +286,54 @@ def test_compute_maille_expose_l_effectif_par_classe_dpe() -> None:
     assert maille.effectifs_dpe == {"C": 6, "D": 5, "F": 4}
     # Mêmes classes que le coefficient : l'effectif accompagne chaque coef publié.
     assert set(maille.effectifs_dpe) == set(maille.coef_dpe)
+
+
+# ---------------------------------------------------------------------------
+# #169 — Palier de fiabilité au cran LOCAL. La maille porte son tier (STANDARD /
+# DEGRADE) dérivé de l'erreur médiane, premier maillon de la cascade : le tier
+# dégradé ouvre le LOCAL aux erreurs 20-30 % (servi avec bandeau côté restitution)
+# au lieu du refus sec. Les deux seuils viennent de la config (contrat data→app).
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_palier_standard_sous_le_seuil() -> None:
+    """Sous le seuil d'erreur standard, la maille est en tier STANDARD (aucun bandeau).
+
+    Une maille locale précise ne bascule pas en dégradé : le palier est porté par
+    la maille elle-même, pas déduit après coup.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)  # données propres → erreur médiane faible
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+
+    assert maille is not None
+    assert maille.erreur_mediane is not None
+    assert maille.erreur_mediane < base.erreur_mediane_max_pct
+    assert maille.palier is PalierFiabilite.STANDARD
+
+
+def test_compute_maille_palier_degrade_entre_les_deux_seuils() -> None:
+    """Entre seuil standard et seuil dégradé, la maille bascule en tier DEGRADE.
+
+    Preuve de câblage : en abaissant le seuil standard à 0, toute erreur positive
+    tombe dans le tier dégradé au lieu du standard. Les deux seuils viennent de la
+    config (``erreur_mediane_max_pct`` / ``_degrade``), pas d'une constante.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        erreur_mediane_max_pct=0.0,
+        erreur_mediane_max_pct_degrade=100.0,
+    )
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.palier is PalierFiabilite.DEGRADE
 
 
 def test_compute_maille_mode_local() -> None:
