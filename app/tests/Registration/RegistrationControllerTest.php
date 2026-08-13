@@ -57,7 +57,7 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertContains('ROLE_PRO', $user->getRoles());
 
         $client->followRedirect();
-        self::assertSelectorTextContains('h1', 'Espace pro');
+        self::assertSelectorTextContains('h1', 'Tableau de bord');
     }
 
     public function testUnEmailDejaUtiliseEstRefuse(): void

@@ -7,7 +7,7 @@
     <aside>
         <div class="brand"><i>VV</i> {% block brand %}Valeur Verte{% endblock %}</div>
         <nav class="side">
-            <span class="lien-off" title="À venir">Tableau de bord</span>
+            <a href="{{ path('espace_pro') }}"{{ nav_active|default('') == 'dashboard' ? ' class="on"' : '' }}>Tableau de bord</a>
             <a href="{{ path('back_office_audit') }}"{{ nav_active|default('') == 'audit' ? ' class="on"' : '' }}>Nouvel audit</a>
             <a href="{{ path('back_office_rapports') }}"{{ nav_active|default('') == 'reports' ? ' class="on"' : '' }}>Rapports &amp; leads</a>
             <p class="sect">Configuration</p>
