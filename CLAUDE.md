@@ -7,6 +7,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Ce fichier fait autorité pour toute contribution au dépôt, humaine ou assistée.
 Contexte produit : voir [`README.md`](README.md) ; backlog : [`docs/BACKLOG.md`](docs/BACKLOG.md).
 
+## Règles de calcul du moteur (toujours en contexte)
+
+Le référentiel exhaustif des règles du moteur (filtres, modèle, pondération, seuils,
+bandes, invariants, config gagnante) est importé ici :
+
+@docs/MOTEUR-REGLES-CALCUL.md
+
+**Règle obligatoire — toute modification d'une règle de calcul du moteur doit être
+inscrite dans [`docs/MOTEUR-REGLES-CALCUL.md`](docs/MOTEUR-REGLES-CALCUL.md), dans le
+même commit que le code.** Est concerné tout changement de : filtre/éligibilité,
+bornes, modèle de régression, variables, pondération σ, rayon adaptatif, mode de
+couverture, écrêtage, bandes DPE, seuils de publication, invariants, validation
+croisée, config par défaut, ou format de sortie `coefficient_maille`. Une PR touchant
+le moteur sans mise à jour de ce référentiel est **incomplète** : le document doit
+décrire le moteur **tel qu'il tourne**, jamais une version périmée.
+
 ## Structure du dépôt (monorepo)
 
 | Dossier | Techno | Rôle |
@@ -258,3 +274,6 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
 - Rester dans le périmètre de l'issue courante ; hors périmètre → nouvelle issue.
 - **Lancer tout traitement long sur le VPS** (§5), jamais à travers le tunnel SSH, et
   indiquer comment en suivre l'avancement depuis une autre session.
+- **Toute modification d'une règle de calcul du moteur → mise à jour de
+  [`docs/MOTEUR-REGLES-CALCUL.md`](docs/MOTEUR-REGLES-CALCUL.md) dans le même commit**
+  (voir « Règles de calcul du moteur »). Sans ça, la contribution est incomplète.

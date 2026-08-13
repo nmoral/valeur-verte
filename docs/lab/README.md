@@ -56,4 +56,6 @@ classes publiables).
 - [`resultats-S24.md`](resultats-S24.md) — indice local : ablation → à garder (signal réel, pas redondant).
 - [`resultats-bornee-vs-nobornes.md`](resultats-bornee-vs-nobornes.md) — config gagnante sur base bornée vs sans bornes ; l'erreur plus basse en bornée est un artefact de censure.
 - [`diagnostic-inversion-FG-toulouse.md`](diagnostic-inversion-FG-toulouse.md) — l'inversion F/G de Toulouse est réelle (vieux bâti de caractère).
+- [`diagnostic-115-type-et-rural.md`](diagnostic-115-type-et-rural.md) — #115 : le pool 52 (rural) prouve que le modèle **maisons** est monotone hors grandes villes ; l'inversion G est circonscrite aux cœurs urbains anciens. Rappel : la segmentation maisons-seules (SEGMENT_MVP) est déjà en place — ce n'est donc pas le levier du résidu.
+- [`resultats-couverture-rurale.md`](resultats-couverture-rurale.md) — couverture rurale bloquée par 2 gates (erreur médiane > 20 %, < 2 classes DPE à ≥ 20). Deux leviers chiffrés : **palier dégradé erreur ≤ 30 %** + **bandes DPE adaptatives** → rural de **1-3 % à 32-49 %** de communes publiées.
 - [`distribution-31.md`](distribution-31.md) — **config gagnante sur les 498 communes du 31** : taux calc/err/monotonie/publiable. Le chiffre qui décide.
