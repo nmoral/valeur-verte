@@ -82,6 +82,29 @@ final class EstimationDbalTest extends KernelTestCase
         self::assertNull($maille->estimer(Dpe::D, Dpe::C, 100000, false)->rayonKm());
     }
 
+    public function testLeCranEpciSeLitAvecSaPorteeSonPalierEtSesBandes(): void
+    {
+        // Cran EPCI (#169) : rayon absent (0), tier dégradé, classe G fusionnée
+        // dans la bande F. La restitution doit servir la G via F, se situer à
+        // l'intercommunal et se marquer dégradée.
+        $this->prive->executeStatement(
+            "INSERT INTO data.coefficient_maille
+                (code_insee, millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, palier, bandes)
+             VALUES ('32888', 2024, 0, 60, 27.0, '{\"D\":0.0,\"C\":0.10,\"F\":-0.30}', 'epci', 'degrade', '{\"F\":\"F\",\"G\":\"F\"}')"
+        );
+        $lecteur = new CoefficientMailleDbal($this->app);
+
+        $maille = $lecteur->pour('32888');
+
+        self::assertNotNull($maille);
+        $viaBande = $maille->estimer(Dpe::G, Dpe::C, 100000, false);
+        $direct = $maille->estimer(Dpe::F, Dpe::C, 100000, false);
+        self::assertSame($direct->montantEuros(), $viaBande->montantEuros());
+        self::assertSame('intercommunal (EPCI)', $viaBande->intitulePortee());
+        self::assertTrue($viaBande->estDegradee());
+        self::assertSame(['G' => 'F'], $viaBande->bandesAppliquees());
+    }
+
     public function testLeLecteurDeCoefficientRenvoieNullHorsCouverture(): void
     {
         $lecteur = new CoefficientMailleDbal($this->app);
@@ -117,6 +140,12 @@ final class EstimationDbalTest extends KernelTestCase
                 alerte          TEXT
             )'
         );
+        // Colonnes de la cascade (#169, migration 009) ajoutées séparément : la
+        // table peut préexister dans une base de test au schéma antérieur, que le
+        // CREATE ... IF NOT EXISTS n'aurait pas mise à niveau.
+        $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS mode   TEXT');
+        $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS palier TEXT');
+        $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS bandes JSONB');
         $this->prive->executeStatement(
             'CREATE TABLE IF NOT EXISTS data.vente (
                 id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
