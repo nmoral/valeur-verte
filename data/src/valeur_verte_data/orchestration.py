@@ -58,6 +58,7 @@ class RapportIngestion:
     communes_traitees: int = 0
     mutations_inserees: int = 0
     contours_charges: int = 0
+    epci_charges: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
 
@@ -165,6 +166,7 @@ def ingest_departement(
         logger.info("[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, inserees)
 
     _charger_contours(fetcher, conn, departement, rapport)
+    _charger_epci(fetcher, conn, departement, rapport)
     return rapport
 
 
@@ -327,3 +329,22 @@ def _charger_contours(
     except Exception as erreur:  # noqa: BLE001 — les contours ne doivent pas emporter les ventes
         conn.rollback()
         logger.warning("%s : contours non chargés (%s)", departement, erreur)
+
+
+def _charger_epci(
+    fetcher: Fetcher,
+    conn: ConnexionTransactionnelle,
+    departement: str,
+    rapport: RapportIngestion,
+) -> None:
+    """Charge l'EPCI des communes en fin d'ingestion, en mode **résilient**.
+
+    L'EPCI est **auxiliaire** aux ventes DVF (comme les contours) : une panne de
+    geo.api ne doit pas emporter une ingestion de plusieurs heures (§5). L'échec
+    est annulé et journalisé, sans marquer l'ingestion en erreur.
+    """
+    try:
+        rapport.epci_charges = charger_epci_departement(fetcher, conn, departement)
+    except Exception as erreur:  # noqa: BLE001 — l'EPCI ne doit pas emporter les ventes
+        conn.rollback()
+        logger.warning("%s : EPCI non chargé (%s)", departement, erreur)
