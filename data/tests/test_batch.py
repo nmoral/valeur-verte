@@ -62,6 +62,28 @@ def _cluster_commune(
     ]
 
 
+def _pool_dpe_clairseme(
+    *, lat: float = 43.6, lon: float = 1.44
+) -> tuple[list[Mutation], list[Mutation], list[Mutation]]:
+    """Pool à DPE clairsemé : D ample (référence), F et G rares (6 chacune).
+
+    Sous un seuil de classe à 10, F et G sont individuellement écartées ; seules les
+    bandes ({F,G} fusionnées) permettent la publication — cas d'usage des crans EPCI/DÉPT.
+    """
+    amples = [
+        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=lat, lon=lon) for i in range(12)
+    ]
+    rares_f = [
+        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=lat, lon=lon)
+        for i in range(6)
+    ]
+    rares_g = [
+        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=lat, lon=lon)
+        for i in range(6)
+    ]
+    return amples, rares_f, rares_g
+
+
 # ---------------------------------------------------------------------------
 # #169 — Cran EPCI de la cascade. Quand le LOCAL échoue, on descend d'un cran :
 # une régression sur les ventes des communes du même EPCI (granularité entre
@@ -104,19 +126,7 @@ def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> N
     bandes (≥ 2), là où le calcul en classes pleines refuserait faute de deux
     classes publiables. Débloque la publication en zone rurale à DPE clairsemé.
     """
-    # D ample (référence). F et G rares (6 chacune, sous le seuil 10) : sans bandes,
-    # une seule classe publiable → refus. Fusionnées, {F,G} atteint le seuil.
-    amples = [
-        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=43.6, lon=1.44) for i in range(12)
-    ]
-    rares_f = [
-        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=43.6, lon=1.44)
-        for i in range(6)
-    ]
-    rares_g = [
-        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=43.6, lon=1.44)
-        for i in range(6)
-    ]
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
     pool = amples + rares_f + rares_g
     cfg = replace(CalculConfig(), min_class_sample=10)
 
@@ -131,6 +141,20 @@ def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> N
     assert epci.effectifs_dpe["F"] == len(rares_f) + len(rares_g)
 
 
+def test_compute_maille_epci_expose_le_mapping_des_bandes() -> None:
+    """La maille des crans à bandes porte le mapping classe→représentant : sans lui,
+    une maison d'une classe fusionnée (G→F) n'aurait aucun coefficient servable."""
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    epci = compute_maille_epci(
+        "31555", 43.6, 1.44, 2024, ("31555",), amples + rares_f + rares_g, config=cfg
+    )
+
+    assert epci is not None
+    assert epci.bandes == {"D": "D", "F": "F", "G": "F"}
+
+
 # ---------------------------------------------------------------------------
 # #169 — Cran DÉPARTEMENT de la cascade : dernier filet. Poole les ventes du
 # seul département (voisins exclus, comme le repli #22), avec bandes DPE.
@@ -142,17 +166,7 @@ def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -
     sur les voisins nourrit le LOCAL, pas ce repli — #91), et fusionne les classes
     clairsemées en bandes comme l'EPCI, sur un pool encore plus large.
     """
-    amples = [
-        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=43.6, lon=1.44) for i in range(12)
-    ]
-    rares_f = [
-        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=43.6, lon=1.44)
-        for i in range(6)
-    ]
-    rares_g = [
-        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=43.6, lon=1.44)
-        for i in range(6)
-    ]
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
     # Voisin ariégeois (09), présent au pool mais hors du département calculé.
     voisin_09 = [
         replace(vente, code_insee="09122", id_mutation=f"09-{i}") for i, vente in enumerate(amples)
@@ -453,6 +467,17 @@ def test_compute_maille_palier_degrade_entre_les_deux_seuils() -> None:
 
     assert maille is not None
     assert maille.palier is PalierFiabilite.DEGRADE
+
+
+def test_compute_maille_local_ne_porte_pas_de_bandes() -> None:
+    """Le cran LOCAL reste en classes pleines : aucun mapping de bandes (§ conception)."""
+    pool = _cluster(4, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.bandes == {}
 
 
 def test_compute_maille_mode_local() -> None:
