@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class CoutsController extends AbstractController
 {
-    #[Route('/back-office/couts', name: 'back_office_couts', methods: ['GET'])]
+    #[Route('/couts', name: 'back_office_couts', methods: ['GET'])]
     public function __invoke(): Response
     {
         $grille = GrilleCout::parDefautNationale(PeriodeValidite::depuis(new \DateTimeImmutable()));

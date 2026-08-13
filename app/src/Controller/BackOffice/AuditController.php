@@ -23,7 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class AuditController extends AbstractController
 {
-    #[Route('/back-office/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
+    #[Route('/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         if ($request->isMethod('POST')) {

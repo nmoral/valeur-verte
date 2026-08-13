@@ -41,7 +41,7 @@ final class RapportsControllerTest extends WebTestCase
             Contact::creer('Mme Cazeneuve', 'cazeneuve@example.com', null),
         ));
 
-        $client->request('GET', '/back-office/rapports');
+        $client->request('GET', '/rapports');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Rapports & leads');

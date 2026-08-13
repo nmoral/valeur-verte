@@ -10,7 +10,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class AuditControllerTest extends WebTestCase
 {
-    private const URL = 'http://valeurverte.localhost/back-office/audit';
+    private const URL = 'http://valeurverte.localhost/audit';
 
     public function testLaPagePorteLeFormulaireDeSaisie(): void
     {
