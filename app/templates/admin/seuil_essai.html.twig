@@ -1,0 +1,19 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Seuil d'essai · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Seuil d'essai{% endblock %}
+
+{% block admin_subtitle %}<p>Nombre de rapports offerts avant la bascule payant. Toute modification est tracée au journal d'audit.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if erreur is defined %}
+        <p class="erreur" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('admin_seuil_essai') }}">
+        <label for="seuil">Seuil (nombre de rapports)</label>
+        <input type="number" id="seuil" name="seuil" min="1" value="{{ seuil }}" required>
+        <button type="submit">Enregistrer le seuil</button>
+    </form>
+{% endblock %}
