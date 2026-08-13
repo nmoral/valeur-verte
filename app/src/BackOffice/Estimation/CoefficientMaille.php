@@ -64,6 +64,15 @@ final readonly class CoefficientMaille
         );
     }
 
+    /**
+     * Contexte de calcul employé pour figer l'instantané (#33) : les coefficients
+     * log des deux étiquettes et l'erreur médiane de la maille.
+     */
+    public function contexte(Dpe $avant, Dpe $apres): ContexteCalcul
+    {
+        return ContexteCalcul::depuis($this->coefficient($avant), $this->coefficient($apres), $this->erreurMediane);
+    }
+
     private function coefficient(Dpe $classe): float
     {
         if (!\array_key_exists($classe->value, $this->coefDpe)) {

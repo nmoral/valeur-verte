@@ -58,10 +58,7 @@ final class RapportTest extends TestCase
             $reference,
             new \DateTimeImmutable('2026-08-01 09:00:00'),
             Source::Audit,
-            '12 rue des Écoles, Baziège (31)',
-            Dpe::E,
-            Dpe::C,
-            52610,
+            InstantaneRapportMother::creer(),
             '/rapports/2026-0841.pdf',
             $contact,
         );

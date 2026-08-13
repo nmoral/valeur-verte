@@ -51,6 +51,16 @@ class Rapport implements TenantAwareInterface
     #[ORM\Column(length: 255)]
     private string $pdfUrl;
 
+    /**
+     * Instantané immuable du contexte de calcul (#33, §9.1, D5), sérialisé en
+     * JSONB : le PDF est régénéré à partir de lui, jamais recalculé. Écrit une
+     * fois à la création — un UPDATE serait un bug (§9.1).
+     *
+     * @var array<string, mixed>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
+    private array $instantane;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $contactNom;
 
@@ -64,20 +74,22 @@ class Rapport implements TenantAwareInterface
         string $reference,
         \DateTimeImmutable $creeLe,
         Source $source,
-        string $adresse,
-        Dpe $dpeAvant,
-        Dpe $dpeApres,
-        int $valeurVerteEstimee,
+        InstantaneRapport $instantane,
         string $pdfUrl,
         ?Contact $contact,
     ) {
+        $saisie = $instantane->saisie();
+
         $this->reference = $reference;
         $this->creeLe = $creeLe;
         $this->source = $source;
-        $this->adresse = $adresse;
-        $this->dpeAvant = $dpeAvant;
-        $this->dpeApres = $dpeApres;
-        $this->valeurVerteEstimee = $valeurVerteEstimee;
+        $this->instantane = $instantane->toArray();
+        // Caractéristiques de listing (#37) dérivées de l'instantané : une seule
+        // source de vérité, jamais désynchronisée du contexte figé.
+        $this->adresse = $saisie->adresse();
+        $this->dpeAvant = $saisie->dpeAvant();
+        $this->dpeApres = $saisie->dpeApres();
+        $this->valeurVerteEstimee = $instantane->restitution()?->montantEuros() ?? 0;
         $this->pdfUrl = $pdfUrl;
         $this->contactNom = $contact?->nom();
         $this->contactEmail = $contact?->email();
@@ -88,10 +100,7 @@ class Rapport implements TenantAwareInterface
         string $reference,
         \DateTimeImmutable $creeLe,
         Source $source,
-        string $adresse,
-        Dpe $dpeAvant,
-        Dpe $dpeApres,
-        int $valeurVerteEstimee,
+        InstantaneRapport $instantane,
         string $pdfUrl,
         ?Contact $contact = null,
     ): self {
@@ -100,17 +109,7 @@ class Rapport implements TenantAwareInterface
             throw new \InvalidArgumentException('La référence du rapport ne peut pas être vide.');
         }
 
-        return new self(
-            $reference,
-            $creeLe,
-            $source,
-            $adresse,
-            $dpeAvant,
-            $dpeApres,
-            $valeurVerteEstimee,
-            $pdfUrl,
-            $contact,
-        );
+        return new self($reference, $creeLe, $source, $instantane, $pdfUrl, $contact);
     }
 
     public function id(): ?int
@@ -156,6 +155,11 @@ class Rapport implements TenantAwareInterface
     public function pdfUrl(): string
     {
         return $this->pdfUrl;
+    }
+
+    public function instantane(): InstantaneRapport
+    {
+        return InstantaneRapport::fromArray($this->instantane);
     }
 
     public function contact(): ?Contact
