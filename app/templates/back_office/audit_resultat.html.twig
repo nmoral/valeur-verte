@@ -65,7 +65,7 @@
                 <p class="hero-label">Valeur verte créée par la rénovation</p>
                 <p class="hero-montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
                 <p class="hero-contexte">Fourchette {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €,
-                    sur {{ restitution.n }} transactions
+                    sur {{ restitution.n|number_format(0, ',', ' ') }} transactions
                     {% if restitution.rayonKm %}dans un rayon de {{ restitution.rayonKm }} km{% else %}au niveau départemental{% endif %}.</p>
             </div>
             <span class="fiabilite fiabilite-{{ fiabilite.couleur }}">
