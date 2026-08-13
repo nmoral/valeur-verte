@@ -21,13 +21,22 @@ final class SeuilEssaiController extends AbstractController
     public function __invoke(Request $request, ReglageSeuilEssai $reglage, SeuilEssaiRepository $seuils): Response
     {
         if ($request->isMethod('POST')) {
+            $async = $request->isXmlHttpRequest();
             try {
                 $reglage->regler($request->request->getInt('seuil'), $this->auteur());
             } catch (\InvalidArgumentException $erreur) {
+                if ($async) {
+                    return $this->json(['ok' => false, 'erreur' => $erreur->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
                 return $this->render('admin/seuil_essai.html.twig', [
                     'seuil' => $seuils->courant()->valeur(),
                     'erreur' => $erreur->getMessage(),
                 ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+
+            if ($async) {
+                return $this->json(['ok' => true, 'seuil' => $seuils->courant()->valeur()]);
             }
 
             return $this->redirectToRoute('admin_seuil_essai');
