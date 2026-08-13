@@ -9,8 +9,9 @@ use App\BackOffice\Audit\SaisieInvalide;
 use App\BackOffice\Estimation\ClasseNonPubliee;
 use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
+use App\BackOffice\Estimation\ResultatEstimation;
+use App\BackOffice\Rapport\ArchiveurRapport;
 use App\BackOffice\Rapport\Dpe;
-use App\BackOffice\Restitution\Restitution;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,8 +30,10 @@ final class AuditController extends AbstractController
 {
     public const SESSION_RESULTAT = 'audit_resultat';
 
-    public function __construct(private readonly EstimateurValeurVerte $estimateur)
-    {
+    public function __construct(
+        private readonly EstimateurValeurVerte $estimateur,
+        private readonly ArchiveurRapport $archiveur,
+    ) {
     }
 
     #[Route('/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
@@ -80,14 +83,22 @@ final class AuditController extends AbstractController
         }
 
         $valeurBien = $valeurs['valeur_bien'];
-        $restitution = $this->estimer($valeurs['code_insee'], $saisie, '' === $valeurBien ? null : (int) $valeurBien);
+        $resultat = $this->estimer($valeurs['code_insee'], $saisie, '' === $valeurBien ? null : (int) $valeurBien);
 
-        $request->getSession()->set(self::SESSION_RESULTAT, ['saisie' => $saisie, 'restitution' => $restitution]);
+        // Un audit terminé est archivé immédiatement (#33/#37) : il apparaît dans
+        // « Rapports & leads » et son PDF (#32) se régénère depuis l'instantané.
+        // La restitution reste en session pour l'affichage de la page dédiée.
+        $rapport = $this->archiveur->archiver($saisie, $resultat?->restitution(), $resultat?->contexte());
+        $request->getSession()->set(self::SESSION_RESULTAT, [
+            'saisie' => $saisie,
+            'restitution' => $resultat?->restitution(),
+            'reference' => $rapport->reference(),
+        ]);
 
         return $this->redirectToRoute('back_office_audit_resultat');
     }
 
-    private function estimer(string $codeInsee, SaisieAudit $saisie, ?int $valeurBien): ?Restitution
+    private function estimer(string $codeInsee, SaisieAudit $saisie, ?int $valeurBien): ?ResultatEstimation
     {
         if ('' === $codeInsee) {
             return null;

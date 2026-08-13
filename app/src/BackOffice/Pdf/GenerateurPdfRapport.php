@@ -6,6 +6,7 @@ namespace App\BackOffice\Pdf;
 
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Branding\Branding;
+use App\BackOffice\Rapport\InstantaneRapport;
 use App\BackOffice\Restitution\Restitution;
 use Twig\Environment;
 
@@ -22,6 +23,20 @@ final readonly class GenerateurPdfRapport
         private Environment $twig,
         private ConvertisseurPdf $convertisseur,
     ) {
+    }
+
+    /**
+     * Régénère le PDF depuis l'instantané immuable (#33) : reproductibilité à
+     * l'identique, sans jamais recalculer.
+     */
+    public function depuisInstantane(InstantaneRapport $instantane): string
+    {
+        return $this->generer(
+            $instantane->saisie(),
+            $instantane->restitution(),
+            $instantane->branding(),
+            $instantane->reference(),
+        );
     }
 
     public function generer(

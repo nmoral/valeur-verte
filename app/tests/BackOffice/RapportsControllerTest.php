@@ -9,6 +9,7 @@ use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
+use App\Tests\BackOffice\Rapport\InstantaneRapportMother;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class RapportsControllerTest extends WebTestCase
@@ -23,20 +24,19 @@ final class RapportsControllerTest extends WebTestCase
             '2026-0841',
             new \DateTimeImmutable('2026-08-01 09:00:00'),
             Source::Audit,
-            '12 rue des Écoles, Baziège (31)',
-            Dpe::E,
-            Dpe::C,
-            52610,
+            InstantaneRapportMother::creer(),
             '/rapports/2026-0841.pdf',
         ));
         $repository->enregistrer(Rapport::creer(
             '2026-0900',
             new \DateTimeImmutable('2026-08-10 09:00:00'),
             Source::Widget,
-            '4 chemin de la Garrigue, Montgiscard (31)',
-            Dpe::F,
-            Dpe::C,
-            40700,
+            InstantaneRapportMother::creer(
+                adresse: '4 chemin de la Garrigue, Montgiscard (31)',
+                dpeAvant: Dpe::F,
+                dpeApres: Dpe::C,
+                montantEuros: 40700,
+            ),
             '/rapports/2026-0900.pdf',
             Contact::creer('Mme Cazeneuve', 'cazeneuve@example.com', null),
         ));

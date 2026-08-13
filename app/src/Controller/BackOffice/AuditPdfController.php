@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\BackOffice;
 
-use App\BackOffice\Audit\SaisieAudit;
-use App\BackOffice\Branding\BrandingRepository;
 use App\BackOffice\Pdf\GenerateurPdfRapport;
-use App\BackOffice\Pdf\GenerateurReferenceRapport;
-use App\BackOffice\Restitution\Restitution;
+use App\BackOffice\Rapport\RapportRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,17 +13,16 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Téléchargement du PDF à l'en-tête du pro (#32, §4/§10.4). Le document est
- * généré côté serveur à partir du résultat en session (saisie + restitution) et
- * de la marque du pro, avec un identifiant de rapport unique (§9.6). Un accès
- * sans résultat renvoie vers l'écran de saisie, comme la page de restitution.
+ * Téléchargement du PDF de l'audit courant (#32, #33). Le rapport a déjà été
+ * archivé à la fin de la saisie (voir AuditController) ; on régénère ici le PDF
+ * depuis son instantané immuable, jamais recalculé. Un accès sans audit en
+ * session, ou dont le rapport a disparu, renvoie vers l'écran de saisie.
  */
 final class AuditPdfController extends AbstractController
 {
     public function __construct(
         private readonly GenerateurPdfRapport $generateur,
-        private readonly GenerateurReferenceRapport $references,
-        private readonly BrandingRepository $brandings,
+        private readonly RapportRepository $rapports,
     ) {
     }
 
@@ -34,19 +30,17 @@ final class AuditPdfController extends AbstractController
     public function __invoke(Request $request): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
-        if (!\is_array($resultat) || !(($resultat['saisie'] ?? null) instanceof SaisieAudit)) {
+        $reference = \is_array($resultat) ? ($resultat['reference'] ?? null) : null;
+        $rapport = \is_string($reference) ? $this->rapports->parReference($reference) : null;
+        if (null === $rapport) {
             return $this->redirectToRoute('back_office_audit');
         }
 
-        $saisie = $resultat['saisie'];
-        $restitution = ($resultat['restitution'] ?? null) instanceof Restitution ? $resultat['restitution'] : null;
-        $reference = $this->references->generer();
-
-        $pdf = $this->generateur->generer($saisie, $restitution, $this->brandings->courant(), $reference);
+        $pdf = $this->generateur->depuisInstantane($rapport->instantane());
 
         $disposition = HeaderUtils::makeDisposition(
             HeaderUtils::DISPOSITION_ATTACHMENT,
-            \sprintf('rapport-%s.pdf', $reference->valeur()),
+            \sprintf('rapport-%s.pdf', $rapport->reference()),
         );
 
         return new Response($pdf, Response::HTTP_OK, [

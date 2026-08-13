@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\BackOffice\Rapport;
 
 use App\BackOffice\Rapport\Contact;
-use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
@@ -74,10 +73,7 @@ final class RapportRepositoryTest extends KernelTestCase
             $reference,
             new \DateTimeImmutable($creeLe),
             Source::Audit,
-            '12 rue des Écoles, Baziège (31)',
-            Dpe::E,
-            Dpe::C,
-            52610,
+            InstantaneRapportMother::creer(),
             '/rapports/'.$reference.'.pdf',
             $contact,
         );
