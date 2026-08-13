@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.degraded import CoverageMode
-from valeur_verte_data.ecarts import ClasseEcart, classer_ecart, ecart_maille
+from valeur_verte_data.ecarts import ClasseEcart, EcartMaille, classer_ecart, ecart_maille
 
 _SEUILS = {"seuil_alerte": 0.10, "seuil_blocage": 0.25}
 
@@ -85,7 +85,7 @@ def test_zero_vers_zero_est_normal() -> None:
 
 def test_ecart_maille_identique_est_normal() -> None:
     m = _maille({"D": 0.0, "F": -0.20})
-    assert ecart_maille(m, m, **_SEUILS) is ClasseEcart.NORMAL
+    assert ecart_maille(m, m, **_SEUILS).classe is ClasseEcart.NORMAL
 
 
 def test_ecart_dpe_mesure_sur_l_effet_exp_pas_le_log_brut() -> None:
@@ -93,28 +93,28 @@ def test_ecart_dpe_mesure_sur_l_effet_exp_pas_le_log_brut() -> None:
     de prix que voit le produit) → NORMAL. Preuve que la métrique est bien exp."""
     ancien = _maille({"D": 0.0, "F": -0.20})
     nouveau = _maille({"D": 0.0, "F": -0.30})
-    assert ecart_maille(ancien, nouveau, **_SEUILS) is ClasseEcart.NORMAL
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.NORMAL
 
 
 def test_ecart_dpe_en_alerte_sur_l_effet() -> None:
     # exp(-0,20)=0,819 → exp(-0,362)=0,696 : ~15 % d'écart sur le facteur de prix.
     ancien = _maille({"D": 0.0, "F": -0.20})
     nouveau = _maille({"D": 0.0, "F": -0.362})
-    assert ecart_maille(ancien, nouveau, **_SEUILS) is ClasseEcart.ALERTE
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.ALERTE
 
 
 def test_ecart_elasticite_bati_bloque() -> None:
     # Élasticité brute : 0,90 → 1,20 = 33 % → blocage.
     ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
     nouveau = _maille({"D": 0.0, "F": -0.20}, bati=1.20)
-    assert ecart_maille(ancien, nouveau, **_SEUILS) is ClasseEcart.BLOCAGE
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.BLOCAGE
 
 
 def test_la_maille_prend_le_pire_ecart_de_ses_coefficients() -> None:
     # DPE quasi stable (normal) mais élasticité bâti explosée (blocage) → blocage.
     ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
     nouveau = _maille({"D": 0.0, "F": -0.21}, bati=1.20)
-    assert ecart_maille(ancien, nouveau, **_SEUILS) is ClasseEcart.BLOCAGE
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.BLOCAGE
 
 
 def test_changement_de_l_ensemble_des_classes_publiees_alerte() -> None:
@@ -122,4 +122,41 @@ def test_changement_de_l_ensemble_des_classes_publiees_alerte() -> None:
     changement structurel à revoir → au moins une alerte, même coefficients stables."""
     ancien = _maille({"D": 0.0, "F": -0.20})
     nouveau = _maille({"D": 0.0, "F": -0.20, "C": 0.10})
-    assert ecart_maille(ancien, nouveau, **_SEUILS) is ClasseEcart.ALERTE
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.ALERTE
+
+
+# --- ecart_maille remonte le détail (classe + écart + coefficient en cause) ---
+
+
+def test_ecart_maille_retourne_un_ecart_detaille() -> None:
+    m = _maille({"D": 0.0, "F": -0.20})
+    resultat = ecart_maille(m, m, **_SEUILS)
+    assert isinstance(resultat, EcartMaille)
+    assert resultat.classe is ClasseEcart.NORMAL
+
+
+def test_ecart_maille_nomme_l_elasticite_en_cause() -> None:
+    # Bâti explosé (0,90 → 1,20 = 33 %), DPE stable : le coefficient en cause est le bâti.
+    ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
+    nouveau = _maille({"D": 0.0, "F": -0.21}, bati=1.20)
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.BLOCAGE
+    assert resultat.coefficient == "élasticité bâti"
+    assert round(resultat.ecart, 2) == 0.33
+
+
+def test_ecart_maille_nomme_la_classe_dpe_en_cause() -> None:
+    # Seule F dérive (sur exp) : le coefficient en cause est « DPE F ».
+    ancien = _maille({"D": 0.0, "F": -0.20})
+    nouveau = _maille({"D": 0.0, "F": -0.362})
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.ALERTE
+    assert resultat.coefficient == "DPE F"
+
+
+def test_ecart_maille_structurel_nomme_les_classes_publiees() -> None:
+    ancien = _maille({"D": 0.0, "F": -0.20})
+    nouveau = _maille({"D": 0.0, "F": -0.20, "C": 0.10})
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.ALERTE
+    assert resultat.coefficient == "classes publiées"
