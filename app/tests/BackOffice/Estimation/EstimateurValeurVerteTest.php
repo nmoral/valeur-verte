@@ -33,6 +33,8 @@ final class EstimateurValeurVerteTest extends TestCase
         self::assertSame(134, $restitution->n());
         self::assertSame(10, $restitution->rayonKm());
         self::assertSame(2024, $restitution->millesime());
+        self::assertSame(147150, $restitution->prixBaseEuros());
+        self::assertFalse($restitution->prixSaisiParLePro());
     }
 
     public function testLeProPeutRemplacerLePrixDeBase(): void
@@ -45,6 +47,8 @@ final class EstimateurValeurVerteTest extends TestCase
         $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie(), prixBaseOverride: 200000);
 
         self::assertSame(22923, $restitution->montantEuros());
+        self::assertSame(200000, $restitution->prixBaseEuros());
+        self::assertTrue($restitution->prixSaisiParLePro());
     }
 
     public function testUneMailleIntrouvableRendLEstimationIndisponible(): void

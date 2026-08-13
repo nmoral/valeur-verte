@@ -19,6 +19,8 @@ final class RestitutionTest extends TestCase
             n: 476,
             rayonKm: 25,
             millesime: 2024,
+            prixBaseEuros: 147150,
+            prixSaisiParLePro: false,
         );
 
         self::assertSame(38000, $restitution->montantEuros());
@@ -29,10 +31,21 @@ final class RestitutionTest extends TestCase
         self::assertSame(2024, $restitution->millesime());
     }
 
+    public function testEllePorteLePrixDeBaseEtSonOrigine(): void
+    {
+        $mediane = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024, 147150, false);
+        $saisi = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024, 200000, true);
+
+        self::assertSame(147150, $mediane->prixBaseEuros());
+        self::assertFalse($mediane->prixSaisiParLePro());
+        self::assertSame(200000, $saisi->prixBaseEuros());
+        self::assertTrue($saisi->prixSaisiParLePro());
+    }
+
     public function testLaFiabiliteEstDeriveeDeLEffectifEtDuRayon(): void
     {
-        $solide = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024);
-        $fragile = Restitution::depuis(12000, 6000, 18000, 300, null, 2024);
+        $solide = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024, 147150, false);
+        $fragile = Restitution::depuis(12000, 6000, 18000, 300, null, 2024, 100000, false);
 
         self::assertSame(IndicateurFiabilite::Correct, $solide->fiabilite());
         self::assertSame(IndicateurFiabilite::Fragile, $fragile->fiabilite());
@@ -40,7 +53,7 @@ final class RestitutionTest extends TestCase
 
     public function testLaPhraseSuitLeFormatCible(): void
     {
-        $restitution = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024);
+        $restitution = Restitution::depuis(38000, 29000, 47000, 476, 25, 2024, 147150, false);
 
         self::assertSame(
             '+38 000 € (fourchette 29 000 – 47 000 €, sur 476 transactions dans un rayon de 25 km)',
@@ -50,7 +63,7 @@ final class RestitutionTest extends TestCase
 
     public function testLaPhraseSignaleLeRepliDepartemental(): void
     {
-        $restitution = Restitution::depuis(12000, 6000, 18000, 45, null, 2024);
+        $restitution = Restitution::depuis(12000, 6000, 18000, 45, null, 2024, 100000, false);
 
         self::assertSame(
             '+12 000 € (fourchette 6 000 – 18 000 €, sur 45 transactions au niveau départemental)',
