@@ -20,7 +20,7 @@ final readonly class DiagnosticMaille
 
     public static function pour(
         float $erreurMedianePct,
-        float $gainEcLog,
+        ?float $gainEcLog,
         ?string $alerteBord,
         SeuilsSupervision $seuils,
     ): self {
@@ -30,10 +30,13 @@ final readonly class DiagnosticMaille
             $raisons[] = 'erreur_mediane_elevee';
         }
 
-        if ($gainEcLog <= 0.0) {
-            $raisons[] = 'gain_ec_incoherent';
-        } elseif ($gainEcLog > $seuils->gainEcMaxLog()) {
-            $raisons[] = 'gain_ec_hors_borne';
+        // Gain E→C non évaluable si la maille ne publie pas E ou C.
+        if (null !== $gainEcLog) {
+            if ($gainEcLog <= 0.0) {
+                $raisons[] = 'gain_ec_incoherent';
+            } elseif ($gainEcLog > $seuils->gainEcMaxLog()) {
+                $raisons[] = 'gain_ec_hors_borne';
+            }
         }
 
         if (null !== $alerteBord && '' !== trim($alerteBord)) {
