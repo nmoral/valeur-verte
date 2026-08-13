@@ -66,3 +66,47 @@ def bandes_adaptatives(
         for classe in bande:
             mapping[classe] = representant
     return mapping
+
+
+def fusionner_inversions(
+    bandes: Mapping[str, str], coef: Mapping[str, float], *, reference: str = "D"
+) -> dict[str, str]:
+    """Fusionne la **première** paire de bandes adjacentes qui inverse.
+
+    ``bandes`` = ``classe → représentant`` (banding courant) ; ``coef`` =
+    ``représentant → coefficient`` du dernier ajustement. Les bandes sont ordonnées
+    A→G (mieux valorisées d'abord) ; le coefficient est attendu décroissant. Une
+    **inversion** est une paire adjacente où la meilleure bande a un coefficient
+    **strictement inférieur** à la moins bonne (égalité tolérée, cf. INV-1).
+
+    Ne traite qu'**une** inversion par appel (la première côté A) : l'orchestration
+    boucle ajustement → fusion → ré-ajustement jusqu'à monotonie, les coefficients
+    changeant à chaque fusion. Le représentant de la bande fusionnée est la classe la
+    plus proche de ``reference``. Peut réduire à une seule bande — le refus est géré
+    en aval (``min_classes_publiees``).
+    """
+    classes = sorted((c for c in bandes if c in _ECHELLE_DPE), key=_ECHELLE_DPE.index)
+    reps_ordonnes: list[str] = []
+    for classe in classes:
+        representant = bandes[classe]
+        if representant not in reps_ordonnes:
+            reps_ordonnes.append(representant)
+
+    rang_reference = _ECHELLE_DPE.index(reference)
+    for meilleure, moins_bonne in zip(reps_ordonnes, reps_ordonnes[1:], strict=False):
+        if coef[meilleure] < coef[moins_bonne]:
+            a_fusionner = {meilleure, moins_bonne}
+            membres = [classe for classe in classes if bandes[classe] in a_fusionner]
+            nouveau_rep = min(
+                membres,
+                key=lambda classe: (
+                    abs(_ECHELLE_DPE.index(classe) - rang_reference),
+                    _ECHELLE_DPE.index(classe),
+                ),
+            )
+            return {
+                classe: (nouveau_rep if representant in a_fusionner else representant)
+                for classe, representant in bandes.items()
+            }
+
+    return dict(bandes)
