@@ -22,9 +22,8 @@ services:
     App\:
         resource: '../src/'
 
-    # Traçabilité de la levée du cloisonnement (#54) : impl d'attente par log,
-    # remplacée par le journal d'audit persistant (#50).
-    App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
+    # Traçabilité de la levée du cloisonnement (#54) : inscrite au journal d'audit (#50).
+    App\Tenant\TraceDesactivationTenant: '@App\AdminInterne\JournalAudit\TraceDesactivationViaJournal'
 
     # Journal d'audit de l'admin interne (#50) : registre append-only persisté.
     App\AdminInterne\JournalAudit\JournalAudit: '@App\AdminInterne\JournalAudit\JournalAuditDoctrine'
