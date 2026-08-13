@@ -7,7 +7,7 @@
 {% block stylesheets %}
 <style>
     .resultat{max-width:680px;padding:0;overflow:hidden}
-    .resultat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:20px 24px;border-bottom:1px solid var(--chip)}
+    .resultat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:20px 24px;border-bottom:1px solid var(--rule)}
     .resultat-eyebrow{font:500 12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);margin:0 0 6px}
     .resultat-adresse{font:500 19px/1.3 'Public Sans',sans-serif;color:var(--ink);margin:0}
     .resultat-bien{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);margin:5px 0 0}
@@ -26,14 +26,16 @@
     .fiabilite-rouge{background:var(--danger-soft);border-color:#F0C9C3;color:var(--danger)}
     .fiabilite-rouge .fiabilite-pastille{background:var(--danger)}
     .banner-fiabilite{margin:0 24px 20px}
-    .resultat-detail{border-top:1px solid var(--chip);border-bottom:1px solid var(--chip)}
-    .detail-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:13px 24px;font:14px/1.4 'Public Sans',sans-serif}
-    .detail-row + .detail-row{border-top:1px solid var(--chip)}
-    .detail-k{color:var(--mute)}
-    .detail-v{color:var(--ink);font-weight:500;text-align:right}
-    .detail-origine{color:var(--mute);font-weight:400}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+    .stat{padding:14px 24px;min-width:0}
+    .stat + .stat{border-left:1px solid var(--rule)}
+    .stat-k{display:block;font:12px/1.3 'Public Sans',sans-serif;color:var(--mute);margin-bottom:3px}
+    .stat-v{font:500 18px/1.2 'Public Sans',sans-serif;color:var(--ink)}
+    .resultat-prix{text-align:center;padding:16px 24px;font:14px/1.5 'Public Sans',sans-serif;color:var(--slate);margin:0}
+    .resultat-prix strong{color:var(--ink);font-weight:500}
+    .resultat-prix .origine{color:var(--mute)}
     .resultat-indispo{margin:24px}
-    .resultat-actions{display:flex;gap:10px;flex-wrap:wrap;padding:18px 24px 22px}
+    .resultat-actions{display:flex;gap:10px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule)}
     .btn[disabled]{opacity:.55;cursor:not-allowed}
     .btn .soon{margin-left:8px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
 </style>
@@ -64,12 +66,10 @@
             <div>
                 <p class="hero-label">Valeur verte créée par la rénovation</p>
                 <p class="hero-montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
-                <p class="hero-contexte">Fourchette {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €,
-                    sur {{ restitution.n|number_format(0, ',', ' ') }} transactions
-                    {% if restitution.rayonKm %}dans un rayon de {{ restitution.rayonKm }} km{% else %}au niveau départemental{% endif %}.</p>
+                <p class="hero-contexte">fourchette {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} € – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €</p>
             </div>
             <span class="fiabilite fiabilite-{{ fiabilite.couleur }}">
-                <span class="fiabilite-pastille" aria-hidden="true"></span>{{ fiabilite.libelle }}
+                <span class="fiabilite-pastille" aria-hidden="true"></span>Fiabilité {{ fiabilite.libelle|lower }}
             </span>
         </div>
 
@@ -77,10 +77,13 @@
             <p class="banner banner-bad banner-fiabilite" role="alert">Estimation fragile&nbsp;: effectif réduit ou repli départemental. À interpréter avec prudence.</p>
         {% endif %}
 
-        <div class="resultat-detail">
-            <div class="detail-row"><span class="detail-k">Millésime</span><span class="detail-v">{{ restitution.millesime }}</span></div>
-            <div class="detail-row"><span class="detail-k">Prix de base</span><span class="detail-v">{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} € <span class="detail-origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></span></div>
+        <div class="stats">
+            <div class="stat"><span class="stat-k">Transactions</span><span class="stat-v">{{ restitution.n|number_format(0, ',', ' ') }}</span></div>
+            <div class="stat"><span class="stat-k">Rayon retenu</span><span class="stat-v">{{ restitution.rayonKm ? restitution.rayonKm ~ ' km' : 'départemental' }}</span></div>
+            <div class="stat"><span class="stat-k">Millésime</span><span class="stat-v">{{ restitution.millesime }}</span></div>
         </div>
+
+        <p class="resultat-prix">Prix de base&nbsp;: <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong> <span class="origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
     {% else %}
         <p class="banner banner-warn banner-indisponible resultat-indispo" role="alert">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes). La saisie reste enregistrée.</p>
     {% endif %}

@@ -31,9 +31,11 @@ final class AuditRestitutionTest extends WebTestCase
 
         $html = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
-        self::assertStringContainsString('134 transactions', $html);
-        self::assertStringContainsString('rayon de 10 km', $html);
-        self::assertStringContainsString('2024', $html);
+        // Contexte porté par les tuiles : effectif, rayon, millésime.
+        self::assertSelectorTextContains('.stats', '134');
+        self::assertSelectorTextContains('.stats', '10 km');
+        self::assertSelectorTextContains('.stats', '2024');
+        self::assertStringContainsString('fourchette', $html);
         self::assertStringContainsString('€', $html);
     }
 
@@ -45,7 +47,7 @@ final class AuditRestitutionTest extends WebTestCase
 
         $this->soumettre($client);
 
-        self::assertSelectorTextContains('.fiabilite', 'Solide');
+        self::assertSelectorTextContains('.fiabilite', 'solide');
         self::assertSelectorExists('.fiabilite-vert');
     }
 
