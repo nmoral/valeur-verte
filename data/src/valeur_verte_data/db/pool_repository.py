@@ -26,7 +26,7 @@ _SELECT_POOL = (
     "SELECT id_mutation, date_mutation, millesime, code_insee, prix, surface_bati, "
     "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude "
     "FROM data.vente "
-    "WHERE code_insee LIKE ANY(%s) AND millesime = %s AND type_local = %s "
+    "WHERE code_insee LIKE ANY(%s) AND millesime = ANY(%s) AND type_local = %s "
     # INV-5 (#123) : ordre canonique à la source, en défense du tri appliqué
     # dans le moteur — deux batches sur le même jeu voient les mêmes lignes
     # dans le même ordre, indépendamment du plan d'exécution PostgreSQL.
@@ -63,13 +63,20 @@ def load_pool(
     departement: str,
     millesime: int,
     *,
+    fenetre: int = 1,
     limitrophes: Sequence[str] = (),
     type_local: str = SEGMENT_MVP,
 ) -> list[Mutation]:
-    """Ventes d'un département pour un millésime, prêtes pour le moteur.
+    """Ventes d'un département pour une **fenêtre de millésimes**, prêtes pour le moteur.
 
     Le département est déduit du préfixe du code INSEE : c'est la clé de
     rattachement retenue (§7), le code postal ne l'est jamais.
+
+    ``fenetre`` empile les ``fenetre`` derniers millésimes finissant à
+    ``millesime`` (fenêtre glissante #177) : ``fenetre=3`` charge N, N-1, N-2 en
+    une requête. Le modèle porte déjà des effets fixes année (§4) qui captent la
+    tendance de niveau, l'étiquette DPE mesurant l'effet structurel moyen de la
+    fenêtre. ``fenetre=1`` (défaut) reste le comportement mono-millésime.
 
     ``limitrophes`` fait déborder le pool sur les départements voisins, pour que
     les communes du bord disposent d'un voisinage entier (#18). Le débordement
@@ -81,5 +88,6 @@ def load_pool(
     infra-communal, et le point de bascule doit rester visible (#115).
     """
     prefixes = [f"{code}%" for code in (departement, *limitrophes)]
-    lignes = conn.execute(_SELECT_POOL, [prefixes, millesime, type_local]).fetchall()
+    millesimes = [millesime - decalage for decalage in range(fenetre)]
+    lignes = conn.execute(_SELECT_POOL, [prefixes, millesimes, type_local]).fetchall()
     return [_mutation(tuple(ligne)) for ligne in lignes]

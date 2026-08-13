@@ -38,6 +38,12 @@ class CalculConfig:
     min_local_sample: int = 30
     min_class_sample: int = 20  # S21
     min_classes_publiees: int = 2
+    # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans le
+    # pool. Le bénéfice vert est structurel et lent ; l'estimer sur plusieurs
+    # années réduit la variance de rééchantillonnage, les effets fixes année (§4)
+    # captant la tendance. 1 = comportement historique (mono-millésime) ; la
+    # bascule à 3 attend la validation VPS multi-départements.
+    fenetre_millesimes: int = 1
     # INV-1 (#119) : une inversion de monotonie entre deux classes DPE adjacentes
     # est tolérée si l'effectif de la moins fournie est sous ce seuil (petit
     # échantillon = faiblesse statistique, pas un bug). Au-delà, anomalie bloquante.
@@ -109,6 +115,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         min_local_sample=_int(env, "MIN_LOCAL_SAMPLE", defaut.min_local_sample),
         min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),
         min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
+        fenetre_millesimes=_int(env, "FENETRE_MILLESIMES", defaut.fenetre_millesimes),
         inversion_dpe_seuil=_int(env, "INVERSION_DPE_SEUIL", defaut.inversion_dpe_seuil),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
         departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),

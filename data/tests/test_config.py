@@ -25,6 +25,10 @@ def test_defauts_sans_environnement() -> None:
     assert config.min_class_sample == 20
     assert config.min_classes_publiees == 2
     assert config.inversion_dpe_seuil == 30
+    # Fenêtre glissante d'estimation (#177) : 1 par défaut = comportement
+    # historique exact (mono-millésime). La bascule à 3 se pilote par l'env,
+    # le temps de valider sur plusieurs départements.
+    assert config.fenetre_millesimes == 1
     # Régression — config gagnante par défaut
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
@@ -100,6 +104,12 @@ def test_surcharge_seuils_ecart_millesime() -> None:
 
 def test_surcharge_int() -> None:
     assert resolve_config({"VV_MOTEUR_MIN_SAMPLE": "120"}).min_sample == 120
+
+
+def test_surcharge_fenetre_millesimes() -> None:
+    # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans
+    # le pool. La v1 se valide en fenêtre 3 avant d'en faire le défaut.
+    assert resolve_config({"VV_MOTEUR_FENETRE_MILLESIMES": "3"}).fenetre_millesimes == 3
 
 
 def test_surcharge_rayon_max() -> None:
