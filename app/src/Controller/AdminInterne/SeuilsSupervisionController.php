@@ -21,6 +21,7 @@ final class SeuilsSupervisionController extends AbstractController
     public function __invoke(Request $request, ReglageSeuilsSupervision $reglage, SeuilsSupervisionRepository $seuils): Response
     {
         if ($request->isMethod('POST')) {
+            $async = $request->isXmlHttpRequest();
             try {
                 $reglage->regler(
                     (float) $request->request->getString('erreur_mediane_max'),
@@ -28,10 +29,18 @@ final class SeuilsSupervisionController extends AbstractController
                     $this->auteur(),
                 );
             } catch (\InvalidArgumentException $erreur) {
+                if ($async) {
+                    return $this->json(['ok' => false, 'erreur' => $erreur->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
                 return $this->render('admin/seuils_supervision.html.twig', [
                     'seuils' => $seuils->courants(),
                     'erreur' => $erreur->getMessage(),
                 ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+
+            if ($async) {
+                return $this->json(['ok' => true]);
             }
 
             return $this->redirectToRoute('admin_seuils_supervision');
