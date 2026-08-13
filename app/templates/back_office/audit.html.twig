@@ -107,6 +107,8 @@
             <div class="restitution">
                 <p class="restitution-phrase">{{ restitution.phrase }}.</p>
                 <p class="restitution-contexte">Millésime {{ restitution.millesime }}.</p>
+                <p class="restitution-prix">Prix de base&nbsp;: {{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €
+                    <span class="restitution-prix-origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
                 <p class="fiabilite fiabilite-{{ fiabilite.couleur }}">
                     <span class="fiabilite-pastille" aria-hidden="true">{{ fiabilite.pastille }}</span>
                     Fiabilité&nbsp;: {{ fiabilite.libelle }}
