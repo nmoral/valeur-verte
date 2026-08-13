@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class BouquetsController extends AbstractController
 {
-    #[Route('/back-office/bouquets', name: 'back_office_bouquets', methods: ['GET'])]
+    #[Route('/bouquets', name: 'back_office_bouquets', methods: ['GET'])]
     public function __invoke(): Response
     {
         $bouquets = [Bouquet::renovationAmpleurStandard()];

@@ -1,0 +1,28 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Votre espace professionnel — retrouvez vos outils.</p>{% endblock %}
+
+{% block bo_content %}
+<div class="dash-grid">
+    <a class="dash-tile" href="{{ path('back_office_audit') }}">
+        <b>Nouvel audit</b>
+        <span>Saisir un bien et préparer un rapport</span>
+    </a>
+    <a class="dash-tile" href="{{ path('back_office_rapports') }}">
+        <b>Rapports &amp; leads</b>
+        <span>Vos rapports et contacts</span>
+    </a>
+    <a class="dash-tile" href="{{ path('back_office_couts') }}">
+        <b>Coûts de travaux</b>
+        <span>Vos barèmes de coûts</span>
+    </a>
+    <a class="dash-tile" href="{{ path('back_office_bouquets') }}">
+        <b>Bouquets types</b>
+        <span>Vos combinaisons de travaux</span>
+    </a>
+    <a class="dash-tile" href="{{ path('back_office_marque') }}">
+        <b>Ma marque</b>
+        <span>Logo, couleur et mentions du PDF</span>
+    </a>
+</div>
+{% endblock %}

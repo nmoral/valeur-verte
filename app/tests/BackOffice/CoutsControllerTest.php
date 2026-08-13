@@ -11,7 +11,7 @@ final class CoutsControllerTest extends WebTestCase
     public function testLEcranAfficheLaGrilleParDefautPreRemplie(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/back-office/couts');
+        $client->request('GET', '/couts');
 
         self::assertResponseIsSuccessful();
 
