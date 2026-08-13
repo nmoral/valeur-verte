@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Comptes · Admin interne · Valeur Verte{% endblock %}
+
+{% block body %}
+<main class="zone">
+    <h1>Comptes pro</h1>
+    <p>Pilotage des comptes : rapports consommés et statut d'essai.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Compte</th>
+                <th>Créé le</th>
+                <th>Rapports consommés</th>
+                <th>Statut d'essai</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for compte in comptes %}
+            <tr>
+                <td>{{ compte.identite }}</td>
+                <td>{{ compte.creeLe|date('d/m/Y') }}</td>
+                <td>{{ compte.rapportsConsommes }} / {{ compte.statut.seuil }}</td>
+                <td>
+                    {% if compte.statut.seuilAtteint %}
+                        Seuil atteint
+                    {% else %}
+                        En essai — reste {{ compte.statut.rapportsRestants }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4">Aucun compte pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock %}
