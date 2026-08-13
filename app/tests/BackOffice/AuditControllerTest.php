@@ -94,6 +94,26 @@ final class AuditControllerTest extends WebTestCase
         self::assertStringContainsString('surface/pièces', $html);
     }
 
+    public function testUnDpeManquantEstBloque(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', self::URL);
+        self::assertInstanceOf(Crawler::class, $crawler);
+        $token = $crawler->filter('input[name="_csrf_token"]')->attr('value');
+
+        // DPE actuel absent : la saisie doit être refusée avant tout calcul.
+        $client->request('POST', self::URL, [
+            'adresse' => '12 rue des Lilas',
+            'surface_batie' => '90',
+            'surface_terrain' => '500',
+            'dpe_apres' => 'C',
+            '_csrf_token' => $token,
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('obligatoires', (string) $client->getResponse()->getContent());
+    }
+
     /**
      * @param array<string, string> $valeurs
      */
