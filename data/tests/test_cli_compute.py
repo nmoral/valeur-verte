@@ -18,6 +18,7 @@ from valeur_verte_data import cli, orchestration
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
+from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
 from valeur_verte_data.dvf import Mutation
 from valeur_verte_data.invariants import ResultatMonotonie, VerdictPublication
 
@@ -234,6 +235,19 @@ def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
 
     assert rapport.ordre_canonique == "id_mutation"
     assert "id_mutation" in rapport.resume()
+
+
+def test_le_resume_surface_les_ecarts_reg1() -> None:
+    """L'opérateur doit voir, dans le résumé du batch, combien de mailles ont été
+    bloquées ou signalées par REG-1 — sinon les suspensions passent inaperçues."""
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
+    rapport.ecarts.ajouter("31555", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
+    rapport.ecarts.ajouter("31149", EcartMaille(ClasseEcart.ALERTE, 0.15, "DPE F"))
+
+    resume = rapport.resume()
+
+    assert "1 publication(s) bloquée(s)" in resume
+    assert "1 alerte(s) d'écart" in resume
 
 
 def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(

@@ -133,6 +133,8 @@ class RapportCalcul:
             f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.alertes_bord)} alerte(s) de bord, "
             f"{len(self.inversions_dpe)} inversion(s) DPE tolérée(s), "
+            f"{len(self.ecarts.blocages)} publication(s) bloquée(s) (REG-1), "
+            f"{len(self.ecarts.alertes)} alerte(s) d'écart, "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
         )
