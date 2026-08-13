@@ -14,7 +14,6 @@ use App\BackOffice\Restitution\Restitution;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -22,11 +21,14 @@ use Symfony\Component\Routing\Attribute\Route;
  * La validation des bornes (§9.8) est bloquante — protection de crédibilité —
  * tandis que l'incohérence surface/pièces se contente d'avertir.
  *
- * Sur saisie valide : Post/Redirect/Get. La confirmation transite par un flash
- * consommé au GET suivant, ce qui évite la re-soumission au rafraîchissement.
+ * Sur saisie valide : Post/Redirect/Get vers la page de restitution dédiée
+ * (§5.3). Le résultat transite par la session, ce qui laisse l'écran de saisie
+ * propre et rend la restitution rafraîchissable.
  */
 final class AuditController extends AbstractController
 {
+    public const SESSION_RESULTAT = 'audit_resultat';
+
     public function __construct(private readonly EstimateurValeurVerte $estimateur)
     {
     }
@@ -38,9 +40,7 @@ final class AuditController extends AbstractController
             return $this->traiter($request);
         }
 
-        $saisie = $this->confirmationEnAttente($request);
-
-        return $this->rendre($this->champsVides(), [], $saisie, $this->restitutionEnAttente($request));
+        return $this->rendre($this->champsVides(), []);
     }
 
     private function traiter(Request $request): Response
@@ -57,13 +57,13 @@ final class AuditController extends AbstractController
         ];
 
         if (!$this->isCsrfTokenValid('audit', $request->request->getString('_csrf_token'))) {
-            return $this->rendre($valeurs, ['global' => 'Votre session a expiré, merci de renvoyer le formulaire.'], null, null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendre($valeurs, ['global' => 'Votre session a expiré, merci de renvoyer le formulaire.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $dpeAvant = Dpe::tryFrom($valeurs['dpe_avant']);
         $dpeApres = Dpe::tryFrom($valeurs['dpe_apres']);
         if (null === $dpeAvant || null === $dpeApres) {
-            return $this->rendre($valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], null, null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendre($valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -76,22 +76,15 @@ final class AuditController extends AbstractController
                 '' === $valeurs['nombre_pieces'] ? null : (int) $valeurs['nombre_pieces'],
             );
         } catch (SaisieInvalide $erreur) {
-            return $this->rendre($valeurs, $erreur->erreurs(), null, null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendre($valeurs, $erreur->erreurs(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        $this->addFlash('audit_confirmation', $saisie);
 
         $valeurBien = $valeurs['valeur_bien'];
-        $restitution = $this->estimer(
-            $valeurs['code_insee'],
-            $saisie,
-            '' === $valeurBien ? null : (int) $valeurBien,
-        );
-        if (null !== $restitution) {
-            $this->addFlash('audit_restitution', $restitution);
-        }
+        $restitution = $this->estimer($valeurs['code_insee'], $saisie, '' === $valeurBien ? null : (int) $valeurBien);
 
-        return $this->redirectToRoute('back_office_audit');
+        $request->getSession()->set(self::SESSION_RESULTAT, ['saisie' => $saisie, 'restitution' => $restitution]);
+
+        return $this->redirectToRoute('back_office_audit_resultat');
     }
 
     private function estimer(string $codeInsee, SaisieAudit $saisie, ?int $valeurBien): ?Restitution
@@ -105,38 +98,6 @@ final class AuditController extends AbstractController
         } catch (EstimationIndisponible|ClasseNonPubliee) {
             return null;
         }
-    }
-
-    private function confirmationEnAttente(Request $request): ?SaisieAudit
-    {
-        $session = $request->hasSession() ? $request->getSession() : null;
-        if (!$session instanceof FlashBagAwareSessionInterface) {
-            return null;
-        }
-
-        foreach ($session->getFlashBag()->get('audit_confirmation') as $valeur) {
-            if ($valeur instanceof SaisieAudit) {
-                return $valeur;
-            }
-        }
-
-        return null;
-    }
-
-    private function restitutionEnAttente(Request $request): ?Restitution
-    {
-        $session = $request->hasSession() ? $request->getSession() : null;
-        if (!$session instanceof FlashBagAwareSessionInterface) {
-            return null;
-        }
-
-        foreach ($session->getFlashBag()->get('audit_restitution') as $valeur) {
-            if ($valeur instanceof Restitution) {
-                return $valeur;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -160,16 +121,13 @@ final class AuditController extends AbstractController
      * @param array<string, string> $valeurs
      * @param array<string, string> $erreurs
      */
-    private function rendre(array $valeurs, array $erreurs, ?SaisieAudit $saisie, ?Restitution $restitution = null, int $statut = Response::HTTP_OK): Response
+    private function rendre(array $valeurs, array $erreurs, int $statut = Response::HTTP_OK): Response
     {
         return $this->render('back_office/audit.html.twig', [
             'page_title' => 'Nouvel audit',
             'nav_active' => 'audit',
             'valeurs' => $valeurs,
             'erreurs' => $erreurs,
-            'saisie' => $saisie,
-            'restitution' => $restitution,
-            'avertissements' => null === $saisie ? [] : $saisie->avertissements(),
             'dpe_options' => Dpe::cases(),
         ], new Response('', $statut));
     }

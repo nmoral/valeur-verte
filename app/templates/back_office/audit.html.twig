@@ -84,49 +84,6 @@
 {% endblock %}
 
 {% block bo_content %}
-{% if saisie %}
-<div class="panel confirm audit">
-    <div class="panel-head"><h2><span class="ok-dot"></span> Saisie validée</h2><span class="hint">prête pour la restitution</span></div>
-    <div class="confirm-body">
-        <p class="addr">{{ saisie.adresse }}</p>
-        <div class="confirm-meta">
-            <span>{{ saisie.surfaceBatie }} m² bâti</span><span class="sep">·</span>
-            <span>{{ saisie.surfaceTerrain }} m² terrain</span><span class="sep">·</span>
-            <span class="audit-inline">
-                <span class="dpe d-{{ saisie.dpeAvant.value|lower }}">{{ saisie.dpeAvant.value }}</span>
-                <span class="arrow">→</span>
-                <span class="dpe d-{{ saisie.dpeApres.value|lower }}">{{ saisie.dpeApres.value }}</span>
-            </span>
-            {% if saisie.nombrePieces %}<span class="sep">·</span><span>{{ saisie.nombrePieces }} pièces</span>{% endif %}
-        </div>
-        {% for avertissement in avertissements %}
-            <p class="banner banner-warn" role="alert" style="margin-top:14px;margin-bottom:0">{{ avertissement }}</p>
-        {% endfor %}
-        {% if restitution %}
-            {% set fiabilite = restitution.fiabilite %}
-            <div class="restitution">
-                <p class="restitution-phrase">{{ restitution.phrase }}.</p>
-                <p class="restitution-contexte">Millésime {{ restitution.millesime }}.</p>
-                <p class="restitution-prix">Prix de base&nbsp;: {{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €
-                    <span class="restitution-prix-origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
-                <p class="fiabilite fiabilite-{{ fiabilite.couleur }}">
-                    <span class="fiabilite-pastille" aria-hidden="true">{{ fiabilite.pastille }}</span>
-                    Fiabilité&nbsp;: {{ fiabilite.libelle }}
-                </p>
-                {% if fiabilite.exigeBandeau %}
-                    <p class="banner banner-bad banner-fiabilite" role="alert">
-                        Estimation fragile&nbsp;: effectif réduit ou repli départemental. À interpréter avec prudence.
-                    </p>
-                {% endif %}
-            </div>
-        {% else %}
-            <p class="banner banner-warn banner-indisponible" role="alert">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes). La saisie reste enregistrée.</p>
-        {% endif %}
-        <a class="btn btn-ghost btn-sm" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
-    </div>
-</div>
-{% endif %}
-
 {% set avant_choisi = valeurs.dpe_avant != '' ? valeurs.dpe_avant : 'E' %}
 {% set apres_choisi = valeurs.dpe_apres != '' ? valeurs.dpe_apres : 'C' %}
 
