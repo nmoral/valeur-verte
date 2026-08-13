@@ -21,9 +21,10 @@ REFUS_MESSAGE = "Données insuffisantes pour produire une estimation sur cette z
 
 
 class CoverageMode(Enum):
-    """Origine du coefficient retenu pour une maille."""
+    """Origine du coefficient retenu pour une maille (crans de la cascade #169)."""
 
     LOCAL = "local"
+    EPCI = "epci"
     DEPARTEMENTAL = "departemental"
     REFUS = "refus"
 
@@ -43,3 +44,29 @@ def decide_mode(n_local: int, n_departement: int, *, seuil: int = MIN_LOCAL_SAMP
     if n_departement >= seuil:
         return ModeDecision(CoverageMode.DEPARTEMENTAL, DEGRADED_ALERT)
     return ModeDecision(CoverageMode.REFUS, REFUS_MESSAGE)
+
+
+class PalierFiabilite(Enum):
+    """Palier de fiabilité d'une maille selon son erreur médiane (#169)."""
+
+    STANDARD = "standard"
+    DEGRADE = "degrade"
+    REFUSE = "refuse"
+
+
+def palier_erreur(
+    erreur_mediane: float | None, *, seuil_standard: float, seuil_degrade: float
+) -> PalierFiabilite:
+    """Classe une maille par son erreur médiane de validation croisée.
+
+    Bornes exclusives, cohérentes avec INV-4 (``err >= seuil`` sort du tier) :
+    ``STANDARD`` sous le seuil standard, ``DEGRADE`` sous le seuil dégradé (servi
+    avec bandeau), ``REFUSE`` au-delà ou si l'erreur est indisponible.
+    """
+    if erreur_mediane is None:
+        return PalierFiabilite.REFUSE
+    if erreur_mediane < seuil_standard:
+        return PalierFiabilite.STANDARD
+    if erreur_mediane < seuil_degrade:
+        return PalierFiabilite.DEGRADE
+    return PalierFiabilite.REFUSE

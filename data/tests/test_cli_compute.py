@@ -303,6 +303,70 @@ def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
     assert set(rapport.rejets_invariants) == {"31555", "31149"}
 
 
+def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#169 cascade : quand le LOCAL ne produit rien de publiable, la commune
+    descend au cran EPCI (ventes des communes du même EPCI) avant de refuser.
+    31555 a un EPCI publiable → écrite en mode EPCI ; 31149 sans EPCI → refus.
+    """
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        orchestration,
+        "communes_de_meme_epci",
+        lambda conn, code: ("31555", "31149") if code == "31555" else (),
+    )
+    maille_epci = replace(_maille_publiable("31555"), mode=CoverageMode.EPCI, rayon_retenu_km=None)
+    monkeypatch.setattr(
+        orchestration,
+        "compute_maille_epci",
+        lambda code, lat, lon, mil, membres, pool, config: maille_epci if code == "31555" else None,
+    )
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]
+    assert ecrites[0].mode is CoverageMode.EPCI
+    assert rapport.communes_calculees == 1
+    assert rapport.refus == ["31149"]
+
+
+def test_une_commune_sans_local_ni_epci_bascule_au_departement(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#169 cascade : dernier filet. Ni LOCAL ni EPCI publiable → la commune
+    descend au cran DÉPARTEMENT (avec bandes) avant de refuser. 31555 a un
+    départemental publiable ; 31149 non → refus.
+    """
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
+    monkeypatch.setattr(orchestration, "communes_de_meme_epci", lambda conn, code: ("31555",))
+    monkeypatch.setattr(orchestration, "compute_maille_epci", lambda *a, **k: None)
+    maille_dept = replace(
+        _maille_publiable("31555"), mode=CoverageMode.DEPARTEMENTAL, rayon_retenu_km=None
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "compute_maille_departement",
+        lambda code, lat, lon, mil, pool, config: maille_dept if code == "31555" else None,
+    )
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]
+    assert ecrites[0].mode is CoverageMode.DEPARTEMENTAL
+    assert rapport.refus == ["31149"]
+
+
 def test_une_maille_rejetee_efface_le_coefficient_anterieur(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:

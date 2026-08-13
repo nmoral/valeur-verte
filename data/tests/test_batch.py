@@ -12,10 +12,12 @@ from valeur_verte_data.batch import (
     _sigma_local,
     compute_communes,
     compute_maille,
+    compute_maille_departement,
+    compute_maille_epci,
 )
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
-from valeur_verte_data.degraded import CoverageMode
+from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.radius import RadiusSelection
 
@@ -48,6 +50,137 @@ def _cluster(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
             prix = round(3000.0 * bati**0.9 * math.exp(effect))
             houses.append(_house(dpe, bati, prix, lat=lat, lon=lon))
     return houses
+
+
+def _cluster_commune(
+    code_insee: str, count_per_class: int, *, lat: float, lon: float
+) -> list[Mutation]:
+    """Cluster de ventes rattachées à une commune donnée (id_mutation unique)."""
+    return [
+        replace(vente, code_insee=code_insee, id_mutation=f"{code_insee}-{vente.id_mutation}")
+        for vente in _cluster(count_per_class, lat=lat, lon=lon)
+    ]
+
+
+def _pool_dpe_clairseme(
+    *, lat: float = 43.6, lon: float = 1.44
+) -> tuple[list[Mutation], list[Mutation], list[Mutation]]:
+    """Pool à DPE clairsemé : D ample (référence), F et G rares (6 chacune).
+
+    Sous un seuil de classe à 10, F et G sont individuellement écartées ; seules les
+    bandes ({F,G} fusionnées) permettent la publication — cas d'usage des crans EPCI/DÉPT.
+    """
+    amples = [
+        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=lat, lon=lon) for i in range(12)
+    ]
+    rares_f = [
+        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=lat, lon=lon)
+        for i in range(6)
+    ]
+    rares_g = [
+        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=lat, lon=lon)
+        for i in range(6)
+    ]
+    return amples, rares_f, rares_g
+
+
+# ---------------------------------------------------------------------------
+# #169 — Cran EPCI de la cascade. Quand le LOCAL échoue, on descend d'un cran :
+# une régression sur les ventes des communes du même EPCI (granularité entre
+# local et département). Pooling ici ; bandes DPE au cycle suivant.
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_epci_poole_les_communes_de_l_epci() -> None:
+    """La régression EPCI poole les ventes des communes du même EPCI et ignore
+    celles hors EPCI présentes dans le pool départemental (une régression par EPCI).
+    """
+    dans_epci = _cluster_commune("31555", 5, lat=43.6, lon=1.44) + _cluster_commune(
+        "31149", 5, lat=43.6, lon=1.44
+    )
+    hors_epci = _cluster_commune("31999", 5, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_class_sample=1)
+
+    maille = compute_maille_epci(
+        "31555", 43.6, 1.44, 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
+    )
+
+    assert maille is not None
+    assert maille.mode is CoverageMode.EPCI
+    assert maille.rayon_retenu_km is None
+    assert maille.n_transactions == len(dans_epci)
+
+
+def test_compute_maille_epci_refuse_sans_classe_exploitable() -> None:
+    """Sans deux classes DPE au seuil, l'EPCI refuse aussi (le gate de publication
+    par classe s'applique à tous les crans) — la bascule au département suivra."""
+    pool = [_maison_classe("D", i) for i in range(40)]  # une seule classe
+
+    maille = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=CalculConfig())
+
+    assert maille is None
+
+
+def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> None:
+    """Cran EPCI : les classes DPE adjacentes sous le seuil sont fusionnées en
+    bandes (≥ 2), là où le calcul en classes pleines refuserait faute de deux
+    classes publiables. Débloque la publication en zone rurale à DPE clairsemé.
+    """
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    pool = amples + rares_f + rares_g
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    epci = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=cfg)
+
+    assert epci is not None
+    assert epci.mode is CoverageMode.EPCI
+    # F et G fusionnées sous le représentant F (le plus proche de D) : G disparaît,
+    # F porte l'effectif de la bande entière.
+    assert set(epci.coef_dpe) == {"D", "F"}
+    assert "G" not in epci.coef_dpe
+    assert epci.effectifs_dpe["F"] == len(rares_f) + len(rares_g)
+
+
+def test_compute_maille_epci_expose_le_mapping_des_bandes() -> None:
+    """La maille des crans à bandes porte le mapping classe→représentant : sans lui,
+    une maison d'une classe fusionnée (G→F) n'aurait aucun coefficient servable."""
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    epci = compute_maille_epci(
+        "31555", 43.6, 1.44, 2024, ("31555",), amples + rares_f + rares_g, config=cfg
+    )
+
+    assert epci is not None
+    assert epci.bandes == {"D": "D", "F": "F", "G": "F"}
+
+
+# ---------------------------------------------------------------------------
+# #169 — Cran DÉPARTEMENT de la cascade : dernier filet. Poole les ventes du
+# seul département (voisins exclus, comme le repli #22), avec bandes DPE.
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -> None:
+    """Le cran départemental poole les seules ventes du département (le débordement
+    sur les voisins nourrit le LOCAL, pas ce repli — #91), et fusionne les classes
+    clairsemées en bandes comme l'EPCI, sur un pool encore plus large.
+    """
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    # Voisin ariégeois (09), présent au pool mais hors du département calculé.
+    voisin_09 = [
+        replace(vente, code_insee="09122", id_mutation=f"09-{i}") for i, vente in enumerate(amples)
+    ]
+    pool = amples + rares_f + rares_g + voisin_09
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    maille = compute_maille_departement("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.mode is CoverageMode.DEPARTEMENTAL
+    assert maille.rayon_retenu_km is None
+    assert set(maille.coef_dpe) == {"D", "F"}  # G fusionnée dans la bande F
+    assert maille.n_transactions == len(amples) + len(rares_f) + len(rares_g)  # voisin exclu
 
 
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
@@ -286,6 +419,65 @@ def test_compute_maille_expose_l_effectif_par_classe_dpe() -> None:
     assert maille.effectifs_dpe == {"C": 6, "D": 5, "F": 4}
     # Mêmes classes que le coefficient : l'effectif accompagne chaque coef publié.
     assert set(maille.effectifs_dpe) == set(maille.coef_dpe)
+
+
+# ---------------------------------------------------------------------------
+# #169 — Palier de fiabilité au cran LOCAL. La maille porte son tier (STANDARD /
+# DEGRADE) dérivé de l'erreur médiane, premier maillon de la cascade : le tier
+# dégradé ouvre le LOCAL aux erreurs 20-30 % (servi avec bandeau côté restitution)
+# au lieu du refus sec. Les deux seuils viennent de la config (contrat data→app).
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_palier_standard_sous_le_seuil() -> None:
+    """Sous le seuil d'erreur standard, la maille est en tier STANDARD (aucun bandeau).
+
+    Une maille locale précise ne bascule pas en dégradé : le palier est porté par
+    la maille elle-même, pas déduit après coup.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)  # données propres → erreur médiane faible
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+
+    assert maille is not None
+    assert maille.erreur_mediane is not None
+    assert maille.erreur_mediane < base.erreur_mediane_max_pct
+    assert maille.palier is PalierFiabilite.STANDARD
+
+
+def test_compute_maille_palier_degrade_entre_les_deux_seuils() -> None:
+    """Entre seuil standard et seuil dégradé, la maille bascule en tier DEGRADE.
+
+    Preuve de câblage : en abaissant le seuil standard à 0, toute erreur positive
+    tombe dans le tier dégradé au lieu du standard. Les deux seuils viennent de la
+    config (``erreur_mediane_max_pct`` / ``_degrade``), pas d'une constante.
+    """
+    pool = _cluster(4, lat=43.6, lon=1.44)
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=10,
+        min_sample=10,
+        min_class_sample=1,
+        erreur_mediane_max_pct=0.0,
+        erreur_mediane_max_pct_degrade=100.0,
+    )
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.palier is PalierFiabilite.DEGRADE
+
+
+def test_compute_maille_local_ne_porte_pas_de_bandes() -> None:
+    """Le cran LOCAL reste en classes pleines : aucun mapping de bandes (§ conception)."""
+    pool = _cluster(4, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.bandes == {}
 
 
 def test_compute_maille_mode_local() -> None:

@@ -23,6 +23,7 @@ from .http import HttpFetcher
 from .orchestration import (
     RapportCalcul,
     RapportIngestion,
+    charger_epci_departement,
     compute_departement,
     ingest_departement,
     load_contours_departement,
@@ -46,6 +47,11 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     contours.add_argument("--departement", required=True, help="Code département (ex. 31)")
 
+    epci = commandes.add_parser(
+        "load-epci", help="Charger l'appartenance EPCI des communes d'un département (#169)"
+    )
+    epci.add_argument("--departement", required=True, help="Code département (ex. 52)")
+
     return analyseur.parse_args(argv)
 
 
@@ -61,6 +67,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.commande == "load-contours":
             charges = load_contours_departement(HttpFetcher(), conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} contour(s) chargé(s)")
+            return 0
+        if arguments.commande == "load-epci":
+            charges = charger_epci_departement(HttpFetcher(), conn, arguments.departement)
+            print(f"Département {arguments.departement} : {charges} EPCI enregistré(s)")
             return 0
         if arguments.commande == "compute":
             rapport: RapportIngestion | RapportCalcul = compute_departement(

@@ -14,11 +14,12 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
+from .bandes import bandes_monotones
 from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
-from .degraded import CoverageMode, decide_mode
+from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
 from .dvf import Mutation
 from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
@@ -53,6 +54,17 @@ class MailleCoefficient:
     coef_dpe: dict[str, float]
     ic_dpe: dict[str, tuple[float, float]]
     alerte: str | None
+    # Palier de fiabilité (#169) : STANDARD (erreur < seuil standard) ou DEGRADE
+    # (erreur entre seuil standard et seuil dégradé, servi avec bandeau côté
+    # restitution). Premier maillon de la cascade — le tier ouvre le LOCAL aux
+    # erreurs 20-30 % au lieu du refus sec. Défaut STANDARD pour les mailles
+    # construites hors du moteur (tests).
+    palier: PalierFiabilite = PalierFiabilite.STANDARD
+    # Mapping classe DPE → représentant de bande (#169), pour les crans EPCI/DÉPT
+    # où des classes adjacentes ont été fusionnées (ex. ``{"F": "F", "G": "F"}``).
+    # **Vide au cran LOCAL** (classes pleines). Indispensable à la restitution : sans
+    # lui, une maison d'une classe fusionnée (G) n'aurait aucun coefficient servable.
+    bandes: dict[str, str] = field(default_factory=dict)
     # Effectif observé par classe DPE publiée (INV-1, #119) : porte la tolérance
     # de monotonie. Défaut vide pour les mailles construites hors du moteur (tests).
     effectifs_dpe: dict[str, int] = field(default_factory=dict)
@@ -98,6 +110,7 @@ def _maille(
     result: RegressionResult,
     erreur: float | None,
     alerte: str | None,
+    palier: PalierFiabilite,
     publiables: set[str] | None = None,
     effectifs: Counter[str] | None = None,
 ) -> MailleCoefficient:
@@ -120,6 +133,7 @@ def _maille(
         coef_dpe=coef_dpe,
         ic_dpe=_intervals(coef_dpe, erreur),
         alerte=alerte,
+        palier=palier,
         effectifs_dpe=effectifs_dpe,
     )
 
@@ -142,44 +156,27 @@ def _sigma_local(config: CalculConfig, selection: RadiusSelection) -> float:
     return max(sigma, config.sigma_min)
 
 
-def compute_maille(
+def _compute_from_sample(
     code_insee: str,
     centroid_lat: float,
     centroid_lon: float,
     millesime: int,
-    pool: Sequence[Mutation],
+    sample: Sequence[Mutation],
     *,
-    config: CalculConfig = DEFAULT_CONFIG,
+    mode: CoverageMode,
+    rayon_km: int | None,
+    fit_sigma: float,
+    alerte: str | None,
+    config: CalculConfig,
 ) -> MailleCoefficient | None:
-    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
-    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
-    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
-    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
-    pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
-    selection = adaptive_selection(
-        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
-    )
-    departemental = _meme_departement(code_insee, pool)
-    n_local = len(
-        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
-    )
-    n_departement = len(
-        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
-    )
-    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
+    """Chaîne commune post-sélection, partagée par tous les crans de la cascade.
 
-    if decision.mode is CoverageMode.REFUS:
-        return None
-
-    if decision.mode is CoverageMode.LOCAL:
-        sample: Sequence[Mutation] = selection.sample
-        rayon_km: int | None = selection.rayon_km
-        fit_sigma = _sigma_local(config, selection)
-    else:
-        sample = departemental
-        rayon_km = None
-        fit_sigma = config.departemental_sigma_km
-
+    Une fois l'échantillon et la pondération (``fit_sigma``) choisis — cran LOCAL,
+    EPCI ou DÉPARTEMENT — le traitement est identique : écrêtage → gate de
+    publication par classe → régression → erreur médiane → palier de fiabilité.
+    Renvoie ``None`` si moins de ``min_classes_publiees`` classes tiennent le seuil.
+    L'appelant fournit un ``sample`` déjà en ordre canonique (INV-5).
+    """
     if config.ecretage == "residu":
         sample = ecreter_residu(
             sample,
@@ -226,16 +223,191 @@ def compute_maille(
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
     )
+    palier = palier_erreur(
+        erreur,
+        seuil_standard=config.erreur_mediane_max_pct,
+        seuil_degrade=config.erreur_mediane_max_pct_degrade,
+    )
     return _maille(
         code_insee,
         millesime,
-        decision.mode,
+        mode,
         rayon_km,
         result,
         erreur,
-        decision.alerte,
+        alerte,
+        palier,
         publiables,
         effectifs,
+    )
+
+
+def compute_maille(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
+    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
+    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
+    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
+    pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
+    selection = adaptive_selection(
+        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
+    )
+    departemental = _meme_departement(code_insee, pool)
+    n_local = len(
+        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    n_departement = len(
+        _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
+
+    if decision.mode is CoverageMode.REFUS:
+        return None
+
+    if decision.mode is CoverageMode.LOCAL:
+        sample: Sequence[Mutation] = selection.sample
+        rayon_km: int | None = selection.rayon_km
+        fit_sigma = _sigma_local(config, selection)
+    else:
+        sample = departemental
+        rayon_km = None
+        fit_sigma = config.departemental_sigma_km
+
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=decision.mode,
+        rayon_km=rayon_km,
+        fit_sigma=fit_sigma,
+        alerte=decision.alerte,
+        config=config,
+    )
+
+
+def _maille_par_bandes(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    sample: Sequence[Mutation],
+    *,
+    mode: CoverageMode,
+    sigma: float,
+    config: CalculConfig,
+) -> MailleCoefficient | None:
+    """Cœur commun des crans **EPCI** et **DÉPARTEMENT** de la cascade (#169).
+
+    Applique les **bandes DPE monotones** (fusion des classes adjacentes
+    sous-effectif + anti-inversion, ``bandes_monotones``) à l'échantillon fourni —
+    déjà filtré et trié par l'appelant — puis relabellise et enchaîne la chaîne
+    standard à pondération uniforme. ``rayon=None`` (cran non local), ``alerte=None``
+    (le ``mode`` porte le signal de granularité). ``None`` si moins de deux bandes.
+    """
+    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
+    if bandes is None:
+        return None
+    releve = [
+        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
+        if mutation.etiquette_dpe in bandes
+        else mutation
+        for mutation in sample
+    ]
+    maille = _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        releve,
+        mode=mode,
+        rayon_km=None,
+        fit_sigma=sigma,
+        alerte=None,
+        config=config,
+    )
+    # Le mapping des bandes voyage avec la maille : la restitution en a besoin pour
+    # relier une classe fusionnée (G) au coefficient de son représentant (F).
+    return maille if maille is None else replace(maille, bandes=bandes)
+
+
+def compute_maille_epci(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    communes_epci: Sequence[str],
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la maille d'une commune au cran EPCI de la cascade (#169).
+
+    Cran intermédiaire entre le local et le département : on poole les ventes des
+    communes de ``communes_epci`` (fournies par l'appelant depuis le référentiel
+    ``commune_epci``) en **une régression par EPCI**, à pondération uniforme (σ
+    départemental) — tous les biens de l'EPCI comptent également, la géographie
+    fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
+
+    Les classes DPE adjacentes sous-effectif sont fusionnées en bandes adaptatives
+    (le pool plus large garde un DPE plus fin que le département, sans exiger deux
+    classes pleines). ``None`` si moins de deux bandes (le département prend le relais).
+    """
+    membres = set(communes_epci)
+    sample = sorted(
+        (mutation for mutation in pool if mutation.code_insee in membres),
+        key=lambda mutation: mutation.id_mutation,
+    )
+    return _maille_par_bandes(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=CoverageMode.EPCI,
+        sigma=config.departemental_sigma_km,
+        config=config,
+    )
+
+
+def compute_maille_departement(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    pool: Sequence[Mutation],
+    *,
+    config: CalculConfig = DEFAULT_CONFIG,
+) -> MailleCoefficient | None:
+    """Calcule la maille d'une commune au cran DÉPARTEMENT (#169) — dernier filet.
+
+    Poole les ventes du **seul département** de la commune (``_meme_departement`` :
+    le débordement sur les voisins nourrit le calcul *local*, pas ce repli — #91), à
+    pondération uniforme (σ départemental), avec bandes DPE adaptatives +
+    anti-inversion. ``mode=DEPARTEMENTAL``, sans rayon. Renvoie ``None`` si moins de
+    deux bandes subsistent (la commune sort alors hors zone).
+    """
+    sample = sorted(
+        _meme_departement(code_insee, pool),
+        key=lambda mutation: mutation.id_mutation,
+    )
+    return _maille_par_bandes(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        sample,
+        mode=CoverageMode.DEPARTEMENTAL,
+        sigma=config.departemental_sigma_km,
+        config=config,
     )
 
 

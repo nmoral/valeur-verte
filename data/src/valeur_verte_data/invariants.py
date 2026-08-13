@@ -4,9 +4,12 @@ Une maille qui viole un invariant **n'est pas publiée** — elle remonte en ale
 et #22 (mode dégradé départemental) prend le relais sur la zone. Les seuils
 viennent de la config (source unique, configurable).
 
-- **INV-4 (#122)** — qualité du modèle : erreur médiane, R² et n. Le R² n'est
-  qu'un **garde-fou technique** (détecter un modèle qui n'explique rien), jamais
-  exposé au client (#23).
+- **INV-4 (#122)** — qualité du modèle : erreur médiane, R² et n. Le gate d'erreur
+  est le **plafond dégradé** (``erreur_mediane_max_pct_degrade``, 30 %) depuis #169 :
+  entre le seuil standard (20 %) et ce plafond, la maille est publiée en tier
+  dégradé (le ``palier`` de la maille porte le bandeau). Le R² n'est qu'un
+  **garde-fou technique** (détecter un modèle qui n'explique rien), jamais exposé
+  au client (#23).
 - **INV-3 (#121)** — cohérence géographique : le rayon retenu ne dépasse jamais
   le plafond (hors repli départemental). Les invariants #2 (monotonie du rayon)
   et #3 (facteur 2 entre communes limitrophes) vivent ailleurs (propriété du
@@ -46,9 +49,10 @@ def evaluer_invariants_publication(
 
     if maille.erreur_mediane is None:
         raisons.append("erreur médiane indisponible (validation croisée non calculable)")
-    elif maille.erreur_mediane >= config.erreur_mediane_max_pct:
+    elif maille.erreur_mediane >= config.erreur_mediane_max_pct_degrade:
         raisons.append(
-            f"erreur médiane {maille.erreur_mediane:.1f} % ≥ {config.erreur_mediane_max_pct:.0f} %"
+            f"erreur médiane {maille.erreur_mediane:.1f} % "
+            f"≥ {config.erreur_mediane_max_pct_degrade:.0f} %"
         )
 
     if maille.r2 <= config.r2_min:
