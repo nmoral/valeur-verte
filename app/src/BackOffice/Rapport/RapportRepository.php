@@ -24,6 +24,11 @@ class RapportRepository extends ServiceEntityRepository
         $manager->flush();
     }
 
+    public function parReference(string $reference): ?Rapport
+    {
+        return $this->findOneBy(['reference' => $reference]);
+    }
+
     /**
      * Liste unique des rapports et leads, les plus récents d'abord (§9.2).
      *

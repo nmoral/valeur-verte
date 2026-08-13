@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\BackOffice\Estimation;
 
 use App\BackOffice\Audit\SaisieAudit;
-use App\BackOffice\Restitution\Restitution;
 
 /**
  * Chaîne de calcul économique (§6, #25) : à partir d'une saisie audit et d'une
- * commune, produit la restitution chiffrée (#31). Le prix de base vaut par défaut
- * la médiane du prix au m² de la maille multipliée par la surface bâtie, que le
- * pro peut remplacer par sa propre estimation.
+ * commune, produit la restitution chiffrée (#31) et le contexte de calcul employé
+ * (#33). Le prix de base vaut par défaut la médiane du prix au m² de la maille
+ * multipliée par la surface bâtie, que le pro peut remplacer par sa propre estimation.
  */
 final readonly class EstimateurValeurVerte
 {
@@ -21,7 +20,7 @@ final readonly class EstimateurValeurVerte
     ) {
     }
 
-    public function estimer(string $codeInsee, SaisieAudit $saisie, ?int $prixBaseOverride = null): Restitution
+    public function estimer(string $codeInsee, SaisieAudit $saisie, ?int $prixBaseOverride = null): ResultatEstimation
     {
         $maille = $this->coefficients->pour($codeInsee);
         if (null === $maille) {
@@ -29,8 +28,9 @@ final readonly class EstimateurValeurVerte
         }
 
         $prixBase = $prixBaseOverride ?? $this->prixBaseParDefaut($codeInsee, $saisie);
+        $restitution = $maille->estimer($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase, null !== $prixBaseOverride);
 
-        return $maille->estimer($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase, null !== $prixBaseOverride);
+        return ResultatEstimation::depuis($restitution, $maille->contexte($saisie->dpeAvant(), $saisie->dpeApres()));
     }
 
     private function prixBaseParDefaut(string $codeInsee, SaisieAudit $saisie): int

@@ -7,6 +7,7 @@ namespace App\Tests\BackOffice;
 use App\BackOffice\Estimation\CoefficientMaille;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -40,6 +41,32 @@ final class AuditPdfControllerTest extends WebTestCase
         self::assertStringStartsWith('%PDF-', (string) $client->getResponse()->getContent());
     }
 
+    public function testUnAuditTermineArchiveUnRapportImmuable(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client);
+
+        // L'archivage se fait dès la saisie valide, pas au téléchargement : le
+        // rapport doit exister avant tout accès au PDF.
+        self::assertSame(1, $this->nombreDeRapports($client), 'Un audit terminé doit archiver le rapport.');
+    }
+
+    public function testLeTelechargementNeCreePasUnSecondRapport(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+        $this->soumettre($client);
+
+        $client->request('GET', self::URL_PDF);
+        $client->request('GET', self::URL_PDF);
+
+        self::assertSame(1, $this->nombreDeRapports($client), 'Le téléchargement ne doit pas dupliquer le rapport.');
+    }
+
     public function testAccesDirectSansResultatRenvoieVersLaSaisie(): void
     {
         $client = static::createClient();
@@ -68,6 +95,21 @@ final class AuditPdfControllerTest extends WebTestCase
         $client->disableReboot();
 
         return $client;
+    }
+
+    /**
+     * Compte les rapports en base sans passer par l'ORM (filtre tenant neutre) :
+     * l'archivage est un effet de bord de la génération, pas une vue filtrée.
+     */
+    private function nombreDeRapports(KernelBrowser $client): int
+    {
+        $connexion = $client->getContainer()->get('doctrine.dbal.default_connection');
+        self::assertInstanceOf(Connection::class, $connexion);
+
+        $compte = $connexion->fetchOne('SELECT COUNT(*) FROM rapport');
+        self::assertTrue(is_numeric($compte));
+
+        return (int) $compte;
     }
 
     private function coefficients(KernelBrowser $client): FournisseurCoefficientMailleEnMemoire

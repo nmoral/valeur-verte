@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Tenant;
 
-use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\Tenant\AccesTousTenants;
 use App\Tenant\TraceDesactivationTenant;
+use App\Tests\BackOffice\Rapport\InstantaneRapportMother;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -55,10 +55,7 @@ final class AccesTousTenantsTest extends KernelTestCase
             $reference,
             new \DateTimeImmutable('2026-08-01 09:00:00'),
             Source::Audit,
-            'Baziège',
-            Dpe::E,
-            Dpe::C,
-            52610,
+            InstantaneRapportMother::creer(),
             '/rapports/'.$reference.'.pdf',
         );
         $rapport->setTenantId($tenantId);

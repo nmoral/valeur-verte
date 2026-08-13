@@ -24,7 +24,8 @@ final class EstimateurValeurVerteTest extends TestCase
             $this->prix(1635.0),
         );
 
-        $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie());
+        $resultat = $estimateur->estimer(self::CODE_INSEE, self::saisie());
+        $restitution = $resultat->restitution();
 
         // P = 1635 × 90 = 147 150 ; D→C ; erreur 17,22 %.
         self::assertSame(16865, $restitution->montantEuros());
@@ -35,6 +36,11 @@ final class EstimateurValeurVerteTest extends TestCase
         self::assertSame(2024, $restitution->millesime());
         self::assertSame(147150, $restitution->prixBaseEuros());
         self::assertFalse($restitution->prixSaisiParLePro());
+
+        // Le contexte employé est exposé pour l'instantané (#33) : coef D et C, erreur médiane.
+        self::assertSame(0.0, $resultat->contexte()->coefDpeAvant());
+        self::assertSame(0.10850747, $resultat->contexte()->coefDpeApres());
+        self::assertSame(17.22, $resultat->contexte()->erreurMediane());
     }
 
     public function testLeProPeutRemplacerLePrixDeBase(): void
@@ -44,7 +50,7 @@ final class EstimateurValeurVerteTest extends TestCase
             $this->prix(1635.0),
         );
 
-        $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie(), prixBaseOverride: 200000);
+        $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie(), prixBaseOverride: 200000)->restitution();
 
         self::assertSame(22923, $restitution->montantEuros());
         self::assertSame(200000, $restitution->prixBaseEuros());
@@ -82,7 +88,7 @@ final class EstimateurValeurVerteTest extends TestCase
             $this->prix(null),
         );
 
-        $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie(), prixBaseOverride: 200000);
+        $restitution = $estimateur->estimer(self::CODE_INSEE, self::saisie(), prixBaseOverride: 200000)->restitution();
 
         self::assertSame(22923, $restitution->montantEuros());
     }
