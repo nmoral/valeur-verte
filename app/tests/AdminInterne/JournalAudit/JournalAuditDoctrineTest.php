@@ -20,7 +20,11 @@ final class JournalAuditDoctrineTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
-        $journal = self::getContainer()->get(JournalAuditDoctrine::class);
+        // Résolu via l'EntityManager : le repository n'a pas encore de consommateur,
+        // le conteneur de test l'élaguerait s'il était demandé en direct.
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $journal = $manager->getRepository(EvenementAudit::class);
         self::assertInstanceOf(JournalAuditDoctrine::class, $journal);
         $this->journal = $journal;
     }
