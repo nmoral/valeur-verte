@@ -98,6 +98,38 @@ def test_compute_maille_epci_refuse_sans_classe_exploitable() -> None:
     assert maille is None
 
 
+def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> None:
+    """Cran EPCI : les classes DPE adjacentes sous le seuil sont fusionnées en
+    bandes (≥ 2), là où le calcul en classes pleines refuserait faute de deux
+    classes publiables. Débloque la publication en zone rurale à DPE clairsemé.
+    """
+    # D ample (référence). F et G rares (6 chacune, sous le seuil 10) : sans bandes,
+    # une seule classe publiable → refus. Fusionnées, {F,G} atteint le seuil.
+    amples = [
+        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=43.6, lon=1.44) for i in range(12)
+    ]
+    rares_f = [
+        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=43.6, lon=1.44)
+        for i in range(6)
+    ]
+    rares_g = [
+        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=43.6, lon=1.44)
+        for i in range(6)
+    ]
+    pool = amples + rares_f + rares_g
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    epci = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=cfg)
+
+    assert epci is not None
+    assert epci.mode is CoverageMode.EPCI
+    # F et G fusionnées sous le représentant F (le plus proche de D) : G disparaît,
+    # F porte l'effectif de la bande entière.
+    assert set(epci.coef_dpe) == {"D", "F"}
+    assert "G" not in epci.coef_dpe
+    assert epci.effectifs_dpe["F"] == len(rares_f) + len(rares_g)
+
+
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
     """S20 : sans la restriction < 1989, les ventes récentes alimentent la régression.
 
