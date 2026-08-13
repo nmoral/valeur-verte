@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
+from .bandes import bandes_monotones
 from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
 from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
@@ -306,14 +307,27 @@ def compute_maille_epci(
     départemental) — tous les biens de l'EPCI comptent également, la géographie
     fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
 
-    Renvoie ``None`` si le gate de publication par classe n'est pas tenu (à ce
-    stade sans bandes DPE — le repli départemental prendra alors le relais).
+    Les classes DPE adjacentes sous-effectif sont fusionnées en **bandes
+    adaptatives + anti-inversion** (``bandes_monotones``) : le pool plus large de
+    l'EPCI garde un DPE plus fin que le département, sans exiger deux classes
+    pleines. Renvoie ``None`` si moins de deux bandes subsistent (le repli
+    départemental prendra alors le relais).
     """
     membres = set(communes_epci)
     sample = sorted(
         (mutation for mutation in pool if mutation.code_insee in membres),
         key=lambda mutation: mutation.id_mutation,
     )
+    sigma = config.departemental_sigma_km
+    bandes = bandes_monotones(sample, centroid_lat, centroid_lon, sigma, config)
+    if bandes is None:
+        return None
+    sample = [
+        replace(mutation, etiquette_dpe=bandes[mutation.etiquette_dpe])
+        if mutation.etiquette_dpe in bandes
+        else mutation
+        for mutation in sample
+    ]
     return _compute_from_sample(
         code_insee,
         centroid_lat,
@@ -322,7 +336,7 @@ def compute_maille_epci(
         sample,
         mode=CoverageMode.EPCI,
         rayon_km=None,
-        fit_sigma=config.departemental_sigma_km,
+        fit_sigma=sigma,
         alerte=None,
         config=config,
     )
