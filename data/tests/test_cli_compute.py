@@ -218,7 +218,9 @@ def test_les_communes_calculees_sont_ecrites(
     )
 
     assert rapport.communes_calculees > 0
-    assert len(connexion.ecritures) == rapport.communes_calculees
+    # Écritures dans la table **vive** (l'archivage REG-1 écrit en plus dans l'historique).
+    vives = [query for query, _ in connexion.ecritures if "_historique" not in query]
+    assert len(vives) == rapport.communes_calculees
     assert connexion.commits >= 1
 
 

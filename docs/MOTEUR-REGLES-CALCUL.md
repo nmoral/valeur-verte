@@ -167,6 +167,24 @@ Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur
     (2,0)** → **bandeau d'alerte de bord non masquable**, mais la maille **reste publiée**.
 - **INV-5** — reproductibilité : ordre canonique `id_mutation` partout (pool, plis, sommation).
 
+### REG-1 — écart au millésime précédent (#129, `ecarts.py`)
+
+Dernière porte, **après** les invariants, sur une maille par ailleurs publiable. Chaque
+maille calculée est **archivée** dans `data.coefficient_maille_historique` (versionnée
+par `code_insee`+`millesime`), puis comparée à son millésime précédent :
+
+- **métrique** : écart relatif sur l'**effet `exp(coef)`** des classes DPE communes (un
+  effet log peut bouger beaucoup sans que le prix bouge) et sur la valeur brute des
+  élasticités `coef_m2_bati`/`coef_m2_terrain` ; la maille retient le **pire** coefficient.
+  Un changement de l'ensemble des classes publiées (rebanding) vaut au moins une alerte ;
+- **paliers** : `< ecart_alerte_pct` (**10 %**) normal ; jusqu'à `ecart_blocage_pct`
+  (**25 %**) **alerte** (publiée, signalée pour revue) ; au-delà **blocage** — la maille
+  **n'est pas publiée** (l'ancienne valeur vive reste servie jusqu'à validation manuelle,
+  REG-2). Blocage **par maille**, jamais du batch entier.
+
+Prérequis INV-5 satisfait (CV déterministe → l'écart est de la dérive, pas de l'aléa). Le
+batch renvoie un `RapportEcarts` dédié (une ligne par maille) pour l'écran de supervision (#45).
+
 ## 12. Sortie — `coefficient_maille` (`batch.MailleCoefficient`)
 
 Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départemental),
@@ -213,6 +231,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `cv_folds` | 5 | validation croisée |
 | `erreur_mediane_max_pct` | 20 | seuil du tier standard (classe le `palier`) |
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
+| `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |
