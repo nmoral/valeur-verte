@@ -112,12 +112,16 @@ final class EstimationDbalTest extends KernelTestCase
         $this->prive->executeStatement(
             'CREATE TABLE IF NOT EXISTS data.vente (
                 id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                id_mutation  TEXT NOT NULL,
                 code_insee   CHAR(5) NOT NULL,
                 millesime    SMALLINT NOT NULL,
                 prix_m2      NUMERIC(10,2)
             )'
         );
-        $this->prive->executeStatement('GRANT SELECT ON data.coefficient_maille, data.vente TO app');
+        // Le rôle applicatif ne lit « data » qu'en lecture seule : on garantit
+        // l'accès quel que soit le propriétaire des tables (réelles ou minimales).
+        $this->prive->executeStatement('GRANT USAGE ON SCHEMA data TO app');
+        $this->prive->executeStatement('GRANT SELECT ON ALL TABLES IN SCHEMA data TO app');
         $this->prive->executeStatement('TRUNCATE data.coefficient_maille, data.vente');
 
         $this->prive->executeStatement(
@@ -125,10 +129,10 @@ final class EstimationDbalTest extends KernelTestCase
              ('32013', 2024, 10, 134, 17.22, '{\"D\":0.0,\"C\":0.10,\"E\":-0.20}')"
         );
         $this->prive->executeStatement(
-            "INSERT INTO data.vente (code_insee, millesime, prix_m2) VALUES
-             ('32013', 2024, 1000),
-             ('32013', 2024, 1500),
-             ('32013', 2024, 2000)"
+            "INSERT INTO data.vente (id_mutation, code_insee, millesime, prix_m2) VALUES
+             ('m1', '32013', 2024, 1000),
+             ('m2', '32013', 2024, 1500),
+             ('m3', '32013', 2024, 2000)"
         );
     }
 }
