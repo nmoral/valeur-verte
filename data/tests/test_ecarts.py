@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.degraded import CoverageMode
-from valeur_verte_data.ecarts import ClasseEcart, EcartMaille, classer_ecart, ecart_maille
+from valeur_verte_data.ecarts import (
+    ClasseEcart,
+    EcartMaille,
+    LigneEcart,
+    RapportEcarts,
+    classer_ecart,
+    ecart_maille,
+)
 
 _SEUILS = {"seuil_alerte": 0.10, "seuil_blocage": 0.25}
 
@@ -160,3 +167,26 @@ def test_ecart_maille_structurel_nomme_les_classes_publiees() -> None:
     resultat = ecart_maille(ancien, nouveau, **_SEUILS)
     assert resultat.classe is ClasseEcart.ALERTE
     assert resultat.coefficient == "classes publiées"
+
+
+# --- RapportEcarts : le rapport dédié, une ligne par maille comparée (REG-1) ---
+
+
+def test_rapport_ecarts_accumule_une_ligne_par_maille() -> None:
+    rapport = RapportEcarts()
+    rapport.ajouter("52001", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
+    rapport.ajouter("52002", EcartMaille(ClasseEcart.ALERTE, 0.15, "DPE F"))
+    rapport.ajouter("52003", EcartMaille(ClasseEcart.NORMAL, 0.02, "DPE D"))
+
+    assert rapport.lignes[0] == LigneEcart("52001", ClasseEcart.BLOCAGE, 0.30, "élasticité bâti")
+    assert len(rapport.lignes) == 3
+
+
+def test_rapport_ecarts_isole_blocages_et_alertes() -> None:
+    rapport = RapportEcarts()
+    rapport.ajouter("52001", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
+    rapport.ajouter("52002", EcartMaille(ClasseEcart.ALERTE, 0.15, "DPE F"))
+    rapport.ajouter("52003", EcartMaille(ClasseEcart.NORMAL, 0.02, "DPE D"))
+
+    assert [ligne.code_insee for ligne in rapport.blocages] == ["52001"]
+    assert [ligne.code_insee for ligne in rapport.alertes] == ["52002"]
