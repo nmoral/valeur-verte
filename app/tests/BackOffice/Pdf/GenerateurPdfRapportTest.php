@@ -10,6 +10,8 @@ use App\BackOffice\Branding\Couleur;
 use App\BackOffice\Pdf\GenerateurPdfRapport;
 use App\BackOffice\Pdf\ReferenceRapport;
 use App\BackOffice\Rapport\Dpe;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
 use App\Tests\BackOffice\Pdf\Double\ConvertisseurPdfEspion;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -88,6 +90,30 @@ final class GenerateurPdfRapportTest extends KernelTestCase
 
         self::assertStringContainsStringIgnoringCase('fragile', $html);
         self::assertMatchesRegularExpression('/prudence|repli|effectif/i', $html);
+    }
+
+    public function testUneEstimationEpciDegradeeAfficheLaPorteeEtLesBandeaux(): void
+    {
+        // Cran EPCI dégradé (#169), classe G servie via la bande F : le PDF —
+        // régénéré depuis l'instantané — situe l'intercommunalité, signale le
+        // tier dégradé et la substitution de bande.
+        $html = $this->htmlGenere(Restitution::depuis(
+            montantEuros: 12000,
+            borneBasseEuros: 6000,
+            borneHauteEuros: 18000,
+            n: 60,
+            rayonKm: null,
+            millesime: 2024,
+            prixBaseEuros: 100000,
+            prixSaisiParLePro: false,
+            portee: PorteeEstimation::Epci,
+            palier: PalierFiabilite::Degrade,
+            bandesAppliquees: ['G' => 'F'],
+        ));
+
+        self::assertStringContainsString('intercommunal (EPCI)', $html);
+        self::assertStringContainsStringIgnoringCase('dégradée', $html);
+        self::assertStringContainsString('bande F', $html);
     }
 
     public function testUneEstimationIndisponibleAfficheUnMessageSansMontant(): void
