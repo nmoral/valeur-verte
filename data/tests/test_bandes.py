@@ -40,10 +40,48 @@ def test_fusionne_avec_le_plus_petit_voisin() -> None:
     assert bandes_adaptatives(effectifs, 20) == {"C": "C", "D": "D", "E": "D"}
 
 
+def test_fusionne_vers_la_gauche_quand_le_voisin_gauche_est_moins_fourni() -> None:
+    """Symétrique du test précédent : le voisin gauche (C) est le moins fourni, la
+    classe rare fusionne donc à gauche, pas à droite (direction de fusion)."""
+    effectifs = {"C": 25, "D": 5, "E": 50}
+    assert bandes_adaptatives(effectifs, 20) == {"C": "D", "D": "D", "E": "E"}
+
+
+def test_fusionne_vers_la_meilleure_classe_a_egalite_de_voisins() -> None:
+    """Voisins gauche et droite à effectif égal : on fusionne du côté de la
+    meilleure classe (gauche), pas à droite (départage `gauche <= droite`)."""
+    effectifs = {"C": 25, "D": 5, "E": 25}
+    assert bandes_adaptatives(effectifs, 20) == {"C": "D", "D": "D", "E": "E"}
+
+
+def test_fusionne_la_bande_la_plus_a_gauche_sans_voisin_gauche() -> None:
+    """La classe la plus à gauche (aucun voisin gauche) fusionne vers la droite :
+    son unique option, sans déborder sur une bande inexistante."""
+    effectifs = {"C": 5, "D": 50, "E": 50}
+    assert bandes_adaptatives(effectifs, 20) == {"C": "D", "D": "D", "E": "E"}
+
+
 def test_preserve_une_classe_bien_fournie_en_fusionnant_les_rares() -> None:
     """C bien fournie reste sa bande ; D et E rares fusionnent vers leur plus petit voisin (F)."""
     effectifs = {"C": 40, "D": 5, "E": 5, "F": 20}
     assert bandes_adaptatives(effectifs, 20) == {"C": "C", "D": "D", "E": "D", "F": "D"}
+
+
+def test_une_classe_pile_au_seuil_reste_sa_bande() -> None:
+    """Seuil strict (`< seuil`) : une classe exactement AU seuil est suffisante, elle
+    n'entraîne aucune fusion (ni ne devient candidate au regroupement)."""
+    assert bandes_adaptatives({"D": 20, "E": 20}, 20) == {"D": "D", "E": "E"}
+
+
+def test_fusionne_d_abord_la_bande_la_moins_peuplee() -> None:
+    """Plusieurs bandes sous le seuil : la MOINS peuplée fusionne en premier (E=3
+    avant C=8). L'ordre change le banding final — E rejoint D, C aussi, F reste seule."""
+    assert bandes_adaptatives({"C": 8, "D": 25, "E": 3, "F": 25}, 20) == {
+        "C": "D",
+        "D": "D",
+        "E": "D",
+        "F": "F",
+    }
 
 
 def test_effectifs_vides() -> None:
