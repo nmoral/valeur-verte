@@ -20,7 +20,7 @@ final class CoefficientMailleTest extends TestCase
     {
         $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0);
 
-        $restitution = $maille->estimer(Dpe::E, Dpe::C, prixBaseEuros: 100000);
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, prixBaseEuros: 100000, prixSaisiParLePro: false);
 
         self::assertInstanceOf(Restitution::class, $restitution);
         self::assertSame(34986, $restitution->montantEuros());
@@ -38,7 +38,7 @@ final class CoefficientMailleTest extends TestCase
             millesime: 2024,
         );
 
-        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000);
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
 
         self::assertSame(134, $restitution->n());
         self::assertSame(10, $restitution->rayonKm());
@@ -49,7 +49,7 @@ final class CoefficientMailleTest extends TestCase
     {
         $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0);
 
-        $restitution = $maille->estimer(Dpe::C, Dpe::C, 100000);
+        $restitution = $maille->estimer(Dpe::C, Dpe::C, 100000, false);
 
         self::assertSame(0, $restitution->montantEuros());
         self::assertSame(0, $restitution->borneBasseEuros());
@@ -60,7 +60,7 @@ final class CoefficientMailleTest extends TestCase
     {
         $maille = self::maille(['D' => 0.0, 'C' => 0.10], erreurMediane: 20.0, rayonKm: null);
 
-        $restitution = $maille->estimer(Dpe::D, Dpe::C, 100000);
+        $restitution = $maille->estimer(Dpe::D, Dpe::C, 100000, false);
 
         self::assertNull($restitution->rayonKm());
     }
@@ -71,7 +71,7 @@ final class CoefficientMailleTest extends TestCase
 
         $this->expectException(ClasseNonPubliee::class);
 
-        $maille->estimer(Dpe::F, Dpe::C, 100000);
+        $maille->estimer(Dpe::F, Dpe::C, 100000, false);
     }
 
     /**

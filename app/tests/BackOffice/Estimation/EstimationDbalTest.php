@@ -54,7 +54,7 @@ final class EstimationDbalTest extends KernelTestCase
         $maille = $lecteur->pour('32013');
 
         self::assertNotNull($maille);
-        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000);
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
         self::assertSame(134, $restitution->n());
         self::assertSame(10, $restitution->rayonKm());
         self::assertSame(2024, $restitution->millesime());
@@ -71,7 +71,7 @@ final class EstimationDbalTest extends KernelTestCase
         $maille = $lecteur->pour('32999');
 
         self::assertNotNull($maille);
-        self::assertNull($maille->estimer(Dpe::D, Dpe::C, 100000)->rayonKm());
+        self::assertNull($maille->estimer(Dpe::D, Dpe::C, 100000, false)->rayonKm());
     }
 
     public function testLeLecteurDeCoefficientRenvoieNullHorsCouverture(): void

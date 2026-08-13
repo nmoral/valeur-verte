@@ -19,6 +19,8 @@ final readonly class Restitution
         private int $n,
         private ?int $rayonKm,
         private int $millesime,
+        private int $prixBaseEuros,
+        private bool $prixSaisiParLePro,
     ) {
     }
 
@@ -29,8 +31,10 @@ final readonly class Restitution
         int $n,
         ?int $rayonKm,
         int $millesime,
+        int $prixBaseEuros,
+        bool $prixSaisiParLePro,
     ): self {
-        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime);
+        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime, $prixBaseEuros, $prixSaisiParLePro);
     }
 
     public function montantEuros(): int
@@ -61,6 +65,16 @@ final readonly class Restitution
     public function millesime(): int
     {
         return $this->millesime;
+    }
+
+    public function prixBaseEuros(): int
+    {
+        return $this->prixBaseEuros;
+    }
+
+    public function prixSaisiParLePro(): bool
+    {
+        return $this->prixSaisiParLePro;
     }
 
     public function fiabilite(): IndicateurFiabilite

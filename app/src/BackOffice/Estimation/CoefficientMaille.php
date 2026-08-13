@@ -46,7 +46,7 @@ final readonly class CoefficientMaille
      * partir d'un prix de base (§6) : valeur = P × (exp(Δ) − 1), Δ étant l'écart
      * des coefficients log. La fourchette applique l'erreur médiane de la maille.
      */
-    public function estimer(Dpe $avant, Dpe $apres, int $prixBaseEuros): Restitution
+    public function estimer(Dpe $avant, Dpe $apres, int $prixBaseEuros, bool $prixSaisiParLePro): Restitution
     {
         $ecartLog = $this->coefficient($apres) - $this->coefficient($avant);
         $valeur = $prixBaseEuros * (exp($ecartLog) - 1.0);
@@ -59,6 +59,8 @@ final readonly class CoefficientMaille
             n: $this->n,
             rayonKm: $this->rayonKm,
             millesime: $this->millesime,
+            prixBaseEuros: $prixBaseEuros,
+            prixSaisiParLePro: $prixSaisiParLePro,
         );
     }
 

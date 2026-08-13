@@ -30,7 +30,7 @@ final readonly class EstimateurValeurVerte
 
         $prixBase = $prixBaseOverride ?? $this->prixBaseParDefaut($codeInsee, $saisie);
 
-        return $maille->estimer($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase);
+        return $maille->estimer($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase, null !== $prixBaseOverride);
     }
 
     private function prixBaseParDefaut(string $codeInsee, SaisieAudit $saisie): int
