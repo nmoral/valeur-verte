@@ -102,7 +102,24 @@
         {% for avertissement in avertissements %}
             <p class="banner banner-warn" role="alert" style="margin-top:14px;margin-bottom:0">{{ avertissement }}</p>
         {% endfor %}
-        <p class="note">Étape suivante&nbsp;: restitution — effectif, intervalle de confiance, rayon, millésime et indicateur de fiabilité.</p>
+        {% if restitution %}
+            {% set fiabilite = restitution.fiabilite %}
+            <div class="restitution">
+                <p class="restitution-phrase">{{ restitution.phrase }}.</p>
+                <p class="restitution-contexte">Millésime {{ restitution.millesime }}.</p>
+                <p class="fiabilite fiabilite-{{ fiabilite.couleur }}">
+                    <span class="fiabilite-pastille" aria-hidden="true">{{ fiabilite.pastille }}</span>
+                    Fiabilité&nbsp;: {{ fiabilite.libelle }}
+                </p>
+                {% if fiabilite.exigeBandeau %}
+                    <p class="banner banner-bad banner-fiabilite" role="alert">
+                        Estimation fragile&nbsp;: effectif réduit ou repli départemental. À interpréter avec prudence.
+                    </p>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="banner banner-warn banner-indisponible" role="alert">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes). La saisie reste enregistrée.</p>
+        {% endif %}
         <a class="btn btn-ghost btn-sm" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
     </div>
 </div>
@@ -184,6 +201,7 @@
 
             <div class="audit-actions">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
+                <input type="hidden" name="code_insee" id="code_insee" value="{{ valeurs.code_insee|default('') }}">
                 <button type="submit" class="btn">Valider la saisie</button>
             </div>
         </div>

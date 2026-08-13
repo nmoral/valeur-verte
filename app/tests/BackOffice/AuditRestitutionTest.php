@@ -23,7 +23,7 @@ final class AuditRestitutionTest extends WebTestCase
 
     public function testUneSaisieValideAfficheLeChiffreEtSonContexte(): void
     {
-        $client = static::createClient();
+        $client = $this->client();
         $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
         $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
 
@@ -39,7 +39,7 @@ final class AuditRestitutionTest extends WebTestCase
 
     public function testUneMailleSolideAfficheLIndicateurVert(): void
     {
-        $client = static::createClient();
+        $client = $this->client();
         $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
         $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
 
@@ -51,7 +51,7 @@ final class AuditRestitutionTest extends WebTestCase
 
     public function testUneMailleFragileAfficheLeBandeau(): void
     {
-        $client = static::createClient();
+        $client = $this->client();
         $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 40, rayonKm: 10));
         $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
 
@@ -65,7 +65,7 @@ final class AuditRestitutionTest extends WebTestCase
 
     public function testUneCommuneHorsCouvertureResteValideMaisSansChiffre(): void
     {
-        $client = static::createClient();
+        $client = $this->client();
         // Aucun coefficient défini pour ce code INSEE : estimation indisponible.
 
         $this->soumettre($client);
@@ -74,6 +74,16 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertStringContainsString('Saisie validée', $html);
         self::assertStringContainsString('estimation', strtolower($html));
         self::assertSelectorNotExists('.fiabilite');
+    }
+
+    private function client(): KernelBrowser
+    {
+        $client = static::createClient();
+        // Sans reboot entre GET (jeton) et POST, le conteneur — donc les doubles
+        // configurés en mémoire — survit d'une requête à l'autre.
+        $client->disableReboot();
+
+        return $client;
     }
 
     private function coefficients(KernelBrowser $client): FournisseurCoefficientMailleEnMemoire
