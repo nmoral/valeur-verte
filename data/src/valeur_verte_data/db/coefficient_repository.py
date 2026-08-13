@@ -10,8 +10,10 @@ valeur d'énumération (#169) — le contrat data→app en a besoin pour la rest
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from ..batch import MailleCoefficient
+from ..degraded import CoverageMode, PalierFiabilite
 from .runner import Connection
 
 _UPSERT = (
@@ -50,6 +52,18 @@ _ARCHIVE = (
     "coef_dpe = EXCLUDED.coef_dpe, ic_dpe = EXCLUDED.ic_dpe, alerte = EXCLUDED.alerte, "
     "mode = EXCLUDED.mode, palier = EXCLUDED.palier, bandes = EXCLUDED.bandes, "
     "effectifs_dpe = EXCLUDED.effectifs_dpe, calcule_le = now()"
+)
+
+
+# REG-1 (#129) : le « précédent » d'un millésime = la ligne d'historique de plus
+# grand millésime strictement inférieur. Colonnes dans l'ordre lu par ``_depuis_row``.
+_SELECT_PRECEDENT = (
+    "SELECT code_insee, millesime, mode, rayon_retenu_km, n_transactions, r2, "
+    "erreur_mediane, coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe, alerte, "
+    "palier, bandes, effectifs_dpe "
+    "FROM data.coefficient_maille_historique "
+    "WHERE code_insee = %s AND millesime < %s "
+    "ORDER BY millesime DESC LIMIT 1"
 )
 
 
@@ -100,3 +114,40 @@ def archiver_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
     précédent. Idempotent au recalcul d'un même millésime (conflit sur la clé).
     """
     conn.execute(_ARCHIVE, _params(maille))
+
+
+def lire_coefficient_precedent(
+    conn: Connection, code_insee: str, millesime: int
+) -> MailleCoefficient | None:
+    """Relit le millésime **antérieur le plus récent** d'une commune (REG-1, #129).
+
+    Source du « précédent » du rapport d'écarts : la ligne d'historique de plus grand
+    millésime strictement inférieur à ``millesime``. Reconstruit une
+    ``MailleCoefficient`` fidèle (JSONB → dict via psycopg, rayon départemental 0 →
+    ``None``, mode/palier depuis leur valeur d'énumération). ``None`` si la commune
+    n'a pas de millésime antérieur (première publication).
+    """
+    rows = conn.execute(_SELECT_PRECEDENT, [code_insee, millesime]).fetchall()
+    return _depuis_row(rows[0]) if rows else None
+
+
+def _depuis_row(row: tuple[Any, ...]) -> MailleCoefficient:
+    """Reconstruit une maille depuis une ligne d'historique (ordre de ``_SELECT_PRECEDENT``)."""
+    ic_brut = row[10] or {}
+    return MailleCoefficient(
+        code_insee=str(row[0]).strip(),
+        millesime=int(row[1]),
+        mode=CoverageMode(row[2]),
+        rayon_retenu_km=None if not row[3] else int(row[3]),
+        n_transactions=int(row[4]),
+        r2=float(row[5]),
+        erreur_mediane=None if row[6] is None else float(row[6]),
+        coef_m2_bati=float(row[7]),
+        coef_m2_terrain=float(row[8]),
+        coef_dpe={classe: float(coef) for classe, coef in row[9].items()},
+        ic_dpe={classe: (float(bas), float(haut)) for classe, (bas, haut) in ic_brut.items()},
+        alerte=None if row[11] is None else str(row[11]),
+        palier=PalierFiabilite(row[12]),
+        bandes={classe: str(rep) for classe, rep in (row[13] or {}).items()},
+        effectifs_dpe={classe: int(n) for classe, n in (row[14] or {}).items()},
+    )
