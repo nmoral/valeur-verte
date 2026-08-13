@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
-from .degraded import CoverageMode, decide_mode
+from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
 from .dvf import Mutation
 from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
@@ -53,6 +53,12 @@ class MailleCoefficient:
     coef_dpe: dict[str, float]
     ic_dpe: dict[str, tuple[float, float]]
     alerte: str | None
+    # Palier de fiabilité (#169) : STANDARD (erreur < seuil standard) ou DEGRADE
+    # (erreur entre seuil standard et seuil dégradé, servi avec bandeau côté
+    # restitution). Premier maillon de la cascade — le tier ouvre le LOCAL aux
+    # erreurs 20-30 % au lieu du refus sec. Défaut STANDARD pour les mailles
+    # construites hors du moteur (tests).
+    palier: PalierFiabilite = PalierFiabilite.STANDARD
     # Effectif observé par classe DPE publiée (INV-1, #119) : porte la tolérance
     # de monotonie. Défaut vide pour les mailles construites hors du moteur (tests).
     effectifs_dpe: dict[str, int] = field(default_factory=dict)
@@ -98,6 +104,7 @@ def _maille(
     result: RegressionResult,
     erreur: float | None,
     alerte: str | None,
+    palier: PalierFiabilite,
     publiables: set[str] | None = None,
     effectifs: Counter[str] | None = None,
 ) -> MailleCoefficient:
@@ -120,6 +127,7 @@ def _maille(
         coef_dpe=coef_dpe,
         ic_dpe=_intervals(coef_dpe, erreur),
         alerte=alerte,
+        palier=palier,
         effectifs_dpe=effectifs_dpe,
     )
 
@@ -226,6 +234,11 @@ def compute_maille(
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
     )
+    palier = palier_erreur(
+        erreur,
+        seuil_standard=config.erreur_mediane_max_pct,
+        seuil_degrade=config.erreur_mediane_max_pct_degrade,
+    )
     return _maille(
         code_insee,
         millesime,
@@ -234,6 +247,7 @@ def compute_maille(
         result,
         erreur,
         decision.alerte,
+        palier,
         publiables,
         effectifs,
     )

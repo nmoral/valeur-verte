@@ -163,7 +163,14 @@ Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur
 
 Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départemental),
 `n_transactions`, `r2`, `erreur_mediane`, `coef_m2_bati`, `coef_m2_terrain`,
-`coef_dpe` (JSONB), `ic_dpe` (JSONB), `alerte`, `calcule_le`.
+`coef_dpe` (JSONB), `ic_dpe` (JSONB), `alerte`, `palier`, `calcule_le`.
+- **`palier`** (#169, `degraded.palier_erreur`) : tier de fiabilité de la maille —
+  `STANDARD` si `erreur_mediane < erreur_mediane_max_pct` (20 %), `DEGRADE` si sous
+  `erreur_mediane_max_pct_degrade` (30 %). Distinct de `alerte` (réservé à INV-3
+  bord) : la restitution en dérive le bandeau « estimation dégradée ». ⚠️ **Marqué
+  mais pas encore publié** au cran DEGRADE : INV-4 rejette toujours ≥ 20 %
+  (ouverture du gate à 30 % = cycle suivant de la cascade, cf. §14). Non persisté
+  aujourd'hui (contrat `coefficient_maille` à étendre).
 - **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
 - ⚠️ **`effectifs_dpe` n'est PAS persisté** (porté en mémoire dans le batch) → bloque
   aujourd'hui la tolérance INV-1 au rechargement (RECAP §6).
