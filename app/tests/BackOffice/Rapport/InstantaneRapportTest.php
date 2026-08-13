@@ -11,6 +11,8 @@ use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Pdf\ReferenceRapport;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Rapport\InstantaneRapport;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
 use PHPUnit\Framework\TestCase;
 
@@ -58,6 +60,45 @@ final class InstantaneRapportTest extends TestCase
         self::assertSame('VV-20260813-A1B2C3', $donnees['reference']);
         self::assertIsArray($donnees['restitution']);
         self::assertSame(2024, $donnees['restitution']['millesime']);
+    }
+
+    /**
+     * Reproductibilité de la cascade (#169) : le cran (portée), le tier dégradé
+     * (palier) et les bandes DPE appliquées sont figés dans l'instantané, sinon
+     * un rapport EPCI/départemental régénéré perdrait sa formulation et son
+     * bandeau — le PDF ne serait plus à l'identique.
+     */
+    public function testLInstantaneFigeLaPorteeLePalierEtLesBandesDeLaCascade(): void
+    {
+        $restitution = Restitution::depuis(
+            montantEuros: 12000,
+            borneBasseEuros: 6000,
+            borneHauteEuros: 18000,
+            n: 60,
+            rayonKm: null,
+            millesime: 2024,
+            prixBaseEuros: 100000,
+            prixSaisiParLePro: false,
+            portee: PorteeEstimation::Epci,
+            palier: PalierFiabilite::Degrade,
+            bandesAppliquees: ['G' => 'F'],
+        );
+        $instantane = InstantaneRapport::creer(
+            $this->saisie(),
+            $restitution,
+            $this->contexte(),
+            $this->branding(),
+            ReferenceRapport::depuis('VV-20260813-A1B2C3'),
+            new \DateTimeImmutable('2026-08-13 10:00:00'),
+        );
+
+        $relu = InstantaneRapport::fromArray($instantane->toArray())->restitution();
+
+        self::assertNotNull($relu);
+        self::assertEquals($restitution, $relu);
+        self::assertSame('intercommunal (EPCI)', $relu->intitulePortee());
+        self::assertTrue($relu->estDegradee());
+        self::assertSame(['G' => 'F'], $relu->bandesAppliquees());
     }
 
     private function instantane(): InstantaneRapport
