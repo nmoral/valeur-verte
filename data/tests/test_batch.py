@@ -12,6 +12,7 @@ from valeur_verte_data.batch import (
     _sigma_local,
     compute_communes,
     compute_maille,
+    compute_maille_departement,
     compute_maille_epci,
 )
 from valeur_verte_data.config import CalculConfig
@@ -128,6 +129,45 @@ def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> N
     assert set(epci.coef_dpe) == {"D", "F"}
     assert "G" not in epci.coef_dpe
     assert epci.effectifs_dpe["F"] == len(rares_f) + len(rares_g)
+
+
+# ---------------------------------------------------------------------------
+# #169 — Cran DÉPARTEMENT de la cascade : dernier filet. Poole les ventes du
+# seul département (voisins exclus, comme le repli #22), avec bandes DPE.
+# ---------------------------------------------------------------------------
+
+
+def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -> None:
+    """Le cran départemental poole les seules ventes du département (le débordement
+    sur les voisins nourrit le LOCAL, pas ce repli — #91), et fusionne les classes
+    clairsemées en bandes comme l'EPCI, sur un pool encore plus large.
+    """
+    amples = [
+        _house("D", 80 + i, round(3000.0 * (80 + i) ** 0.9), lat=43.6, lon=1.44) for i in range(12)
+    ]
+    rares_f = [
+        _house("F", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.20)), lat=43.6, lon=1.44)
+        for i in range(6)
+    ]
+    rares_g = [
+        _house("G", 80 + i, round(3000.0 * (80 + i) ** 0.9 * math.exp(-0.30)), lat=43.6, lon=1.44)
+        for i in range(6)
+    ]
+    # Voisin ariégeois (09), présent au pool mais hors du département calculé.
+    voisin_09 = [
+        replace(vente, code_insee="09122", id_mutation=f"09-{i}")
+        for i, vente in enumerate(amples)
+    ]
+    pool = amples + rares_f + rares_g + voisin_09
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    maille = compute_maille_departement("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert maille.mode is CoverageMode.DEPARTEMENTAL
+    assert maille.rayon_retenu_km is None
+    assert set(maille.coef_dpe) == {"D", "F"}  # G fusionnée dans la bande F
+    assert maille.n_transactions == len(amples) + len(rares_f) + len(rares_g)  # voisin exclu
 
 
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
