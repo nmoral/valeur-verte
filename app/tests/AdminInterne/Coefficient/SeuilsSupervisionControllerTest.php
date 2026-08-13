@@ -69,6 +69,43 @@ final class SeuilsSupervisionControllerTest extends WebTestCase
         self::assertSame(30.0, $this->seuils()->courants()->erreurMedianeMaxPct());
     }
 
+    public function testUnPostAsyncValideRenvoieUnJsonOk(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_ADMIN.'/coefficients/seuils', [
+            'erreur_mediane_max' => '22',
+            'gain_ec_max' => '0.5',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'application/json');
+        $charge = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($charge);
+        self::assertTrue($charge['ok']);
+        self::assertSame(22.0, $this->seuils()->courants()->erreurMedianeMaxPct());
+    }
+
+    public function testUnPostAsyncInvalideRenvoieUnJson422(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+        $this->seuils()->enregistrer(SeuilsSupervision::de(30.0, 0.70));
+
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_ADMIN.'/coefficients/seuils', [
+            'erreur_mediane_max' => '0',
+            'gain_ec_max' => '0.5',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        $charge = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($charge);
+        self::assertFalse($charge['ok']);
+        self::assertArrayHasKey('erreur', $charge);
+        self::assertSame(30.0, $this->seuils()->courants()->erreurMedianeMaxPct());
+    }
+
     private function connecterAdmin(KernelBrowser $client): void
     {
         $repository = self::getContainer()->get(UserRepository::class);
