@@ -8,6 +8,8 @@ maille (§REG-1). Fonction pure : deux valeurs → une classe.
 
 from __future__ import annotations
 
+import io
+
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.ecarts import (
@@ -17,6 +19,7 @@ from valeur_verte_data.ecarts import (
     RapportEcarts,
     classer_ecart,
     ecart_maille,
+    ecrire_ecarts_csv,
 )
 
 _SEUILS = {"seuil_alerte": 0.10, "seuil_blocage": 0.25}
@@ -190,3 +193,31 @@ def test_rapport_ecarts_isole_blocages_et_alertes() -> None:
 
     assert [ligne.code_insee for ligne in rapport.blocages] == ["52001"]
     assert [ligne.code_insee for ligne in rapport.alertes] == ["52002"]
+
+
+# --- ecrire_ecarts_csv : dump du rapport pour revue / observabilité VPS ---
+
+
+def test_ecrire_ecarts_csv_une_ligne_par_maille() -> None:
+    rapport = RapportEcarts()
+    rapport.ajouter("09001", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
+    rapport.ajouter("09002", EcartMaille(ClasseEcart.NORMAL, 0.02, "DPE D"))
+
+    buffer = io.StringIO()
+    ecrire_ecarts_csv(rapport, buffer)
+    lignes = buffer.getvalue().splitlines()
+
+    assert lignes[0] == "code_insee,classe,ecart_pct,coefficient"
+    assert lignes[1] == "09001,blocage,30.0,élasticité bâti"
+    assert lignes[2] == "09002,normal,2.0,DPE D"
+
+
+def test_ecrire_ecarts_csv_ecart_infini() -> None:
+    # Apparition depuis zéro : écart infini → « inf » sans crash de formatage.
+    rapport = RapportEcarts()
+    rapport.ajouter("09003", EcartMaille(ClasseEcart.BLOCAGE, float("inf"), "DPE C"))
+
+    buffer = io.StringIO()
+    ecrire_ecarts_csv(rapport, buffer)
+
+    assert "09003,blocage,inf,DPE C" in buffer.getvalue()
