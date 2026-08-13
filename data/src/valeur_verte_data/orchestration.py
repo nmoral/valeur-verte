@@ -21,13 +21,19 @@ from .batch import (
     compute_maille_epci,
 )
 from .config import DEFAULT_CONFIG, CalculConfig
-from .db.coefficient_repository import delete_coefficient, upsert_coefficient
+from .db.coefficient_repository import (
+    archiver_coefficient,
+    delete_coefficient,
+    lire_coefficient_precedent,
+    upsert_coefficient,
+)
 from .db.epci_repository import communes_de_meme_epci, upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .degraded import CoverageMode
+from .ecarts import ClasseEcart, RapportEcarts, ecart_maille
 from .http import Fetcher
 from .ingest import ingest_commune
 from .invariants import (
@@ -105,6 +111,10 @@ class RapportCalcul:
     # tolérée (classes adjacentes, la moins fournie sous le seuil). Journalisées
     # pour distinguer plus tard une faiblesse chronique d'une dérive nouvelle.
     inversions_dpe: list[str] = field(default_factory=list)
+    # REG-1 (#129) : écarts des mailles au millésime précédent — objet dédié, une
+    # ligne par maille comparée, alimentant l'écran de supervision (#45). Les mailles
+    # en blocage n'ont pas été publiées (leur ancienne valeur reste vive).
+    ecarts: RapportEcarts = field(default_factory=RapportEcarts)
     # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
     # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
     # batches dont on sait qu'ils étaient reproductibles.
@@ -123,6 +133,8 @@ class RapportCalcul:
             f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.alertes_bord)} alerte(s) de bord, "
             f"{len(self.inversions_dpe)} inversion(s) DPE tolérée(s), "
+            f"{len(self.ecarts.blocages)} publication(s) bloquée(s) (REG-1), "
+            f"{len(self.ecarts.alertes)} alerte(s) d'écart, "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
         )
@@ -307,6 +319,31 @@ def compute_departement(
         if alerte_bord is not None:
             retenue = replace(retenue, alerte=alerte_bord)
             rapport.alertes_bord.append(code_insee)
+
+        # REG-1 (#129) : archiver le millésime calculé, puis comparer au précédent.
+        # Un écart au-delà du seuil de blocage **suspend la publication de la maille**
+        # (l'ancienne valeur vive reste servie jusqu'à validation manuelle — REG-2) ;
+        # la maille reste archivée pour la revue. Sans précédent, rien à comparer.
+        archiver_coefficient(conn, retenue)
+        precedent = lire_coefficient_precedent(conn, code_insee, millesime)
+        if precedent is not None:
+            ecart = ecart_maille(
+                precedent,
+                retenue,
+                seuil_alerte=config.ecart_alerte_pct / 100,
+                seuil_blocage=config.ecart_blocage_pct / 100,
+            )
+            rapport.ecarts.ajouter(code_insee, ecart)
+            if ecart.classe is ClasseEcart.BLOCAGE:
+                conn.commit()  # persiste l'archive ; la table vive garde l'ancienne valeur
+                logger.warning(
+                    "%s : publication bloquée — écart %.0f %% sur %s (REG-1)",
+                    code_insee,
+                    ecart.ecart * 100,
+                    ecart.coefficient,
+                )
+                continue
+
         try:
             upsert_coefficient(conn, retenue)
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter

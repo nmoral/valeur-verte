@@ -19,6 +19,7 @@ from collections.abc import Sequence
 
 from .config import resolve_config
 from .db.runner import resolve_dsn
+from .ecarts import ecrire_ecarts_csv
 from .http import HttpFetcher
 from .orchestration import (
     RapportCalcul,
@@ -41,6 +42,10 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     compute = commandes.add_parser("compute", help="Calculer les coefficients d'un département")
     compute.add_argument("--departement", required=True, help="Code département (ex. 31)")
     compute.add_argument("--millesime", required=True, type=int, help="Année DVF (ex. 2024)")
+    compute.add_argument(
+        "--rapport-ecarts",
+        help="Chemin d'un CSV où écrire le rapport d'écarts au millésime précédent (REG-1)",
+    )
 
     contours = commandes.add_parser(
         "load-contours", help="Charger les contours communaux d'un département (INV-3)"
@@ -76,6 +81,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             rapport: RapportIngestion | RapportCalcul = compute_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
             )
+            if arguments.rapport_ecarts and isinstance(rapport, RapportCalcul):
+                with open(arguments.rapport_ecarts, "w", encoding="utf-8", newline="") as fichier:
+                    ecrire_ecarts_csv(rapport.ecarts, fichier)
+                print(
+                    f"Rapport d'écarts REG-1 : {arguments.rapport_ecarts} "
+                    f"({len(rapport.ecarts.lignes)} maille(s) comparée(s))"
+                )
         else:
             rapport = ingest_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config

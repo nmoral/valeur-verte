@@ -19,6 +19,7 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation
+from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
 from valeur_verte_data.invariants import ResultatMonotonie, VerdictPublication
 
 _COMMUNES = [
@@ -218,7 +219,9 @@ def test_les_communes_calculees_sont_ecrites(
     )
 
     assert rapport.communes_calculees > 0
-    assert len(connexion.ecritures) == rapport.communes_calculees
+    # Écritures dans la table **vive** (l'archivage REG-1 écrit en plus dans l'historique).
+    vives = [query for query, _ in connexion.ecritures if "_historique" not in query]
+    assert len(vives) == rapport.communes_calculees
     assert connexion.commits >= 1
 
 
@@ -232,6 +235,19 @@ def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
 
     assert rapport.ordre_canonique == "id_mutation"
     assert "id_mutation" in rapport.resume()
+
+
+def test_le_resume_surface_les_ecarts_reg1() -> None:
+    """L'opérateur doit voir, dans le résumé du batch, combien de mailles ont été
+    bloquées ou signalées par REG-1 — sinon les suspensions passent inaperçues."""
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
+    rapport.ecarts.ajouter("31555", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
+    rapport.ecarts.ajouter("31149", EcartMaille(ClasseEcart.ALERTE, 0.15, "DPE F"))
+
+    resume = rapport.resume()
+
+    assert "1 publication(s) bloquée(s)" in resume
+    assert "1 alerte(s) d'écart" in resume
 
 
 def test_une_commune_sous_le_seuil_est_refusee_sans_erreur(
@@ -554,3 +570,87 @@ def test_inversion_dpe_toleree_est_publiee_et_journalisee(
     assert [m.code_insee for m in ecrites] == ["31555"]  # publiée
     assert "31555" in rapport.inversions_dpe  # journalisée malgré tout
     assert rapport.rejets_invariants == []
+
+
+def test_maille_dont_l_ecart_depasse_le_seuil_n_est_pas_publiee(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REG-1 (#129) : un coefficient qui bouge trop d'un millésime au précédent bloque
+    la publication de la maille (l'ancienne valeur vive reste), mais la maille est
+    quand même archivée et le rapport d'écarts la liste en blocage."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(
+        orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
+    )
+    # Précédent à élasticité bâti 0,30 → 0,90 = +200 % : au-delà du blocage (25 %).
+    monkeypatch.setattr(
+        orchestration,
+        "lire_coefficient_precedent",
+        lambda conn, code, mil: _maille_publiable(code, 0.30) if code == "31555" else None,
+    )
+    ecrites: list[MailleCoefficient] = []
+    archives: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
+    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: archives.append(m))
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == []  # bloquée : non publiée
+    assert [m.code_insee for m in archives] == ["31555"]  # mais archivée
+    assert [ligne.code_insee for ligne in rapport.ecarts.blocages] == ["31555"]
+
+
+def test_maille_en_alerte_est_publiee_et_signalee(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un écart 10-25 % publie la maille mais la signale pour revue (REG-1)."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(
+        orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
+    )
+    # 0,75 → 0,90 = +20 % : alerte.
+    monkeypatch.setattr(
+        orchestration,
+        "lire_coefficient_precedent",
+        lambda conn, code, mil: _maille_publiable(code, 0.75) if code == "31555" else None,
+    )
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
+    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: None)
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]  # publiée
+    assert [ligne.code_insee for ligne in rapport.ecarts.alertes] == ["31555"]
+
+
+def test_premiere_publication_sans_precedent_publie_sans_comparer(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sans millésime antérieur (première publication), rien à comparer : on publie."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(
+        orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
+    )
+    monkeypatch.setattr(orchestration, "lire_coefficient_precedent", lambda conn, code, mil: None)
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
+    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: None)
+
+    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m in ecrites] == ["31555"]
+    assert rapport.ecarts.lignes == []
+
+
+def test_compute_accepte_une_option_rapport_ecarts() -> None:
+    """REG-1 : la commande compute peut écrire le rapport d'écarts en CSV."""
+    args = cli._analyser(
+        ["compute", "--departement", "09", "--millesime", "2024", "--rapport-ecarts", "/tmp/e.csv"]
+    )
+    assert args.rapport_ecarts == "/tmp/e.csv"
+
+
+def test_compute_sans_rapport_ecarts_est_none_par_defaut() -> None:
+    args = cli._analyser(["compute", "--departement", "09", "--millesime", "2024"])
+    assert args.rapport_ecarts is None
