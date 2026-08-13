@@ -194,6 +194,13 @@ reconstruire l'image. Les zones vivent sur des **sous-domaines** de `%app.domain
 Vérifier une page, c'est vérifier qu'elle **fonctionne** (contenu, action attendue),
 pas seulement qu'elle répond 200.
 
+**Playwright — toujours tester les formulaires, pas seulement le rendu GET.** Vérifier
+une page qui porte un formulaire, c'est le **soumettre** (remplir les champs, cliquer,
+constater le résultat : redirection/mise à jour côté valide, message d'erreur/422 côté
+invalide), pas seulement charger la page en GET. Une saisie valide **et** une saisie
+invalide doivent être exercées. Un rendu GET vérifié seul n'est pas une vérification du
+formulaire.
+
 ---
 
 ## 5. Exploitation — les traitements longs tournent **sur le VPS**
