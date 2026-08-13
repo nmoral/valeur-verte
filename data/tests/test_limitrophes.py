@@ -20,6 +20,13 @@ def test_la_haute_garonne_connait_ses_six_voisins() -> None:
     assert limitrophes("31") == ("09", "11", "32", "65", "81", "82")
 
 
+def test_la_haute_marne_connait_ses_six_voisins() -> None:
+    """Extension hors Occitanie (#71) : le 52 et sa région, pour éprouver le modèle
+    sur du rural dense/creux. Sans cette entrée, ses communes de bord calculent
+    sur un demi-disque."""
+    assert limitrophes("52") == ("10", "21", "51", "55", "70", "88")
+
+
 def test_l_adjacence_est_symetrique() -> None:
     """Une frontière déclarée d'un seul côté est une faute de frappe.
 
