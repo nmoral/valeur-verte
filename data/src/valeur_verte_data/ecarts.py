@@ -8,10 +8,11 @@ signalée pour revue manuelle), ou blocage (publication de la maille suspendue,
 
 from __future__ import annotations
 
+import csv
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 if TYPE_CHECKING:
     from .batch import MailleCoefficient
@@ -76,6 +77,20 @@ class RapportEcarts:
     def alertes(self) -> list[LigneEcart]:
         """Mailles publiées mais signalées pour revue manuelle."""
         return [ligne for ligne in self.lignes if ligne.classe is ClasseEcart.ALERTE]
+
+
+def ecrire_ecarts_csv(rapport: RapportEcarts, fichier: TextIO) -> None:
+    """Écrit le rapport d'écarts en CSV, une ligne par maille comparée (REG-1, #129).
+
+    Rend le rapport (sinon en mémoire) **observable** : revue après un batch VPS,
+    analyse de la distribution des écarts, et futur écran de supervision (#45).
+    L'écart infini (apparition d'un coefficient depuis zéro) est écrit ``inf``.
+    """
+    writer = csv.writer(fichier)
+    writer.writerow(("code_insee", "classe", "ecart_pct", "coefficient"))
+    for ligne in rapport.lignes:
+        ecart = "inf" if math.isinf(ligne.ecart) else f"{ligne.ecart * 100:.1f}"
+        writer.writerow((ligne.code_insee, ligne.classe.value, ecart, ligne.coefficient))
 
 
 def classer_ecart(
