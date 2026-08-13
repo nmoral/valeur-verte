@@ -36,7 +36,10 @@ final class SeuilEssaiRepositoryTest extends KernelTestCase
     {
         $this->repository->enregistrer(SeuilEssai::de(25));
 
-        self::getContainer()->get(EntityManagerInterface::class)->clear();
+        // Vider l'identity map : la relecture vient réellement de la base.
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $manager->clear();
 
         self::assertSame(25, $this->repository->courant()->valeur());
     }
