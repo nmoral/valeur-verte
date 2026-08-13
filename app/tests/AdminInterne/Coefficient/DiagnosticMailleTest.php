@@ -75,6 +75,20 @@ final class DiagnosticMailleTest extends TestCase
         self::assertContains('rupture_bord', $diagnostic->raisons());
     }
 
+    public function testUnGainEcInconnuNeDeclencheAucuneRaisonDeGain(): void
+    {
+        // Maille ne publiant pas E ou C : le gain E→C n'est pas évaluable.
+        $diagnostic = DiagnosticMaille::pour(
+            erreurMedianePct: 17.0,
+            gainEcLog: null,
+            alerteBord: null,
+            seuils: $this->seuils(),
+        );
+
+        self::assertFalse($diagnostic->estAberrante());
+        self::assertSame([], $diagnostic->raisons());
+    }
+
     private function seuils(): SeuilsSupervision
     {
         return SeuilsSupervision::de(erreurMedianeMaxPct: 30.0, gainEcMaxLog: 0.70);
