@@ -1,10 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/base.html.twig' %}
 
 {% block title %}Admin interne · Valeur Verte{% endblock %}
 
-{% block body %}
-<main class="zone">
-    <h1>Admin interne</h1>
-    <p>Console d'administration interne.</p>
-</main>
+{% block admin_title %}Admin interne{% endblock %}
+
+{% block admin_content %}
+<p>Console d'administration interne. Utilisez le menu pour superviser le journal d'audit et les comptes pro.</p>
 {% endblock %}

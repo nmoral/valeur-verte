@@ -50,6 +50,21 @@ final class ComptesControllerTest extends WebTestCase
         self::assertSelectorTextContains('tbody tr:first-child', '2');
     }
 
+    public function testLaNavigationAdminRelieLesPagesEtMarqueLaCourante(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+
+        $client->request('GET', 'http://'.self::HOTE_ADMIN.'/comptes');
+
+        self::assertResponseIsSuccessful();
+        // La nav latérale partagée relie les autres pages admin…
+        self::assertSelectorExists('nav.side a[href="/journal"]');
+        self::assertSelectorExists('nav.side a[href="/comptes/seuil"]');
+        // … et marque la page courante comme active.
+        self::assertSelectorTextContains('nav.side a.on', 'Comptes pro');
+    }
+
     private function connecterAdmin(KernelBrowser $client): void
     {
         $repository = self::getContainer()->get(UserRepository::class);

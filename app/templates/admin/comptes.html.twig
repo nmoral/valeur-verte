@@ -1,12 +1,14 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/base.html.twig' %}
 
 {% block title %}Comptes · Admin interne · Valeur Verte{% endblock %}
 
-{% block body %}
-<main class="zone">
-    <h1>Comptes pro</h1>
-    <p>Pilotage des comptes : rapports consommés et statut d'essai.</p>
+{% block admin_title %}Comptes pro{% endblock %}
 
+{% block admin_subtitle %}<p>Pilotage des comptes : rapports consommés et statut d'essai.</p>{% endblock %}
+
+{% block admin_actions %}<a class="btn" href="{{ path('admin_seuil_essai') }}">Régler le seuil d'essai</a>{% endblock %}
+
+{% block admin_content %}
     <table>
         <thead>
             <tr>
@@ -37,5 +39,4 @@
         {% endfor %}
         </tbody>
     </table>
-</main>
 {% endblock %}

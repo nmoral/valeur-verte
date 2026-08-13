@@ -1,12 +1,12 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/base.html.twig' %}
 
 {% block title %}Seuil d'essai · Admin interne · Valeur Verte{% endblock %}
 
-{% block body %}
-<main class="zone">
-    <h1>Seuil d'essai</h1>
-    <p>Nombre de rapports offerts avant la bascule payant. Toute modification est tracée au journal d'audit.</p>
+{% block admin_title %}Seuil d'essai{% endblock %}
 
+{% block admin_subtitle %}<p>Nombre de rapports offerts avant la bascule payant. Toute modification est tracée au journal d'audit.</p>{% endblock %}
+
+{% block admin_content %}
     {% if erreur is defined %}
         <p class="erreur" role="alert">{{ erreur }}</p>
     {% endif %}
@@ -16,5 +16,4 @@
         <input type="number" id="seuil" name="seuil" min="1" value="{{ seuil }}" required>
         <button type="submit">Enregistrer le seuil</button>
     </form>
-</main>
 {% endblock %}

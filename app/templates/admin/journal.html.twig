@@ -1,12 +1,12 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/base.html.twig' %}
 
 {% block title %}Journal d'audit · Admin interne · Valeur Verte{% endblock %}
 
-{% block body %}
-<main class="zone">
-    <h1>Journal d'audit</h1>
-    <p>Événements sensibles de l'admin interne, les plus récents d'abord.</p>
+{% block admin_title %}Journal d'audit{% endblock %}
 
+{% block admin_subtitle %}<p>Événements sensibles de l'admin interne, les plus récents d'abord.</p>{% endblock %}
+
+{% block admin_content %}
     <table>
         <thead>
             <tr>
@@ -31,5 +31,4 @@
         {% endfor %}
         </tbody>
     </table>
-</main>
 {% endblock %}
