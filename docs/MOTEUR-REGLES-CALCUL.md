@@ -182,13 +182,14 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
   `STANDARD` si `erreur_mediane < erreur_mediane_max_pct` (20 %), `DEGRADE` si sous
   `erreur_mediane_max_pct_degrade` (30 %). Distinct de `alerte` (réservé à INV-3
   bord) : la restitution en dérive le bandeau « estimation dégradée ». Le tier
-  DEGRADE est désormais **publié** (INV-4 gate au plafond 30 %). ⚠️ Non persisté
-  aujourd'hui (contrat `coefficient_maille` à étendre — cf. §14).
+  DEGRADE est désormais **publié** (INV-4 gate au plafond 30 %) **et persisté**
+  (migration 009).
 - **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
-- ⚠️ **`effectifs_dpe` n'est PAS persisté** (porté en mémoire dans le batch) → bloque
-  aujourd'hui la tolérance INV-1 au rechargement (RECAP §6).
+- **`effectifs_dpe`** : effectif observé par classe DPE publiée, **persisté** (JSONB,
+  migration 009) — débloque la tolérance INV-1 au rechargement (RECAP §6, #131).
 - Restitution (`app`) : indicateur de fiabilité **Solide/Correct/Fragile** dérivé de
-  (n, rayon) ; rayon null (repli départemental) ⇒ toujours **Fragile** + bandeau.
+  (n, rayon) ; rayon null (repli EPCI/départemental) ⇒ toujours **Fragile** + bandeau,
+  `mode` distinguant les deux crans.
 
 ## 13. Config gagnante (défauts `CalculConfig`, surcharge `VV_MOTEUR_*`)
 
@@ -231,12 +232,13 @@ se câble par petits pas TDD. État :
 - ✅ **Cran DÉPARTEMENT** : `batch.compute_maille_departement` poole les ventes du seul
   département (voisins exclus) avec bandes monotones ; câblé en dernier cran de la
   cascade dans `orchestration` (§7). Cœur des crans EPCI/DÉPT factorisé (`_maille_par_bandes`).
-- ⏳ **Persistance** : `coefficient_maille` doit porter `palier`/bandes/EPCI (contrat data→app).
+- ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
+  à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
 - ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
 
 Ce référentiel décrit le moteur **tel qu'il tourne** : la cascade géographique
-complète LOCAL → EPCI → DÉPARTEMENT est branchée ; restent la **persistance** du
-`palier`/bandes dans `coefficient_maille` et la **restitution** `app`.
+complète LOCAL → EPCI → DÉPARTEMENT est branchée **et persistée** ; reste la
+**restitution** côté `app` (dernier maillon, lecture de la table).
 
 ## 15. Décisions & réglages (traçabilité)
 
