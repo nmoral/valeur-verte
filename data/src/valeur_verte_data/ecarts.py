@@ -9,7 +9,7 @@ signalée pour revue manuelle), ou blocage (publication de la maille suspendue,
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -41,6 +41,41 @@ class EcartMaille:
     classe: ClasseEcart
     ecart: float
     coefficient: str
+
+
+@dataclass(frozen=True)
+class LigneEcart:
+    """Une ligne du rapport d'écarts : la maille et l'écart de son pire coefficient."""
+
+    code_insee: str
+    classe: ClasseEcart
+    ecart: float
+    coefficient: str
+
+
+@dataclass
+class RapportEcarts:
+    """Rapport d'écarts d'un batch — une ligne par maille comparée au précédent (REG-1).
+
+    Objet dédié (distinct de ``RapportCalcul``) : il alimente l'écran de supervision
+    (#45) où les blocages et alertes sont revus avant validation manuelle (REG-2).
+    """
+
+    lignes: list[LigneEcart] = field(default_factory=list)
+
+    def ajouter(self, code_insee: str, ecart: EcartMaille) -> None:
+        """Journalise l'écart d'une maille."""
+        self.lignes.append(LigneEcart(code_insee, ecart.classe, ecart.ecart, ecart.coefficient))
+
+    @property
+    def blocages(self) -> list[LigneEcart]:
+        """Mailles dont la publication est bloquée (écart > seuil de blocage)."""
+        return [ligne for ligne in self.lignes if ligne.classe is ClasseEcart.BLOCAGE]
+
+    @property
+    def alertes(self) -> list[LigneEcart]:
+        """Mailles publiées mais signalées pour revue manuelle."""
+        return [ligne for ligne in self.lignes if ligne.classe is ClasseEcart.ALERTE]
 
 
 def classer_ecart(
