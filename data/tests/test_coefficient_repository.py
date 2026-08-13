@@ -8,7 +8,7 @@ from typing import Any
 
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.db.coefficient_repository import upsert_coefficient
-from valeur_verte_data.degraded import CoverageMode
+from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 
 
 class _FakeCursor:
@@ -76,3 +76,29 @@ def test_upsert_coefficient_rayon_departemental_devient_zero() -> None:
     _, params = conn.calls[0]
     assert params is not None
     assert params[2] == 0
+
+
+def test_upsert_coefficient_persiste_cran_palier_bandes_effectifs() -> None:
+    """#169 : le contrat data→app doit transporter le cran (mode), le tier (palier),
+    le mapping des bandes et l'effectif par classe — sinon la restitution ne peut ni
+    distinguer EPCI/DÉPT, ni servir une classe fusionnée, ni tolérer INV-1 au rechargement.
+    """
+    conn = _FakeConnection()
+
+    upsert_coefficient(
+        conn,
+        _maille(
+            mode=CoverageMode.EPCI,
+            palier=PalierFiabilite.DEGRADE,
+            bandes={"F": "F", "G": "F"},
+            effectifs_dpe={"D": 20, "F": 18},
+        ),
+    )
+
+    query, params = conn.calls[0]
+    assert "mode" in query and "palier" in query and "bandes" in query
+    assert params is not None
+    assert params[11] == "epci"  # mode (valeur d'enum)
+    assert params[12] == "degrade"  # palier
+    assert json.loads(params[13]) == {"F": "F", "G": "F"}  # bandes
+    assert json.loads(params[14]) == {"D": 20, "F": 18}  # effectifs_dpe
