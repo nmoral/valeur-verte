@@ -191,6 +191,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `indice_local` | `true` | S24 |
 | `cv_folds` | 5 | validation croisée |
 | `erreur_mediane_max_pct` | 20 | juge INV-4 |
+| `erreur_mediane_max_pct_degrade` | 30 | palier dégradé rural (#169, câblage en cours — cf. §14) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |

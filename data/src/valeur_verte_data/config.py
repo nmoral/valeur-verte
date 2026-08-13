@@ -62,6 +62,9 @@ class CalculConfig:
     # INV-4 (#122) : seuils de publication d'une maille. n minimal = min_local_sample
     # (seuil #22, source unique). Ces bornes sont configurables, pas codées en dur.
     erreur_mediane_max_pct: float = 20.0
+    # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »,
+    # servi avec bandeau au-delà du seuil standard et sous celui-ci.
+    erreur_mediane_max_pct_degrade: float = 30.0
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -115,6 +118,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         indice_local=_bool(env, "INDICE_LOCAL", defaut.indice_local),
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
         erreur_mediane_max_pct=_float(env, "ERREUR_MEDIANE_MAX_PCT", defaut.erreur_mediane_max_pct),
+        erreur_mediane_max_pct_degrade=_float(
+            env, "ERREUR_MEDIANE_MAX_PCT_DEGRADE", defaut.erreur_mediane_max_pct_degrade
+        ),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
         elasticite_bati_min=_float(env, "ELASTICITE_BATI_MIN", defaut.elasticite_bati_min),
