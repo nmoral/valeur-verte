@@ -53,6 +53,7 @@ final class AuditController extends AbstractController
             'dpe_apres' => $request->request->getString('dpe_apres'),
             'nombre_pieces' => $request->request->getString('nombre_pieces'),
             'code_insee' => $request->request->getString('code_insee'),
+            'valeur_bien' => $request->request->getString('valeur_bien'),
         ];
 
         if (!$this->isCsrfTokenValid('audit', $request->request->getString('_csrf_token'))) {
@@ -80,7 +81,12 @@ final class AuditController extends AbstractController
 
         $this->addFlash('audit_confirmation', $saisie);
 
-        $restitution = $this->estimer($request->request->getString('code_insee'), $saisie);
+        $valeurBien = $valeurs['valeur_bien'];
+        $restitution = $this->estimer(
+            $valeurs['code_insee'],
+            $saisie,
+            '' === $valeurBien ? null : (int) $valeurBien,
+        );
         if (null !== $restitution) {
             $this->addFlash('audit_restitution', $restitution);
         }
@@ -88,14 +94,14 @@ final class AuditController extends AbstractController
         return $this->redirectToRoute('back_office_audit');
     }
 
-    private function estimer(string $codeInsee, SaisieAudit $saisie): ?Restitution
+    private function estimer(string $codeInsee, SaisieAudit $saisie, ?int $valeurBien): ?Restitution
     {
         if ('' === $codeInsee) {
             return null;
         }
 
         try {
-            return $this->estimateur->estimer($codeInsee, $saisie);
+            return $this->estimateur->estimer($codeInsee, $saisie, $valeurBien);
         } catch (EstimationIndisponible|ClasseNonPubliee) {
             return null;
         }
@@ -146,6 +152,7 @@ final class AuditController extends AbstractController
             'dpe_apres' => '',
             'nombre_pieces' => '',
             'code_insee' => '',
+            'valeur_bien' => '',
         ];
     }
 

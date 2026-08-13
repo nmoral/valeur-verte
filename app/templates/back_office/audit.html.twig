@@ -199,6 +199,14 @@
                 </div>
             </div>
 
+            <div class="audit-field">
+                <label for="valeur_bien">Valeur estimée du bien</label>
+                <div class="audit-control">
+                    <span class="audit-inline"><input type="number" id="valeur_bien" name="valeur_bien" value="{{ valeurs.valeur_bien|default('') }}" min="0" inputmode="numeric"><span class="unit">€ · optionnel</span></span>
+                    <span class="field-hint">par défaut : prix médian de la commune × surface bâtie</span>
+                </div>
+            </div>
+
             <div class="audit-actions">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('audit') }}">
                 <input type="hidden" name="code_insee" id="code_insee" value="{{ valeurs.code_insee|default('') }}">
