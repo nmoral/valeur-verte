@@ -1,0 +1,40 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Signalements · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Signalements{% endblock %}
+
+{% block admin_subtitle %}<p>Retours « ce chiffre me semble faux » des pros, avec leur contexte — source de calibration. Les plus récents d'abord.</p>{% endblock %}
+
+{% block admin_content %}
+    <table>
+        <thead>
+            <tr>
+                <th>Quand</th>
+                <th>Adresse</th>
+                <th>Contexte</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for signalement in signalements %}
+            <tr>
+                <td>{{ signalement.signaleLe|date('d/m/Y H:i') }}</td>
+                <td>{{ signalement.adresse }}</td>
+                <td>
+                    {% set c = signalement.contexte %}
+                    {{ c.dpe_avant|default('?') }} → {{ c.dpe_apres|default('?') }}
+                    {%- if c.n is defined %} · n={{ c.n }}{% endif %}
+                    {%- if c.rayon_km is defined and c.rayon_km is not null %} · {{ c.rayon_km }} km{% endif %}
+                    {%- if c.montant_estime is defined %} · {{ c.montant_estime }} €{% endif %}
+                </td>
+                <td>{{ signalement.message ?? '—' }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4">Aucun signalement pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
