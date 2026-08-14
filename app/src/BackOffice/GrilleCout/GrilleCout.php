@@ -45,6 +45,24 @@ final readonly class GrilleCout
     }
 
     /**
+     * Compose une grille à partir de montants explicites (relecture d'une grille
+     * persistée). Une grille couvre toujours les sept postes (§9.2) : un poste
+     * manquant est un état incohérent, refusé à la frontière.
+     *
+     * @param array<string, Montant> $montants indexé par Poste->name
+     */
+    public static function depuis(PeriodeValidite $periode, array $montants): self
+    {
+        foreach (Poste::cases() as $poste) {
+            if (!isset($montants[$poste->name])) {
+                throw new \InvalidArgumentException(\sprintf('Le poste « %s » est absent de la grille.', $poste->name));
+            }
+        }
+
+        return new self($periode, $montants);
+    }
+
+    /**
      * Une grille couvre toujours les sept postes du barème (§9.2).
      *
      * @return list<Poste>

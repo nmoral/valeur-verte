@@ -25,6 +25,20 @@ class BrandingRepository extends ServiceEntityRepository
         return $this->findOneBy([], ['id' => 'ASC']) ?? Branding::parDefaut();
     }
 
+    /**
+     * Matérialise la marque par défaut pour un tenant, tenant attribué
+     * **explicitement** : au provisionnement d'un compte, le contexte tenant n'est
+     * pas encore posé (cf. EnregistreurFicheEntreprise).
+     */
+    public function provisionner(int $tenantId): void
+    {
+        $branding = Branding::parDefaut();
+        $branding->setTenantId($tenantId);
+        $manager = $this->getEntityManager();
+        $manager->persist($branding);
+        $manager->flush();
+    }
+
     public function enregistrer(Branding $branding): void
     {
         // La marque est une configuration unique : on remplace la précédente
