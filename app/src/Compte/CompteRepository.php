@@ -40,6 +40,17 @@ class CompteRepository extends ServiceEntityRepository
         );
     }
 
+    /**
+     * Comptes n'ayant pas encore reçu leur email de relance de fin d'essai (#108).
+     * Le service de relance filtre ensuite ceux dont l'échéance approche.
+     *
+     * @return list<Compte>
+     */
+    public function aRelancer(): array
+    {
+        return $this->findBy(['relanceEssaiEnvoyeeLe' => null], ['id' => 'ASC']);
+    }
+
     public function enregistrer(Compte $compte): void
     {
         $manager = $this->getEntityManager();

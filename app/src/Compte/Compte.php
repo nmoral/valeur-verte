@@ -34,6 +34,13 @@ class Compte
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $creeLe;
 
+    /**
+     * Date d'envoi de l'email de relance de fin d'essai (#108). Nulle tant qu'il
+     * n'a pas été envoyé : garantit l'idempotence de la relance (un seul email).
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $relanceEssaiEnvoyeeLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -82,5 +89,15 @@ class Compte
     {
         $this->formule = Formule::Classique;
         $this->candidatureFondateur = StatutCandidatureFondateur::Refusee;
+    }
+
+    public function relanceEnvoyee(): bool
+    {
+        return null !== $this->relanceEssaiEnvoyeeLe;
+    }
+
+    public function marquerRelanceEnvoyee(\DateTimeImmutable $quand): void
+    {
+        $this->relanceEssaiEnvoyeeLe = $quand;
     }
 }
