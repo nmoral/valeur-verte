@@ -29,16 +29,28 @@ def _valeurs_environnement(service: dict[str, Any]) -> list[str]:
     return [str(entree).partition("=")[2] for entree in env]
 
 
-def test_la_base_n_est_jamais_publiee_sur_une_interface_publique(
+PORTS_PUBLICS_AUTORISES = {"80", "443"}
+
+
+def test_seul_le_reverse_proxy_est_publie_sur_une_interface_publique(
     compose_prod: dict[str, Any],
 ) -> None:
-    """Un port publié sans adresse écoute sur 0.0.0.0 : PostGIS exposé à Internet."""
+    """Un port publié sans adresse écoute sur 0.0.0.0. Seul le reverse proxy « caddy »
+    est un point d'entrée public volontaire, et uniquement sur HTTP(80)/HTTPS(443) ;
+    tout autre service (db, app, migrate) ne se publie que sur la boucle locale, d'où
+    il n'est atteignable que par le réseau interne ou un tunnel SSH."""
     for nom, service in services(compose_prod).items():
         for publication in service.get("ports", []):
-            adresse = str(publication).split(":")[0]
-            assert adresse in {"127.0.0.1", "localhost"}, (
+            tete = str(publication).split(":")[0]
+            if tete in {"127.0.0.1", "localhost"}:
+                continue
+            assert nom == "caddy", (
                 f"Le service « {nom} » publie « {publication} » sur une interface publique ; "
-                "les échanges passent par le réseau interne du compose."
+                "seul le reverse proxy « caddy » est un point d'entrée public."
+            )
+            port_publie = tete.split("/")[0]
+            assert port_publie in PORTS_PUBLICS_AUTORISES, (
+                f"Le reverse proxy ne publie que HTTP(80)/HTTPS(443), reçu « {publication} »."
             )
 
 
@@ -163,6 +175,42 @@ def test_l_app_fait_confiance_au_proxy_pour_generer_des_urls_https(
     assert valeur, (
         "Le service « app » doit définir TRUSTED_PROXIES pour que Symfony fasse confiance "
         "au reverse proxy et génère des URLs https."
+    )
+
+
+def test_le_reverse_proxy_publie_http_et_https(compose_prod: dict[str, Any]) -> None:
+    """Le reverse proxy (Caddy) est le point d'entrée public : il termine TLS et doit
+    exposer 443, plus 80 pour la redirection HTTP→HTTPS et le challenge ACME."""
+    caddy: object = services(compose_prod).get("caddy")
+    assert isinstance(caddy, dict), (
+        "Le compose de production doit déclarer le reverse proxy « caddy » (point d'entrée public)."
+    )
+    publies = {str(p).split(":")[0].split("/")[0] for p in caddy.get("ports", [])}
+    assert {"80", "443"} <= publies, (
+        f"Le reverse proxy doit publier 80 et 443, reçu : {sorted(publies)}."
+    )
+
+
+def test_le_reverse_proxy_repart_apres_un_redemarrage_du_vps(
+    compose_prod: dict[str, Any],
+) -> None:
+    """Sans politique de redémarrage, un reboot OVH laisserait le site injoignable."""
+    caddy = services(compose_prod)["caddy"]
+    assert caddy.get("restart") in {"unless-stopped", "always"}, (
+        "Le service « caddy » doit redémarrer automatiquement après un reboot."
+    )
+
+
+def test_l_app_connait_son_domaine_de_production(compose_prod: dict[str, Any]) -> None:
+    """Sans APP_DOMAINE, les routes de zone restent sur *.valeurverte.localhost (défaut
+    de l'image) et tout *.valeur-verte.fr tombe en 404 derrière le proxy. La variable
+    doit vivre dans le compose versionné, pas seulement sur le VPS, sinon chaque
+    redéploiement fait retomber le site en 404."""
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    assert str(environnement.get("APP_DOMAINE", "")).strip(), (
+        "Le service « app » doit définir APP_DOMAINE pour router ses zones en production."
     )
 
 
