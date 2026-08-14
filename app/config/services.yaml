@@ -51,6 +51,18 @@ services:
     App\BackOffice\Pdf\ConvertisseurPdf: '@App\BackOffice\Pdf\MpdfConvertisseur'
     App\BackOffice\Pdf\GenerateurReferenceRapport: '@App\BackOffice\Pdf\ReferenceRapportAleatoire'
 
+    # Relance de fin d'essai (#108) : le lien de l'espace pro dans l'email de
+    # relance est construit sur le domaine applicatif (sous-domaine app.).
+    App\Compte\RelanceEssais:
+        arguments:
+            $appDomaine: '%app.domaine%'
+
+    # Jeton de désabonnement (#108) : signe le tenant avec le secret applicatif
+    # pour rendre le lien de désabonnement infalsifiable sans stockage.
+    App\Compte\JetonDesabonnementRelance:
+        arguments:
+            $secret: '%kernel.secret%'
+
     # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
     # adresse expéditrice depuis l'environnement, jamais versionnées.
     App\Notification\Mailer: '@App\Notification\MailerBrevo'

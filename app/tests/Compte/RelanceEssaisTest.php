@@ -37,6 +37,46 @@ final class RelanceEssaisTest extends KernelTestCase
         self::assertCount(1, $this->mailer()->envoyes());
     }
 
+    public function testLEmailDeRelanceEstUnDocumentHtmlHabilleAuxCouleursDeLaMarque(): void
+    {
+        self::bootKernel();
+        // Essai Classique (60 j) créé il y a 57 j → ~3 j restants, quota 10 intact.
+        $this->seedCompte(9604, 'artisan-design@example.com', creeIlYaJours: 57);
+
+        self::assertSame(1, $this->relance()->executer());
+
+        $corps = $this->mailer()->envoyes()[0]->corpsHtml();
+
+        // Document HTML complet (et non un fragment) : robuste aux clients mail.
+        self::assertStringContainsStringIgnoringCase('<!doctype html', $corps);
+        // Texte de pré-en-tête (aperçu du client mail) et identité de marque.
+        self::assertStringContainsString('Valeur Verte', $corps);
+        self::assertStringContainsStringIgnoringCase('se termine', $corps);
+        // Données personnalisées : jours et rapports restants (Classique : ~3 j, 10 rapports).
+        self::assertMatchesRegularExpression('/3\s*jours/u', $corps);
+        self::assertMatchesRegularExpression('/10\s*rapports/u', $corps);
+        // Appel à l'action bouton vers l'espace pro.
+        self::assertStringContainsString('https://app.', $corps);
+        self::assertStringContainsString('Continuer avec Valeur Verte', $corps);
+        // Réassurance : les rapports déjà produits restent accessibles.
+        self::assertStringContainsString('restent accessibles', $corps);
+        // Lien de désabonnement signé vers la route publique dédiée (le « & » du
+        // lien est échappé en « &amp; » dans l'attribut href, comme il se doit).
+        self::assertStringContainsString('/desabonnement/relance?tenant=9604', $corps);
+        self::assertStringContainsString('jeton=', $corps);
+        self::assertStringContainsStringIgnoringCase('désabonner', $corps);
+    }
+
+    public function testIlNeRelancePasUnCompteDesabonne(): void
+    {
+        self::bootKernel();
+        // Essai proche de la fin, mais l'artisan s'est désabonné des relances.
+        $this->seedCompte(9605, 'artisan-desabonne@example.com', creeIlYaJours: 57, desabonne: true);
+
+        self::assertSame(0, $this->relance()->executer());
+        self::assertCount(0, $this->mailer()->envoyes());
+    }
+
     public function testIlNeRelancePasUnEssaiEncoreLoinDeLaFin(): void
     {
         self::bootKernel();
@@ -56,13 +96,17 @@ final class RelanceEssaisTest extends KernelTestCase
         self::assertCount(0, $this->mailer()->envoyes());
     }
 
-    private function seedCompte(int $tenantId, string $email, int $creeIlYaJours): void
+    private function seedCompte(int $tenantId, string $email, int $creeIlYaJours, bool $desabonne = false): void
     {
         $artisan = new User($email, ['ROLE_PRO']);
         $artisan->rattacherAuTenant($tenantId);
         $this->users()->enregistrer($artisan);
         $creeLe = (new \DateTimeImmutable())->modify(\sprintf('-%d days', $creeIlYaJours));
-        $this->comptes()->enregistrer(Compte::creer($tenantId, $creeLe));
+        $compte = Compte::creer($tenantId, $creeLe);
+        if ($desabonne) {
+            $compte->seDesabonnerDeLaRelance(new \DateTimeImmutable());
+        }
+        $this->comptes()->enregistrer($compte);
     }
 
     private function relance(): RelanceEssais

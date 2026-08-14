@@ -9,6 +9,7 @@ use App\Notification\Email;
 use App\Notification\Mailer;
 use Doctrine\DBAL\Connection;
 use Psr\Clock\ClockInterface;
+use Twig\Environment;
 
 /**
  * Relance de fin d'essai (#108) : envoie une seule fois un email de rappel aux
@@ -26,6 +27,9 @@ final readonly class RelanceEssais
         private Mailer $mailer,
         private Connection $connexion,
         private ClockInterface $horloge,
+        private Environment $twig,
+        private JetonDesabonnementRelance $jetons,
+        private string $appDomaine,
     ) {
     }
 
@@ -36,6 +40,9 @@ final readonly class RelanceEssais
 
         $envoyes = 0;
         foreach ($this->comptes->aRelancer() as $compte) {
+            if ($compte->estDesabonneDeLaRelance()) {
+                continue;
+            }
             $etat = EtatEssai::calculer(
                 $this->compteur->pour($compte->tenantId()),
                 $this->reglages->pour($compte->formule()),
@@ -54,7 +61,7 @@ final readonly class RelanceEssais
             $this->mailer->envoyer(new Email(
                 $email,
                 'Votre essai Valeur Verte se termine bientôt',
-                $this->corps($etat),
+                $this->corps($compte, $etat),
             ));
             $compte->marquerRelanceEnvoyee($maintenant);
             $this->comptes->enregistrer($compte);
@@ -64,16 +71,21 @@ final readonly class RelanceEssais
         return $envoyes;
     }
 
-    private function corps(EtatEssai $etat): string
+    private function corps(Compte $compte, EtatEssai $etat): string
     {
-        return \sprintf(
-            '<p>Bonjour,</p><p>Il vous reste <strong>%d jour%s</strong> et <strong>%d rapport%s</strong> '
-            .'sur votre essai Valeur Verte. Vos rapports déjà produits restent accessibles.</p>',
-            $etat->joursRestants(),
-            $etat->joursRestants() > 1 ? 's' : '',
-            $etat->rapportsRestants(),
-            $etat->rapportsRestants() > 1 ? 's' : '',
-        );
+        $tenantId = $compte->tenantId();
+
+        return $this->twig->render('email/relance_essai.html.twig', [
+            'joursRestants' => $etat->joursRestants(),
+            'rapportsRestants' => $etat->rapportsRestants(),
+            'lienEspace' => \sprintf('https://app.%s', $this->appDomaine),
+            'lienDesabonnement' => \sprintf(
+                'https://app.%s/desabonnement/relance?tenant=%d&jeton=%s',
+                $this->appDomaine,
+                $tenantId,
+                $this->jetons->pour($tenantId),
+            ),
+        ]);
     }
 
     private function emailDuTenant(int $tenantId): ?string
