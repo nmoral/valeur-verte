@@ -26,4 +26,26 @@ final class BouquetParDefautTest extends TestCase
 
         self::assertEqualsCanonicalizing(Poste::cases(), $bouquet->postes());
     }
+
+    public function testLIsolationSeuleCouvreLEnveloppe(): void
+    {
+        $bouquet = Bouquet::isolationSeule();
+
+        self::assertSame('Isolation seule', $bouquet->nom());
+        self::assertEqualsCanonicalizing(
+            [Poste::Murs, Poste::Combles, Poste::PlanchersBas, Poste::Menuiseries],
+            $bouquet->postes(),
+        );
+    }
+
+    public function testLeChauffageSeulCouvreLesEquipements(): void
+    {
+        $bouquet = Bouquet::chauffageSeul();
+
+        self::assertSame('Chauffage seul', $bouquet->nom());
+        self::assertEqualsCanonicalizing(
+            [Poste::Chauffage, Poste::Ecs, Poste::Vmc],
+            $bouquet->postes(),
+        );
+    }
 }

@@ -14,6 +14,17 @@ enum Poste
     case Ecs;
     case Vmc;
 
+    public static function parNom(string $nom): self
+    {
+        foreach (self::cases() as $poste) {
+            if ($poste->name === $nom) {
+                return $poste;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('Poste inconnu : %s.', $nom));
+    }
+
     public function unite(): Unite
     {
         return match ($this) {

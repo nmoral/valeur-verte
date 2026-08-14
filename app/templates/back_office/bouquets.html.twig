@@ -2,15 +2,28 @@
 
 {% block page_subtitle %}<p>Combinaisons nommées de postes, réutilisées en rendez-vous.</p>{% endblock %}
 
+{% block stylesheets %}
+<style>
+    .bouquet-compose{display:grid;gap:14px;max-width:640px}
+    .bouquet-compose label{font:500 13px/1.3 'Public Sans',sans-serif;color:var(--ink)}
+    .bouquet-compose input[type="text"]{width:100%;font:14px/1.4 'Public Sans',sans-serif;border:1px solid var(--rule);border-radius:6px;padding:9px 11px}
+    .bouquet-postes{display:flex;flex-wrap:wrap;gap:8px}
+    .bouquet-poste{display:flex;align-items:center;gap:6px;border:1px solid var(--rule);border-radius:6px;padding:7px 10px;font:13px/1.3 'Public Sans',sans-serif;color:var(--slate);cursor:pointer}
+    .bouquet-poste input{margin:0}
+    .bouquet-erreur{color:var(--danger);font:13px/1.4 'Public Sans',sans-serif;margin:0 0 6px}
+    .bouquet-suppr button{background:none;border:0;color:var(--danger);cursor:pointer;font:13px/1.3 'Public Sans',sans-serif;padding:0}
+</style>
+{% endblock %}
+
 {% block bo_content %}
 <div class="panel">
     <div class="panel-head">
-        <h2>Bouquets types</h2>
-        <span class="hint">« Rénovation d'ampleur standard » est actif par défaut</span>
+        <h2>Vos bouquets types</h2>
+        <span class="hint">à défaut, les trois bouquets types sont proposés</span>
     </div>
     <table>
         <thead>
-            <tr><th>Nom</th><th>Postes couverts</th></tr>
+            <tr><th>Nom</th><th>Postes couverts</th><th></th></tr>
         </thead>
         <tbody>
             {% for bouquet in bouquets %}
@@ -21,9 +34,38 @@
                             <span class="tag">{{ poste.libelle }}</span>
                         {% endfor %}
                     </td>
+                    <td class="bouquet-suppr">
+                        <form method="post" action="{{ path('back_office_bouquets_supprimer') }}">
+                            <input type="hidden" name="nom" value="{{ bouquet.nom }}">
+                            <button type="submit">Supprimer</button>
+                        </form>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h2>Composer un bouquet</h2></div>
+    {% if erreur %}<p class="bouquet-erreur" role="alert">{{ erreur }}</p>{% endif %}
+    <form class="bouquet-compose" method="post" action="{{ path('back_office_bouquets') }}">
+        <div>
+            <label for="bouquet_nom">Nom du bouquet</label>
+            <input type="text" id="bouquet_nom" name="nom" maxlength="255" placeholder="Ex. Isolation + chauffage" required>
+        </div>
+        <div>
+            <label>Postes couverts</label>
+            <div class="bouquet-postes">
+                {% for poste in postes %}
+                    <label class="bouquet-poste">
+                        <input type="checkbox" name="postes[]" value="{{ poste.name }}">
+                        {{ poste.libelle }}
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div><button type="submit" class="btn">Enregistrer le bouquet</button></div>
+    </form>
 </div>
 {% endblock %}

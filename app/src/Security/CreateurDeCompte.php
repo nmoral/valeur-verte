@@ -6,6 +6,7 @@ namespace App\Security;
 
 use App\BackOffice\Entreprise\EnregistreurFicheEntreprise;
 use App\BackOffice\Entreprise\Siret;
+use App\Tenant\ProvisionneurCompte;
 use App\Tenant\TenantRepository;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -21,6 +22,7 @@ final class CreateurDeCompte
         private readonly UserPasswordHasherInterface $hasher,
         private readonly TenantRepository $tenants,
         private readonly EnregistreurFicheEntreprise $fichesEntreprise,
+        private readonly ProvisionneurCompte $provisionneur,
     ) {
     }
 
@@ -40,6 +42,10 @@ final class CreateurDeCompte
         $user->rattacherAuTenant($tenantId);
         $user->definirMotDePasse($this->hasher->hashPassword($user, $motDePasse));
         $this->utilisateurs->enregistrer($user);
+
+        // Le compte repart d'une configuration par défaut exploitable (ONB-3) :
+        // le pro n'a rien à faire avant son premier rapport.
+        $this->provisionneur->provisionner($tenantId);
 
         if (null !== $siret) {
             $this->fichesEntreprise->rattacher($tenantId, $siret);

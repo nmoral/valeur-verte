@@ -12,6 +12,9 @@
     .eyebrow{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80}
     .adresse{font-size:17px;font-weight:bold;margin-top:4px}
     .bien{color:#6b7c80;margin-top:3px}
+    .bouquet{margin-top:12px;padding:8px 12px;border:1px solid #dfe6e7;border-radius:3px}
+    .bouquet-k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80;margin-right:6px}
+    .bouquet-postes{display:block;color:#6b7c80;margin-top:2px}
     .hero{margin-top:18px;padding:16px 0;border-top:1px solid #dfe6e7;border-bottom:1px solid #dfe6e7}
     .hero-label{color:#6b7c80}
     .montant{font-size:32px;font-weight:bold;color:{{ couleur }}}
@@ -60,6 +63,14 @@
     <p class="adresse">{{ saisie.adresse }}</p>
     <p class="bien">{{ saisie.surfaceBatie }} m² bâti · {{ saisie.surfaceTerrain }} m² terrain{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}
         &nbsp;·&nbsp; DPE {{ dpe_badge(saisie.dpeAvant.value) }} → {{ dpe_badge(saisie.dpeApres.value) }}</p>
+
+    {% if bouquet %}
+        <div class="bouquet">
+            <span class="bouquet-k">Travaux retenus</span>
+            <strong>{{ bouquet.nom }}</strong>
+            <span class="bouquet-postes">{% for poste in bouquet.postes %}{{ poste.libelle }}{{ not loop.last ? ' · ' }}{% endfor %}</span>
+        </div>
+    {% endif %}
 
     {% for avertissement in avertissements %}
         <div class="bandeau-info">{{ avertissement }}</div>

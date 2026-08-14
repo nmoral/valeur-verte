@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\BackOffice;
 
 use App\BackOffice\Audit\SaisieAudit;
+use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Restitution\AjustementInvalide;
 use App\BackOffice\Restitution\AjustementProfessionnel;
@@ -86,6 +87,7 @@ final class AuditResultatController extends AbstractController
         \assert($saisie instanceof SaisieAudit);
         $restitution = $resultat['restitution'] ?? null;
         $ajustement = $resultat['ajustement'] ?? null;
+        $bouquet = $resultat['bouquet'] ?? null;
 
         $reponse = new Response('', null === $erreurAjustement ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY);
 
@@ -96,6 +98,7 @@ final class AuditResultatController extends AbstractController
             'restitution' => $restitution instanceof Restitution ? $restitution : null,
             'avertissements' => $saisie->avertissements(),
             'ajustement' => $ajustement instanceof AjustementProfessionnel ? $ajustement : null,
+            'bouquet' => $bouquet instanceof Bouquet ? $bouquet : null,
             'erreur_ajustement' => $erreurAjustement,
             'montant_saisi' => $montantSaisi,
             'motif_saisi' => $motifSaisi,
