@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Mot de passe oublié · Valeur Verte',
+  description: 'Réinitialisez le mot de passe de votre espace Valeur Verte.',
+  canonical: url('mot_de_passe_oublie_demande'),
+  robots: 'noindex,follow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Mot de passe oublié</h1>
+    <p class="auth-lead">Indiquez votre email : nous vous envoyons un lien pour choisir un nouveau mot de passe.</p>
+
+    <form method="post" action="{{ path('mot_de_passe_oublie_demande') }}">
+      <div class="field-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" required autofocus>
+      </div>
+
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('mot_de_passe_oublie') }}">
+      <button type="submit" class="btn-primary">Envoyer le lien</button>
+    </form>
+  </div>
+
+  <p class="auth-alt"><a href="{{ path('login') }}">Retour à la connexion</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>
