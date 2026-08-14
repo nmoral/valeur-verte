@@ -15,6 +15,8 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: JetonReinitialisationRepository::class)]
 #[ORM\Table(name: 'jeton_reinitialisation_mot_de_passe')]
+#[ORM\UniqueConstraint(name: 'uniq_jeton_reinit_empreinte', columns: ['empreinte'])]
+#[ORM\Index(name: 'idx_jeton_reinit_user', columns: ['user_id'])]
 class JetonReinitialisation
 {
     #[ORM\Id]
