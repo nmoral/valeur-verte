@@ -36,7 +36,7 @@ final class AuditPdfController extends AbstractController
             return $this->redirectToRoute('back_office_audit');
         }
 
-        $pdf = $this->generateur->depuisInstantane($rapport->instantane());
+        $pdf = $this->generateur->depuisInstantane($rapport->instantane(), $rapport->ajustement());
 
         $disposition = HeaderUtils::makeDisposition(
             HeaderUtils::DISPOSITION_ATTACHMENT,

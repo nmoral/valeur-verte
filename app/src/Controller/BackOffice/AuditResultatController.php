@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Controller\BackOffice;
 
 use App\BackOffice\Audit\SaisieAudit;
+use App\BackOffice\Rapport\RapportRepository;
+use App\BackOffice\Restitution\AjustementInvalide;
+use App\BackOffice\Restitution\AjustementProfessionnel;
 use App\BackOffice\Restitution\Restitution;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,10 +19,19 @@ use Symfony\Component\Routing\Attribute\Route;
  * contexte (effectif, fourchette, rayon, millésime) et son indicateur de
  * fiabilité. Le résultat vient de la session posée à la saisie ; un accès direct,
  * sans résultat, renvoie vers l'écran de saisie.
+ *
+ * En POST, le pro pose sa **ligne d'ajustement** (#30, §4) : une ligne séparée,
+ * jamais une surcharge de la mesure. Interdit hors mode audit — cette route vit
+ * dans l'espace back-office, jamais dans le widget public.
  */
 final class AuditResultatController extends AbstractController
 {
-    #[Route('/audit/resultat', name: 'back_office_audit_resultat', methods: ['GET'])]
+    public function __construct(
+        private readonly RapportRepository $rapports,
+    ) {
+    }
+
+    #[Route('/audit/resultat', name: 'back_office_audit_resultat', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
@@ -27,8 +39,55 @@ final class AuditResultatController extends AbstractController
             return $this->redirectToRoute('back_office_audit');
         }
 
+        if ($request->isMethod('POST')) {
+            return $this->ajuster($request, $resultat);
+        }
+
+        return $this->rendre($resultat);
+    }
+
+    /**
+     * @param array<array-key, mixed> $resultat
+     */
+    private function ajuster(Request $request, array $resultat): Response
+    {
+        $montant = $request->request->getInt('montant');
+        $motif = $request->request->getString('motif');
+
+        if (!$this->isCsrfTokenValid('ajustement', $request->request->getString('_csrf_token'))) {
+            return $this->rendre($resultat, 'Votre session a expiré, merci de renvoyer le formulaire.', $montant, $motif);
+        }
+
+        try {
+            $ajustement = AjustementProfessionnel::depuis($montant, $motif);
+        } catch (AjustementInvalide $erreur) {
+            return $this->rendre($resultat, $erreur->getMessage(), $montant, $motif);
+        }
+
+        $reference = $resultat['reference'] ?? null;
+        $rapport = \is_string($reference) ? $this->rapports->parReference($reference) : null;
+        if (null !== $rapport) {
+            $rapport->ajusterPar($ajustement);
+            $this->rapports->enregistrer($rapport);
+        }
+
+        $resultat['ajustement'] = $ajustement;
+        $request->getSession()->set(AuditController::SESSION_RESULTAT, $resultat);
+
+        return $this->redirectToRoute('back_office_audit_resultat');
+    }
+
+    /**
+     * @param array<array-key, mixed> $resultat
+     */
+    private function rendre(array $resultat, ?string $erreurAjustement = null, ?int $montantSaisi = null, ?string $motifSaisi = null): Response
+    {
         $saisie = $resultat['saisie'];
+        \assert($saisie instanceof SaisieAudit);
         $restitution = $resultat['restitution'] ?? null;
+        $ajustement = $resultat['ajustement'] ?? null;
+
+        $reponse = new Response('', null === $erreurAjustement ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY);
 
         return $this->render('back_office/audit_resultat.html.twig', [
             'page_title' => 'Restitution',
@@ -36,6 +95,10 @@ final class AuditResultatController extends AbstractController
             'saisie' => $saisie,
             'restitution' => $restitution instanceof Restitution ? $restitution : null,
             'avertissements' => $saisie->avertissements(),
-        ]);
+            'ajustement' => $ajustement instanceof AjustementProfessionnel ? $ajustement : null,
+            'erreur_ajustement' => $erreurAjustement,
+            'montant_saisi' => $montantSaisi,
+            'motif_saisi' => $motifSaisi,
+        ], $reponse);
     }
 }
