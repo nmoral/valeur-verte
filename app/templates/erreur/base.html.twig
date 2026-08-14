@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titre %}Erreur{% endblock %} · Valeur Verte</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0E4A5C">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/erreur.css') }}">
+</head>
+<body>
+<main class="erreur">
+    <a href="{{ url_accueil_zone() }}" class="erreur-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+    <div class="erreur-card">
+        <p class="erreur-code" aria-hidden="true">{% block code %}{% endblock %}</p>
+        <h1>{% block entete %}{% endblock %}</h1>
+        <p class="erreur-message">{% block message %}{% endblock %}</p>
+        <a href="{{ url_accueil_zone() }}" class="erreur-retour">{{ libelle_accueil_zone() }}</a>
+    </div>
+</main>
+</body>
+</html>

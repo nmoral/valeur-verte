@@ -34,4 +34,16 @@ valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte
 		}
 		reverse_proxy app:80
 	}
+
+	# App injoignable (conteneur arrêté, crash, redéploiement) : Caddy renvoie
+	# une passerelle 502/503/504 que l'app ne peut habiller elle-même. On sert
+	# alors une page statique autonome (#197). Tant que l'app répond, ses propres
+	# pages d'erreur passent telles quelles ; seul l'échec de passerelle atterrit ici.
+	handle_errors {
+		root * /etc/caddy
+		rewrite * /erreur-indisponible.html
+		header Content-Type "text/html; charset=utf-8"
+		header Retry-After "120"
+		file_server
+	}
 }

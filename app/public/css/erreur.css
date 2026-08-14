@@ -1,0 +1,31 @@
+/* Pages d'erreur habillées (#197). Sobre, centré, aux couleurs de la marque —
+   cohérent avec les pages d'authentification (auth.css). */
+:root{
+  --ink:#111820; --slate:#3E4954; --mute:#7C8896;
+  --paper:#F3F5F7; --card:#FFFFFF; --rule:#CBD3DB;
+  --brand:#0E4A5C; --brand-ink:#0B3C4B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Public Sans',system-ui,sans-serif;background:var(--paper);color:var(--ink);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--brand-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+.erreur{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;padding:40px 20px}
+.erreur-brand{display:flex;align-items:center;gap:9px;font:800 16px/1 'Archivo',sans-serif;
+  letter-spacing:-.01em;color:var(--ink)}
+.erreur-brand:hover{text-decoration:none}
+.erreur-brand i{width:24px;height:24px;border-radius:2px;background:var(--brand);display:grid;
+  place-items:center;color:#fff;font-size:12px;font-style:normal;font-weight:800}
+
+.erreur-card{width:100%;max-width:432px;background:var(--card);border:1px solid var(--rule);
+  border-radius:3px;padding:34px 32px;text-align:center}
+.erreur-code{font:500 13px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--mute);
+  margin-bottom:14px}
+.erreur-card h1{font:800 24px/1.2 'Archivo',sans-serif;letter-spacing:-.02em;margin-bottom:10px}
+.erreur-message{font-size:14.5px;color:var(--slate);margin-bottom:24px}
+.erreur-retour{display:inline-block;font:600 15px/1 'Archivo',sans-serif;padding:13px 22px;
+  border-radius:2px;background:var(--brand);color:#fff}
+.erreur-retour:hover{text-decoration:none;background:var(--brand-ink)}

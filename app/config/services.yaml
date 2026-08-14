@@ -36,6 +36,12 @@ services:
         arguments:
             $repertoirePublic: '%kernel.project_dir%/public'
 
+    # Bascule maintenance (#197) : APP_MAINTENANCE=1 coupe les zones publique/pro
+    # en 503 (page habillée), l'admin restant accessible pour l'exploitation.
+    App\Erreur\Maintenance\ModeMaintenanceListener:
+        arguments:
+            $maintenanceActive: '%env(bool:APP_MAINTENANCE)%'
+
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
         arguments:
