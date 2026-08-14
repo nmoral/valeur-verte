@@ -80,6 +80,11 @@ services:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
 
+    # Réinitialisation effective (#194) : publique le temps que le contrôleur (route
+    # publique) la consomme, sinon élaguée du conteneur et introuvable en test.
+    App\Security\MotDePasseOublie\ReinitialisationMotDePasse:
+        public: true
+
     # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
     # adresse expéditrice depuis l'environnement, jamais versionnées.
     App\Notification\Mailer: '@App\Notification\MailerBrevo'
