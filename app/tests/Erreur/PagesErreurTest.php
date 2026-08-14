@@ -30,6 +30,23 @@ final class PagesErreurTest extends WebTestCase
         );
     }
 
+    public function testUneErreurServeurRendUne500HabilleeSansFuite(): void
+    {
+        $client = static::createClient(['debug' => false]);
+
+        // Route exposée uniquement en environnement de test (config/routes/test),
+        // qui lève une exception : on exerce le vrai chemin de rendu du 500 de prod.
+        $client->request('GET', 'http://'.self::HOTE_PUBLIC.'/_test/erreur-serveur');
+
+        self::assertResponseStatusCodeSame(500);
+        self::assertSelectorTextContains('body', 'Valeur Verte');
+        $corps = (string) $client->getResponse()->getContent();
+        // Aucune fuite : ni trace, ni classe/message d'exception, ni page de debug.
+        self::assertStringNotContainsString('Stack Trace', $corps);
+        self::assertStringNotContainsStringIgnoringCase('Exception', $corps);
+        self::assertStringNotContainsString('Baticoncept boom', $corps);
+    }
+
     public function testLa404ProposeUnRetourVersLAccueilDeLaZone(): void
     {
         $client = static::createClient(['debug' => false]);
