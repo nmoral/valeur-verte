@@ -41,9 +41,13 @@ class CalculConfig:
     # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans le
     # pool. Le bénéfice vert est structurel et lent ; l'estimer sur plusieurs
     # années réduit la variance de rééchantillonnage, les effets fixes année (§4)
-    # captant la tendance. 1 = comportement historique (mono-millésime) ; la
-    # bascule à 3 attend la validation VPS multi-départements.
-    fenetre_millesimes: int = 1
+    # captant la tendance de niveau. Défaut = 2 : la validation 15 depts (2021-2024)
+    # a établi que la fenêtre est un régulariseur (queue p90 −22 %, monotonie ↑),
+    # mais que pooler à poids égaux introduit un biais de retard sur la dérive du
+    # premium DPE (~+15 %/an) — W2 minimise ce compromis biais-variance (W3 trop
+    # stale, W1 trop bruité). 1 = comportement historique (mono-millésime). La
+    # pondération temporelle décroissante (#208) généralisera ce défaut plat.
+    fenetre_millesimes: int = 2
     # Pondération temporelle décroissante (#208) : constante de temps τ (années)
     # d'un poids ``exp(-(N − millésime)/τ)`` multiplié au poids gaussien spatial
     # dans la régression. Fait peser moins les millésimes anciens → estime le
