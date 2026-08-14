@@ -48,7 +48,8 @@ final class RegistrationControllerTest extends WebTestCase
 
         $this->soumettreInscription($client, 'nouveau@example.com', 'motdepasse-solide', '12345678901234');
 
-        self::assertResponseRedirects('http://app.'.self::HOTE.'/');
+        // ONB-4 : l'inscription mène droit à la saisie, sans écran de bienvenue.
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/audit');
 
         $repository = self::getContainer()->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $repository);
@@ -57,7 +58,7 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertContains('ROLE_PRO', $user->getRoles());
 
         $client->followRedirect();
-        self::assertSelectorTextContains('h1', 'Tableau de bord');
+        self::assertSelectorTextContains('h1', 'Nouvel audit');
     }
 
     public function testUnEmailDejaUtiliseEstRefuse(): void
@@ -89,7 +90,8 @@ final class RegistrationControllerTest extends WebTestCase
 
         $this->soumettreInscription($client, 'artisan@example.com', 'motdepasse-solide', self::SIRET_CONNU);
 
-        self::assertResponseRedirects('http://app.'.self::HOTE.'/');
+        // ONB-4 : l'inscription mène droit à la saisie, sans écran de bienvenue.
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/audit');
 
         $utilisateurs = self::getContainer()->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $utilisateurs);
@@ -111,7 +113,8 @@ final class RegistrationControllerTest extends WebTestCase
 
         $this->soumettreInscription($client, 'sans-fiche@example.com', 'motdepasse-solide', self::SIRET_INCONNU);
 
-        self::assertResponseRedirects('http://app.'.self::HOTE.'/');
+        // ONB-4 : l'inscription mène droit à la saisie, sans écran de bienvenue.
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/audit');
 
         $entreprises = self::getContainer()->get(EntrepriseRepository::class);
         self::assertInstanceOf(EntrepriseRepository::class, $entreprises);

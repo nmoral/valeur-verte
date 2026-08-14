@@ -43,6 +43,22 @@ final class AuditResultatControllerTest extends WebTestCase
         self::assertSelectorTextContains('form[action="/audit/resultat/signalement"]', 'faux');
     }
 
+    public function testLaRestitutionInviteAPersonnaliserApresLeRapport(): void
+    {
+        $client = static::createClient();
+        $this->poserResultatEnSession($client);
+
+        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+
+        self::assertResponseIsSuccessful();
+        // ONB-4 : invitation à personnaliser (marque, coûts), jamais un mur — on
+        // peut reporter. Le PDF reste téléchargeable sans configuration.
+        self::assertSelectorExists('.personnaliser a[href="/marque"]');
+        self::assertSelectorExists('.personnaliser a[href="/couts"]');
+        self::assertSelectorTextContains('.personnaliser', 'Plus tard');
+        self::assertSelectorExists('a[href="/audit/resultat/pdf"]');
+    }
+
     private function poserResultatEnSession(KernelBrowser $client): void
     {
         $factory = self::getContainer()->get('session.factory');
