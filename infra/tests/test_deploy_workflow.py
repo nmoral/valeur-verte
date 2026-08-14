@@ -155,3 +155,21 @@ def test_l_app_est_demarree_au_deploiement() -> None:
     assert "docker compose up -d app" in contenu, (
         "Le déploiement doit (re)démarrer le service « app » après les migrations."
     )
+
+
+def test_la_configuration_du_reverse_proxy_est_televersee() -> None:
+    """Le reverse proxy lit un Caddyfile (auth, noindex, TLS) monté depuis le VPS :
+    sans téléversement de « infra/caddy », il démarrerait sans sa configuration."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "infra/caddy" in contenu, (
+        "Le déploiement doit téléverser la configuration du reverse proxy (infra/caddy)."
+    )
+
+
+def test_le_reverse_proxy_est_demarre_au_deploiement() -> None:
+    """Le point d'entrée public doit être (re)lancé au déploiement, sinon le site est
+    injoignable — et une nouvelle image app n'est servie qu'après relance du proxy."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"up -d [^\n&|]*\bcaddy\b", contenu), (
+        "Le déploiement doit démarrer le reverse proxy « caddy » (ex. « up -d app caddy »)."
+    )
