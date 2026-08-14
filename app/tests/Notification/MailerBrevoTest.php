@@ -63,7 +63,9 @@ final class MailerBrevoTest extends TestCase
         (new MailerBrevo($client, 'clef', 'exp@vv.test'))
             ->envoyer(new Email('a@b.c', 'x', '<p>y</p>', 'repondre@vv.test'));
 
-        $corps = json_decode((string) $requetes[0]['body'], true, flags: \JSON_THROW_ON_ERROR);
+        $body = $requetes[0]['body'];
+        self::assertIsString($body);
+        $corps = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
         self::assertIsArray($corps);
         self::assertIsArray($corps['replyTo']);
         self::assertSame('repondre@vv.test', $corps['replyTo']['email']);
@@ -81,7 +83,9 @@ final class MailerBrevoTest extends TestCase
         (new MailerBrevo($client, 'clef', 'exp@vv.test'))
             ->envoyer(new Email('a@b.c', 'x', '<p>y</p>'));
 
-        $corps = json_decode((string) $requetes[0]['body'], true, flags: \JSON_THROW_ON_ERROR);
+        $body = $requetes[0]['body'];
+        self::assertIsString($body);
+        $corps = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
         self::assertIsArray($corps);
         self::assertArrayNotHasKey('replyTo', $corps);
     }

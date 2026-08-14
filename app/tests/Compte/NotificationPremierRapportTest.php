@@ -90,13 +90,22 @@ final class NotificationPremierRapportTest extends KernelTestCase
 
     private function notificationAvecMailerDefaillant(): NotificationPremierRapport
     {
+        $connexion = self::getContainer()->get(Connection::class);
+        self::assertInstanceOf(Connection::class, $connexion);
+        $twig = self::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+        $horloge = self::getContainer()->get(ClockInterface::class);
+        self::assertInstanceOf(ClockInterface::class, $horloge);
+        $jetons = self::getContainer()->get(JetonDesabonnement::class);
+        self::assertInstanceOf(JetonDesabonnement::class, $jetons);
+
         return new NotificationPremierRapport(
             $this->comptes(),
-            self::getContainer()->get(Connection::class),
+            $connexion,
             new MailerQuiEchoue(),
-            self::getContainer()->get(Environment::class),
-            self::getContainer()->get(ClockInterface::class),
-            self::getContainer()->get(JetonDesabonnement::class),
+            $twig,
+            $horloge,
+            $jetons,
             'valeurverte.localhost',
             'no-reply@valeur-verte.fr',
         );
