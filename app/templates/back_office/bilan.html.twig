@@ -1,0 +1,42 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Ce que votre essai vous a déjà rapporté.</p>{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .bilan{max-width:640px}
+    .bilan-chiffres{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 18px}
+    .bilan-chiffre{border:1px solid var(--rule);border-radius:10px;padding:18px 20px}
+    .bilan-chiffre .n{font:600 40px/1 'Public Sans',sans-serif;color:var(--brand)}
+    .bilan-chiffre .k{display:block;font:13px/1.4 'Public Sans',sans-serif;color:var(--mute);margin-top:6px}
+    .bilan-essai{font:14px/1.6 'Public Sans',sans-serif;color:var(--slate);margin:0}
+</style>
+{% endblock %}
+
+{% block bo_content %}
+<div class="panel bilan">
+    <div class="panel-head"><h2>Votre bilan d'usage</h2></div>
+    <div style="padding:20px">
+        <div class="bilan-chiffres">
+            <div class="bilan-chiffre">
+                <span class="n">{{ bilan.rapportsGeneres }}</span>
+                <span class="k">rapports générés</span>
+            </div>
+            <div class="bilan-chiffre">
+                <span class="n">{{ bilan.contactsCaptures }}</span>
+                <span class="k">contacts capturés</span>
+            </div>
+        </div>
+        {% if essai %}
+            <p class="bilan-essai">
+                {% if essai.termine %}
+                    Votre essai est terminé. Vos rapports déjà produits restent accessibles.
+                {% else %}
+                    Il vous reste <strong>{{ essai.rapportsRestants }} rapports</strong> et
+                    <strong>{{ essai.joursRestants }} jours</strong> d'essai.
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

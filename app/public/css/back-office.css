@@ -42,6 +42,9 @@ nav.side .sect{font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.12em;t
 .trial span{font:400 10.5px/1.4 'JetBrains Mono',monospace;color:var(--mute)}
 
 main{padding:22px 26px 60px;max-width:1100px}
+.essai-bandeau{display:block;margin:0 0 18px;padding:9px 14px;border-radius:8px;text-decoration:none;font:500 13.5px/1.4 'Public Sans',sans-serif;background:var(--brand-soft);color:var(--brand);border:1px solid transparent}
+.essai-bandeau.est-alerte{background:#FCF2DF;color:#8A5712;border-color:#F0DBAE}
+.essai-bandeau.est-termine{background:#FBECEA;color:var(--bad);border-color:#F0C9C3}
 .top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
 h1{font:800 25px/1.15 'Archivo',sans-serif;letter-spacing:-.025em}
 .top p{font-size:14px;color:var(--slate);margin-top:4px}
