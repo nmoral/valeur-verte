@@ -32,7 +32,9 @@ final class EnvoiVerificationEmailTest extends KernelTestCase
 
         $userId = $user->getId();
         self::assertNotNull($userId);
-        if (1 !== preg_match('#/verification-email\?utilisateur='.$userId.'&jeton=([0-9a-f]{64})#', $emails[0]->corpsHtml(), $m)) {
+        // Le corps est du HTML : Twig échappe le « & » de l'URL en « &amp; »
+        // (le lien reste fonctionnel, les clients le décodent).
+        if (1 !== preg_match('#/verification-email\?utilisateur='.$userId.'&(?:amp;)?jeton=([0-9a-f]{64})#', $emails[0]->corpsHtml(), $m)) {
             self::fail('Lien de vérification introuvable dans l\'email.');
         }
         self::assertTrue($this->jetons()->estValide($userId, $m[1]));

@@ -76,6 +76,13 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
+    # Public temporairement : récupéré en test tant que l'inscription ne le consomme pas.
+    App\Security\VerificationEmail\EnvoiVerificationEmail:
+        public: true
+        arguments:
+            $appDomaine: '%app.domaine%'
+
     # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
     # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
     App\Security\MotDePasseOublie\DemandeReinitialisation:
