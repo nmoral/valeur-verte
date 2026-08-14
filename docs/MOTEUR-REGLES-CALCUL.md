@@ -281,6 +281,12 @@ se câble par petits pas TDD. État :
   à `O(régressions distinctes × fit+bandes)`. `compute_maille_epci` /
   `compute_maille_departement` ne prennent donc plus de `centroid_lat/lon`. Sortie
   inchangée : une ligne `coefficient_maille` par commune.
+- ✅ **Mode DÉPARTEMENTAL dégradé mémoïsé** (#200, `_maille_departementale`) : même
+  principe pour le repli départemental **interne** de `compute_maille` (§7, mode #22
+  sans bandes) — centre = barycentre des ventes du département, résultat identique pour
+  toutes les communes du dept, calculé **une seule fois par batch** (`compute_communes`
+  passe un cache `memo_departemental`) et réutilisé (seul `code_insee` change). Le mode
+  LOCAL reste par commune (voisinage propre, régressions légitimement différentes).
 - ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
   à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
 - ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
