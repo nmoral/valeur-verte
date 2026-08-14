@@ -70,6 +70,13 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
+    # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
+    App\Security\MotDePasseOublie\DemandeReinitialisation:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $dureeValiditeMinutes: 60
+
     # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
     # adresse expéditrice depuis l'environnement, jamais versionnées.
     App\Notification\Mailer: '@App\Notification\MailerBrevo'
