@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security\MotDePasseOublie;
 
+use App\AdminInterne\JournalAudit\EvenementAudit;
+use App\AdminInterne\JournalAudit\JournalAudit;
 use App\Notification\Email;
 use App\Notification\Mailer;
 use App\Security\UserRepository;
@@ -26,6 +28,7 @@ final readonly class DemandeReinitialisation
         private Mailer $mailer,
         private Environment $twig,
         private ClockInterface $horloge,
+        private JournalAudit $journal,
         private string $appDomaine,
         private int $dureeValiditeMinutes,
     ) {
@@ -57,6 +60,14 @@ final readonly class DemandeReinitialisation
             $email,
             'Réinitialisation de votre mot de passe',
             $this->corps($jetonBrut),
+        ));
+
+        $this->journal->enregistrer(new EvenementAudit(
+            acteur: $email,
+            action: 'mot_de_passe.demande_reinitialisation',
+            cible: 'utilisateur#'.$userId,
+            contexte: [],
+            survenuLe: $maintenant,
         ));
     }
 

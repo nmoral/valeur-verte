@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security\MotDePasseOublie;
 
+use App\AdminInterne\JournalAudit\EvenementAudit;
+use App\AdminInterne\JournalAudit\JournalAudit;
 use App\Security\UserRepository;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -22,6 +24,7 @@ final readonly class ReinitialisationMotDePasse
         private GenerateurJeton $generateur,
         private UserPasswordHasherInterface $hasher,
         private ClockInterface $horloge,
+        private JournalAudit $journal,
     ) {
     }
 
@@ -58,5 +61,13 @@ final readonly class ReinitialisationMotDePasse
 
         $jeton->marquerUtilise($maintenant);
         $this->jetons->enregistrer($jeton);
+
+        $this->journal->enregistrer(new EvenementAudit(
+            acteur: $user->getEmail(),
+            action: 'mot_de_passe.reinitialise',
+            cible: 'utilisateur#'.$jeton->userId(),
+            contexte: [],
+            survenuLe: $maintenant,
+        ));
     }
 }
