@@ -271,6 +271,16 @@ se câble par petits pas TDD. État :
 - ✅ **Cran DÉPARTEMENT** : `batch.compute_maille_departement` poole les ventes du seul
   département (voisins exclus) avec bandes monotones ; câblé en dernier cran de la
   cascade dans `orchestration` (§7). Cœur des crans EPCI/DÉPT factorisé (`_maille_par_bandes`).
+- ✅ **Régression partagée & mémoïsée** (#175) : aux crans EPCI/DÉPARTEMENT, la
+  pondération est **uniforme** (σ départemental) — le centre est le **barycentre des
+  ventes du périmètre** (`_centroide_moyen`), pas le centroïde de la commune. La maille
+  est donc **identique pour toutes les communes** de l'EPCI (resp. du département) et
+  ne dépend pas de l'ordre d'itération (INV-5). `orchestration.compute_departement` la
+  calcule **une seule fois** par EPCI / par département puis la réutilise (seul
+  `code_insee` change dans la ligne écrite) — le coût passe de `O(communes × fit+bandes)`
+  à `O(régressions distinctes × fit+bandes)`. `compute_maille_epci` /
+  `compute_maille_departement` ne prennent donc plus de `centroid_lat/lon`. Sortie
+  inchangée : une ligne `coefficient_maille` par commune.
 - ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
   à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
 - ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
