@@ -239,20 +239,8 @@ final readonly class InstantaneRapport
 
         return Bouquet::creer(
             self::texte($bouquet['nom']),
-            ...array_map(self::posteDepuis(...), array_values($postes)),
+            ...array_map(static fn (mixed $nom): Poste => Poste::parNom(self::texte($nom)), array_values($postes)),
         );
-    }
-
-    private static function posteDepuis(mixed $nom): Poste
-    {
-        \assert(\is_string($nom));
-        foreach (Poste::cases() as $poste) {
-            if ($poste->name === $nom) {
-                return $poste;
-            }
-        }
-
-        throw new \InvalidArgumentException(\sprintf('Poste inconnu : %s.', $nom));
     }
 
     private static function texte(mixed $valeur): string

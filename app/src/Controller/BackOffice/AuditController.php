@@ -7,7 +7,7 @@ namespace App\Controller\BackOffice;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Audit\SaisieInvalide;
 use App\BackOffice\Bouquet\Bouquet;
-use App\BackOffice\Bouquet\BouquetsDisponibles;
+use App\BackOffice\Bouquet\BouquetRepository;
 use App\BackOffice\Estimation\ClasseNonPubliee;
 use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
@@ -35,7 +35,7 @@ final class AuditController extends AbstractController
     public function __construct(
         private readonly EstimateurValeurVerte $estimateur,
         private readonly ArchiveurRapport $archiveur,
-        private readonly BouquetsDisponibles $bouquets,
+        private readonly BouquetRepository $bouquets,
     ) {
     }
 
