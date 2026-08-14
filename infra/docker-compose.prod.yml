@@ -62,6 +62,12 @@ services:
       # partage cette base PostGIS : lecture seule sur le schéma « data », écriture
       # sur le schéma « app » (schema_filter côté Doctrine + rôle applicatif
       # disposant de SELECT seul sur « data », posé au provisionnement du VPS).
+      #
+      # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP et doit
+      # honorer X-Forwarded-Proto pour générer des URLs https. N'étant publiée que
+      # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
+      # proxy : « REMOTE_ADDR » le désigne sans dépendre de l'IP du conteneur Caddy.
+      TRUSTED_PROXIES: REMOTE_ADDR
     # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
     # jamais directement sur Internet (même règle que la base).
     ports:
