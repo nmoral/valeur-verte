@@ -52,7 +52,7 @@ final class ModeMaintenanceListenerTest extends TestCase
             $this->ecouter(active: true, hote: 'valeur-verte.fr');
             self::fail('Une exception 503 était attendue.');
         } catch (ServiceUnavailableHttpException $e) {
-            self::assertArrayHasKey('Retry-After', $e->getHeaders());
+            self::assertSame(120, $e->getHeaders()['Retry-After'] ?? null);
         }
     }
 
