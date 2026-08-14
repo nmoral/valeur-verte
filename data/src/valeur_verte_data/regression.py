@@ -68,6 +68,22 @@ def gaussian_weight(distance_km: float, sigma_km: float = DEFAULT_SIGMA_KM) -> f
     return math.exp(-(distance_km**2) / (2 * sigma_km**2))
 
 
+def poids_temporel(anciennete_annees: float, tau: float | None) -> float:
+    """Poids temporel décroissant ``exp(-ancienneté / τ)`` (#208).
+
+    Multiplié au poids gaussien spatial, il fait peser **moins** les millésimes
+    anciens : le pooling d'une fenêtre glissante (#177) estime alors le premium DPE
+    plus près de l'année de référence N, corrigeant le biais de retard dû à la
+    dérive du premium (~+15 %/an). ``anciennete_annees = N − millésime`` (0 pour N).
+    ``τ`` est la constante de temps : à une ancienneté égale à τ le poids vaut
+    ``exp(-1)``. ``τ = None`` **désactive** la pondération (poids égaux, comportement
+    #177 exact) — c'est le défaut, garantissant la non-régression sans flottant.
+    """
+    if tau is None:
+        return 1.0
+    return math.exp(-anciennete_annees / tau)
+
+
 def is_pre_1989(periode: str | None) -> bool:
     """Vrai si la période de construction est **antérieure à 1989** (bâti ancien).
 
