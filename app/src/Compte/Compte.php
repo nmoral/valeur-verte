@@ -42,11 +42,20 @@ class Compte
     private ?\DateTimeImmutable $relanceEssaiEnvoyeeLe = null;
 
     /**
-     * Date à laquelle le compte s'est désabonné de la relance de fin d'essai
-     * (#108). Nulle par défaut ; renseignée, elle inhibe tout envoi de relance.
+     * Date à laquelle le compte s'est désabonné des emails non transactionnels
+     * (#108/#109). Nulle par défaut ; renseignée, elle inhibe tout email non
+     * transactionnel (relance de fin d'essai, relance après premier rapport…).
      */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $relanceEssaiDesabonneeLe = null;
+    private ?\DateTimeImmutable $emailsNonTransactionnelsDesabonneLe = null;
+
+    /**
+     * Date d'envoi de la relance conversationnelle après le premier rapport
+     * (#109). Nulle tant qu'elle n'a pas été envoyée : garantit qu'un seul email
+     * personnel part, sur l'événement « premier rapport », jamais deux.
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $emailPremierRapportEnvoyeLe = null;
 
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
@@ -108,13 +117,23 @@ class Compte
         $this->relanceEssaiEnvoyeeLe = $quand;
     }
 
-    public function estDesabonneDeLaRelance(): bool
+    public function estDesabonneDesEmails(): bool
     {
-        return null !== $this->relanceEssaiDesabonneeLe;
+        return null !== $this->emailsNonTransactionnelsDesabonneLe;
     }
 
-    public function seDesabonnerDeLaRelance(\DateTimeImmutable $quand): void
+    public function seDesabonnerDesEmails(\DateTimeImmutable $quand): void
     {
-        $this->relanceEssaiDesabonneeLe = $quand;
+        $this->emailsNonTransactionnelsDesabonneLe = $quand;
+    }
+
+    public function emailPremierRapportEnvoye(): bool
+    {
+        return null !== $this->emailPremierRapportEnvoyeLe;
+    }
+
+    public function marquerEmailPremierRapportEnvoye(\DateTimeImmutable $quand): void
+    {
+        $this->emailPremierRapportEnvoyeLe = $quand;
     }
 }

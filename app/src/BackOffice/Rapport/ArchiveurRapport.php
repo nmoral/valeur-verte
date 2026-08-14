@@ -10,6 +10,7 @@ use App\BackOffice\Branding\BrandingRepository;
 use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Pdf\GenerateurReferenceRapport;
 use App\BackOffice\Restitution\Restitution;
+use App\Compte\NotificationPremierRapport;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -25,6 +26,7 @@ final readonly class ArchiveurRapport
         private GenerateurReferenceRapport $references,
         private RapportRepository $rapports,
         private UrlGeneratorInterface $urls,
+        private NotificationPremierRapport $notificationPremierRapport,
     ) {
     }
 
@@ -50,6 +52,11 @@ final readonly class ArchiveurRapport
             $this->urls->generate('back_office_rapport_pdf', ['reference' => $reference->valeur()]),
         );
         $this->rapports->enregistrer($rapport);
+
+        // Relance conversationnelle ONB-7 (#109) : déclenchée sur l'événement
+        // « rapport archivé ». Une seule fois par compte, best-effort — le
+        // service absorbe toute panne pour ne jamais casser l'archivage.
+        $this->notificationPremierRapport->surTenant($rapport->getTenantId());
 
         return $rapport;
     }

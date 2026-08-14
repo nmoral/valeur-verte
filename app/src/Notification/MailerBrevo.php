@@ -24,18 +24,23 @@ final readonly class MailerBrevo implements Mailer
 
     public function envoyer(Email $email): void
     {
+        $charge = [
+            'sender' => ['email' => $this->expediteur, 'name' => 'Valeur Verte'],
+            'to' => [['email' => $email->destinataire()]],
+            'subject' => $email->sujet(),
+            'htmlContent' => $email->corpsHtml(),
+        ];
+        if (null !== $email->repondreA()) {
+            $charge['replyTo'] = ['email' => $email->repondreA()];
+        }
+
         $reponse = $this->client->request('POST', self::URL, [
             'headers' => [
                 'api-key' => $this->apiKey,
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
             ],
-            'json' => [
-                'sender' => ['email' => $this->expediteur, 'name' => 'Valeur Verte'],
-                'to' => [['email' => $email->destinataire()]],
-                'subject' => $email->sujet(),
-                'htmlContent' => $email->corpsHtml(),
-            ],
+            'json' => $charge,
         ]);
 
         // Déclenche réellement la requête (HttpClient est paresseux) et vérifie

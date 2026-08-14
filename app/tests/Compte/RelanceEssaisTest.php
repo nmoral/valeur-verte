@@ -62,7 +62,7 @@ final class RelanceEssaisTest extends KernelTestCase
         self::assertStringContainsString('restent accessibles', $corps);
         // Lien de désabonnement signé vers la route publique dédiée (le « & » du
         // lien est échappé en « &amp; » dans l'attribut href, comme il se doit).
-        self::assertStringContainsString('/desabonnement/relance?tenant=9604', $corps);
+        self::assertStringContainsString('/desabonnement?tenant=9604', $corps);
         self::assertStringContainsString('jeton=', $corps);
         self::assertStringContainsStringIgnoringCase('désabonner', $corps);
     }
@@ -104,7 +104,7 @@ final class RelanceEssaisTest extends KernelTestCase
         $creeLe = (new \DateTimeImmutable())->modify(\sprintf('-%d days', $creeIlYaJours));
         $compte = Compte::creer($tenantId, $creeLe);
         if ($desabonne) {
-            $compte->seDesabonnerDeLaRelance(new \DateTimeImmutable());
+            $compte->seDesabonnerDesEmails(new \DateTimeImmutable());
         }
         $this->comptes()->enregistrer($compte);
     }

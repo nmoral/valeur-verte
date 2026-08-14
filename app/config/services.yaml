@@ -57,9 +57,16 @@ services:
         arguments:
             $appDomaine: '%app.domaine%'
 
-    # Jeton de désabonnement (#108) : signe le tenant avec le secret applicatif
-    # pour rendre le lien de désabonnement infalsifiable sans stockage.
-    App\Compte\JetonDesabonnementRelance:
+    # Relance conversationnelle après le premier rapport (#109) : lien de
+    # désabonnement sur le domaine applicatif, réponses vers une vraie boîte.
+    App\Compte\NotificationPremierRapport:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $contactReponse: '%env(CONTACT_REPONSE)%'
+
+    # Jeton de désabonnement (#108/#109) : signe le tenant avec le secret
+    # applicatif pour rendre le lien de désabonnement infalsifiable sans stockage.
+    App\Compte\JetonDesabonnement:
         arguments:
             $secret: '%kernel.secret%'
 
