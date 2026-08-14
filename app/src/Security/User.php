@@ -91,6 +91,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_values(array_unique($roles));
     }
 
+    // Le hash participe à l'invalidation des sessions (#199) : le firewall compare
+    // le mot de passe du token à celui rechargé et déconnecte s'ils diffèrent. Ne
+    // pas retirer le mot de passe de la sérialisation du token sans préserver ce
+    // signal (cf. InvalidationSessionTest).
     public function getPassword(): string
     {
         return $this->password;
