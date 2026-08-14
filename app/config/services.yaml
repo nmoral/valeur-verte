@@ -81,11 +81,6 @@ services:
         arguments:
             $appDomaine: '%app.domaine%'
 
-    # Changement de mot de passe (#206) : public le temps que le contrôleur
-    # /mon-compte le consomme, sinon élagué du conteneur et introuvable en test.
-    App\Security\MonCompte\ChangementMotDePasse:
-        public: true
-
     # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
     # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
     App\Security\MotDePasseOublie\DemandeReinitialisation:
