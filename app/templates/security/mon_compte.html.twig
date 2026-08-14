@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Mon compte · Valeur Verte',
+  description: 'Gérez votre compte Valeur Verte et changez votre mot de passe.',
+  canonical: url('mon_compte'),
+  robots: 'noindex,nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Mon compte</h1>
+    <p class="auth-lead">Connecté en tant que <strong>{{ app.user.email }}</strong>.</p>
+
+    {% for message in app.flashes('mon_compte') %}
+      <p class="alert-ok" role="status">{{ message }}</p>
+    {% endfor %}
+
+    {% if erreurs.global is defined %}
+      <p class="alert" role="alert">{{ erreurs.global }}</p>
+    {% endif %}
+
+    <h2>Changer mon mot de passe</h2>
+    <form method="post" action="{{ path('mon_compte') }}" novalidate>
+      <div class="field-group{{ erreurs.actuel is defined ? ' has-error' : '' }}">
+        <label for="actuel">Mot de passe actuel</label>
+        <input type="password" id="actuel" name="actuel" autocomplete="current-password" required autofocus>
+        {% if erreurs.actuel is defined %}<span class="form-error">{{ erreurs.actuel }}</span>{% endif %}
+      </div>
+
+      <div class="field-group{{ erreurs.nouveau is defined ? ' has-error' : '' }}">
+        <label for="nouveau">Nouveau mot de passe</label>
+        <input type="password" id="nouveau" name="nouveau" autocomplete="new-password" required>
+        {% if erreurs.nouveau is defined %}
+          <span class="form-error">{{ erreurs.nouveau }}</span>
+        {% else %}
+          <span class="hint">Au moins 8 caractères.</span>
+        {% endif %}
+      </div>
+
+      <div class="field-group{{ erreurs.confirmation is defined ? ' has-error' : '' }}">
+        <label for="confirmation">Confirmer le nouveau mot de passe</label>
+        <input type="password" id="confirmation" name="confirmation" autocomplete="new-password" required>
+        {% if erreurs.confirmation is defined %}<span class="form-error">{{ erreurs.confirmation }}</span>{% endif %}
+      </div>
+
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('mon_compte') }}">
+      <button type="submit" class="btn-primary">Changer le mot de passe</button>
+    </form>
+  </div>
+
+  <p class="auth-alt"><a href="{{ path(is_granted('ROLE_ADMIN') ? 'admin' : 'espace_pro') }}">Retour à mon espace</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>

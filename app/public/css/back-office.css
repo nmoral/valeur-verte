@@ -153,6 +153,9 @@ tbody tr:hover{background:var(--sub)}
 .side-logout{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:2px;font-size:14px;color:var(--slate);text-decoration:none}
 .side-logout span{font-size:15px;line-height:1}
 .side-logout:hover{background:var(--paper);color:var(--bad)}
+.side-compte{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:2px;font-size:14px;color:var(--slate);text-decoration:none}
+.side-compte span{font-size:15px;line-height:1}
+.side-compte:hover{background:var(--paper);color:var(--ink)}
 
 /* Tableau de bord — tuiles d'accès rapide */
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
