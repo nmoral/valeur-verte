@@ -83,7 +83,11 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
             + indicatrices_commune(désactivé) + indicatrices_année
 ```
 
-- **Poids** : gaussien `exp(-d²/2σ²)`, `d` = distance haversine au centroïde commune.
+- **Poids** : gaussien spatial `exp(-d²/2σ²)`, `d` = distance haversine au centroïde
+  commune, **multiplié** (#208) par un poids **temporel décroissant**
+  `exp(-(N − millésime)/τ)` quand `decroissance_temporelle_tau` (= τ) et l'année de
+  référence N sont fournis (§4bis). `τ = None` (défaut) ⇒ poids gaussien seul
+  (poids égaux entre millésimes, comportement #177 exact).
 - **Référence DPE = D** (`reference_dpe`, coef 0). Les autres classes présentes ont
   un coefficient ; référence des autres catégorielles = 1er niveau trié (implicite).
 - **Sorties** :
@@ -102,6 +106,35 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
   indicatrice année n'est générée (un seul niveau).
 - **Effets fixes commune** : **désactivés** (S22, `effets_fixes_commune=false`) — ils
   sur-ajustaient (r² gonflé, erreur CV pire) ; l'indice local + σ portent la localité.
+
+### 4bis. Pondération temporelle décroissante (#208, `poids_temporel`)
+
+Poids multiplicatif `exp(-(N − millésime)/τ)` appliqué **par-dessus** le poids
+gaussien spatial dans `regression._weights` (donc dans `fit` **et** dans les fits
+internes de la validation croisée — l'erreur médiane mesure l'estimateur publié).
+
+- **Motivation** : la fenêtre glissante (#177) poole plusieurs millésimes à **poids
+  égaux** pour réduire la variance. Mais le **premium DPE dérive** (~+15 %/an,
+  validation 15 depts) et les effets fixes année corrigent le **niveau de prix**, pas
+  la dérive du premium lui-même. Pooler à plat estime donc la **moyenne** du premium
+  sur la fenêtre → biais de retard sur l'année N. Le poids temporel fait peser moins
+  les millésimes anciens : l'estimation se rapproche du premium récent.
+- **τ (`decroissance_temporelle_tau`)** = constante de temps en années ; à une
+  ancienneté `N − millésime = τ` le poids vaut `exp(-1)`. **`None` = désactivé**
+  (poids égaux, non-régression #177 exacte) — c'est le **défaut**. τ grand ⇒ quasi
+  poids égaux ; τ petit ⇒ quasi mono-année.
+- **Composition avec la fenêtre** : `fenetre_millesimes` décide *quels* millésimes
+  entrent dans le pool ; τ décide *combien* chacun pèse. Orthogonaux.
+- **Année de référence N** : le millésime publié de la maille (passé explicitement,
+  jamais dérivé par `max()` — sous CV un pli peut perdre l'année N). La ligne reste
+  **ancrée sur N** (§3) ; le poids temporel rapproche l'estimation de N.
+- **Périmètre** : s'applique à l'**estimateur publié** (fit) et à son **erreur** (CV).
+  Les étapes **structurelles** en amont — écrêtage des outliers (§8) et fusion en
+  bandes (§14) — restent sur le **poids spatial seul** : un outlier ancien reste un
+  outlier, et la structure de bandes doit rester stable, indépendante de la récence.
+- **Statut** : opt-in (`VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU`), désactivé par défaut.
+  Calibration de τ sur la dérive réelle (protocole VPS multi-depts) à mener avant
+  toute bascule du défaut.
 
 ## 5. Sélection par rayon adaptatif (`radius.adaptive_selection`)
 
@@ -241,6 +274,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `min_class_sample` | 20 | S21, publication classe |
 | `min_classes_publiees` | 2 | dont la référence |
 | `fenetre_millesimes` | 1 | #177 — millésimes empilés (fenêtre glissante) ; 1 = mono-millésime historique |
+| `decroissance_temporelle_tau` | `None` | #208 — τ du poids temporel `exp(-(N−millésime)/τ)` ; `None` = désactivé (poids égaux #177) ; §4bis |
 | `inversion_dpe_seuil` | 30 | tolérance INV-1 |
 | `sigma_mode` / `sigma_diviseur` / `sigma_min` | `densite` / 1,0 / 3,0 | S23 |
 | `departemental_sigma_km` | 1000 | repli quasi-uniforme |
