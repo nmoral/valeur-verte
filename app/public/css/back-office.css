@@ -18,8 +18,10 @@ a{color:inherit}
 .app{display:grid;grid-template-columns:206px 1fr;min-height:100vh}
 
 /* Sidebar figée à la hauteur de l'écran : le pied (déconnexion) reste visible
-   sans scroller, même quand la page dépasse la hauteur du viewport. */
-aside{background:var(--card);border-right:1px solid var(--rule);display:flex;flex-direction:column;
+   sans scroller, même quand la page dépasse la hauteur du viewport.
+   Sélecteur scopé à la sidebar (enfant direct du shell) : un <aside> imbriqué
+   dans le contenu ne doit pas hériter de cette mise en page en colonne. */
+.app > aside{background:var(--card);border-right:1px solid var(--rule);display:flex;flex-direction:column;
   position:sticky;top:0;align-self:start;height:100vh}
 .brand{display:flex;align-items:center;gap:9px;padding:16px 18px;border-bottom:1px solid var(--rule);font:800 14px/1 'Archivo',sans-serif;flex:0 0 auto}
 .brand i{width:22px;height:22px;border-radius:2px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:10px;font-style:normal}
@@ -131,7 +133,7 @@ tbody tr:hover{background:var(--sub)}
 
 @media (max-width:960px){
   .app{grid-template-columns:1fr}
-  aside{display:none}
+  .app > aside{display:none}
   .kpis{grid-template-columns:1fr 1fr}
   .relances{grid-template-columns:1fr}
   .cfg{grid-template-columns:1fr}
