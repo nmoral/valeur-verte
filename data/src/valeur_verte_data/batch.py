@@ -80,6 +80,28 @@ def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutatio
     return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
 
 
+def _centroide_moyen(sample: Sequence[Mutation]) -> tuple[float, float]:
+    """Barycentre de l'échantillon (moyenne lat/lon des ventes géolocalisées) — #175.
+
+    Aux crans EPCI/DÉPARTEMENT la pondération est **uniforme** (σ départemental) :
+    le résultat est indépendant du centre choisi. On prend donc le barycentre des
+    **données** plutôt que le centroïde de la commune. C'est ce qui rend le calcul
+    identique pour toutes les communes du périmètre — déterministe (INV-5, sans
+    dépendre de l'ordre d'itération) et donc mémoïsable (un seul calcul réutilisé).
+    """
+    points = [
+        (mutation.latitude, mutation.longitude)
+        for mutation in sample
+        if mutation.latitude is not None and mutation.longitude is not None
+    ]
+    if not points:
+        return 0.0, 0.0
+    return (
+        sum(lat for lat, _ in points) / len(points),
+        sum(lon for _, lon in points) / len(points),
+    )
+
+
 def _effectifs_dpe(
     sample: Sequence[Mutation], *, restreindre_bati_ancien: bool = True
 ) -> Counter[str]:
@@ -341,8 +363,6 @@ def _maille_par_bandes(
 
 def compute_maille_epci(
     code_insee: str,
-    centroid_lat: float,
-    centroid_lon: float,
     millesime: int,
     communes_epci: Sequence[str],
     pool: Sequence[Mutation],
@@ -357,6 +377,11 @@ def compute_maille_epci(
     départemental) — tous les biens de l'EPCI comptent également, la géographie
     fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
 
+    Le centre de pondération est le **barycentre des ventes de l'EPCI** (#175) : à
+    σ départemental la pondération est uniforme, donc le résultat ne dépend pas de
+    la commune — il est **identique pour toutes les communes de l'EPCI** et peut
+    être calculé une seule fois puis réutilisé (mémoïsation côté orchestration).
+
     Les classes DPE adjacentes sous-effectif sont fusionnées en bandes adaptatives
     (le pool plus large garde un DPE plus fin que le département, sans exiger deux
     classes pleines). ``None`` si moins de deux bandes (le département prend le relais).
@@ -366,6 +391,7 @@ def compute_maille_epci(
         (mutation for mutation in pool if mutation.code_insee in membres),
         key=lambda mutation: mutation.id_mutation,
     )
+    centroid_lat, centroid_lon = _centroide_moyen(sample)
     return _maille_par_bandes(
         code_insee,
         centroid_lat,
@@ -380,8 +406,6 @@ def compute_maille_epci(
 
 def compute_maille_departement(
     code_insee: str,
-    centroid_lat: float,
-    centroid_lon: float,
     millesime: int,
     pool: Sequence[Mutation],
     *,
@@ -394,11 +418,17 @@ def compute_maille_departement(
     pondération uniforme (σ départemental), avec bandes DPE adaptatives +
     anti-inversion. ``mode=DEPARTEMENTAL``, sans rayon. Renvoie ``None`` si moins de
     deux bandes subsistent (la commune sort alors hors zone).
+
+    Le centre de pondération est le **barycentre des ventes du département** (#175) :
+    à σ départemental la maille est identique pour toutes les communes du département,
+    donc calculable une seule fois puis réutilisée (mémoïsation côté orchestration),
+    seul ``code_insee`` variant d'une ligne à l'autre.
     """
     sample = sorted(
         _meme_departement(code_insee, pool),
         key=lambda mutation: mutation.id_mutation,
     )
+    centroid_lat, centroid_lon = _centroide_moyen(sample)
     return _maille_par_bandes(
         code_insee,
         centroid_lat,

@@ -102,7 +102,7 @@ def test_compute_maille_epci_poole_les_communes_de_l_epci() -> None:
     cfg = replace(CalculConfig(), min_class_sample=1)
 
     maille = compute_maille_epci(
-        "31555", 43.6, 1.44, 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
+        "31555", 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
     )
 
     assert maille is not None
@@ -116,7 +116,7 @@ def test_compute_maille_epci_refuse_sans_classe_exploitable() -> None:
     par classe s'applique à tous les crans) — la bascule au département suivra."""
     pool = [_maison_classe("D", i) for i in range(40)]  # une seule classe
 
-    maille = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=CalculConfig())
+    maille = compute_maille_epci("31555", 2024, ("31555",), pool, config=CalculConfig())
 
     assert maille is None
 
@@ -130,7 +130,7 @@ def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> N
     pool = amples + rares_f + rares_g
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    epci = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=cfg)
+    epci = compute_maille_epci("31555", 2024, ("31555",), pool, config=cfg)
 
     assert epci is not None
     assert epci.mode is CoverageMode.EPCI
@@ -147,9 +147,7 @@ def test_compute_maille_epci_expose_le_mapping_des_bandes() -> None:
     amples, rares_f, rares_g = _pool_dpe_clairseme()
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    epci = compute_maille_epci(
-        "31555", 43.6, 1.44, 2024, ("31555",), amples + rares_f + rares_g, config=cfg
-    )
+    epci = compute_maille_epci("31555", 2024, ("31555",), amples + rares_f + rares_g, config=cfg)
 
     assert epci is not None
     assert epci.bandes == {"D": "D", "F": "F", "G": "F"}
@@ -174,13 +172,36 @@ def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -
     pool = amples + rares_f + rares_g + voisin_09
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    maille = compute_maille_departement("31555", 43.6, 1.44, 2024, pool, config=cfg)
+    maille = compute_maille_departement("31555", 2024, pool, config=cfg)
 
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
     assert maille.rayon_retenu_km is None
     assert set(maille.coef_dpe) == {"D", "F"}  # G fusionnée dans la bande F
     assert maille.n_transactions == len(amples) + len(rares_f) + len(rares_g)  # voisin exclu
+
+
+def test_le_cran_departemental_ne_depend_pas_de_la_commune_representante() -> None:
+    """#175 : la maille départementale est une fonction pure des ventes du
+    département (centroïde interne = moyenne de l'échantillon, pondération uniforme
+    σ départemental). Deux communes du même département donnent des coefficients
+    **identiques** — seul ``code_insee`` change. C'est ce qui rend le partage exact
+    et autorise la mémoïsation (un seul calcul réutilisé pour tout le département).
+    """
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    pool = amples + rares_f + rares_g
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    a = compute_maille_departement("31555", 2024, pool, config=cfg)
+    b = compute_maille_departement("31149", 2024, pool, config=cfg)
+
+    assert a is not None and b is not None
+    assert a.code_insee == "31555" and b.code_insee == "31149"
+    assert a.coef_dpe == b.coef_dpe
+    assert a.coef_m2_bati == b.coef_m2_bati
+    assert a.coef_m2_terrain == b.coef_m2_terrain
+    assert a.bandes == b.bandes
+    assert a.erreur_mediane == b.erreur_mediane
 
 
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
