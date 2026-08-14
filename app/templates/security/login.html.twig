@@ -38,6 +38,8 @@
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
       <button type="submit" class="btn-primary">Se connecter</button>
     </form>
+
+    <p class="auth-forgot"><a href="{{ path('mot_de_passe_oublie_demande') }}">Mot de passe oublié ?</a></p>
   </div>
 
   <p class="auth-alt">Pas encore de compte ? <a href="{{ path('inscription') }}">Créer un compte</a></p>

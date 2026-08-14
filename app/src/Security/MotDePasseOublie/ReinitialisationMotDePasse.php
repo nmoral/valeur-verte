@@ -26,6 +26,17 @@ final readonly class ReinitialisationMotDePasse
     }
 
     /**
+     * Le jeton reçu (dans l'URL) désigne-t-il un jeton encore utilisable ?
+     * Lecture seule : gate l'affichage du formulaire sans consommer le jeton.
+     */
+    public function estUtilisable(string $jetonBrut): bool
+    {
+        $jeton = $this->jetons->trouverParEmpreinte($this->generateur->empreinte($jetonBrut));
+
+        return null !== $jeton && $jeton->estUtilisable($this->horloge->now());
+    }
+
+    /**
      * @throws JetonInvalide
      */
     public function reinitialiser(string $jetonBrut, string $nouveauMotDePasse): void

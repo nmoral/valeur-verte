@@ -20,6 +20,12 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '1 hour'
+        # Mot de passe oublié (#194) : plafond glissant par IP sur la demande de
+        # réinitialisation, pour limiter l'envoi d'emails et le bruit d'énumération.
+        mot_de_passe_oublie_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
 
     #esi: true
     #fragments: true

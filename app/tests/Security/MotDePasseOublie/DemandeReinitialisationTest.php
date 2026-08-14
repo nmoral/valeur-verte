@@ -66,10 +66,9 @@ final class DemandeReinitialisationTest extends KernelTestCase
 
     private function extraireEmpreinte(string $corpsHtml): string
     {
-        self::assertSame(
-            1,
-            preg_match('#/mot-de-passe-oublie/reinitialiser\?jeton=([0-9a-f]{64})#', $corpsHtml, $m),
-        );
+        if (1 !== preg_match('#/mot-de-passe-oublie/reinitialiser\?jeton=([0-9a-f]{64})#', $corpsHtml, $m)) {
+            self::fail('Lien de réinitialisation introuvable dans l\'email.');
+        }
 
         return (new GenerateurJeton())->empreinte($m[1]);
     }

@@ -103,13 +103,27 @@ final class MotDePasseOublieControllerTest extends WebTestCase
         }
 
         $client->setServerParameter('REMOTE_ADDR', $ip);
-        $this->soumettreDemande($client, 'artisan-limite@example.com');
+        $crawler = $client->request('GET', self::HOTE.'/mot-de-passe-oublie');
+        $formulaire = $crawler->selectButton('Envoyer le lien')->form();
+        $formulaire['email'] = 'artisan-limite@example.com';
+        $client->submit($formulaire);
 
         self::assertResponseStatusCodeSame(429);
     }
 
+    /**
+     * Soumet la demande depuis une IP au compteur remis à zéro : le stockage du
+     * rate limiter persiste sur disque entre les exécutions ; sans reset, les
+     * demandes s'accumuleraient et finiraient par renvoyer 429 (comme le test dédié).
+     */
     private function soumettreDemande(KernelBrowser $client, string $email): void
     {
+        $ip = $client->getServerParameter('REMOTE_ADDR', '127.0.0.1');
+        \assert(\is_string($ip));
+        $fabrique = self::getContainer()->get('limiter.mot_de_passe_oublie_ip');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $fabrique);
+        $fabrique->create($ip)->reset();
+
         $crawler = $client->request('GET', self::HOTE.'/mot-de-passe-oublie');
         $formulaire = $crawler->selectButton('Envoyer le lien')->form();
         $formulaire['email'] = $email;
@@ -119,7 +133,9 @@ final class MotDePasseOublieControllerTest extends WebTestCase
     private function lienDeReinitialisation(): string
     {
         $corps = $this->mailer()->envoyes()[0]->corpsHtml();
-        self::assertSame(1, preg_match('#(/mot-de-passe-oublie/reinitialiser\?jeton=[0-9a-f]{64})#', $corps, $m));
+        if (1 !== preg_match('#(/mot-de-passe-oublie/reinitialiser\?jeton=[0-9a-f]{64})#', $corps, $m)) {
+            self::fail('Lien de réinitialisation introuvable dans l\'email.');
+        }
 
         return self::HOTE.$m[1];
     }
