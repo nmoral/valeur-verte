@@ -9,6 +9,7 @@ use App\Notification\Email;
 use App\Notification\Mailer;
 use Doctrine\DBAL\Connection;
 use Psr\Clock\ClockInterface;
+use Twig\Environment;
 
 /**
  * Relance de fin d'essai (#108) : envoie une seule fois un email de rappel aux
@@ -26,6 +27,8 @@ final readonly class RelanceEssais
         private Mailer $mailer,
         private Connection $connexion,
         private ClockInterface $horloge,
+        private Environment $twig,
+        private string $appDomaine,
     ) {
     }
 
@@ -66,14 +69,11 @@ final readonly class RelanceEssais
 
     private function corps(EtatEssai $etat): string
     {
-        return \sprintf(
-            '<p>Bonjour,</p><p>Il vous reste <strong>%d jour%s</strong> et <strong>%d rapport%s</strong> '
-            .'sur votre essai Valeur Verte. Vos rapports déjà produits restent accessibles.</p>',
-            $etat->joursRestants(),
-            $etat->joursRestants() > 1 ? 's' : '',
-            $etat->rapportsRestants(),
-            $etat->rapportsRestants() > 1 ? 's' : '',
-        );
+        return $this->twig->render('email/relance_essai.html.twig', [
+            'joursRestants' => $etat->joursRestants(),
+            'rapportsRestants' => $etat->rapportsRestants(),
+            'lienEspace' => \sprintf('https://app.%s', $this->appDomaine),
+        ]);
     }
 
     private function emailDuTenant(int $tenantId): ?string
