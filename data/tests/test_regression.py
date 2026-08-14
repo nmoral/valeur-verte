@@ -210,6 +210,48 @@ def test_fit_ponderation_temporelle_rapproche_du_premium_recent() -> None:
     assert recent.coef_dpe["C"] > 0.12
 
 
+def _sample_premium_derivant_bruite() -> list[Mutation]:
+    """Comme ``_sample_premium_derivant`` mais avec un bruit multiplicatif ±8 %
+    déterministe : le fit n'est plus parfait (r² < 1), donc le r² **dépend** de la
+    pondération appliquée — permet de vérifier que le R² reflète bien le poids
+    temporel (champ diagnostique retourné, #208).
+    """
+    lignes: list[Mutation] = []
+    for annee, premium_c, insee in ((2023, 0.05, "31555"), (2024, 0.15, "31556")):
+        effets = {"D": 0.0, "F": -0.20, "C": premium_c}
+        for dpe, effet in effets.items():
+            for i, (bati, terrain) in enumerate(_SURFACES):
+                bruit = 1.08 if i % 2 == 0 else 0.92
+                prix = round(_prix_theorique(bati, terrain, effet) * bruit)
+                lignes.append(_house(dpe, bati, terrain, prix, insee=insee, year=annee))
+    return lignes
+
+
+def test_fit_ponderation_temporelle_influe_sur_le_r2() -> None:
+    # Le r² est mesuré sur l'objectif pondéré ; il doit refléter le poids temporel
+    # (sinon le diagnostic décrirait un autre estimateur que celui publié, #208).
+    sample = _sample_premium_derivant_bruite()
+    plat = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    recent = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=0.5,
+        annee_reference=2024,
+    )
+    assert recent.r2 != plat.r2
+
+
 def test_fit_exclut_le_bati_recent() -> None:
     recent = _house("F", 100, 300, 999_999, periode="1990-2000")
 

@@ -102,6 +102,44 @@ def test_compute_maille_ponderation_temporelle_rapproche_du_premium_recent() -> 
     assert recent.coef_dpe["C"] > plat.coef_dpe["C"]
 
 
+def _cluster_deux_annees_bruite(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Comme ``_cluster_deux_annees`` mais avec un bruit ±8 % déterministe : la CV
+    a alors une erreur médiane non nulle, sensible à la pondération temporelle.
+    """
+    houses: list[Mutation] = []
+    for annee, premium_c in ((2023, 0.05), (2024, 0.15)):
+        for dpe, effet in {"D": 0.0, "C": premium_c}.items():
+            for i in range(count_per_class):
+                bati = 80 + 5 * i
+                bruit = 1.08 if i % 2 == 0 else 0.92
+                prix = round(3000.0 * bati**0.9 * math.exp(effet) * bruit)
+                base = _house(dpe, bati, prix, lat=lat, lon=lon)
+                houses.append(
+                    replace(base, millesime=annee, id_mutation=f"{annee}-{base.id_mutation}")
+                )
+    return houses
+
+
+def test_compute_maille_ponderation_temporelle_atteint_l_erreur_mediane() -> None:
+    # La validation croisée (erreur médiane → palier de fiabilité) doit recevoir la
+    # pondération temporelle : sinon elle mesurerait un estimateur à poids égaux
+    # différent de celui publié (#208).
+    pool = _cluster_deux_annees_bruite(12, lat=43.6, lon=1.44)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    plat = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    recent = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, decroissance_temporelle_tau=0.5),
+    )
+    assert plat is not None and recent is not None
+    assert plat.erreur_mediane is not None and recent.erreur_mediane is not None
+    assert recent.erreur_mediane != plat.erreur_mediane
+
+
 def _pool_dpe_clairseme(
     *, lat: float = 43.6, lon: float = 1.44
 ) -> tuple[list[Mutation], list[Mutation], list[Mutation]]:
