@@ -105,6 +105,11 @@ jobs:
           POSTGRES_DB: valeur_verte
           DATA_IMAGE_TAG: ${{ github.sha }}
           APP_IMAGE_TAG: ${{ github.sha }}
+          # Configuration applicative (#105) : secret Symfony, mot de passe du rôle
+          # « app » (assemblé en DSN dans le compose) et clé Brevo.
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: |
           set -euo pipefail
           umask 077
@@ -127,12 +132,16 @@ jobs:
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/docker-compose.yml"
           scp -i ~/.ssh/deploiement deploiement.env \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/.env"
+          # Provisionnement idempotent du rôle applicatif « app », rejoué à chaque
+          # déploiement (crée le rôle, resynchronise son mot de passe, pose les droits).
+          scp -i ~/.ssh/deploiement infra/provisionner-app.sql \
+            "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/provisionner-app.sql"
           # Configuration du reverse proxy (Caddyfile + robots.txt), montée par le
           # service « caddy ». Sans elle, le proxy démarrerait sans sa config.
           scp -i ~/.ssh/deploiement -r infra/caddy \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/caddy"
 
-      - name: Tirer l'image et appliquer les migrations
+      - name: Tirer l'image, provisionner l'app et appliquer les migrations
         env:
           UTILISATEUR: ${{ secrets.SSH_USER }}
           HOTE: ${{ secrets.SSH_HOST }}
@@ -144,13 +153,21 @@ jobs:
           # job (expire à sa fin) plutôt qu'avec un PAT stocké sur le serveur.
           # Le jeton passe par stdin : dans la commande, il serait lisible par
           # tout utilisateur du VPS via « ps ».
+          # Les identifiants du rôle « app » (mot de passe, superutilisateur) sont
+          # lus depuis le .env déjà déposé sur le VPS (« \$… » : résolus côté VPS,
+          # jamais sur le runner). L'ordre est contraint : « migrate » crée le schéma
+          # « data » avant le provisionnement (qui pose les GRANT dessus), et l'app
+          # n'est démarrée puis migrée qu'une fois son rôle prêt.
           printf '%s' "$JETON_GHCR" | ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
             "docker login ghcr.io -u '$COMPTE_GHCR' --password-stdin \
              && cd '$REPERTOIRE_VPS' \
              && docker compose pull \
              && docker compose up -d db \
              && docker compose run --rm -T migrate \
+             && set -a && . ./.env && set +a \
+             && docker compose exec -T db psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v mot_de_passe=\"\$APP_DB_PASSWORD\" -v superutilisateur=\"\$POSTGRES_USER\" < provisionner-app.sql \
              && docker compose up -d app caddy \
+             && docker compose exec -T app php bin/console doctrine:migrations:migrate --no-interaction \
              && docker compose exec -T app php bin/console cache:clear --env=prod \
              && docker logout ghcr.io"
 

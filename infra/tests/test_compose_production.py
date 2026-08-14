@@ -214,6 +214,53 @@ def test_l_app_connait_son_domaine_de_production(compose_prod: dict[str, Any]) -
     )
 
 
+def _env_app(compose_prod: dict[str, Any]) -> dict[str, Any]:
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    return environnement
+
+
+def test_l_app_est_raccordee_a_sa_base(compose_prod: dict[str, Any]) -> None:
+    """Sans DATABASE_URL, l'app retombe sur le défaut de l'image (app@127.0.0.1) et
+    ne joint jamais la base : toute page qui touche la base tombe en 500. La DSN
+    doit être assemblée ici et exigée explicitement, jamais avec un repli."""
+    dsn = str(_env_app(compose_prod).get("DATABASE_URL", ""))
+    assert "@db:" in dsn, (
+        "L'app doit se connecter au service « db » (et non au 127.0.0.1 baké dans l'image)."
+    )
+    assert OBLIGATOIRE.search(dsn), (
+        "Le mot de passe du rôle « app » doit être exigé via ${APP_DB_PASSWORD:?…}."
+    )
+
+
+def test_l_app_porte_un_secret_applicatif(compose_prod: dict[str, Any]) -> None:
+    """APP_SECRET signe les jetons (vérification d'email #105, réinitialisation #194)
+    et protège le CSRF. Vide, l'app tourne sur un secret par défaut : à exiger."""
+    secret = str(_env_app(compose_prod).get("APP_SECRET", ""))
+    assert OBLIGATOIRE.search(secret), (
+        "APP_SECRET doit être exigé via ${APP_SECRET:?…} et rester hors du dépôt."
+    )
+
+
+def test_l_app_configure_les_urls_hors_contexte_http(compose_prod: dict[str, Any]) -> None:
+    """Les URLs générées hors requête HTTP (CLI, envois asynchrones) retombent sur
+    http://localhost sans DEFAULT_URI : elles doivent cibler le domaine de production."""
+    default_uri = str(_env_app(compose_prod).get("DEFAULT_URI", "")).strip()
+    assert default_uri and "localhost" not in default_uri, (
+        "Le service « app » doit définir DEFAULT_URI sur son domaine de production."
+    )
+
+
+def test_l_app_peut_envoyer_des_emails_transactionnels(compose_prod: dict[str, Any]) -> None:
+    """Sans clé Brevo, l'envoi d'email échoue (401). La clé est un secret : exigée
+    explicitement, jamais un littéral ni un repli."""
+    cle = str(_env_app(compose_prod).get("BREVO_API_KEY", ""))
+    assert OBLIGATOIRE.search(cle), (
+        "BREVO_API_KEY doit être exigé via ${BREVO_API_KEY:?…} et rester hors du dépôt."
+    )
+
+
 def test_l_app_attend_une_base_prete(compose_prod: dict[str, Any]) -> None:
     """L'app partage la base : démarrer avant qu'elle soit prête casse le premier accès."""
     app = services(compose_prod)["app"]
