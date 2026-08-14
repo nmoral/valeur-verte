@@ -26,6 +26,20 @@ class CompteRepository extends ServiceEntityRepository
         return $this->findOneBy(['tenantId' => $tenantId]);
     }
 
+    /**
+     * Comptes candidats fondateurs en attente de validation (#61), les plus
+     * anciens d'abord — l'éditeur les traite dans l'ordre d'arrivée.
+     *
+     * @return list<Compte>
+     */
+    public function enAttenteDeValidation(): array
+    {
+        return $this->findBy(
+            ['candidatureFondateur' => StatutCandidatureFondateur::EnAttente],
+            ['creeLe' => 'ASC', 'id' => 'ASC'],
+        );
+    }
+
     public function enregistrer(Compte $compte): void
     {
         $manager = $this->getEntityManager();
