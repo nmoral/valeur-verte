@@ -363,7 +363,7 @@ def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
     monkeypatch.setattr(
         orchestration,
         "compute_maille_epci",
-        lambda code, lat, lon, mil, membres, pool, config: maille_epci if code == "31555" else None,
+        lambda code, mil, membres, pool, config: maille_epci if code == "31555" else None,
     )
     ecrites: list[MailleCoefficient] = []
     monkeypatch.setattr(
@@ -378,35 +378,84 @@ def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
     assert rapport.refus == ["31149"]
 
 
-def test_une_commune_sans_local_ni_epci_bascule_au_departement(
+def test_le_cran_departemental_est_calcule_une_fois_et_partage(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """#169 cascade : dernier filet. Ni LOCAL ni EPCI publiable → la commune
-    descend au cran DÉPARTEMENT (avec bandes) avant de refuser. 31555 a un
-    départemental publiable ; 31149 non → refus.
+    """#175 : le cran DÉPARTEMENT est la **même** régression pour toutes les communes
+    du département (échantillon identique, pondération uniforme). On le calcule **une
+    seule fois** et on le réutilise (seul ``code_insee`` change), au lieu de refaire
+    fit + ``bandes_monotones`` par commune — le coût qui faisait exploser le 31.
     """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
-    monkeypatch.setattr(orchestration, "communes_de_meme_epci", lambda conn, code: ("31555",))
+    monkeypatch.setattr(orchestration, "communes_de_meme_epci", lambda conn, code: ())
     monkeypatch.setattr(orchestration, "compute_maille_epci", lambda *a, **k: None)
-    maille_dept = replace(
-        _maille_publiable("31555"), mode=CoverageMode.DEPARTEMENTAL, rayon_retenu_km=None
+
+    appels: list[str] = []
+    modele = replace(
+        _maille_publiable("XXX"), mode=CoverageMode.DEPARTEMENTAL, rayon_retenu_km=None
     )
-    monkeypatch.setattr(
-        orchestration,
-        "compute_maille_departement",
-        lambda code, lat, lon, mil, pool, config: maille_dept if code == "31555" else None,
-    )
+
+    def _departement(
+        code: str, millesime: int, pool: Sequence[Mutation], *, config: CalculConfig
+    ) -> MailleCoefficient:
+        appels.append(code)
+        return replace(modele, code_insee=code)
+
+    monkeypatch.setattr(orchestration, "compute_maille_departement", _departement)
     ecrites: list[MailleCoefficient] = []
     monkeypatch.setattr(
         orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
     )
 
-    rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == ["31555"]
-    assert ecrites[0].mode is CoverageMode.DEPARTEMENTAL
-    assert rapport.refus == ["31149"]
+    assert len(appels) == 1, "une seule régression départementale pour tout le département"
+    assert {m.code_insee for m in ecrites} == {"31555", "31149"}
+    assert all(m.mode is CoverageMode.DEPARTEMENTAL for m in ecrites)
+    # Coefficients partagés : seul code_insee diffère d'une commune à l'autre.
+    assert ecrites[0].coef_dpe == ecrites[1].coef_dpe
+    assert ecrites[0].coef_m2_bati == ecrites[1].coef_m2_bati
+
+
+def test_le_cran_epci_est_memoise_par_epci(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#175 : la régression EPCI est identique pour toutes les communes d'un même
+    EPCI. On la calcule **une fois par EPCI** et on la réutilise pour ses communes.
+    """
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
+    # Les deux communes appartiennent au même EPCI (même appartenance renvoyée).
+    monkeypatch.setattr(
+        orchestration, "communes_de_meme_epci", lambda conn, code: ("31555", "31149")
+    )
+
+    appels: list[tuple[str, ...]] = []
+    modele = replace(_maille_publiable("XXX"), mode=CoverageMode.EPCI, rayon_retenu_km=None)
+
+    def _epci(
+        code: str,
+        millesime: int,
+        membres: Sequence[str],
+        pool: Sequence[Mutation],
+        *,
+        config: CalculConfig,
+    ) -> MailleCoefficient:
+        appels.append(tuple(membres))
+        return replace(modele, code_insee=code)
+
+    monkeypatch.setattr(orchestration, "compute_maille_epci", _epci)
+    ecrites: list[MailleCoefficient] = []
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert len(appels) == 1, "une seule régression EPCI réutilisée pour ses deux communes"
+    assert {m.code_insee for m in ecrites} == {"31555", "31149"}
+    assert all(m.mode is CoverageMode.EPCI for m in ecrites)
 
 
 def test_une_maille_rejetee_efface_le_coefficient_anterieur(
