@@ -68,10 +68,42 @@ services:
       # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
       # proxy : « REMOTE_ADDR » le désigne sans dépendre de l'IP du conteneur Caddy.
       TRUSTED_PROXIES: REMOTE_ADDR
+      # Domaine de production : les zones de l'app vivent sur ses sous-domaines
+      # (app./admin./widget.). Sans cette variable, les routes restent sur le
+      # défaut de l'image (*.valeurverte.localhost) et tout *.valeur-verte.fr
+      # tombe en 404 derrière le proxy. Doit vivre ici (versionné) et non
+      # seulement sur le VPS, sinon chaque redéploiement fait retomber le site.
+      APP_DOMAINE: valeur-verte.fr
     # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
     # jamais directement sur Internet (même règle que la base).
     ports:
       - "127.0.0.1:8000:80"
 
+  # Reverse proxy (point d'entrée public unique) : termine TLS (certificats
+  # Let's Encrypt automatiques), redirige HTTP→HTTPS, gate le site par basic auth
+  # et bloque l'indexation (X-Robots-Tag + robots.txt) — voir caddy/Caddyfile.
+  # Le site n'est pas encore public : accès en preview protégé le temps du lancement.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    # Seul service exposé à Internet, et uniquement sur 80/443 (cf.
+    # test_compose_production.py). Le reste du compose reste sur le réseau interne.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Configuration téléversée par le workflow de déploiement (infra/caddy).
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/robots.txt:/etc/caddy/robots.txt:ro
+      # Certificats et état ACME : persistés pour survivre à une recréation du
+      # conteneur (sinon réémission à chaque déploiement → limites Let's Encrypt).
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   db_data:
+  caddy_data:
+  caddy_config:

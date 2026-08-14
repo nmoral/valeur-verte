@@ -155,3 +155,33 @@ def test_l_app_est_demarree_au_deploiement() -> None:
     assert "docker compose up -d app" in contenu, (
         "Le déploiement doit (re)démarrer le service « app » après les migrations."
     )
+
+
+def test_la_configuration_du_reverse_proxy_est_televersee() -> None:
+    """Le reverse proxy lit un Caddyfile (auth, noindex, TLS) monté depuis le VPS :
+    sans téléversement de « infra/caddy », il démarrerait sans sa configuration."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "infra/caddy" in contenu, (
+        "Le déploiement doit téléverser la configuration du reverse proxy (infra/caddy)."
+    )
+
+
+def test_le_cache_app_est_reconstruit_au_deploiement() -> None:
+    """L'image app est bâtie avec le domaine par défaut : son cache de routes cible
+    *.valeurverte.localhost. APP_DOMAINE n'agit qu'au runtime, or le cache de prod
+    n'est pas reconstruit tout seul → sans cache:clear au déploiement, tout
+    *.valeur-verte.fr tombe en 404. Le déploiement doit donc reconstruire le cache."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "cache:clear" in contenu or "cache:warmup" in contenu, (
+        "Le déploiement doit reconstruire le cache app (cache:clear) après avoir posé "
+        "APP_DOMAINE, sinon les routes restent sur le domaine de build (404)."
+    )
+
+
+def test_le_reverse_proxy_est_demarre_au_deploiement() -> None:
+    """Le point d'entrée public doit être (re)lancé au déploiement, sinon le site est
+    injoignable — et une nouvelle image app n'est servie qu'après relance du proxy."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"up -d [^\n&|]*\bcaddy\b", contenu), (
+        "Le déploiement doit démarrer le reverse proxy « caddy » (ex. « up -d app caddy »)."
+    )

@@ -1,0 +1,37 @@
+{
+	email admin@valeur-verte.fr
+}
+
+# www -> apex : une seule adresse canonique (sans www).
+www.valeur-verte.fr {
+	redir https://valeur-verte.fr{uri} permanent
+}
+
+# Point d'entrée public : TLS auto (Let's Encrypt), HTTP->HTTPS, basic auth + noindex,
+# puis proxy vers le conteneur app (HTTP interne). L'app route par sous-domaine
+# (app.=espace pro, admin.=admin interne, widget.=widget public) via APP_DOMAINE.
+valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte.fr {
+	encode zstd gzip
+
+	# Preview non public : interdire l'indexation (en plus du 401 basic auth).
+	header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+
+	# robots.txt servi sans auth (fichier monté) : interdiction totale.
+	@robots path /robots.txt
+	handle @robots {
+		header Content-Type "text/plain; charset=utf-8"
+		root * /etc/caddy
+		file_server
+	}
+
+	# Tout le reste : gate basic auth (équivalent htaccess) -> proxy vers app.
+	# Hash bcrypt inline (pas via env : Compose interpole les $ du hash et le casse).
+	# Gate de preview privé (mot de passe aléatoire fort, bcrypt coût 14) sur dépôt
+	# privé ; à déplacer vers un secret / à retirer à l'ouverture publique du site.
+	handle {
+		basic_auth {
+			vv $2a$14$derpNf6CMOrgDM6wNUrvCeiNX.LEB0YwtaQIFuEITRyEVJReE1dUW
+		}
+		reverse_proxy app:80
+	}
+}
