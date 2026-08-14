@@ -58,6 +58,11 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: prod
+      # Bascule maintenance (#197) : passe-plat depuis le .env du VPS pour couper
+      # en 503 (page habillée) sans redéployer. Volontairement sans « :? » : une
+      # variable absente laisse le service ouvert (défaut off dans le .env écrit
+      # par ecrire-env.sh), jamais fermé par accident. 1 = maintenance active.
+      APP_MAINTENANCE: ${APP_MAINTENANCE}
       # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
       # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
       # exiger explicitement, jamais de repli.
