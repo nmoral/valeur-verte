@@ -69,6 +69,9 @@ def test_defauts_sans_environnement() -> None:
     assert config.ecretage == "residu"
     assert config.ecretage_seuil_n == 100
     assert config.ecretage_k == 3.0
+    # Pondération temporelle décroissante (#208) : désactivée par défaut (None =
+    # poids égaux, comportement #177 exact). Opt-in par l'environnement.
+    assert config.decroissance_temporelle_tau is None
 
 
 def test_config_est_immuable() -> None:
@@ -110,6 +113,20 @@ def test_surcharge_fenetre_millesimes() -> None:
     # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans
     # le pool. La v1 se valide en fenêtre 3 avant d'en faire le défaut.
     assert resolve_config({"VV_MOTEUR_FENETRE_MILLESIMES": "3"}).fenetre_millesimes == 3
+
+
+def test_surcharge_decroissance_temporelle_tau() -> None:
+    # Pondération temporelle (#208) : τ (constante de temps) lu depuis l'env.
+    config = resolve_config({"VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU": "1.5"})
+    assert config.decroissance_temporelle_tau == 1.5
+
+
+def test_decroissance_temporelle_tau_vide_retombe_sur_none() -> None:
+    # Variable présente mais vide → défaut (désactivé), pas 0.0.
+    assert (
+        resolve_config({"VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU": ""}).decroissance_temporelle_tau
+        is None
+    )
 
 
 def test_surcharge_rayon_max() -> None:

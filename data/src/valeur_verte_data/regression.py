@@ -68,6 +68,22 @@ def gaussian_weight(distance_km: float, sigma_km: float = DEFAULT_SIGMA_KM) -> f
     return math.exp(-(distance_km**2) / (2 * sigma_km**2))
 
 
+def poids_temporel(anciennete_annees: float, tau: float | None) -> float:
+    """Poids temporel décroissant ``exp(-ancienneté / τ)`` (#208).
+
+    Multiplié au poids gaussien spatial, il fait peser **moins** les millésimes
+    anciens : le pooling d'une fenêtre glissante (#177) estime alors le premium DPE
+    plus près de l'année de référence N, corrigeant le biais de retard dû à la
+    dérive du premium (~+15 %/an). ``anciennete_annees = N − millésime`` (0 pour N).
+    ``τ`` est la constante de temps : à une ancienneté égale à τ le poids vaut
+    ``exp(-1)``. ``τ = None`` **désactive** la pondération (poids égaux, comportement
+    #177 exact) — c'est le défaut, garantissant la non-régression sans flottant.
+    """
+    if tau is None:
+        return 1.0
+    return math.exp(-anciennete_annees / tau)
+
+
 def is_pre_1989(periode: str | None) -> bool:
     """Vrai si la période de construction est **antérieure à 1989** (bâti ancien).
 
@@ -154,6 +170,9 @@ class _Model:
     voisins: int
     etendue_minimale: float
     avec_indice: bool
+    # Poids (gaussien × temporel #208) de chaque ligne d'apprentissage, mémorisés
+    # ici pour que le R² les réutilise sans recalcul (source unique de la pondération).
+    weights: NDArray[np.float64]
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
@@ -261,13 +280,32 @@ def _indice_local(
 
 
 def _weights(
-    rows: list[_Row], center_lat: float, center_lon: float, sigma_km: float
+    rows: list[_Row],
+    center_lat: float,
+    center_lon: float,
+    sigma_km: float,
+    *,
+    tau: float | None = None,
+    annee_reference: int | None = None,
 ) -> NDArray[np.float64]:
-    """Poids gaussien de chaque ligne, **vectorisé** (exp(-d²/2σ²))."""
+    """Poids de chaque ligne, **vectorisé** : gaussien spatial × temporel (#208).
+
+    Poids gaussien ``exp(-d²/2σ²)`` seul par défaut. Si ``tau`` et
+    ``annee_reference`` sont fournis, il est multiplié par le poids temporel
+    décroissant ``exp(-(N − millésime)/τ)`` (cf. ``poids_temporel``) qui fait
+    peser moins les millésimes anciens. ``tau=None`` ⇒ poids gaussien inchangé
+    (non-régression #177 exacte, sans opération flottante superflue).
+    """
     lats = np.array([row.lat for row in rows], dtype=np.float64)
     lons = np.array([row.lon for row in rows], dtype=np.float64)
     distances = distances_km(center_lat, center_lon, lats, lons)
-    return np.asarray(np.exp(-(distances**2) / (2.0 * sigma_km**2)), dtype=np.float64)
+    spatial = np.asarray(np.exp(-(distances**2) / (2.0 * sigma_km**2)), dtype=np.float64)
+    if tau is None or annee_reference is None:
+        return spatial
+    annees = np.array([float(row.annee) for row in rows], dtype=np.float64)
+    anciennete = annee_reference - annees
+    temporel = np.exp(-anciennete / tau)
+    return np.asarray(spatial * temporel, dtype=np.float64)
 
 
 def _fit_model(
@@ -281,6 +319,8 @@ def _fit_model(
     etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
     avec_commune: bool = True,
     avec_indice: bool = True,
+    tau: float | None = None,
+    annee_reference: int | None = None,
 ) -> _Model:
     """Ajuste le modèle pondéré et renvoie ``beta`` + la structure de colonnes."""
     columns = _build_columns(rows, reference_dpe, avec_commune=avec_commune)
@@ -288,7 +328,10 @@ def _fit_model(
         rows, columns, voisins=voisins, etendue_minimale=etendue_minimale, avec_indice=avec_indice
     )
     y = np.log(np.array([row.prix for row in rows], dtype=float))
-    sqrt_w = np.sqrt(_weights(rows, center_lat, center_lon, sigma_km))
+    weights = _weights(
+        rows, center_lat, center_lon, sigma_km, tau=tau, annee_reference=annee_reference
+    )
+    sqrt_w = np.sqrt(weights)
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
     return _Model(
         beta=beta,
@@ -297,6 +340,7 @@ def _fit_model(
         voisins=voisins,
         etendue_minimale=etendue_minimale,
         avec_indice=avec_indice,
+        weights=weights,
     )
 
 
@@ -328,8 +372,15 @@ def fit(
     restreindre_bati_ancien: bool = True,
     effets_fixes_commune: bool = True,
     indice_local: bool = True,
+    decroissance_temporelle_tau: float | None = None,
+    annee_reference: int | None = None,
 ) -> RegressionResult:
-    """Estime les coefficients DPE par moindres carrés pondérés (§5.2)."""
+    """Estime les coefficients DPE par moindres carrés pondérés (§5.2).
+
+    ``decroissance_temporelle_tau`` (#208) applique un poids temporel décroissant
+    (avec ``annee_reference`` = millésime N) qui rapproche l'estimation du premium
+    DPE de l'année récente. ``None`` (défaut) ⇒ poids égaux (comportement #177).
+    """
     rows = _eligible(sample, restreindre_bati_ancien=restreindre_bati_ancien)
     n = len(rows)
     if n == 0:
@@ -345,10 +396,14 @@ def fit(
         etendue_minimale=etendue_minimale_indice,
         avec_commune=effets_fixes_commune,
         avec_indice=indice_local,
+        tau=decroissance_temporelle_tau,
+        annee_reference=annee_reference,
     )
-    # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
+    # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme, avec
+    # la **même** pondération que le fit (poids mémorisés dans le modèle — source
+    # unique, pas de recalcul ni de risque de divergence spatial/temporel).
     y = np.log(np.array([row.prix for row in rows], dtype=float))
-    weights = _weights(rows, center_lat, center_lon, sigma_km)
+    weights = model.weights
 
     # Colonnes fixes : const, log(bâti), log1p(terrain), [log(indice)]. Les DPE
     # commencent après, donc leur position dépend de la présence de l'indice.

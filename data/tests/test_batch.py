@@ -63,6 +63,83 @@ def _cluster_commune(
     ]
 
 
+def _cluster_deux_annees(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Pool LOCAL sur 2 millésimes où le premium C dérive (2023 +0,05 → 2024 +0,15).
+
+    Le niveau de prix de base est identique d'une année à l'autre (effets fixes
+    année neutres) ; seul l'écart C→D bouge. Un calcul à poids égaux estime
+    coef_C ≈ moyenne (~+0,10), la pondération temporelle vers 2024 le rapproche
+    de +0,15 (#208). ``id_mutation`` préfixé par l'année pour rester unique.
+    """
+    houses: list[Mutation] = []
+    for annee, premium_c in ((2023, 0.05), (2024, 0.15)):
+        for dpe, effet in {"D": 0.0, "C": premium_c}.items():
+            for i in range(count_per_class):
+                bati = 80 + 5 * i
+                prix = round(3000.0 * bati**0.9 * math.exp(effet))
+                base = _house(dpe, bati, prix, lat=lat, lon=lon)
+                houses.append(
+                    replace(base, millesime=annee, id_mutation=f"{annee}-{base.id_mutation}")
+                )
+    return houses
+
+
+def test_compute_maille_ponderation_temporelle_rapproche_du_premium_recent() -> None:
+    # La décroissance temporelle (#208) rapproche coef_C du premium de l'année N
+    # (2024, +0,15) au lieu de la moyenne inter-année (~+0,10) : biais de retard réduit.
+    pool = _cluster_deux_annees(10, lat=43.6, lon=1.44)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    plat = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    recent = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, decroissance_temporelle_tau=0.5),
+    )
+    assert plat is not None and recent is not None
+    assert recent.coef_dpe["C"] > plat.coef_dpe["C"]
+
+
+def _cluster_deux_annees_bruite(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Comme ``_cluster_deux_annees`` mais avec un bruit ±8 % déterministe : la CV
+    a alors une erreur médiane non nulle, sensible à la pondération temporelle.
+    """
+    houses: list[Mutation] = []
+    for annee, premium_c in ((2023, 0.05), (2024, 0.15)):
+        for dpe, effet in {"D": 0.0, "C": premium_c}.items():
+            for i in range(count_per_class):
+                bati = 80 + 5 * i
+                bruit = 1.08 if i % 2 == 0 else 0.92
+                prix = round(3000.0 * bati**0.9 * math.exp(effet) * bruit)
+                base = _house(dpe, bati, prix, lat=lat, lon=lon)
+                houses.append(
+                    replace(base, millesime=annee, id_mutation=f"{annee}-{base.id_mutation}")
+                )
+    return houses
+
+
+def test_compute_maille_ponderation_temporelle_atteint_l_erreur_mediane() -> None:
+    # La validation croisée (erreur médiane → palier de fiabilité) doit recevoir la
+    # pondération temporelle : sinon elle mesurerait un estimateur à poids égaux
+    # différent de celui publié (#208).
+    pool = _cluster_deux_annees_bruite(12, lat=43.6, lon=1.44)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    plat = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    recent = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, decroissance_temporelle_tau=0.5),
+    )
+    assert plat is not None and recent is not None
+    assert plat.erreur_mediane is not None and recent.erreur_mediane is not None
+    assert recent.erreur_mediane != plat.erreur_mediane
+
+
 def _pool_dpe_clairseme(
     *, lat: float = 43.6, lon: float = 1.44
 ) -> tuple[list[Mutation], list[Mutation], list[Mutation]]:
