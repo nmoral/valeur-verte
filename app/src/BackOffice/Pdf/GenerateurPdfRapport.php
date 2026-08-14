@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\BackOffice\Pdf;
 
 use App\BackOffice\Audit\SaisieAudit;
+use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Rapport\InstantaneRapport;
 use App\BackOffice\Restitution\AjustementProfessionnel;
@@ -38,6 +39,7 @@ final readonly class GenerateurPdfRapport
             $instantane->branding(),
             $instantane->reference(),
             $ajustement,
+            $instantane->bouquet(),
         );
     }
 
@@ -47,6 +49,7 @@ final readonly class GenerateurPdfRapport
         Branding $branding,
         ReferenceRapport $reference,
         ?AjustementProfessionnel $ajustement = null,
+        ?Bouquet $bouquet = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
@@ -56,6 +59,7 @@ final readonly class GenerateurPdfRapport
             'avertissements' => $saisie->avertissements(),
             // L'ajustement du pro (#30) n'a de sens qu'adossé à une mesure.
             'ajustement' => null !== $restitution ? $ajustement : null,
+            'bouquet' => $bouquet,
         ]);
 
         return $this->convertisseur->depuisHtml($html);

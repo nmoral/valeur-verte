@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\BackOffice\Rapport;
 
 use App\BackOffice\Audit\SaisieAudit;
+use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\BrandingRepository;
 use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Pdf\GenerateurReferenceRapport;
@@ -27,7 +28,7 @@ final readonly class ArchiveurRapport
     ) {
     }
 
-    public function archiver(SaisieAudit $saisie, ?Restitution $restitution, ?ContexteCalcul $contexte): Rapport
+    public function archiver(SaisieAudit $saisie, ?Restitution $restitution, ?ContexteCalcul $contexte, ?Bouquet $bouquet = null): Rapport
     {
         $reference = $this->references->generer();
 
@@ -38,6 +39,7 @@ final readonly class ArchiveurRapport
             $this->brandings->courant(),
             $reference,
             new \DateTimeImmutable(),
+            $bouquet,
         );
 
         $rapport = Rapport::creer(

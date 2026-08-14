@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\BackOffice\Rapport;
 
 use App\BackOffice\Audit\SaisieAudit;
+use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\Couleur;
 use App\BackOffice\Estimation\ContexteCalcul;
+use App\BackOffice\GrilleCout\Poste;
 use App\BackOffice\Pdf\ReferenceRapport;
 use App\BackOffice\Restitution\Restitution;
 
@@ -31,6 +33,7 @@ final readonly class InstantaneRapport
         private Branding $branding,
         private ReferenceRapport $reference,
         private \DateTimeImmutable $genereLe,
+        private ?Bouquet $bouquet = null,
     ) {
     }
 
@@ -41,8 +44,9 @@ final readonly class InstantaneRapport
         Branding $branding,
         ReferenceRapport $reference,
         \DateTimeImmutable $genereLe,
+        ?Bouquet $bouquet = null,
     ): self {
-        return new self($saisie, $restitution, $contexte, $branding, $reference, $genereLe);
+        return new self($saisie, $restitution, $contexte, $branding, $reference, $genereLe, $bouquet);
     }
 
     /**
@@ -59,6 +63,7 @@ final readonly class InstantaneRapport
             self::brandingDepuis(self::sousTableau($donnees['marque'])),
             ReferenceRapport::depuis(self::texte($donnees['reference'])),
             new \DateTimeImmutable(self::texte($donnees['genere_le'])),
+            self::bouquetDepuis($donnees['bouquet'] ?? null),
         );
     }
 
@@ -90,6 +95,11 @@ final readonly class InstantaneRapport
     public function genereLe(): \DateTimeImmutable
     {
         return $this->genereLe;
+    }
+
+    public function bouquet(): ?Bouquet
+    {
+        return $this->bouquet;
     }
 
     /**
@@ -126,6 +136,10 @@ final readonly class InstantaneRapport
                 'telephone' => $this->branding->telephone(),
                 'mentions_legales' => $this->branding->mentionsLegales(),
                 'logo_url' => $this->branding->logoUrl(),
+            ],
+            'bouquet' => null === $this->bouquet ? null : [
+                'nom' => $this->bouquet->nom(),
+                'postes' => array_map(static fn (Poste $poste): string => $poste->name, $this->bouquet->postes()),
             ],
         ];
     }
@@ -211,6 +225,34 @@ final readonly class InstantaneRapport
             'coef_dpe_apres' => 0 + $calcul['coef_dpe_apres'],
             'erreur_mediane' => 0 + $calcul['erreur_mediane'],
         ];
+    }
+
+    private static function bouquetDepuis(mixed $bouquet): ?Bouquet
+    {
+        if (null === $bouquet) {
+            return null;
+        }
+
+        $bouquet = self::sousTableau($bouquet);
+        $postes = $bouquet['postes'];
+        \assert(\is_array($postes));
+
+        return Bouquet::creer(
+            self::texte($bouquet['nom']),
+            ...array_map(self::posteDepuis(...), array_values($postes)),
+        );
+    }
+
+    private static function posteDepuis(mixed $nom): Poste
+    {
+        \assert(\is_string($nom));
+        foreach (Poste::cases() as $poste) {
+            if ($poste->name === $nom) {
+                return $poste;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('Poste inconnu : %s.', $nom));
     }
 
     private static function texte(mixed $valeur): string

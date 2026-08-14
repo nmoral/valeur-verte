@@ -45,6 +45,16 @@ final readonly class Bouquet
         return new self("Rénovation d'ampleur standard", Poste::cases());
     }
 
+    public static function isolationSeule(): self
+    {
+        return self::creer('Isolation seule', Poste::Murs, Poste::Combles, Poste::PlanchersBas, Poste::Menuiseries);
+    }
+
+    public static function chauffageSeul(): self
+    {
+        return self::creer('Chauffage seul', Poste::Chauffage, Poste::Ecs, Poste::Vmc);
+    }
+
     public function nom(): string
     {
         return $this->nom;

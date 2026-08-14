@@ -31,6 +31,10 @@
     .stat + .stat{border-left:1px solid var(--rule)}
     .stat-k{display:block;font:12px/1.3 'Public Sans',sans-serif;color:var(--mute);margin-bottom:3px}
     .stat-v{font:500 18px/1.2 'Public Sans',sans-serif;color:var(--ink)}
+    .resultat-bouquet{padding:14px 24px;border-top:1px solid var(--rule)}
+    .resultat-bouquet-k{display:block;font:12px/1.3 'Public Sans',sans-serif;color:var(--mute);margin-bottom:3px}
+    .resultat-bouquet-nom{font:500 16px/1.3 'Public Sans',sans-serif;color:var(--ink)}
+    .resultat-bouquet-postes{display:block;font:12.5px/1.5 'Public Sans',sans-serif;color:var(--slate);margin-top:2px}
     .resultat-prix{text-align:center;padding:16px 24px;font:14px/1.5 'Public Sans',sans-serif;color:var(--slate);margin:0}
     .resultat-prix strong{color:var(--ink);font-weight:500}
     .resultat-prix .origine{color:var(--mute)}
@@ -73,6 +77,14 @@
             <span class="dpe d-{{ saisie.dpeApres.value|lower }}">{{ saisie.dpeApres.value }}</span>
         </div>
     </div>
+
+    {% if bouquet %}
+        <div class="resultat-bouquet">
+            <span class="resultat-bouquet-k">Travaux retenus</span>
+            <span class="resultat-bouquet-nom">{{ bouquet.nom }}</span>
+            <span class="resultat-bouquet-postes">{% for poste in bouquet.postes %}{{ poste.libelle }}{{ not loop.last ? ' · ' }}{% endfor %}</span>
+        </div>
+    {% endif %}
 
     {% for avertissement in avertissements %}
         <p class="banner banner-warn resultat-indispo" role="alert">{{ avertissement }}</p>
