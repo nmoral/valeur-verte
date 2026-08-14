@@ -13,6 +13,7 @@ from valeur_verte_data.regression import (
     fit,
     gaussian_weight,
     is_pre_1989,
+    poids_temporel,
 )
 
 _SURFACES = ((80, 200), (100, 300), (120, 500))
@@ -84,6 +85,28 @@ def test_gaussian_weight_decroit_avec_la_distance() -> None:
 
 def test_gaussian_weight_a_un_sigma_vaut_exp_moins_un_demi() -> None:
     assert round(gaussian_weight(10.0, sigma_km=10.0), 6) == round(math.exp(-0.5), 6)
+
+
+def test_poids_temporel_desactive_vaut_un() -> None:
+    # τ absent (None) = pondération temporelle désactivée : poids égaux (#177),
+    # non-régression exacte quel que soit l'âge de la vente (#208).
+    assert poids_temporel(0.0, None) == 1.0
+    assert poids_temporel(5.0, None) == 1.0
+
+
+def test_poids_temporel_maximal_a_anciennete_nulle() -> None:
+    # Le millésime de référence N (ancienneté 0) garde son poids plein.
+    assert poids_temporel(0.0, 1.0) == 1.0
+
+
+def test_poids_temporel_decroit_avec_anciennete() -> None:
+    # Plus une vente est ancienne, moins elle pèse (biais de retard réduit, #208).
+    assert poids_temporel(2.0, 1.0) < poids_temporel(1.0, 1.0) < 1.0
+
+
+def test_poids_temporel_a_une_constante_de_temps_vaut_exp_moins_un() -> None:
+    # À une ancienneté égale à τ, le poids vaut exp(-1) (définition de τ).
+    assert round(poids_temporel(3.0, 3.0), 6) == round(math.exp(-1.0), 6)
 
 
 def test_is_pre_1989_reconnait_le_bati_ancien() -> None:
