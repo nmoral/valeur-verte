@@ -55,6 +55,21 @@ final readonly class Bouquet
         return self::creer('Chauffage seul', Poste::Chauffage, Poste::Ecs, Poste::Vmc);
     }
 
+    /**
+     * Catalogue des bouquets types proposés par défaut (§9.2). Sert de base à la
+     * configuration d'un nouveau compte comme de repli tant que rien n'est configuré.
+     *
+     * @return list<self>
+     */
+    public static function typesParDefaut(): array
+    {
+        return [
+            self::renovationAmpleurStandard(),
+            self::isolationSeule(),
+            self::chauffageSeul(),
+        ];
+    }
+
     public function nom(): string
     {
         return $this->nom;

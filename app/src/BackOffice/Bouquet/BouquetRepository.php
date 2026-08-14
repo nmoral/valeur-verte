@@ -71,14 +71,26 @@ class BouquetRepository extends ServiceEntityRepository
     }
 
     /**
+     * Matérialise des bouquets pour un tenant donné, tenant attribué
+     * **explicitement** : au provisionnement d'un compte, le contexte tenant
+     * n'est pas encore posé (cf. EnregistreurFicheEntreprise).
+     */
+    public function provisionner(int $tenantId, Bouquet ...$bouquets): void
+    {
+        $manager = $this->getEntityManager();
+        foreach ($bouquets as $bouquet) {
+            $enregistre = BouquetEnregistre::depuis($bouquet);
+            $enregistre->setTenantId($tenantId);
+            $manager->persist($enregistre);
+        }
+        $manager->flush();
+    }
+
+    /**
      * @return list<Bouquet>
      */
     private static function defauts(): array
     {
-        return [
-            Bouquet::renovationAmpleurStandard(),
-            Bouquet::isolationSeule(),
-            Bouquet::chauffageSeul(),
-        ];
+        return Bouquet::typesParDefaut();
     }
 }
