@@ -14,6 +14,7 @@ use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Estimation\ResultatEstimation;
 use App\BackOffice\Rapport\ArchiveurRapport;
 use App\BackOffice\Rapport\Dpe;
+use App\Compte\SuiviCompte;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,12 +37,19 @@ final class AuditController extends AbstractController
         private readonly EstimateurValeurVerte $estimateur,
         private readonly ArchiveurRapport $archiveur,
         private readonly BouquetRepository $bouquets,
+        private readonly SuiviCompte $suivi,
     ) {
     }
 
     #[Route('/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
+        // Essai terminé (quota consommé OU période écoulée, #108) : la création
+        // d'audit est fermée, on renvoie vers l'écran de bilan (la bascule).
+        if ($this->suivi->essaiCourant()?->termine() ?? false) {
+            return $this->redirectToRoute('back_office_bilan');
+        }
+
         if ($request->isMethod('POST')) {
             return $this->traiter($request);
         }

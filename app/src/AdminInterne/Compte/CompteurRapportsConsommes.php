@@ -27,6 +27,18 @@ final readonly class CompteurRapportsConsommes
     }
 
     /**
+     * Contacts capturés (leads) du compte : rapports porteurs d'un contact. Même
+     * source que le compteur de rapports — le bilan d'usage (#108) en dérive.
+     */
+    public function contactsCaptures(int $tenantId): int
+    {
+        return self::entier($this->connexion->fetchOne(
+            'SELECT count(*) FROM rapport WHERE tenant_id = :tenant AND contact_nom IS NOT NULL',
+            ['tenant' => $tenantId],
+        ));
+    }
+
+    /**
      * Nombre de rapports par tenant, les comptes sans rapport n'y figurant pas.
      *
      * @return array<int, int>

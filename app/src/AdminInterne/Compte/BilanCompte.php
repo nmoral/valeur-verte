@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\AdminInterne\Compte;
 
+use App\Compte\EtatEssai;
+use App\Compte\Formule;
+
 /**
  * Ligne de la vue de pilotage des comptes (#47) : identité du compte, date de
- * création, et statut d'essai (qui porte le compteur de rapports consommés).
+ * création, formule et état d'essai (rapports/jours restants, temps ET quota).
+ * Restitution côté éditeur du même modèle que le suivi artisan (#108).
  */
 final readonly class BilanCompte
 {
@@ -14,7 +18,8 @@ final readonly class BilanCompte
         private int $tenantId,
         private string $identite,
         private \DateTimeImmutable $creeLe,
-        private StatutEssai $statut,
+        private Formule $formule,
+        private EtatEssai $essai,
     ) {
     }
 
@@ -33,13 +38,13 @@ final readonly class BilanCompte
         return $this->creeLe;
     }
 
-    public function statut(): StatutEssai
+    public function formule(): Formule
     {
-        return $this->statut;
+        return $this->formule;
     }
 
-    public function rapportsConsommes(): int
+    public function essai(): EtatEssai
     {
-        return $this->statut->rapportsConsommes();
+        return $this->essai;
     }
 }

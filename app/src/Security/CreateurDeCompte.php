@@ -6,6 +6,8 @@ namespace App\Security;
 
 use App\BackOffice\Entreprise\EnregistreurFicheEntreprise;
 use App\BackOffice\Entreprise\Siret;
+use App\Compte\Compte;
+use App\Compte\CompteRepository;
 use App\Tenant\ProvisionneurCompte;
 use App\Tenant\TenantRepository;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -23,6 +25,7 @@ final class CreateurDeCompte
         private readonly TenantRepository $tenants,
         private readonly EnregistreurFicheEntreprise $fichesEntreprise,
         private readonly ProvisionneurCompte $provisionneur,
+        private readonly CompteRepository $comptes,
     ) {
     }
 
@@ -35,8 +38,13 @@ final class CreateurDeCompte
             throw new EmailDejaUtilise($email);
         }
 
-        $tenantId = $this->tenants->nouveau()->id();
+        $tenant = $this->tenants->nouveau();
+        $tenantId = $tenant->id();
         \assert(null !== $tenantId);
+
+        // Agrégat compte (#61) : porteur de la formule et des droits d'essai,
+        // distinct de l'utilisateur. Classique + candidature fondateur en attente.
+        $this->comptes->enregistrer(Compte::creer($tenantId, $tenant->creeLe()));
 
         $user = new User($email, ['ROLE_PRO']);
         $user->rattacherAuTenant($tenantId);
