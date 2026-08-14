@@ -7,6 +7,7 @@ namespace App\BackOffice\Pdf;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Rapport\InstantaneRapport;
+use App\BackOffice\Restitution\AjustementProfessionnel;
 use App\BackOffice\Restitution\Restitution;
 use Twig\Environment;
 
@@ -29,13 +30,14 @@ final readonly class GenerateurPdfRapport
      * Régénère le PDF depuis l'instantané immuable (#33) : reproductibilité à
      * l'identique, sans jamais recalculer.
      */
-    public function depuisInstantane(InstantaneRapport $instantane): string
+    public function depuisInstantane(InstantaneRapport $instantane, ?AjustementProfessionnel $ajustement = null): string
     {
         return $this->generer(
             $instantane->saisie(),
             $instantane->restitution(),
             $instantane->branding(),
             $instantane->reference(),
+            $ajustement,
         );
     }
 
@@ -44,6 +46,7 @@ final readonly class GenerateurPdfRapport
         ?Restitution $restitution,
         Branding $branding,
         ReferenceRapport $reference,
+        ?AjustementProfessionnel $ajustement = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
@@ -51,6 +54,8 @@ final readonly class GenerateurPdfRapport
             'branding' => $branding,
             'reference' => $reference->valeur(),
             'avertissements' => $saisie->avertissements(),
+            // L'ajustement du pro (#30) n'a de sens qu'adossé à une mesure.
+            'ajustement' => null !== $restitution ? $ajustement : null,
         ]);
 
         return $this->convertisseur->depuisHtml($html);

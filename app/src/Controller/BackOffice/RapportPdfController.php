@@ -33,7 +33,7 @@ final class RapportPdfController extends AbstractController
             throw $this->createNotFoundException('Rapport introuvable.');
         }
 
-        $pdf = $this->generateur->depuisInstantane($rapport->instantane());
+        $pdf = $this->generateur->depuisInstantane($rapport->instantane(), $rapport->ajustement());
 
         $disposition = HeaderUtils::makeDisposition(
             HeaderUtils::DISPOSITION_ATTACHMENT,

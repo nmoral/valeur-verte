@@ -35,6 +35,24 @@
     .resultat-prix strong{color:var(--ink);font-weight:500}
     .resultat-prix .origine{color:var(--mute)}
     .resultat-indispo{margin:24px}
+    .ajustement{border-top:1px solid var(--rule);padding:18px 24px}
+    .ajustement-lignes{width:100%;border-collapse:collapse;margin-bottom:4px}
+    .ajustement-lignes td{padding:9px 0;font:14px/1.4 'Public Sans',sans-serif;color:var(--slate);vertical-align:baseline}
+    .ajustement-lignes td.montant{text-align:right;font:500 15px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);white-space:nowrap;padding-left:20px}
+    .ajustement-lignes .mesure td{border-bottom:1px solid var(--rule)}
+    .ajustement-lignes .ajust td{color:var(--mute)}
+    .ajustement-lignes .retenue td{border-top:2px solid var(--ink);font-weight:500;color:var(--ink);padding-top:11px}
+    .ajustement-lignes .retenue td.montant{font-size:18px;color:var(--brand)}
+    .ajustement-motif{color:var(--mute)}
+    .ajustement-form{margin-top:6px}
+    .ajustement-form summary{cursor:pointer;font:500 14px/1.4 'Public Sans',sans-serif;color:var(--slate)}
+    .ajustement-form .champs{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+    .ajustement-form label{display:block;font:12px/1.3 'Public Sans',sans-serif;color:var(--mute);margin-bottom:4px}
+    .ajustement-form input,.ajustement-form textarea{font:14px/1.4 'Public Sans',sans-serif;border:1px solid var(--rule);border-radius:6px;padding:8px 10px}
+    .ajustement-form .motif-champ{flex:1;min-width:220px}
+    .ajustement-form .motif-champ input{width:100%}
+    .ajustement-erreur{color:var(--danger);font:13px/1.4 'Public Sans',sans-serif;margin:0 0 10px}
+    .ajustement-note{color:var(--mute);font:12px/1.5 'Public Sans',sans-serif;margin:10px 0 0}
     .resultat-actions{display:flex;gap:10px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule)}
     .btn[disabled]{opacity:.55;cursor:not-allowed}
     .btn .soon{margin-left:8px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
@@ -84,6 +102,45 @@
         </div>
 
         <p class="resultat-prix">Prix de base&nbsp;: <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong> <span class="origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
+
+        <div class="ajustement">
+            {% if ajustement %}
+                <table class="ajustement-lignes">
+                    <tr class="mesure">
+                        <td>Valeur verte mesurée <span class="ajustement-motif">({{ saisie.dpeAvant.value }}→{{ saisie.dpeApres.value }}, {{ restitution.n|number_format(0, ',', ' ') }} ventes, {{ restitution.rayonKm ? 'rayon ' ~ restitution.rayonKm ~ ' km' : 'départemental' }})</span></td>
+                        <td class="montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</td>
+                    </tr>
+                    <tr class="ajust">
+                        <td>Ajustement du professionnel <span class="ajustement-motif">— {{ ajustement.motif }}</span></td>
+                        <td class="montant">{{ ajustement.montantEuros < 0 ? '−' : '+' }}{{ ajustement.montantEuros|abs|number_format(0, ',', ' ') }} €</td>
+                    </tr>
+                    <tr class="retenue">
+                        <td>Estimation retenue</td>
+                        <td class="montant">+{{ ajustement.estimationRetenue(restitution.montantEuros)|number_format(0, ',', ' ') }} €</td>
+                    </tr>
+                </table>
+                <p class="ajustement-note">Notre mesure reste affichée intacte. L'ajustement, sous votre responsabilité, est attribué au professionnel dans le PDF.</p>
+            {% endif %}
+
+            <details class="ajustement-form"{% if erreur_ajustement %} open{% endif %}>
+                <summary>{{ ajustement ? 'Modifier l’ajustement' : 'Ajouter un ajustement du professionnel' }}</summary>
+                {% if erreur_ajustement %}<p class="ajustement-erreur" role="alert">{{ erreur_ajustement }}</p>{% endif %}
+                <form method="post" action="{{ path('back_office_audit_resultat') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('ajustement') }}">
+                    <div class="champs">
+                        <div>
+                            <label for="ajustement_montant">Montant (négatif ou positif)</label>
+                            <input type="number" id="ajustement_montant" name="montant" step="1" value="{{ montant_saisi ?? (ajustement ? ajustement.montantEuros) }}" required>
+                        </div>
+                        <div class="motif-champ">
+                            <label for="ajustement_motif">Motif (obligatoire)</label>
+                            <input type="text" id="ajustement_motif" name="motif" value="{{ motif_saisi ?? (ajustement ? ajustement.motif) }}" maxlength="255" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm">Appliquer</button>
+                    </div>
+                </form>
+            </details>
+        </div>
     {% else %}
         <p class="banner banner-warn banner-indisponible resultat-indispo" role="alert">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes). La saisie reste enregistrée.</p>
     {% endif %}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Rapport;
 
+use App\BackOffice\Restitution\AjustementProfessionnel;
 use App\Tenant\TenantAwareInterface;
 use App\Tenant\TenantAwareTrait;
 use Doctrine\DBAL\Types\Types;
@@ -60,6 +61,17 @@ class Rapport implements TenantAwareInterface
      */
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     private array $instantane;
+
+    /**
+     * Ligne d'ajustement du professionnel (#30, §4), dans un champ **distinct**
+     * de l'instantané figé : l'ajustement est l'annotation propre au pro, jamais
+     * une surcharge de la mesure. Mutable (le pro pose sa ligne après coup), là où
+     * l'instantané statistique, lui, reste immuable (#33).
+     *
+     * @var array{montant_euros: int, motif: string}|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    private ?array $ajustement = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $contactNom;
@@ -174,5 +186,23 @@ class Rapport implements TenantAwareInterface
     public function estUnLead(): bool
     {
         return null !== $this->contactNom;
+    }
+
+    /**
+     * Pose (ou remplace) la ligne d'ajustement du pro (#30). N'écrit que le champ
+     * dédié : la mesure statistique figée dans l'instantané reste intacte.
+     */
+    public function ajusterPar(AjustementProfessionnel $ajustement): void
+    {
+        $this->ajustement = $ajustement->toArray();
+    }
+
+    public function ajustement(): ?AjustementProfessionnel
+    {
+        if (null === $this->ajustement) {
+            return null;
+        }
+
+        return AjustementProfessionnel::fromArray($this->ajustement);
     }
 }
