@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Security\MotDePasseOublie;
 
+use App\AdminInterne\JournalAudit\EvenementAudit;
+use App\AdminInterne\JournalAudit\JournalAuditDoctrine;
 use App\Security\MotDePasseOublie\DemandeReinitialisation;
 use App\Security\MotDePasseOublie\GenerateurJeton;
 use App\Security\MotDePasseOublie\JetonReinitialisationRepository;
 use App\Security\User;
 use App\Security\UserRepository;
 use App\Tests\Notification\Double\MailerEnMemoire;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -45,6 +48,20 @@ final class DemandeReinitialisationTest extends KernelTestCase
         $this->demande()->pour('inconnu@example.com');
 
         self::assertCount(0, $this->mailer()->envoyes());
+    }
+
+    public function testUneDemandePourUnCompteExistantEstTraceeAuJournalDAudit(): void
+    {
+        self::bootKernel();
+        $this->seedUser('artisan-journal@example.com');
+
+        $this->demande()->pour('artisan-journal@example.com');
+
+        $actions = array_map(
+            static fn ($evenement) => $evenement->action(),
+            $this->journal()->evenementsRecents(),
+        );
+        self::assertContains('mot_de_passe.demande_reinitialisation', $actions);
     }
 
     public function testUneNouvelleDemandeInvalideLeJetonPrecedent(): void
@@ -96,6 +113,16 @@ final class DemandeReinitialisationTest extends KernelTestCase
         self::assertInstanceOf(MailerEnMemoire::class, $mailer);
 
         return $mailer;
+    }
+
+    private function journal(): JournalAuditDoctrine
+    {
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $journal = $manager->getRepository(EvenementAudit::class);
+        self::assertInstanceOf(JournalAuditDoctrine::class, $journal);
+
+        return $journal;
     }
 
     private function jetons(): JetonReinitialisationRepository

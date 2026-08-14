@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Security\MotDePasseOublie;
 
+use App\AdminInterne\JournalAudit\EvenementAudit;
+use App\AdminInterne\JournalAudit\JournalAuditDoctrine;
 use App\Security\MotDePasseOublie\GenerateurJeton;
 use App\Security\MotDePasseOublie\JetonInvalide;
 use App\Security\MotDePasseOublie\JetonReinitialisation;
@@ -11,6 +13,7 @@ use App\Security\MotDePasseOublie\JetonReinitialisationRepository;
 use App\Security\MotDePasseOublie\ReinitialisationMotDePasse;
 use App\Security\User;
 use App\Security\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -65,6 +68,21 @@ final class ReinitialisationMotDePasseTest extends KernelTestCase
         $this->reinitialisation()->reinitialiser((new GenerateurJeton())->jetonBrut(), self::MDP_NOUVEAU);
     }
 
+    public function testUneReinitialisationReussieEstTraceeAuJournalDAudit(): void
+    {
+        self::bootKernel();
+        $user = $this->seedUser('artisan-journal@example.com');
+        $brut = $this->emettreJetonPour($user, new \DateTimeImmutable('+1 hour'));
+
+        $this->reinitialisation()->reinitialiser($brut, self::MDP_NOUVEAU);
+
+        $actions = array_map(
+            static fn ($evenement) => $evenement->action(),
+            $this->journal()->evenementsRecents(),
+        );
+        self::assertContains('mot_de_passe.reinitialise', $actions);
+    }
+
     private function emettreJetonPour(User $user, \DateTimeImmutable $expireLe): string
     {
         $generateur = new GenerateurJeton();
@@ -84,6 +102,16 @@ final class ReinitialisationMotDePasseTest extends KernelTestCase
         $this->users()->enregistrer($user);
 
         return $user;
+    }
+
+    private function journal(): JournalAuditDoctrine
+    {
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $journal = $manager->getRepository(EvenementAudit::class);
+        self::assertInstanceOf(JournalAuditDoctrine::class, $journal);
+
+        return $journal;
     }
 
     private function reinitialisation(): ReinitialisationMotDePasse
