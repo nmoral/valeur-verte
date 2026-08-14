@@ -30,20 +30,45 @@ pytestmark = pytest.mark.skipif(shutil.which("docker") is None, reason="Docker i
 # L'apostrophe et la barre oblique inverse en sont absentes : elles sont
 # refusées explicitement (voir le test dédié).
 MOT_DE_PASSE_PIEGEUX = 'ab$ZtREY8628lPAC08W#c"d e`f&g|h;i j$$k'
+# Le secret Symfony subit les mêmes pièges d'interpolation que le mot de passe.
+APP_SECRET_PIEGEUX = MOT_DE_PASSE_PIEGEUX
+# Le mot de passe du rôle « app » est injecté dans une DSN URL : il doit rester
+# URL-safe (le script refuse le reste, cf. le test dédié).
+APP_DB_PASSWORD_SR = "app0123456789abcdefABCDEF_.~-"
+
+
+def _identifiants_valides() -> dict[str, str]:
+    """Jeu d'identifiants d'entrée d'`ecrire-env.sh` (mot de passe base piégeux)."""
+    return {
+        "PATH": "/usr/bin:/bin",
+        "POSTGRES_PASSWORD": MOT_DE_PASSE_PIEGEUX,
+        "POSTGRES_USER": "valeur_verte",
+        "POSTGRES_DB": "valeur_verte",
+        "DATA_IMAGE_TAG": "essai",
+        "APP_IMAGE_TAG": "essai",
+        "APP_SECRET": APP_SECRET_PIEGEUX,
+        "APP_DB_PASSWORD": APP_DB_PASSWORD_SR,
+        "BREVO_API_KEY": "xkeysib-essai",
+    }
 
 
 def _compose_temoin() -> str:
     """Compose minimal réutilisant les **vraies** expressions de la production.
 
-    Les recopier ici les ferait diverger en silence ; le service `migrate` du
-    compose de production n'est pas exécutable en test (image privée sur GHCR),
-    d'où ce témoin qui emprunte son environnement tel quel.
+    Les recopier ici les ferait diverger en silence ; les services `migrate` et
+    `app` du compose de production ne sont pas exécutables en test (images privées
+    sur GHCR), d'où ce témoin qui emprunte leur environnement tel quel. On expose
+    aussi le secret applicatif et la DSN de l'app sous des noms dédiés (pour ne pas
+    écraser la DSN conninfo du service `migrate`).
     """
     production = load_yaml(COMPOSE_PROD)
     environnement = production["services"]["migrate"]["environment"]
+    app = production["services"]["app"]["environment"]
     lignes = "\n".join(
         f"      {cle}: {json.dumps(str(valeur))}" for cle, valeur in environnement.items()
     )
+    lignes += f"\n      APP_SECRET_RECU: {json.dumps(str(app['APP_SECRET']))}"
+    lignes += f"\n      APP_DSN_RECUE: {json.dumps(str(app['DATABASE_URL']))}"
     return (
         "services:\n"
         "  temoin:\n"
@@ -64,14 +89,7 @@ def valeurs_recues(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
         capture_output=True,
         text=True,
         check=True,
-        env={
-            "PATH": "/usr/bin:/bin",
-            "POSTGRES_PASSWORD": MOT_DE_PASSE_PIEGEUX,
-            "POSTGRES_USER": "valeur_verte",
-            "POSTGRES_DB": "valeur_verte",
-            "DATA_IMAGE_TAG": "essai",
-            "APP_IMAGE_TAG": "essai",
-        },
+        env=_identifiants_valides(),
     )
     (repertoire / ".env").write_text(compose.stdout, encoding="utf-8")
 
@@ -112,23 +130,54 @@ def test_la_dsn_porte_le_meme_mot_de_passe_que_la_base(
 @pytest.mark.parametrize("mot_de_passe", ["abc\\def", "abc'def"])
 def test_un_caractere_intransmissible_est_refuse_explicitement(mot_de_passe: str) -> None:
     """Non transmissible sans ambiguïté : mieux vaut refuser que livrer un faux."""
+    identifiants = _identifiants_valides()
+    identifiants["POSTGRES_PASSWORD"] = mot_de_passe
     execution = subprocess.run(
         ["bash", str(ECRIRE_ENV)],
         capture_output=True,
         text=True,
         check=False,
-        env={
-            "PATH": "/usr/bin:/bin",
-            "POSTGRES_PASSWORD": mot_de_passe,
-            "POSTGRES_USER": "valeur_verte",
-            "POSTGRES_DB": "valeur_verte",
-            "DATA_IMAGE_TAG": "essai",
-            "APP_IMAGE_TAG": "essai",
-        },
+        env=identifiants,
     )
     assert execution.returncode != 0, "Le script doit refuser, pas produire un .env douteux."
     assert "apostrophe ou une barre oblique inverse" in execution.stderr
     assert "abc" not in execution.stdout, "Aucun identifiant ne doit être écrit en cas de refus."
+
+
+@pytest.mark.parametrize("mot_de_passe", ["abc@def", "abc:def", "abc/def", "abc#def", "a b"])
+def test_un_mot_de_passe_app_non_url_safe_est_refuse(mot_de_passe: str) -> None:
+    """Injecté dans « postgresql://app:<mot de passe>@… », un caractère réservé d'URL
+    tronquerait silencieusement la DSN : le script refuse plutôt que de la livrer fausse."""
+    identifiants = _identifiants_valides()
+    identifiants["APP_DB_PASSWORD"] = mot_de_passe
+    execution = subprocess.run(
+        ["bash", str(ECRIRE_ENV)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=identifiants,
+    )
+    assert execution.returncode != 0, "Un mot de passe de rôle non URL-safe doit être refusé."
+    assert "URL-safe" in execution.stderr
+    assert "APP_DB_PASSWORD" not in execution.stdout, (
+        "Aucun identifiant ne doit être écrit en cas de refus."
+    )
+
+
+def test_le_secret_applicatif_arrive_intact_dans_le_conteneur(
+    valeurs_recues: dict[str, str],
+) -> None:
+    """APP_SECRET signe les jetons et le CSRF : une valeur amputée les casse en silence."""
+    assert valeurs_recues["APP_SECRET_RECU"] == APP_SECRET_PIEGEUX
+
+
+def test_la_dsn_de_l_app_porte_le_mot_de_passe_du_role(
+    valeurs_recues: dict[str, str],
+) -> None:
+    """La DSN URL de l'app doit transporter exactement le mot de passe du rôle « app »
+    (URL-safe, donc littéral) : sinon l'app ne se connecte pas à sa base."""
+    dsn = valeurs_recues["APP_DSN_RECUE"]
+    assert f"://app:{APP_DB_PASSWORD_SR}@db:5432/" in dsn
 
 
 def test_aucun_fragment_de_mot_de_passe_dans_les_avertissements(

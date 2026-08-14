@@ -185,3 +185,22 @@ def test_le_reverse_proxy_est_demarre_au_deploiement() -> None:
     assert re.search(r"up -d [^\n&|]*\bcaddy\b", contenu), (
         "Le déploiement doit démarrer le reverse proxy « caddy » (ex. « up -d app caddy »)."
     )
+
+
+def test_le_role_applicatif_est_provisionne_au_deploiement() -> None:
+    """L'app se connecte avec le rôle « app » : sans provisionnement au déploiement,
+    le rôle n'existe pas (ou son mot de passe diverge du secret) et l'app tombe en
+    500. Le rôle est (re)posé de façon idempotente à chaque livraison."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "provisionner-app.sql" in contenu, (
+        "Le déploiement doit provisionner le rôle « app » (infra/provisionner-app.sql)."
+    )
+
+
+def test_les_migrations_app_sont_jouees_au_deploiement() -> None:
+    """Le service « migrate » ne couvre que le schéma « data » (pipeline Python). Sans
+    les migrations Doctrine, le schéma « app » reste vide et l'app tombe en 500."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "doctrine:migrations:migrate" in contenu, (
+        "Le déploiement doit jouer les migrations Symfony (schéma « app »)."
+    )

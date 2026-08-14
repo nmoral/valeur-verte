@@ -58,11 +58,15 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: prod
-      # DATABASE_URL est ajoutée avec Doctrine (issues back-office à venir). L'app
-      # partage cette base PostGIS : lecture seule sur le schéma « data », écriture
-      # sur le schéma « app » (schema_filter côté Doctrine + rôle applicatif
-      # disposant de SELECT seul sur « data », posé au provisionnement du VPS).
-      #
+      # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
+      # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
+      # exiger explicitement, jamais de repli.
+      APP_SECRET: ${APP_SECRET:?APP_SECRET est requis}
+      # L'app partage la base PostGIS : écriture sur le schéma « app », lecture
+      # seule sur « data » (schema_filter Doctrine + rôle « app » provisionné au
+      # déploiement). DSN en format URL assemblée ici à partir du mot de passe
+      # atomique du rôle (URL-safe, garanti par ecrire-env.sh).
+      DATABASE_URL: "postgresql://app:${APP_DB_PASSWORD:?APP_DB_PASSWORD est requis}@db:5432/valeur_verte?serverVersion=16&charset=utf8"
       # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP et doit
       # honorer X-Forwarded-Proto pour générer des URLs https. N'étant publiée que
       # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
@@ -74,6 +78,14 @@ services:
       # tombe en 404 derrière le proxy. Doit vivre ici (versionné) et non
       # seulement sur le VPS, sinon chaque redéploiement fait retomber le site.
       APP_DOMAINE: valeur-verte.fr
+      # URLs générées hors contexte HTTP (commandes CLI, envois asynchrones) : sans
+      # ça, elles retombent sur http://localhost (défaut de l'image).
+      DEFAULT_URI: https://app.valeur-verte.fr
+      # Email transactionnel (Brevo, #105/#108) : clé (secret), adresse expéditrice
+      # et adresse de réponse des emails non transactionnels (#109/#195).
+      BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY est requis}
+      BREVO_EXPEDITEUR: no-reply@valeur-verte.fr
+      CONTACT_REPONSE: contact@valeur-verte.fr
     # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
     # jamais directement sur Internet (même règle que la base).
     ports:
