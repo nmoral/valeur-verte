@@ -9,7 +9,9 @@ use App\Security\UserRepository;
 use App\Security\VerificationEmail\EnvoiVerificationEmail;
 use App\Security\VerificationEmail\JetonVerificationEmail;
 use App\Tests\Notification\Double\MailerEnMemoire;
+use App\Tests\Notification\Double\MailerQuiEchoue;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Twig\Environment;
 
 /**
  * Envoi de l'email de vérification (#105, ONB-1) : email transactionnel portant un
@@ -38,6 +40,28 @@ final class EnvoiVerificationEmailTest extends KernelTestCase
             self::fail('Lien de vérification introuvable dans l\'email.');
         }
         self::assertTrue($this->jetons()->estValide($userId, $m[1]));
+    }
+
+    public function testUnEchecDEnvoiNInterromptPasLInscription(): void
+    {
+        self::bootKernel();
+        $user = $this->seedUser('artisan-mail-ko@example.com');
+
+        // Best-effort (ONB-1 « jamais bloquant ») : une panne du fournisseur ne
+        // doit jamais casser l'inscription. Aucune exception ne doit remonter.
+        $this->envoiAvecMailerDefaillant()->envoyerPour($user);
+
+        $this->addToAssertionCount(1);
+    }
+
+    private function envoiAvecMailerDefaillant(): EnvoiVerificationEmail
+    {
+        $twig = self::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+        $jetons = self::getContainer()->get(JetonVerificationEmail::class);
+        self::assertInstanceOf(JetonVerificationEmail::class, $jetons);
+
+        return new EnvoiVerificationEmail(new MailerQuiEchoue(), $twig, $jetons, 'valeurverte.localhost');
     }
 
     private function seedUser(string $email): User

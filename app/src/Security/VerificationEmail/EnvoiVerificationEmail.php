@@ -32,11 +32,17 @@ final readonly class EnvoiVerificationEmail
             return;
         }
 
-        $this->mailer->envoyer(new Email(
-            $user->getEmail(),
-            'Confirmez votre adresse email',
-            $this->corps($userId),
-        ));
+        try {
+            $this->mailer->envoyer(new Email(
+                $user->getEmail(),
+                'Confirmez votre adresse email',
+                $this->corps($userId),
+            ));
+        } catch (\Throwable) {
+            // Best-effort (ONB-1 « jamais bloquant ») : une panne du fournisseur
+            // ne doit jamais casser l'inscription ni le renvoi. Le bandeau de
+            // rappel reste affiché et permet de redemander l'email plus tard.
+        }
     }
 
     private function corps(int $userId): string
