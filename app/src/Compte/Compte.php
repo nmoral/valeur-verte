@@ -49,6 +49,14 @@ class Compte
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $emailsNonTransactionnelsDesabonneLe = null;
 
+    /**
+     * Date d'envoi de la relance conversationnelle après le premier rapport
+     * (#109). Nulle tant qu'elle n'a pas été envoyée : garantit qu'un seul email
+     * personnel part, sur l'événement « premier rapport », jamais deux.
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $emailPremierRapportEnvoyeLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -117,5 +125,15 @@ class Compte
     public function seDesabonnerDesEmails(\DateTimeImmutable $quand): void
     {
         $this->emailsNonTransactionnelsDesabonneLe = $quand;
+    }
+
+    public function emailPremierRapportEnvoye(): bool
+    {
+        return null !== $this->emailPremierRapportEnvoyeLe;
+    }
+
+    public function marquerEmailPremierRapportEnvoye(\DateTimeImmutable $quand): void
+    {
+        $this->emailPremierRapportEnvoyeLe = $quand;
     }
 }
