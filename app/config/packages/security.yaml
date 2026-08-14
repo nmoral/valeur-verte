@@ -40,9 +40,9 @@ security:
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/inscription$, roles: PUBLIC_ACCESS }
-        # Désabonnement par lien signé depuis l'email (#108) : public sur tout
-        # host, la signature du jeton fait la sécurité — avant l'exigence de rôle.
-        - { path: ^/desabonnement/, roles: PUBLIC_ACCESS }
+        # Désabonnement par lien signé depuis l'email (#108/#109) : public sur
+        # tout host, la signature du jeton fait la sécurité — avant l'exigence de rôle.
+        - { path: ^/desabonnement, roles: PUBLIC_ACCESS }
         - { host: '^admin\.', roles: ROLE_ADMIN }
         - { host: '^app\.', roles: ROLE_PRO }
 

@@ -28,7 +28,7 @@ final readonly class RelanceEssais
         private Connection $connexion,
         private ClockInterface $horloge,
         private Environment $twig,
-        private JetonDesabonnementRelance $jetons,
+        private JetonDesabonnement $jetons,
         private string $appDomaine,
     ) {
     }
@@ -40,7 +40,7 @@ final readonly class RelanceEssais
 
         $envoyes = 0;
         foreach ($this->comptes->aRelancer() as $compte) {
-            if ($compte->estDesabonneDeLaRelance()) {
+            if ($compte->estDesabonneDesEmails()) {
                 continue;
             }
             $etat = EtatEssai::calculer(
@@ -80,7 +80,7 @@ final readonly class RelanceEssais
             'rapportsRestants' => $etat->rapportsRestants(),
             'lienEspace' => \sprintf('https://app.%s', $this->appDomaine),
             'lienDesabonnement' => \sprintf(
-                'https://app.%s/desabonnement/relance?tenant=%d&jeton=%s',
+                'https://app.%s/desabonnement?tenant=%d&jeton=%s',
                 $this->appDomaine,
                 $tenantId,
                 $this->jetons->pour($tenantId),

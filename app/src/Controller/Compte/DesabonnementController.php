@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Compte;
 
 use App\Compte\CompteRepository;
-use App\Compte\JetonDesabonnementRelance;
+use App\Compte\JetonDesabonnement;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,17 +13,18 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Désabonnement à la relance de fin d'essai (#108). Route publique : le lien de
- * l'email est cliqué sans session, la signature du jeton fait toute la sécurité.
+ * Désabonnement aux emails non transactionnels (#108/#109). Route publique : le
+ * lien de l'email est cliqué sans session, la signature du jeton fait toute la
+ * sécurité. Un seul désabonnement couvre tous les emails non transactionnels.
  * Idempotent — un second clic reste sans effet. Un jeton invalide ou un tenant
  * inconnu renvoie 404, sans distinguer les deux (pas d'oracle d'existence).
  */
-final class DesabonnementRelanceController extends AbstractController
+final class DesabonnementController extends AbstractController
 {
-    #[Route('/desabonnement/relance', name: 'compte_desabonnement_relance', methods: ['GET'])]
+    #[Route('/desabonnement', name: 'compte_desabonnement', methods: ['GET'])]
     public function __invoke(
         Request $request,
-        JetonDesabonnementRelance $jetons,
+        JetonDesabonnement $jetons,
         CompteRepository $comptes,
         ClockInterface $horloge,
     ): Response {
@@ -39,8 +40,8 @@ final class DesabonnementRelanceController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if (!$compte->estDesabonneDeLaRelance()) {
-            $compte->seDesabonnerDeLaRelance($horloge->now());
+        if (!$compte->estDesabonneDesEmails()) {
+            $compte->seDesabonnerDesEmails($horloge->now());
             $comptes->enregistrer($compte);
         }
 

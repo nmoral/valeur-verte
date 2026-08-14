@@ -57,9 +57,9 @@ services:
         arguments:
             $appDomaine: '%app.domaine%'
 
-    # Jeton de désabonnement (#108) : signe le tenant avec le secret applicatif
-    # pour rendre le lien de désabonnement infalsifiable sans stockage.
-    App\Compte\JetonDesabonnementRelance:
+    # Jeton de désabonnement (#108/#109) : signe le tenant avec le secret
+    # applicatif pour rendre le lien de désabonnement infalsifiable sans stockage.
+    App\Compte\JetonDesabonnement:
         arguments:
             $secret: '%kernel.secret%'
 
