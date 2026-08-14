@@ -38,9 +38,11 @@ final class RegistrationController extends AbstractController
                     $user = $createurDeCompte->creer($email, $motDePasse, $siretConfirme);
                     $security->login($user);
 
-                    return $this->redirect(
-                        $this->generateUrl('espace_pro', [], UrlGeneratorInterface::ABSOLUTE_URL),
-                    );
+                    // ONB-4 : droit à la saisie, aucun écran de bienvenue ni de
+                    // configuration. La saisie vit sur le sous-domaine de l'espace
+                    // pro ; on compose l'URL absolue sur ce host (scheme + host de
+                    // l'espace pro, chemin de la saisie).
+                    return $this->redirect($this->urlSaisie());
                 } catch (EmailDejaUtilise $exception) {
                     $erreurs['email'] = $exception->getMessage();
                 }
@@ -81,5 +83,17 @@ final class RegistrationController extends AbstractController
         }
 
         return $erreurs;
+    }
+
+    /**
+     * URL absolue de la saisie sur le sous-domaine de l'espace pro : scheme et
+     * host viennent de la route `espace_pro` (portée par ce host), le chemin de la
+     * route de saisie (sans host propre). Robuste en dev comme en prod (https).
+     */
+    private function urlSaisie(): string
+    {
+        $racineEspacePro = $this->generateUrl('espace_pro', [], UrlGeneratorInterface::ABSOLUTE_URL);
+
+        return rtrim($racineEspacePro, '/').$this->generateUrl('back_office_audit');
     }
 }

@@ -58,6 +58,9 @@
     .ajustement-erreur{color:var(--danger);font:13px/1.4 'Public Sans',sans-serif;margin:0 0 10px}
     .ajustement-note{color:var(--mute);font:12px/1.5 'Public Sans',sans-serif;margin:10px 0 0}
     .resultat-actions{display:flex;gap:10px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule)}
+    .personnaliser{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0 24px 18px;padding:12px 16px;border:1px solid var(--rule);border-radius:8px;background:var(--brand-soft,#f4f8f6)}
+    .personnaliser p{margin:0;font:13.5px/1.5 'Public Sans',sans-serif;color:var(--slate)}
+    .personnaliser a{color:var(--brand);font-weight:500}
     .btn[disabled]{opacity:.55;cursor:not-allowed}
     .btn .soon{margin-left:8px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
 </style>
@@ -162,6 +165,14 @@
         <a class="btn btn-ghost" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
     </div>
 
+    {# ONB-4 : invitation à personnaliser après le rapport, jamais un mur — on peut reporter. #}
+    <aside class="personnaliser" role="note">
+        <p>Votre rapport est prêt et téléchargeable en l'état. Quand vous le souhaitez, personnalisez
+            <a href="{{ path('back_office_marque') }}">votre marque</a> et
+            <a href="{{ path('back_office_couts') }}">vos coûts</a>.</p>
+        <button type="button" class="btn btn-ghost btn-sm" data-fermer-personnaliser>Plus tard</button>
+    </aside>
+
     <details class="signalement">
         <summary>Signaler ce chiffre</summary>
         <form data-async method="post" action="{{ path('back_office_audit_signalement') }}">
@@ -176,6 +187,15 @@
 
 {% block javascripts %}
 <script>
+    document.querySelectorAll('[data-fermer-personnaliser]').forEach(function (bouton) {
+        bouton.addEventListener('click', function () {
+            var invitation = bouton.closest('.personnaliser');
+            if (invitation) {
+                invitation.remove();
+            }
+        });
+    });
+
     document.querySelectorAll('form[data-async]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
             event.preventDefault();
