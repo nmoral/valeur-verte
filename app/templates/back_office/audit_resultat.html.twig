@@ -92,5 +92,53 @@
         <a class="btn" href="{{ path('back_office_audit_pdf') }}">Télécharger le PDF</a>
         <a class="btn btn-ghost" href="{{ path('back_office_audit') }}">Nouvelle saisie</a>
     </div>
+
+    <details class="signalement">
+        <summary>Signaler ce chiffre</summary>
+        <form data-async method="post" action="{{ path('back_office_audit_signalement') }}">
+            <label for="signalement_message">Ce chiffre vous semble faux ? Dites-nous ce qui cloche (optionnel).</label>
+            <textarea id="signalement_message" name="message" rows="3"></textarea>
+            <button type="submit">Envoyer le signalement</button>
+            <span class="feedback" role="status" aria-live="polite"></span>
+        </form>
+    </details>
 </div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    document.querySelectorAll('form[data-async]').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var feedback = form.querySelector('.feedback');
+            feedback.textContent = 'Envoi…';
+            feedback.className = 'feedback';
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form)
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (resultat) {
+                    if (resultat.ok && resultat.data.ok) {
+                        feedback.textContent = 'Merci, c\'est noté ✓';
+                        feedback.className = 'feedback ok';
+                        form.querySelector('button[type="submit"]').disabled = true;
+                    } else {
+                        feedback.textContent = (resultat.data && resultat.data.erreur) || 'Envoi impossible';
+                        feedback.className = 'feedback erreur';
+                    }
+                })
+                .catch(function () {
+                    feedback.textContent = 'Erreur réseau';
+                    feedback.className = 'feedback erreur';
+                });
+        });
+    });
+</script>
 {% endblock %}
