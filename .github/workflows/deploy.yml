@@ -151,6 +151,7 @@ jobs:
              && docker compose up -d db \
              && docker compose run --rm -T migrate \
              && docker compose up -d app caddy \
+             && docker compose exec -T app php bin/console cache:clear --env=prod \
              && docker logout ghcr.io"
 
       - name: Effacer les traces locales
