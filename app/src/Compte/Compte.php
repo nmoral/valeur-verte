@@ -41,6 +41,13 @@ class Compte
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $relanceEssaiEnvoyeeLe = null;
 
+    /**
+     * Date à laquelle le compte s'est désabonné de la relance de fin d'essai
+     * (#108). Nulle par défaut ; renseignée, elle inhibe tout envoi de relance.
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $relanceEssaiDesabonneeLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -99,5 +106,15 @@ class Compte
     public function marquerRelanceEnvoyee(\DateTimeImmutable $quand): void
     {
         $this->relanceEssaiEnvoyeeLe = $quand;
+    }
+
+    public function estDesabonneDeLaRelance(): bool
+    {
+        return null !== $this->relanceEssaiDesabonneeLe;
+    }
+
+    public function seDesabonnerDeLaRelance(\DateTimeImmutable $quand): void
+    {
+        $this->relanceEssaiDesabonneeLe = $quand;
     }
 }
