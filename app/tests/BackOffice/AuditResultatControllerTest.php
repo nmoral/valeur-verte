@@ -11,6 +11,7 @@ use App\Controller\BackOffice\AuditController;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
+use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 /**
  * Page de restitution dédiée (§5.3, #31) : elle ne s'atteint qu'après une saisie
@@ -44,7 +45,9 @@ final class AuditResultatControllerTest extends WebTestCase
 
     private function poserResultatEnSession(KernelBrowser $client): void
     {
-        $session = self::getContainer()->get('session.factory')->createSession();
+        $factory = self::getContainer()->get('session.factory');
+        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
+        $session = $factory->createSession();
         $saisie = SaisieAudit::depuis('12 rue des Lilas, 31000 Toulouse', 90, 300, Dpe::E, Dpe::C);
         $restitution = Restitution::depuis(15000, 12000, 18000, 134, 10, 2024, 200000, false);
         $session->set(AuditController::SESSION_RESULTAT, [
