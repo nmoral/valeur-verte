@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pytest
 
+from valeur_verte_data import batch
 from valeur_verte_data.batch import (
     MailleCoefficient,
     _sigma_local,
@@ -672,6 +673,75 @@ def test_compute_maille_departemental_pondere_tout_le_pool() -> None:
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
     assert maille.coef_dpe["F"] > -20000
+
+
+def test_le_mode_departemental_ne_depend_pas_de_la_commune() -> None:
+    """#200 : en mode dégradé (départemental), le résultat est une fonction pure des
+    ventes du département — centre = barycentre de l'échantillon. Deux communes du
+    même département, même si leurs centroïdes diffèrent, obtiennent des coefficients
+    **identiques** (seul code_insee change), ce qui autorise la mémoïsation.
+
+    Deux sous-clusters à ~100 km avec des effets DPE différents : sans barycentre,
+    chaque commune pondérerait « son » cluster plus fort → coefficients différents.
+    """
+    # σ départemental réduit pour rendre la pondération sensible au centre (sinon
+    # à σ=1000 l'écart serait infime) : amplifie l'effet à corriger.
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=20,
+        min_sample=20,
+        min_class_sample=1,
+        departemental_sigma_km=100.0,
+    )
+    pool = _cluster_effet(-40000, lat=43.6, lon=1.44) + _cluster_effet(-10000, lat=44.5, lon=1.44)
+
+    # Communes du 31, chacune sur un cluster (14 ventes < seuil 20 → départemental),
+    # l'autre cluster à ~100 km (> rayon max) reste hors sélection locale.
+    a = compute_maille("31001", 43.6, 1.44, 2024, pool, config=cfg)
+    b = compute_maille("31002", 44.5, 1.44, 2024, pool, config=cfg)
+
+    assert a is not None and b is not None
+    assert a.mode is CoverageMode.DEPARTEMENTAL and b.mode is CoverageMode.DEPARTEMENTAL
+    assert a.code_insee == "31001" and b.code_insee == "31002"
+    assert a.coef_dpe == b.coef_dpe
+    assert a.coef_m2_bati == b.coef_m2_bati
+    assert a.coef_m2_terrain == b.coef_m2_terrain
+    assert a.erreur_mediane == b.erreur_mediane
+
+
+def test_compute_communes_memoise_le_mode_departemental_par_departement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#200 : la régression départementale (mode dégradé) est identique pour toutes
+    les communes du département → calculée **une seule fois** par batch, puis réutilisée
+    (seul code_insee change), au lieu d'être refaite par commune."""
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=20,
+        min_sample=20,
+        min_class_sample=1,
+        departemental_sigma_km=100.0,
+    )
+    pool = _cluster_effet(-40000, lat=43.6, lon=1.44) + _cluster_effet(-10000, lat=44.5, lon=1.44)
+
+    original = batch._maille_departementale
+    appels: list[str] = []
+
+    def espion(code_insee: str, *args: object, **kwargs: object) -> object:
+        appels.append(code_insee)
+        return original(code_insee, *args, **kwargs)
+
+    monkeypatch.setattr(batch, "_maille_departementale", espion)
+
+    mailles = list(
+        compute_communes([("31001", 43.6, 1.44), ("31002", 44.5, 1.44)], pool, 2024, config=cfg)
+    )
+
+    assert len(mailles) == 2
+    assert all(m.mode is CoverageMode.DEPARTEMENTAL for m in mailles)
+    assert len(appels) == 1, "une seule régression départementale pour tout le département"
+    assert {m.code_insee for m in mailles} == {"31001", "31002"}
+    assert mailles[0].coef_dpe == mailles[1].coef_dpe
 
 
 def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:

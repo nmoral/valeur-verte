@@ -264,6 +264,36 @@ def _compute_from_sample(
     )
 
 
+def _maille_departementale(
+    code_insee: str,
+    millesime: int,
+    echantillon: Sequence[Mutation],
+    alerte: str | None,
+    config: CalculConfig,
+) -> MailleCoefficient | None:
+    """Maille du mode **DÉPARTEMENTAL dégradé** (#22) — fonction pure des ventes du dept.
+
+    Pondération uniforme (σ départemental) centrée sur le **barycentre** de l'échantillon
+    (#200, `_centroide_moyen`) : le résultat ne dépend ni de la commune ni de l'ordre
+    d'itération (INV-5). Il est donc **identique pour toutes les communes du département**
+    et peut être calculé une seule fois puis réutilisé (mémoïsation côté `compute_maille`
+    / `compute_communes`), seul `code_insee` variant d'une ligne à l'autre.
+    """
+    centroid_lat, centroid_lon = _centroide_moyen(echantillon)
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        echantillon,
+        mode=CoverageMode.DEPARTEMENTAL,
+        rayon_km=None,
+        fit_sigma=config.departemental_sigma_km,
+        alerte=alerte,
+        config=config,
+    )
+
+
 def compute_maille(
     code_insee: str,
     centroid_lat: float,
@@ -272,8 +302,15 @@ def compute_maille(
     pool: Sequence[Mutation],
     *,
     config: CalculConfig = DEFAULT_CONFIG,
+    memo_departemental: dict[str, MailleCoefficient | None] | None = None,
 ) -> MailleCoefficient | None:
-    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
+    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus).
+
+    ``memo_departemental`` (#200) mémoïse la régression du mode DÉPARTEMENTAL par
+    département sur la durée d'un batch : identique pour toutes les communes du dept,
+    elle n'est calculée qu'une fois puis réutilisée (seul ``code_insee`` change). Le
+    mode LOCAL reste par commune (voisinage propre).
+    """
     # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
     # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
     # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
@@ -294,26 +331,28 @@ def compute_maille(
         return None
 
     if decision.mode is CoverageMode.LOCAL:
-        sample: Sequence[Mutation] = selection.sample
-        rayon_km: int | None = selection.rayon_km
-        fit_sigma = _sigma_local(config, selection)
-    else:
-        sample = departemental
-        rayon_km = None
-        fit_sigma = config.departemental_sigma_km
+        return _compute_from_sample(
+            code_insee,
+            centroid_lat,
+            centroid_lon,
+            millesime,
+            selection.sample,
+            mode=CoverageMode.LOCAL,
+            rayon_km=selection.rayon_km,
+            fit_sigma=_sigma_local(config, selection),
+            alerte=decision.alerte,
+            config=config,
+        )
 
-    return _compute_from_sample(
-        code_insee,
-        centroid_lat,
-        centroid_lon,
-        millesime,
-        sample,
-        mode=decision.mode,
-        rayon_km=rayon_km,
-        fit_sigma=fit_sigma,
-        alerte=decision.alerte,
-        config=config,
-    )
+    # Mode DÉPARTEMENTAL dégradé (#22) : mémoïsé par département (#200).
+    departement = code_insee[:2]
+    if memo_departemental is not None and departement in memo_departemental:
+        base = memo_departemental[departement]
+    else:
+        base = _maille_departementale(code_insee, millesime, departemental, decision.alerte, config)
+        if memo_departemental is not None:
+            memo_departemental[departement] = base
+    return None if base is None else replace(base, code_insee=code_insee)
 
 
 def _maille_par_bandes(
@@ -452,8 +491,20 @@ def compute_communes(
 
     Motif §10.6 : on charge les ventes du département (+ limitrophes) une fois en
     mémoire, puis on itère les communes. Les communes en refus sont omises.
+
+    La régression du mode DÉPARTEMENTAL est **mémoïsée par département** (#200) : elle
+    est identique pour toutes les communes du dept, donc calculée une seule fois.
     """
+    memo_departemental: dict[str, MailleCoefficient | None] = {}
     for code_insee, lat, lon in communes:
-        maille = compute_maille(code_insee, lat, lon, millesime, pool, config=config)
+        maille = compute_maille(
+            code_insee,
+            lat,
+            lon,
+            millesime,
+            pool,
+            config=config,
+            memo_departemental=memo_departemental,
+        )
         if maille is not None:
             yield maille
