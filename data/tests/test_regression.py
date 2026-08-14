@@ -138,6 +138,78 @@ def test_fit_recupere_les_coefficients_connus() -> None:
     assert result.r2 > 0.999
 
 
+def _sample_premium_derivant() -> list[Mutation]:
+    """Pool 2 millésimes où le **premium C dérive** : 2023 +0,05 → 2024 +0,15.
+
+    Le niveau de prix de base est identique d'une année à l'autre (les effets
+    fixes année restent neutres) ; seul l'écart C→D bouge. Un fit à poids égaux
+    estime donc coef_C ≈ moyenne (~+0,10) ; la pondération temporelle vers 2024
+    (#208) remonte l'estimation vers le premium récent (+0,15). Un INSEE distinct
+    par année garde les ``id_mutation`` uniques (les fits ci-dessous désactivent
+    les effets fixes commune pour ne pas confondre commune et année).
+    """
+    lignes: list[Mutation] = []
+    for annee, premium_c, insee in ((2023, 0.05, "31555"), (2024, 0.15, "31556")):
+        effets = {"D": 0.0, "F": -0.20, "C": premium_c}
+        for dpe, effet in effets.items():
+            for bati, terrain in _SURFACES:
+                lignes.append(
+                    _house(
+                        dpe,
+                        bati,
+                        terrain,
+                        _prix_theorique(bati, terrain, effet),
+                        insee=insee,
+                        year=annee,
+                    )
+                )
+    return lignes
+
+
+def test_fit_sans_ponderation_temporelle_est_non_regressif() -> None:
+    # τ absent (défaut None) = comportement #177 exact : passer explicitement
+    # decroissance_temporelle_tau=None ne change rien au résultat par défaut.
+    sample = _sample_premium_derivant()
+    reference = fit(sample, 43.6, 1.44, reference_dpe="D", effets_fixes_commune=False)
+    explicite = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    assert explicite.coef_dpe == reference.coef_dpe
+
+
+def test_fit_ponderation_temporelle_rapproche_du_premium_recent() -> None:
+    # Avec décroissance vers 2024, coef_C se déplace de la moyenne (~+0,10) vers
+    # le premium de l'année de référence (+0,15) : biais de retard réduit (#208).
+    sample = _sample_premium_derivant()
+    plat = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    recent = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=0.5,
+        annee_reference=2024,
+    )
+    assert round(plat.coef_dpe["C"], 2) == 0.10
+    assert recent.coef_dpe["C"] > plat.coef_dpe["C"]
+    assert recent.coef_dpe["C"] > 0.12
+
+
 def test_fit_exclut_le_bati_recent() -> None:
     recent = _house("F", 100, 300, 999_999, periode="1990-2000")
 
