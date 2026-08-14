@@ -51,6 +51,41 @@ final class MailerBrevoTest extends TestCase
         self::assertSame('<p>Bonjour</p>', $corps['htmlContent']);
     }
 
+    public function testIlTransmetLAdresseDeReponseQuandElleEstPrecisee(): void
+    {
+        $requetes = [];
+        $client = new MockHttpClient(static function (string $methode, string $url, array $options) use (&$requetes): MockResponse {
+            $requetes[] = $options;
+
+            return new MockResponse('{"messageId":"<abc>"}', ['http_code' => 201]);
+        });
+
+        (new MailerBrevo($client, 'clef', 'exp@vv.test'))
+            ->envoyer(new Email('a@b.c', 'x', '<p>y</p>', 'repondre@vv.test'));
+
+        $corps = json_decode((string) $requetes[0]['body'], true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($corps);
+        self::assertIsArray($corps['replyTo']);
+        self::assertSame('repondre@vv.test', $corps['replyTo']['email']);
+    }
+
+    public function testSansAdresseDeReponseLePayloadNEnContientPas(): void
+    {
+        $requetes = [];
+        $client = new MockHttpClient(static function (string $methode, string $url, array $options) use (&$requetes): MockResponse {
+            $requetes[] = $options;
+
+            return new MockResponse('{"messageId":"<abc>"}', ['http_code' => 201]);
+        });
+
+        (new MailerBrevo($client, 'clef', 'exp@vv.test'))
+            ->envoyer(new Email('a@b.c', 'x', '<p>y</p>'));
+
+        $corps = json_decode((string) $requetes[0]['body'], true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($corps);
+        self::assertArrayNotHasKey('replyTo', $corps);
+    }
+
     public function testUnRefusDeBrevoLeveUneException(): void
     {
         $client = new MockHttpClient(new MockResponse('erreur', ['http_code' => 400]));
