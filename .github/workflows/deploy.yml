@@ -127,6 +127,10 @@ jobs:
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/docker-compose.yml"
           scp -i ~/.ssh/deploiement deploiement.env \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/.env"
+          # Configuration du reverse proxy (Caddyfile + robots.txt), montée par le
+          # service « caddy ». Sans elle, le proxy démarrerait sans sa config.
+          scp -i ~/.ssh/deploiement -r infra/caddy \
+            "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/caddy"
 
       - name: Tirer l'image et appliquer les migrations
         env:
@@ -146,7 +150,7 @@ jobs:
              && docker compose pull \
              && docker compose up -d db \
              && docker compose run --rm -T migrate \
-             && docker compose up -d app \
+             && docker compose up -d app caddy \
              && docker logout ghcr.io"
 
       - name: Effacer les traces locales
