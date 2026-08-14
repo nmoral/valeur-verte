@@ -170,6 +170,9 @@ class _Model:
     voisins: int
     etendue_minimale: float
     avec_indice: bool
+    # Poids (gaussien × temporel #208) de chaque ligne d'apprentissage, mémorisés
+    # ici pour que le R² les réutilise sans recalcul (source unique de la pondération).
+    weights: NDArray[np.float64]
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
@@ -325,9 +328,10 @@ def _fit_model(
         rows, columns, voisins=voisins, etendue_minimale=etendue_minimale, avec_indice=avec_indice
     )
     y = np.log(np.array([row.prix for row in rows], dtype=float))
-    sqrt_w = np.sqrt(
-        _weights(rows, center_lat, center_lon, sigma_km, tau=tau, annee_reference=annee_reference)
+    weights = _weights(
+        rows, center_lat, center_lon, sigma_km, tau=tau, annee_reference=annee_reference
     )
+    sqrt_w = np.sqrt(weights)
     beta, _, _, _ = np.linalg.lstsq(design * sqrt_w[:, None], y * sqrt_w, rcond=None)
     return _Model(
         beta=beta,
@@ -336,6 +340,7 @@ def _fit_model(
         voisins=voisins,
         etendue_minimale=etendue_minimale,
         avec_indice=avec_indice,
+        weights=weights,
     )
 
 
@@ -394,16 +399,11 @@ def fit(
         tau=decroissance_temporelle_tau,
         annee_reference=annee_reference,
     )
-    # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme.
+    # Le R² est mesuré sur l'échelle d'ajustement du modèle : le logarithme, avec
+    # la **même** pondération que le fit (poids mémorisés dans le modèle — source
+    # unique, pas de recalcul ni de risque de divergence spatial/temporel).
     y = np.log(np.array([row.prix for row in rows], dtype=float))
-    weights = _weights(
-        rows,
-        center_lat,
-        center_lon,
-        sigma_km,
-        tau=decroissance_temporelle_tau,
-        annee_reference=annee_reference,
-    )
+    weights = model.weights
 
     # Colonnes fixes : const, log(bâti), log1p(terrain), [log(indice)]. Les DPE
     # commencent après, donc leur position dépend de la présence de l'indice.
