@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>Votre essai Valeur Verte se termine bientôt</title>
+    <!--[if mso]>
+    <style>table,td,div,p,a{font-family:Arial,Helvetica,sans-serif !important;}</style>
+    <![endif]-->
+</head>
+{% set jours = joursRestants %}
+{% set rapports = rapportsRestants %}
+{% set mot_jours = jours > 1 ? 'jours' : 'jour' %}
+{% set mot_rapports = rapports > 1 ? 'rapports' : 'rapport' %}
+<body style="margin:0;padding:0;background:#F4F6F7;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+    {# Pré-en-tête : texte d'aperçu affiché par le client mail, masqué dans le corps. #}
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F4F6F7;opacity:0;">
+        Il vous reste {{ jours }} {{ mot_jours }} et {{ rapports }} {{ mot_rapports }} sur votre essai — vos rapports restent accessibles.
+        &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F4F6F7;">
+        <tr>
+            <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(11,60,75,0.08);">
+
+                    {# En-tête de marque #}
+                    <tr>
+                        <td style="padding:24px 32px;background:#0E4A5C;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="width:34px;height:34px;background:#ffffff;border-radius:7px;text-align:center;vertical-align:middle;font:700 15px/34px 'Public Sans',Arial,Helvetica,sans-serif;color:#0E4A5C;letter-spacing:0.5px;">VV</td>
+                                    <td style="padding-left:12px;font:700 18px/34px 'Public Sans',Arial,Helvetica,sans-serif;color:#ffffff;letter-spacing:0.2px;">Valeur Verte</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    {# Titre & accroche #}
+                    <tr>
+                        <td style="padding:36px 32px 8px;">
+                            <h1 style="margin:0;font:700 26px/1.25 'Public Sans',Arial,Helvetica,sans-serif;color:#111820;">Votre essai se termine bientôt</h1>
+                            <p style="margin:14px 0 0;font:400 16px/1.6 'Public Sans',Arial,Helvetica,sans-serif;color:#3E4954;">
+                                Bonjour,<br>
+                                Il vous reste <strong style="color:#0E4A5C;">{{ jours }} {{ mot_jours }}</strong> et
+                                <strong style="color:#0E4A5C;">{{ rapports }} {{ mot_rapports }}</strong> sur votre essai Valeur Verte.
+                            </p>
+                        </td>
+                    </tr>
+
+                    {# Tuiles de synthèse #}
+                    <tr>
+                        <td style="padding:24px 32px 8px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td width="50%" style="padding-right:7px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#DDEAEE;border-radius:10px;">
+                                            <tr><td style="padding:18px 20px;">
+                                                <div style="font:700 40px/1 'Public Sans',Arial,Helvetica,sans-serif;color:#0E4A5C;">{{ jours }}</div>
+                                                <div style="margin-top:6px;font:400 13px/1.4 'Public Sans',Arial,Helvetica,sans-serif;color:#3E4954;">{{ mot_jours }} restants</div>
+                                            </td></tr>
+                                        </table>
+                                    </td>
+                                    <td width="50%" style="padding-left:7px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#DDEAEE;border-radius:10px;">
+                                            <tr><td style="padding:18px 20px;">
+                                                <div style="font:700 40px/1 'Public Sans',Arial,Helvetica,sans-serif;color:#0E4A5C;">{{ rapports }}</div>
+                                                <div style="margin-top:6px;font:400 13px/1.4 'Public Sans',Arial,Helvetica,sans-serif;color:#3E4954;">{{ mot_rapports }} restants</div>
+                                            </td></tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    {# Réassurance #}
+                    <tr>
+                        <td style="padding:16px 32px 8px;">
+                            <p style="margin:0;font:400 15px/1.6 'Public Sans',Arial,Helvetica,sans-serif;color:#3E4954;">
+                                Vos rapports déjà produits <strong>restent accessibles</strong>. Pour continuer à en générer sans interruption,
+                                choisissez votre formule dès maintenant.
+                            </p>
+                        </td>
+                    </tr>
+
+                    {# Bouton d'appel à l'action #}
+                    <tr>
+                        <td style="padding:24px 32px 36px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td align="center" style="border-radius:8px;background:#0E4A5C;">
+                                        <a href="{{ lienEspace }}" target="_blank" style="display:inline-block;padding:14px 28px;font:600 16px/1 'Public Sans',Arial,Helvetica,sans-serif;color:#ffffff;text-decoration:none;border-radius:8px;">Continuer avec Valeur Verte</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    {# Pied de page #}
+                    <tr>
+                        <td style="padding:24px 32px;background:#F4F6F7;border-top:1px solid #E4E9EB;">
+                            <p style="margin:0;font:400 13px/1.6 'Public Sans',Arial,Helvetica,sans-serif;color:#7C8896;">
+                                Valeur Verte — l'impact énergétique dans l'estimation immobilière.<br>
+                                Vous recevez cet email car votre période d'essai touche à sa fin.
+                            </p>
+                            <p style="margin:12px 0 0;font:400 13px/1.6 'Public Sans',Arial,Helvetica,sans-serif;color:#7C8896;">
+                                <a href="{{ lienDesabonnement }}" target="_blank" style="color:#7C8896;text-decoration:underline;">Se désabonner de ces rappels</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

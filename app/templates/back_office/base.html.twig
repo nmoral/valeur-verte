@@ -26,6 +26,19 @@
     </aside>
 
     <main>
+        {% set essai = essai_courant() %}
+        {% if essai %}
+            <a class="essai-bandeau{{ essai.termine ? ' est-termine' : (essai.quotaConsommeAuMoins(80) ? ' est-alerte' : '') }}" href="{{ path('back_office_bilan') }}">
+                {% if essai.termine %}
+                    Essai terminé — voir votre bilan d'usage
+                {% elseif essai.quotaConsommeAuMoins(80) %}
+                    Essai — plus que {{ essai.rapportsRestants }} rapport{{ essai.rapportsRestants > 1 ? 's' }} · voir le bilan
+                {% else %}
+                    Essai — {{ essai.rapportsRestants }} rapports · {{ essai.joursRestants }} jours restants
+                {% endif %}
+            </a>
+        {% endif %}
+
         <div class="top">
             <div>
                 <h1>{{ page_title|default('') }}</h1>

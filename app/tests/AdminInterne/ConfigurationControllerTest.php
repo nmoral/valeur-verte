@@ -32,13 +32,14 @@ final class ConfigurationControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Configuration');
 
-        // Section seuil d'essai (#47) : formulaire posté vers sa route, valeur courante.
-        self::assertSelectorExists('form[action="/comptes/seuil"] input[name="seuil"][value="10"]');
-        // Section seuils d'alerte (#45) : formulaire posté vers sa route, valeurs courantes.
+        // Sections formules (#61) : quota Classique 10, quota Fondateur 100, éditables.
+        self::assertSelectorExists('form[action="/configuration/formule"] input[name="quota"][value="10"]');
+        self::assertSelectorExists('form[action="/configuration/formule"] input[name="quota"][value="100"]');
+        // Section délai de relance (#108) : défaut 7 jours.
+        self::assertSelectorExists('form[data-async][action="/configuration/delai-relance"] input[name="delai"][value="7"]');
+        // Section seuils d'alerte (#45) : inchangée.
         self::assertSelectorExists('form[action="/coefficients/seuils"] input[name="erreur_mediane_max"][value="30"]');
         self::assertSelectorExists('form[action="/coefficients/seuils"] input[name="gain_ec_max"][value="0.7"]');
-        // Chaque formulaire est marqué pour la soumission asynchrone.
-        self::assertSelectorExists('form[data-async][action="/comptes/seuil"]');
     }
 
     private function connecterAdmin(KernelBrowser $client): void

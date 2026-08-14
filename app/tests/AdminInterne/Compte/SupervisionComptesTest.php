@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\AdminInterne\Compte;
 
-use App\AdminInterne\Compte\CompteurRapportsConsommes;
-use App\AdminInterne\Compte\SeuilEssai;
-use App\AdminInterne\Compte\SeuilEssaiRepository;
 use App\AdminInterne\Compte\SupervisionComptes;
 use App\BackOffice\Entreprise\Entreprise;
 use App\BackOffice\Entreprise\EntrepriseRepository;
@@ -16,26 +13,33 @@ use App\BackOffice\Entreprise\StatutRge;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
+use App\Compte\Compte;
+use App\Compte\CompteRepository;
+use App\Compte\Formule;
+use App\Compte\ParametresFormule;
+use App\Compte\ReglagesFormuleRepository;
 use App\Tenant\TenantRepository;
 use App\Tests\BackOffice\Rapport\InstantaneRapportMother;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * Test d'intégration : la vue de pilotage assemble, par compte, l'identité, le
- * compteur (source unique) et le statut d'essai dérivé du seuil courant.
+ * Test d'intégration : la vue de pilotage assemble, par compte, l'identité, la
+ * formule et l'état d'essai (temps ET quota) — même modèle que le suivi artisan.
  */
 final class SupervisionComptesTest extends KernelTestCase
 {
-    public function testAssembleIdentiteCompteurEtStatutParCompte(): void
+    public function testAssembleIdentiteFormuleEtEtatDEssaiParCompte(): void
     {
         self::bootKernel();
-        $this->seuils()->enregistrer(SeuilEssai::de(2));
+        // Quota Classique ramené à 2 pour le test.
+        $this->reglages()->enregistrer(Formule::Classique, new ParametresFormule(60, 2, null));
 
         $t1 = $this->tenants()->nouveau()->id();
         $t2 = $this->tenants()->nouveau()->id();
         self::assertNotNull($t1);
         self::assertNotNull($t2);
+        $this->comptes()->enregistrer(Compte::creer($t1, new \DateTimeImmutable()));
+        $this->comptes()->enregistrer(Compte::creer($t2, new \DateTimeImmutable()));
 
         $this->seedEntreprise('SARL Toiture Occitane', $t1);
         $this->seedRapport('2026-A1', $t1);
@@ -48,25 +52,22 @@ final class SupervisionComptesTest extends KernelTestCase
         self::assertCount(2, $comptes);
         [$c1, $c2] = $comptes;
 
-        self::assertSame($t1, $c1->tenantId());
         self::assertSame('SARL Toiture Occitane', $c1->identite());
-        self::assertSame(3, $c1->rapportsConsommes());
-        self::assertTrue($c1->statut()->seuilAtteint());
+        self::assertSame(Formule::Classique, $c1->formule());
+        self::assertSame(3, $c1->essai()->rapportsConsommes());
+        self::assertTrue($c1->essai()->termine(), 'Quota 2 dépassé (3 rapports) → essai terminé.');
 
-        self::assertSame($t2, $c2->tenantId());
         self::assertSame('Compte #'.$t2, $c2->identite());
-        self::assertSame(1, $c2->rapportsConsommes());
-        self::assertTrue($c2->statut()->enEssai());
+        self::assertSame(1, $c2->essai()->rapportsConsommes());
+        self::assertTrue($c2->essai()->enEssai());
     }
 
     private function supervision(): SupervisionComptes
     {
-        return new SupervisionComptes(
-            $this->tenants(),
-            new CompteurRapportsConsommes($this->manager()->getConnection()),
-            $this->seuils(),
-            $this->manager()->getConnection(),
-        );
+        $supervision = self::getContainer()->get(SupervisionComptes::class);
+        self::assertInstanceOf(SupervisionComptes::class, $supervision);
+
+        return $supervision;
     }
 
     private function seedEntreprise(string $raisonSociale, int $tenantId): void
@@ -109,19 +110,19 @@ final class SupervisionComptesTest extends KernelTestCase
         return $repository;
     }
 
-    private function seuils(): SeuilEssaiRepository
+    private function comptes(): CompteRepository
     {
-        $repository = $this->manager()->getRepository(SeuilEssai::class);
-        self::assertInstanceOf(SeuilEssaiRepository::class, $repository);
+        $repository = self::getContainer()->get(CompteRepository::class);
+        self::assertInstanceOf(CompteRepository::class, $repository);
 
         return $repository;
     }
 
-    private function manager(): EntityManagerInterface
+    private function reglages(): ReglagesFormuleRepository
     {
-        $manager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $repository = self::getContainer()->get(ReglagesFormuleRepository::class);
+        self::assertInstanceOf(ReglagesFormuleRepository::class, $repository);
 
-        return $manager;
+        return $repository;
     }
 }

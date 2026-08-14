@@ -260,7 +260,16 @@ def compute_departement(
     adjacence = read_adjacence(conn, departement)
     alertes = alertes_de_bord(detecter_ruptures_limitrophes(calculees.values(), adjacence, config))
 
-    for code_insee, latitude, longitude in coordonnees:
+    # #175 : aux crans EPCI/DÉPARTEMENT, la régression est **identique** pour toutes
+    # les communes d'un même périmètre (échantillon partagé, pondération uniforme σ
+    # départemental). On la calcule **une seule fois** puis on la réutilise — seul
+    # ``code_insee`` change — au lieu de refaire fit + ``bandes_monotones`` par commune
+    # (coût O(communes × fit) → O(régressions distinctes × fit)).
+    epci_par_appartenance: dict[tuple[str, ...], MailleCoefficient | None] = {}
+    maille_departementale: MailleCoefficient | None = None
+    departement_calcule = False
+
+    for code_insee, _latitude, _longitude in coordonnees:
         local = calculees.get(code_insee)
         retenue: MailleCoefficient | None = None
         monotonie: ResultatMonotonie | None = None
@@ -274,13 +283,17 @@ def compute_departement(
             # calculé mais hors invariants par-maille) → on descend au cran EPCI
             # (une régression par EPCI avec bandes) avant de refuser.
             membres = communes_de_meme_epci(conn, code_insee)
-            epci = (
-                compute_maille_epci(
-                    code_insee, latitude, longitude, millesime, membres, pool, config=config
-                )
-                if membres
-                else None
-            )
+            epci = None
+            if membres:
+                # Mémoïsation par appartenance EPCI (#175) : une régression par EPCI.
+                cle = tuple(membres)
+                if cle not in epci_par_appartenance:
+                    epci_par_appartenance[cle] = compute_maille_epci(
+                        code_insee, millesime, membres, pool, config=config
+                    )
+                partagee = epci_par_appartenance[cle]
+                if partagee is not None:
+                    epci = replace(partagee, code_insee=code_insee)
             if epci is not None:
                 monotonie_epci = evaluer_monotonie_dpe(epci, config)
                 if not _raisons_de_rejet(epci, monotonie_epci, config):
@@ -289,8 +302,16 @@ def compute_departement(
         if retenue is None:
             # Dernier filet #169 : le cran DÉPARTEMENT (ventes du seul département,
             # avec bandes) garantit une estimation là où le local et l'EPCI ont cédé.
-            dept = compute_maille_departement(
-                code_insee, latitude, longitude, millesime, pool, config=config
+            # Mémoïsé (#175) : une seule régression départementale pour tout le batch.
+            if not departement_calcule:
+                maille_departementale = compute_maille_departement(
+                    code_insee, millesime, pool, config=config
+                )
+                departement_calcule = True
+            dept = (
+                replace(maille_departementale, code_insee=code_insee)
+                if maille_departementale is not None
+                else None
             )
             if dept is not None:
                 monotonie_dept = evaluer_monotonie_dpe(dept, config)
