@@ -60,7 +60,7 @@ final class ComptesControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // La nav latérale partagée relie les autres pages admin…
         self::assertSelectorExists('nav.side a[href="/journal"]');
-        self::assertSelectorExists('nav.side a[href="/comptes/seuil"]');
+        self::assertSelectorExists('nav.side a[href="/configuration"]');
         // … et marque la page courante comme active.
         self::assertSelectorTextContains('nav.side a.on', 'Comptes pro');
     }
