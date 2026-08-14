@@ -1,0 +1,6 @@
+{% extends 'erreur/base.html.twig' %}
+
+{% block titre %}Erreur{% endblock %}
+{% block code %}{{ status_code }}{% endblock %}
+{% block entete %}Une erreur est survenue{% endblock %}
+{% block message %}{{ status_text|default('Quelque chose n\'a pas fonctionné.') }} Réessayez dans un instant.{% endblock %}
