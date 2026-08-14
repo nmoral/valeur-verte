@@ -72,18 +72,10 @@ services:
 
     # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
     # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
-    # Public : récupéré directement dans les tests d'unité du service ; le
-    # contrôleur (route publique) le consomme aussi par autowiring.
     App\Security\MotDePasseOublie\DemandeReinitialisation:
-        public: true
         arguments:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
-
-    # Réinitialisation effective (#194) : publique le temps que le contrôleur (route
-    # publique) la consomme, sinon élaguée du conteneur et introuvable en test.
-    App\Security\MotDePasseOublie\ReinitialisationMotDePasse:
-        public: true
 
     # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
     # adresse expéditrice depuis l'environnement, jamais versionnées.
