@@ -148,6 +148,24 @@ def test_l_app_repart_apres_un_redemarrage_du_vps(compose_prod: dict[str, Any]) 
     )
 
 
+def test_l_app_fait_confiance_au_proxy_pour_generer_des_urls_https(
+    compose_prod: dict[str, Any],
+) -> None:
+    """TLS terminé par le proxy : sans TRUSTED_PROXIES, Symfony génère des URLs http.
+
+    L'app n'est jamais joignable qu'à travers le proxy (publiée sur 127.0.0.1) ;
+    elle doit honorer X-Forwarded-Proto pour rediriger la connexion en https.
+    """
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    valeur = str(environnement.get("TRUSTED_PROXIES", "")).strip()
+    assert valeur, (
+        "Le service « app » doit définir TRUSTED_PROXIES pour que Symfony fasse confiance "
+        "au reverse proxy et génère des URLs https."
+    )
+
+
 def test_l_app_attend_une_base_prete(compose_prod: dict[str, Any]) -> None:
     """L'app partage la base : démarrer avant qu'elle soit prête casse le premier accès."""
     app = services(compose_prod)["app"]
