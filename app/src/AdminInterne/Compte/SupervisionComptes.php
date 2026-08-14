@@ -4,23 +4,28 @@ declare(strict_types=1);
 
 namespace App\AdminInterne\Compte;
 
+use App\Compte\CompteRepository;
+use App\Compte\EtatEssai;
+use App\Compte\Formule;
+use App\Compte\ReglagesFormuleRepository;
 use App\Tenant\TenantRepository;
 use Doctrine\DBAL\Connection;
+use Psr\Clock\ClockInterface;
 
 /**
- * Vue de pilotage des comptes pro côté éditeur (#47) : pour chaque compte
- * (tenant), assemble l'identité, le compteur de rapports consommés (source
- * unique) et le statut d'essai dérivé du seuil courant. Lecture seule.
- *
- * Les tenants ne sont pas filtrés (l'entité tenant n'est pas tenant-aware) ;
- * les identités d'entreprise sont lues en DBAL, hors du filtre multi-tenant.
+ * Vue de pilotage des comptes pro côté éditeur (#47) : pour chaque compte (tenant),
+ * assemble l'identité, la formule et l'état d'essai (rapports/jours restants, temps
+ * ET quota) — le même modèle que le suivi artisan (#108), source unique. Un tenant
+ * sans agrégat compte est traité en Classique par défaut. Lecture seule.
  */
 final readonly class SupervisionComptes
 {
     public function __construct(
         private TenantRepository $tenants,
+        private CompteRepository $comptesPro,
         private CompteurRapportsConsommes $compteur,
-        private SeuilEssaiRepository $seuils,
+        private ReglagesFormuleRepository $reglages,
+        private ClockInterface $horloge,
         private Connection $connexion,
     ) {
     }
@@ -30,8 +35,8 @@ final readonly class SupervisionComptes
      */
     public function comptes(): array
     {
-        $seuil = $this->seuils->courant()->valeur();
         $identites = $this->identitesParTenant();
+        $maintenant = $this->horloge->now();
 
         $comptes = [];
         foreach ($this->tenants->findBy([], ['id' => 'ASC']) as $tenant) {
@@ -40,11 +45,21 @@ final readonly class SupervisionComptes
                 continue;
             }
 
+            $compte = $this->comptesPro->pourTenant($tenantId);
+            $formule = $compte?->formule() ?? Formule::Classique;
+            $creeLe = $compte?->creeLe() ?? $tenant->creeLe();
+
             $comptes[] = new BilanCompte(
                 tenantId: $tenantId,
                 identite: $identites[$tenantId] ?? 'Compte #'.$tenantId,
                 creeLe: $tenant->creeLe(),
-                statut: StatutEssai::depuis($this->compteur->pour($tenantId), $seuil),
+                formule: $formule,
+                essai: EtatEssai::calculer(
+                    $this->compteur->pour($tenantId),
+                    $this->reglages->pour($formule),
+                    $creeLe,
+                    $maintenant,
+                ),
             );
         }
 

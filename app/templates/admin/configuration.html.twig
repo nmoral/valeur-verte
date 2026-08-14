@@ -7,12 +7,33 @@
 {% block admin_subtitle %}<p>Tous les réglages sur une page. Chaque section est enregistrée indépendamment, sans recharger. Les changements sont tracés au journal d'audit.</p>{% endblock %}
 
 {% block admin_content %}
+    {% for f in formules %}
+        <section class="config-bloc">
+            <h2>Formule « {{ f.formule.libelle }} »</h2>
+            <p>Durée d'essai, quota de rapports et plafond de comptes (0 = illimité).</p>
+            <form data-async method="post" action="{{ path('admin_reglage_formule') }}">
+                <input type="hidden" name="formule" value="{{ f.formule.value }}">
+                <label for="cfg_duree_{{ f.formule.value }}">Durée d'essai (jours)</label>
+                <input type="number" id="cfg_duree_{{ f.formule.value }}" name="duree" min="1" step="1" value="{{ f.parametres.dureeEssaiJours }}" required>
+
+                <label for="cfg_quota_{{ f.formule.value }}">Quota de rapports</label>
+                <input type="number" id="cfg_quota_{{ f.formule.value }}" name="quota" min="1" step="1" value="{{ f.parametres.quotaRapports }}" required>
+
+                <label for="cfg_plafond_{{ f.formule.value }}">Plafond de comptes</label>
+                <input type="number" id="cfg_plafond_{{ f.formule.value }}" name="plafond" min="0" step="1" value="{{ f.parametres.plafondComptes ?? 0 }}">
+
+                <button type="submit">Enregistrer</button>
+                <span class="feedback" role="status" aria-live="polite"></span>
+            </form>
+        </section>
+    {% endfor %}
+
     <section class="config-bloc">
-        <h2>Seuil d'essai</h2>
-        <p>Nombre de rapports offerts avant la bascule payant.</p>
-        <form data-async method="post" action="{{ path('admin_seuil_essai') }}">
-            <label for="cfg_seuil">Seuil (nombre de rapports)</label>
-            <input type="number" id="cfg_seuil" name="seuil" min="1" step="1" value="{{ seuil_essai }}" required>
+        <h2>Délai de relance d'essai</h2>
+        <p>Nombre de jours avant la fin de l'essai à partir duquel l'email de rappel est envoyé.</p>
+        <form data-async method="post" action="{{ path('admin_delai_relance') }}">
+            <label for="cfg_delai">Délai (jours avant la fin)</label>
+            <input type="number" id="cfg_delai" name="delai" min="1" step="1" value="{{ delai_relance }}" required>
             <button type="submit">Enregistrer</button>
             <span class="feedback" role="status" aria-live="polite"></span>
         </form>
