@@ -61,3 +61,9 @@ printf "APP_IMAGE_TAG='%s'\n" "$APP_IMAGE_TAG"
 printf "APP_SECRET='%s'\n" "$APP_SECRET"
 printf "APP_DB_PASSWORD='%s'\n" "$APP_DB_PASSWORD"
 printf "BREVO_API_KEY='%s'\n" "$BREVO_API_KEY"
+
+# Bascule maintenance (#197) : absente = désactivée. On l'écrit explicitement à 0
+# pour que Compose n'avertisse pas d'une variable non définie ; l'exploitant la
+# passe à 1 sur le VPS (dans ce .env) pour couper proprement en 503, sans
+# redéploiement ni reconstruction d'image.
+printf "APP_MAINTENANCE='%s'\n" "${APP_MAINTENANCE:-0}"
