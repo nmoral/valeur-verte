@@ -77,9 +77,7 @@ services:
             $secret: '%kernel.secret%'
 
     # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
-    # Public temporairement : récupéré en test tant que l'inscription ne le consomme pas.
     App\Security\VerificationEmail\EnvoiVerificationEmail:
-        public: true
         arguments:
             $appDomaine: '%app.domaine%'
 

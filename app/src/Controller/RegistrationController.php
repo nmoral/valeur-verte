@@ -8,6 +8,7 @@ use App\BackOffice\Entreprise\Siret;
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
 use App\Security\LimiteurInscription;
+use App\Security\VerificationEmail\EnvoiVerificationEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +24,7 @@ final class RegistrationController extends AbstractController
         CreateurDeCompte $createurDeCompte,
         Security $security,
         LimiteurInscription $limiteurInscription,
+        EnvoiVerificationEmail $envoiVerificationEmail,
     ): Response {
         $email = trim((string) $request->request->get('email', ''));
         $siret = trim((string) $request->request->get('siret', ''));
@@ -36,6 +38,10 @@ final class RegistrationController extends AbstractController
                 try {
                     $siretConfirme = '' !== $siret ? Siret::depuis($siret) : null;
                     $user = $createurDeCompte->creer($email, $motDePasse, $siretConfirme);
+
+                    // Vérification d'email a posteriori (ONB-1) : envoi du lien de
+                    // confirmation, sans jamais bloquer l'accès au premier rapport.
+                    $envoiVerificationEmail->envoyerPour($user);
                     $security->login($user);
 
                     // ONB-4 : droit à la saisie, aucun écran de bienvenue ni de
