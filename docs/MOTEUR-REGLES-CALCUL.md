@@ -69,9 +69,18 @@ canonique INV-5).
   recouvrantes). La maille reste **publiée sous le millésime N** ; ce sont les
   effets fixes année (§4) qui absorbent la tendance de niveau, l'étiquette DPE
   mesurant l'effet **structurel moyen** de la fenêtre.
-- **Défaut = 1** (mono-millésime, comportement historique exact). La bascule à 3
-  se pilote par `VV_MOTEUR_FENETRE_MILLESIMES` le temps de valider sur plusieurs
-  départements (protocole VPS #129) avant d'en faire le défaut.
+- **Défaut = 2** (W2). La validation multi-départements (15 depts, 2021-2024) a
+  tranché : la fenêtre est un **régulariseur** (queue d'erreur inter-année p90
+  −22 %, monotonie DPE en hausse), mais l'instabilité inter-année ne se prédit pas
+  maille par maille (gating sélectif écarté). Surtout, le **premium DPE dérive**
+  (amplitude mono-année ~+15 %/an) et les effets fixes année corrigent le niveau de
+  prix **pas** cette dérive : pooler à poids égaux introduit donc un biais de retard
+  (W3 ≈ −12 %, W2 ≈ −6 % sur le premium de l'année N). **W2** est le meilleur
+  compromis biais-variance par défaut (W3 trop stale, W1 mono-millésime trop
+  bruité). 1 = comportement historique exact ; surcharge par
+  `VV_MOTEUR_FENETRE_MILLESIMES`. La vraie solution — **pondération temporelle
+  décroissante** (poids ↓ vers le passé, généralise le défaut plat) — est l'objet
+  de #208.
 
 ## 4. Modèle de régression (`regression.fit`)
 
@@ -273,7 +282,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `min_local_sample` | 30 | seuil mode + n mini INV-4 |
 | `min_class_sample` | 20 | S21, publication classe |
 | `min_classes_publiees` | 2 | dont la référence |
-| `fenetre_millesimes` | 1 | #177 — millésimes empilés (fenêtre glissante) ; 1 = mono-millésime historique |
+| `fenetre_millesimes` | 2 | #177 — millésimes empilés (fenêtre glissante) ; W2 = compromis biais-variance validé (15 depts) ; 1 = mono-millésime historique ; #208 pondérera |
 | `decroissance_temporelle_tau` | `None` | #208 — τ du poids temporel `exp(-(N−millésime)/τ)` ; `None` = désactivé (poids égaux #177) ; §4bis |
 | `inversion_dpe_seuil` | 30 | tolérance INV-1 |
 | `sigma_mode` / `sigma_diviseur` / `sigma_min` | `densite` / 1,0 / 3,0 | S23 |

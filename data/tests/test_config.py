@@ -25,10 +25,13 @@ def test_defauts_sans_environnement() -> None:
     assert config.min_class_sample == 20
     assert config.min_classes_publiees == 2
     assert config.inversion_dpe_seuil == 30
-    # Fenêtre glissante d'estimation (#177) : 1 par défaut = comportement
-    # historique exact (mono-millésime). La bascule à 3 se pilote par l'env,
-    # le temps de valider sur plusieurs départements.
-    assert config.fenetre_millesimes == 1
+    # Fenêtre glissante d'estimation (#177) : 2 par défaut. La validation 15 depts
+    # (2021-2024) a tranché — la fenêtre est un régulariseur (queue p90 −22 %,
+    # monotonie ↑) mais pooler à poids égaux introduit un biais de retard sur la
+    # dérive du premium DPE (~+15 %/an) : W2 minimise ce compromis biais-variance
+    # (W3 trop stale, W1 trop bruité). La pondération temporelle décroissante (#208)
+    # généralisera ce défaut plat. Surchargeable par VV_MOTEUR_FENETRE_MILLESIMES.
+    assert config.fenetre_millesimes == 2
     # Régression — config gagnante par défaut
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
