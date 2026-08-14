@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service momentanément indisponible · Valeur Verte</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0E4A5C">
+<!-- Page servie par le reverse proxy quand l'application est injoignable (#197).
+     Entièrement autonome : CSS inline, police système, aucune ressource externe
+     ni aucune dépendance à l'app — elle doit s'afficher quand tout le reste est
+     indisponible. -->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:#F3F5F7;color:#111820;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:18px;padding:40px 20px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px;
+    letter-spacing:-.01em;color:#111820}
+  .brand i{width:24px;height:24px;border-radius:2px;background:#0E4A5C;display:grid;
+    place-items:center;color:#fff;font-size:12px;font-style:normal;font-weight:800}
+  .card{width:100%;max-width:432px;background:#fff;border:1px solid #CBD3DB;border-radius:3px;
+    padding:34px 32px;text-align:center}
+  .code{font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;font-size:13px;
+    letter-spacing:.14em;color:#7C8896;margin-bottom:14px}
+  h1{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin-bottom:10px}
+  p{font-size:14.5px;color:#3E4954}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="brand"><i aria-hidden="true">VV</i> Valeur Verte</span>
+  <div class="card">
+    <p class="code" aria-hidden="true">503</p>
+    <h1>Service momentanément indisponible</h1>
+    <p>Nous effectuons une intervention technique. Le service revient dans quelques instants — merci de réessayer sous peu.</p>
+  </div>
+</div>
+</body>
+</html>

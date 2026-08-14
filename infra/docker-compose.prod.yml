@@ -110,6 +110,9 @@ services:
       # Configuration téléversée par le workflow de déploiement (infra/caddy).
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/robots.txt:/etc/caddy/robots.txt:ro
+      # Page servie par le proxy quand l'app est injoignable (#197) : autonome,
+      # sans dépendance à l'app (handle_errors dans le Caddyfile).
+      - ./caddy/erreur-indisponible.html:/etc/caddy/erreur-indisponible.html:ro
       # Certificats et état ACME : persistés pour survivre à une recréation du
       # conteneur (sinon réémission à chaque déploiement → limites Let's Encrypt).
       - caddy_data:/data
