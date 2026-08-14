@@ -84,3 +84,77 @@ def test_median_relative_error_ignore_les_prix_nuls() -> None:
     sample = [*_parfait(), replace(_house("D", 100, 100_000), prix=0.0)]
 
     assert median_relative_error(sample, 43.6, 1.44) is not None
+
+
+def _house_annee(dpe: str, bati: int, prix: int, *, insee: str, annee: int) -> Mutation:
+    (base,) = aggregate_mutations(
+        [
+            {
+                "id_mutation": f"{insee}-{annee}-{dpe}-{bati}-{prix}",
+                "valeur_fonciere": str(prix),
+                "code_commune": insee,
+                "surface_reelle_bati": str(bati),
+                "latitude": "43.6",
+                "longitude": "1.44",
+            }
+        ],
+        millesime=annee,
+    )
+    return replace(base, etiquette_dpe=dpe, periode_construction="1948-1974")
+
+
+def _deux_annees() -> list[Mutation]:
+    """Pool 2 millésimes (premium C dérivant), INSEE distinct par année."""
+    sample: list[Mutation] = []
+    for annee, premium_c, insee in ((2023, 0.05, "31555"), (2024, 0.15, "31556")):
+        for dpe, effet in {"D": 0.0, "F": -0.20, "C": premium_c}.items():
+            for bati in range(80, 130, 5):
+                sample.append(
+                    _house_annee(
+                        dpe,
+                        bati,
+                        round(3000.0 * bati**0.9 * math.exp(effet)),
+                        insee=insee,
+                        annee=annee,
+                    )
+                )
+    return sample
+
+
+def test_median_relative_error_sans_ponderation_temporelle_est_non_regressif() -> None:
+    # τ absent = comportement #177 : la CV donne exactement la même erreur.
+    sample = _deux_annees()
+    base = median_relative_error(sample, 43.6, 1.44, effets_fixes_commune=False)
+    explicite = median_relative_error(
+        sample,
+        43.6,
+        1.44,
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    assert explicite == base
+
+
+def test_median_relative_error_ponderation_temporelle_change_l_estimateur() -> None:
+    # La décroissance temporelle doit atteindre les fits internes de la CV
+    # (sinon l'erreur mesurerait un autre estimateur que celui publié).
+    sample = _deux_annees()
+    plat = median_relative_error(
+        sample,
+        43.6,
+        1.44,
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    temporel = median_relative_error(
+        sample,
+        43.6,
+        1.44,
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=0.5,
+        annee_reference=2024,
+    )
+    assert plat is not None and temporel is not None
+    assert temporel != plat

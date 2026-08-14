@@ -39,8 +39,15 @@ def median_relative_error(
     restreindre_bati_ancien: bool = True,
     effets_fixes_commune: bool = True,
     indice_local: bool = True,
+    decroissance_temporelle_tau: float | None = None,
+    annee_reference: int | None = None,
 ) -> float | None:
-    """Erreur médiane de prédiction en %, ou ``None`` si l'échantillon est trop petit."""
+    """Erreur médiane de prédiction en %, ou ``None`` si l'échantillon est trop petit.
+
+    La pondération temporelle (#208, ``decroissance_temporelle_tau`` +
+    ``annee_reference``) est transmise aux fits internes des plis : l'erreur mesure
+    ainsi **l'estimateur publié**, pas un modèle à poids égaux différent.
+    """
     # INV-5 (#123) : les plis sont découpés par ``index % folds``, donc
     # l'appartenance aux plis dépend de l'ordre des lignes. On fige un ordre
     # canonique en amont du filtrage pour que l'erreur médiane ne dépende que
@@ -66,6 +73,8 @@ def median_relative_error(
             etendue_minimale=etendue_minimale_indice,
             avec_commune=effets_fixes_commune,
             avec_indice=indice_local,
+            tau=decroissance_temporelle_tau,
+            annee_reference=annee_reference,
         )
         for row, prediction in zip(test, _predict(model, test), strict=True):
             if row.prix > 0:

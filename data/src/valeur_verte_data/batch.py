@@ -199,6 +199,10 @@ def _compute_from_sample(
     Renvoie ``None`` si moins de ``min_classes_publiees`` classes tiennent le seuil.
     L'appelant fournit un ``sample`` déjà en ordre canonique (INV-5).
     """
+    # #208 : la pondération temporelle décroissante s'applique à l'estimateur
+    # publié (fit) et à son erreur mesurée (CV), pas à l'écrêtage — un outlier
+    # ancien reste un outlier ; la détection de points aberrants est un pré-filtre
+    # géométrique/robuste indépendant de l'emphase de récence.
     if config.ecretage == "residu":
         sample = ecreter_residu(
             sample,
@@ -231,6 +235,8 @@ def _compute_from_sample(
         restreindre_bati_ancien=config.restreindre_bati_ancien,
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
+        decroissance_temporelle_tau=config.decroissance_temporelle_tau,
+        annee_reference=millesime,
     )
     erreur = median_relative_error(
         sample,
@@ -244,6 +250,8 @@ def _compute_from_sample(
         restreindre_bati_ancien=config.restreindre_bati_ancien,
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
+        decroissance_temporelle_tau=config.decroissance_temporelle_tau,
+        annee_reference=millesime,
     )
     palier = palier_erreur(
         erreur,

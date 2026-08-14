@@ -44,6 +44,15 @@ class CalculConfig:
     # captant la tendance. 1 = comportement historique (mono-millésime) ; la
     # bascule à 3 attend la validation VPS multi-départements.
     fenetre_millesimes: int = 1
+    # Pondération temporelle décroissante (#208) : constante de temps τ (années)
+    # d'un poids ``exp(-(N − millésime)/τ)`` multiplié au poids gaussien spatial
+    # dans la régression. Fait peser moins les millésimes anciens → estime le
+    # premium DPE plus près de l'année de référence N, corrigeant le biais de
+    # retard du pooling à poids égaux (#177) face à la dérive du premium
+    # (~+15 %/an). ``None`` = désactivé (poids égaux, comportement #177 exact).
+    # La fenêtre (`fenetre_millesimes`) décide *quels* millésimes entrent, τ
+    # décide *combien* chacun pèse.
+    decroissance_temporelle_tau: float | None = None
     # INV-1 (#119) : une inversion de monotonie entre deux classes DPE adjacentes
     # est tolérée si l'effectif de la moins fournie est sous ce seuil (petit
     # échantillon = faiblesse statistique, pas un bug). Au-delà, anomalie bloquante.
@@ -116,6 +125,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),
         min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
         fenetre_millesimes=_int(env, "FENETRE_MILLESIMES", defaut.fenetre_millesimes),
+        decroissance_temporelle_tau=_float_optionnel(
+            env, "DECROISSANCE_TEMPORELLE_TAU", defaut.decroissance_temporelle_tau
+        ),
         inversion_dpe_seuil=_int(env, "INVERSION_DPE_SEUIL", defaut.inversion_dpe_seuil),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
         departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),
@@ -171,6 +183,12 @@ def _int(env: Mapping[str, str], name: str, default: int) -> int:
 
 
 def _float(env: Mapping[str, str], name: str, default: float) -> float:
+    raw = _raw(env, name)
+    return default if raw is None else float(raw)
+
+
+def _float_optionnel(env: Mapping[str, str], name: str, default: float | None) -> float | None:
+    """Comme ``_float`` mais accepte un défaut ``None`` (paramètre désactivable)."""
     raw = _raw(env, name)
     return default if raw is None else float(raw)
 

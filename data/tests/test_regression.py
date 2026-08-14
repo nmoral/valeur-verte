@@ -13,6 +13,7 @@ from valeur_verte_data.regression import (
     fit,
     gaussian_weight,
     is_pre_1989,
+    poids_temporel,
 )
 
 _SURFACES = ((80, 200), (100, 300), (120, 500))
@@ -86,6 +87,28 @@ def test_gaussian_weight_a_un_sigma_vaut_exp_moins_un_demi() -> None:
     assert round(gaussian_weight(10.0, sigma_km=10.0), 6) == round(math.exp(-0.5), 6)
 
 
+def test_poids_temporel_desactive_vaut_un() -> None:
+    # τ absent (None) = pondération temporelle désactivée : poids égaux (#177),
+    # non-régression exacte quel que soit l'âge de la vente (#208).
+    assert poids_temporel(0.0, None) == 1.0
+    assert poids_temporel(5.0, None) == 1.0
+
+
+def test_poids_temporel_maximal_a_anciennete_nulle() -> None:
+    # Le millésime de référence N (ancienneté 0) garde son poids plein.
+    assert poids_temporel(0.0, 1.0) == 1.0
+
+
+def test_poids_temporel_decroit_avec_anciennete() -> None:
+    # Plus une vente est ancienne, moins elle pèse (biais de retard réduit, #208).
+    assert poids_temporel(2.0, 1.0) < poids_temporel(1.0, 1.0) < 1.0
+
+
+def test_poids_temporel_a_une_constante_de_temps_vaut_exp_moins_un() -> None:
+    # À une ancienneté égale à τ, le poids vaut exp(-1) (définition de τ).
+    assert round(poids_temporel(3.0, 3.0), 6) == round(math.exp(-1.0), 6)
+
+
 def test_is_pre_1989_reconnait_le_bati_ancien() -> None:
     assert is_pre_1989("1948-1974")
     assert is_pre_1989("avant 1948")
@@ -113,6 +136,120 @@ def test_fit_recupere_les_coefficients_connus() -> None:
     assert round(result.coef_m2_bati, 2) == _ELASTICITE_BATI
     assert round(result.coef_m2_terrain, 2) == _ELASTICITE_TERRAIN
     assert result.r2 > 0.999
+
+
+def _sample_premium_derivant() -> list[Mutation]:
+    """Pool 2 millésimes où le **premium C dérive** : 2023 +0,05 → 2024 +0,15.
+
+    Le niveau de prix de base est identique d'une année à l'autre (les effets
+    fixes année restent neutres) ; seul l'écart C→D bouge. Un fit à poids égaux
+    estime donc coef_C ≈ moyenne (~+0,10) ; la pondération temporelle vers 2024
+    (#208) remonte l'estimation vers le premium récent (+0,15). Un INSEE distinct
+    par année garde les ``id_mutation`` uniques (les fits ci-dessous désactivent
+    les effets fixes commune pour ne pas confondre commune et année).
+    """
+    lignes: list[Mutation] = []
+    for annee, premium_c, insee in ((2023, 0.05, "31555"), (2024, 0.15, "31556")):
+        effets = {"D": 0.0, "F": -0.20, "C": premium_c}
+        for dpe, effet in effets.items():
+            for bati, terrain in _SURFACES:
+                lignes.append(
+                    _house(
+                        dpe,
+                        bati,
+                        terrain,
+                        _prix_theorique(bati, terrain, effet),
+                        insee=insee,
+                        year=annee,
+                    )
+                )
+    return lignes
+
+
+def test_fit_sans_ponderation_temporelle_est_non_regressif() -> None:
+    # τ absent (défaut None) = comportement #177 exact : passer explicitement
+    # decroissance_temporelle_tau=None ne change rien au résultat par défaut.
+    sample = _sample_premium_derivant()
+    reference = fit(sample, 43.6, 1.44, reference_dpe="D", effets_fixes_commune=False)
+    explicite = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    assert explicite.coef_dpe == reference.coef_dpe
+
+
+def test_fit_ponderation_temporelle_rapproche_du_premium_recent() -> None:
+    # Avec décroissance vers 2024, coef_C se déplace de la moyenne (~+0,10) vers
+    # le premium de l'année de référence (+0,15) : biais de retard réduit (#208).
+    sample = _sample_premium_derivant()
+    plat = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    recent = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=0.5,
+        annee_reference=2024,
+    )
+    assert round(plat.coef_dpe["C"], 2) == 0.10
+    assert recent.coef_dpe["C"] > plat.coef_dpe["C"]
+    assert recent.coef_dpe["C"] > 0.12
+
+
+def _sample_premium_derivant_bruite() -> list[Mutation]:
+    """Comme ``_sample_premium_derivant`` mais avec un bruit multiplicatif ±8 %
+    déterministe : le fit n'est plus parfait (r² < 1), donc le r² **dépend** de la
+    pondération appliquée — permet de vérifier que le R² reflète bien le poids
+    temporel (champ diagnostique retourné, #208).
+    """
+    lignes: list[Mutation] = []
+    for annee, premium_c, insee in ((2023, 0.05, "31555"), (2024, 0.15, "31556")):
+        effets = {"D": 0.0, "F": -0.20, "C": premium_c}
+        for dpe, effet in effets.items():
+            for i, (bati, terrain) in enumerate(_SURFACES):
+                bruit = 1.08 if i % 2 == 0 else 0.92
+                prix = round(_prix_theorique(bati, terrain, effet) * bruit)
+                lignes.append(_house(dpe, bati, terrain, prix, insee=insee, year=annee))
+    return lignes
+
+
+def test_fit_ponderation_temporelle_influe_sur_le_r2() -> None:
+    # Le r² est mesuré sur l'objectif pondéré ; il doit refléter le poids temporel
+    # (sinon le diagnostic décrirait un autre estimateur que celui publié, #208).
+    sample = _sample_premium_derivant_bruite()
+    plat = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=None,
+        annee_reference=2024,
+    )
+    recent = fit(
+        sample,
+        43.6,
+        1.44,
+        reference_dpe="D",
+        effets_fixes_commune=False,
+        decroissance_temporelle_tau=0.5,
+        annee_reference=2024,
+    )
+    assert recent.r2 != plat.r2
 
 
 def test_fit_exclut_le_bati_recent() -> None:
