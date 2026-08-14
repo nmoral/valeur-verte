@@ -26,6 +26,17 @@
     </aside>
 
     <main>
+        {% for message in app.flashes('verification') %}
+            <p class="flash-verif-email">{{ message }}</p>
+        {% endfor %}
+
+        {% if app.user and not app.user.emailEstVerifie %}
+            <p class="rappel-verif-email">
+                Confirmez votre adresse email pour sécuriser votre compte.
+                <a href="{{ path('verification_email_renvoyer') }}">Renvoyer l'email</a>
+            </p>
+        {% endif %}
+
         {% set essai = essai_courant() %}
         {% if essai %}
             <a class="essai-bandeau{{ essai.termine ? ' est-termine' : (essai.quotaConsommeAuMoins(80) ? ' est-alerte' : '') }}" href="{{ path('back_office_bilan') }}">

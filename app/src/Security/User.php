@@ -40,6 +40,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?int $tenantId = null;
 
+    // Vérification d'email a posteriori (#105, ONB-1) : null tant que l'adresse
+    // n'est pas confirmée. Jamais bloquant — un simple rappel dans l'espace pro.
+    #[ORM\Column(name: 'email_verifie_le', nullable: true)]
+    private ?\DateTimeImmutable $emailVerifieLe = null;
+
     /**
      * @param list<string> $roles
      */
@@ -57,6 +62,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getEmail(): string
     {
         return $this->email;
+    }
+
+    public function emailEstVerifie(): bool
+    {
+        return null !== $this->emailVerifieLe;
+    }
+
+    public function marquerEmailVerifie(\DateTimeImmutable $le): void
+    {
+        $this->emailVerifieLe = $le;
     }
 
     public function getTenantId(): ?int

@@ -70,6 +70,17 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Jeton de vérification d'email (#105, ONB-1) : signe l'utilisateur avec le
+    # secret applicatif pour un lien de confirmation infalsifiable, sans stockage.
+    App\Security\VerificationEmail\JetonVerificationEmail:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
+    App\Security\VerificationEmail\EnvoiVerificationEmail:
+        arguments:
+            $appDomaine: '%app.domaine%'
+
     # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
     # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
     App\Security\MotDePasseOublie\DemandeReinitialisation:

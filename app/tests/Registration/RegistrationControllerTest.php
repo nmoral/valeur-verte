@@ -8,6 +8,7 @@ use App\BackOffice\Entreprise\Entreprise;
 use App\BackOffice\Entreprise\EntrepriseRepository;
 use App\BackOffice\Entreprise\StatutRge;
 use App\Security\UserRepository;
+use App\Tests\Notification\Double\MailerEnMemoire;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -119,6 +120,20 @@ final class RegistrationControllerTest extends WebTestCase
         $entreprises = self::getContainer()->get(EntrepriseRepository::class);
         self::assertInstanceOf(EntrepriseRepository::class, $entreprises);
         self::assertNull($entreprises->findOneBy(['siret' => self::SIRET_INCONNU]), 'Un SIRET inconnu ne doit pas créer de fiche, mais ne bloque pas le compte.');
+    }
+
+    public function testUneInscriptionEnvoieUnEmailDeVerification(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettreInscription($client, 'a-verifier@example.com', 'motdepasse-solide', '12345678901234');
+
+        $mailer = self::getContainer()->get(MailerEnMemoire::class);
+        self::assertInstanceOf(MailerEnMemoire::class, $mailer);
+        $emails = $mailer->envoyes();
+        self::assertCount(1, $emails);
+        self::assertSame('a-verifier@example.com', $emails[0]->destinataire());
+        self::assertStringContainsString('/verification-email?utilisateur=', $emails[0]->corpsHtml());
     }
 
     private function soumettreInscription(KernelBrowser $client, string $email, string $motDePasse, string $siret): void
