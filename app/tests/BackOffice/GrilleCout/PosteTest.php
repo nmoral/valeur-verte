@@ -16,6 +16,18 @@ final class PosteTest extends TestCase
         self::assertCount(7, Poste::cases());
     }
 
+    public function testUnPosteSeRetrouveParSonNom(): void
+    {
+        self::assertSame(Poste::PlanchersBas, Poste::parNom('PlanchersBas'));
+    }
+
+    public function testUnNomDePosteInconnuEstRejete(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Poste::parNom('Piscine');
+    }
+
     #[DataProvider('unitesAttendues')]
     public function testChaquePostePorteSonUniteDeChiffrage(Poste $poste, Unite $uniteAttendue): void
     {
