@@ -31,6 +31,11 @@ def test_derniere_reforme_retient_la_plus_recente_avant_fin_de_n() -> None:
     assert derniere_reforme(2024, boundaries) == "2024-07-01"
 
 
+def test_reforme_le_dernier_jour_de_n_est_applicable() -> None:
+    # Borne exactement à {N}-12-31 : incluse (≤), le régime de N est le nouveau.
+    assert derniere_reforme(2024, ("2024-12-31",)) == "2024-12-31"
+
+
 def test_derniere_reforme_aucune_borne_applicable_donne_none() -> None:
     assert derniere_reforme(2023, ("2024-07-01",)) is None
     assert derniere_reforme(2024, ()) is None
