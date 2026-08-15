@@ -17,6 +17,8 @@ def _dpe(**overrides: str) -> dict[str, str]:
         "adresse_ban": "12 Rue des Fleurs 31000 Toulouse",
         "etiquette_dpe": "D",
         "periode_construction": "1948-1974",
+        "date_etablissement_dpe": "2022-06-15",
+        "version_dpe": "2.2",
     }
     record.update(overrides)
     return record
@@ -26,16 +28,53 @@ def test_indexe_par_code_postal_et_adresse() -> None:
     lookup = build_dpe_lookup([_dpe()])
 
     assert lookup[("31000", "12 rue fleurs")] == DpeInfo(
-        etiquette_dpe="D", periode_construction="1948-1974"
+        etiquette_dpe="D",
+        periode_construction="1948-1974",
+        date_etablissement_dpe="2022-06-15",
+        version_dpe="2.2",
     )
 
 
-def test_retient_l_etiquette_la_plus_frequente() -> None:
-    records = [_dpe(etiquette_dpe="D"), _dpe(etiquette_dpe="D"), _dpe(etiquette_dpe="E")]
+def test_retient_le_dpe_le_plus_recent() -> None:
+    # #211 : le DPE le plus récent (date d'établissement max) fait foi — étiquette,
+    # période, date et version viennent tous du même diagnostic, pas d'un mode.
+    records = [
+        _dpe(etiquette_dpe="E", date_etablissement_dpe="2019-03-01"),
+        _dpe(etiquette_dpe="D", date_etablissement_dpe="2023-07-10"),
+        _dpe(etiquette_dpe="F", date_etablissement_dpe="2021-01-05"),
+    ]
 
     lookup = build_dpe_lookup(records)
 
     assert lookup[("31000", "12 rue fleurs")].etiquette_dpe == "D"
+
+
+def test_dpe_date_l_emporte_sur_un_dpe_sans_date() -> None:
+    # Un diagnostic daté prime sur un diagnostic sans date (moins récent par défaut).
+    records = [
+        _dpe(etiquette_dpe="D", date_etablissement_dpe="2022-05-01"),
+        _dpe(etiquette_dpe="G", date_etablissement_dpe=""),
+    ]
+
+    lookup = build_dpe_lookup(records)
+
+    assert lookup[("31000", "12 rue fleurs")].etiquette_dpe == "D"
+
+
+def test_porte_la_date_et_la_version_du_dpe() -> None:
+    lookup = build_dpe_lookup([_dpe(date_etablissement_dpe="2023-07-10", version_dpe="2.3")])
+
+    info = lookup[("31000", "12 rue fleurs")]
+    assert info.date_etablissement_dpe == "2023-07-10"
+    assert info.version_dpe == "2.3"
+
+
+def test_date_et_version_absentes_donnent_none() -> None:
+    lookup = build_dpe_lookup([_dpe(date_etablissement_dpe="", version_dpe="")])
+
+    info = lookup[("31000", "12 rue fleurs")]
+    assert info.date_etablissement_dpe is None
+    assert info.version_dpe is None
 
 
 def test_ignore_les_etiquettes_invalides() -> None:
@@ -105,11 +144,10 @@ def test_matching_rate_liste_vide() -> None:
     assert matching_rate([]) == 0.0
 
 
-def test_retient_la_periode_la_plus_frequente() -> None:
+def test_retient_la_periode_du_dpe_le_plus_recent() -> None:
     records = [
-        _dpe(periode_construction="1948-1974"),
-        _dpe(periode_construction="1948-1974"),
-        _dpe(periode_construction="avant 1948"),
+        _dpe(periode_construction="avant 1948", date_etablissement_dpe="2018-01-01"),
+        _dpe(periode_construction="1948-1974", date_etablissement_dpe="2024-02-02"),
     ]
 
     lookup = build_dpe_lookup(records)
