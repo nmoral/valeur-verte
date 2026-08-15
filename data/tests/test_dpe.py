@@ -61,6 +61,45 @@ def test_dpe_date_l_emporte_sur_un_dpe_sans_date() -> None:
     assert lookup[("31000", "12 rue fleurs")].etiquette_dpe == "D"
 
 
+def test_un_dpe_invalide_n_interrompt_pas_l_indexation() -> None:
+    # Une étiquette invalide est ignorée (continue), pas un arrêt (break) : les
+    # diagnostics suivants restent indexés.
+    records = [
+        _dpe(etiquette_dpe="Z", adresse_ban="1 Rue A 31000 Toulouse"),
+        _dpe(etiquette_dpe="D", adresse_ban="2 Rue B 31000 Toulouse"),
+    ]
+
+    lookup = build_dpe_lookup(records)
+
+    assert any(info.etiquette_dpe == "D" for info in lookup.values())
+
+
+def test_une_adresse_vide_n_interrompt_pas_l_indexation() -> None:
+    records = [
+        _dpe(adresse_ban="", etiquette_dpe="D"),
+        _dpe(adresse_ban="2 Rue B 31000 Toulouse", etiquette_dpe="E"),
+    ]
+
+    lookup = build_dpe_lookup(records)
+
+    assert any(info.etiquette_dpe == "E" for info in lookup.values())
+
+
+def test_dpe_sans_champ_date_ne_prime_pas_sur_un_dpe_date() -> None:
+    # Champ date ABSENT (clé manquante) : traité comme le moins récent (défaut ""),
+    # jamais comme "None" qui trierait après une vraie date ISO.
+    sans_date = {
+        "code_postal": "31000",
+        "adresse_ban": "12 Rue des Fleurs 31000 Toulouse",
+        "etiquette_dpe": "G",
+    }
+    date = _dpe(etiquette_dpe="D", date_etablissement_dpe="2022-05-01")
+
+    lookup = build_dpe_lookup([sans_date, date])
+
+    assert lookup[("31000", "12 rue fleurs")].etiquette_dpe == "D"
+
+
 def test_porte_la_date_et_la_version_du_dpe() -> None:
     lookup = build_dpe_lookup([_dpe(date_etablissement_dpe="2023-07-10", version_dpe="2.3")])
 
