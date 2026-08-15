@@ -46,6 +46,7 @@ def _ligne(code_insee: str = "31555", etiquette: str = "F") -> tuple[Any, ...]:
         "1948-1974",
         1.44,
         43.6,
+        "2023-07-10",
     )
 
 
@@ -108,6 +109,8 @@ def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> Non
     assert mutation.periode_construction == "1948-1974"
     assert mutation.latitude == 43.6
     assert mutation.longitude == 1.44
+    # #215 : la date d'établissement du DPE alimente le filtre de rupture de réforme.
+    assert mutation.date_etablissement_dpe == "2023-07-10"
 
 
 def test_un_departement_vide_rend_un_pool_vide() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 from valeur_verte_data.db.vente_repository import insert_mutations
@@ -83,6 +84,22 @@ def test_insert_mutations_inclut_le_suffixe_dans_adresse_key() -> None:
     assert params[15] == "12 bis rue fleurs"
 
 
+def test_insert_mutations_ecrit_date_et_version_dpe() -> None:
+    # #211 : la date d'établissement et la version du DPE sont persistées, juste
+    # après periode_construction (indices 18/19), avant les coordonnées.
+    conn = _FakeConnection()
+    mutation = replace(_mutation(), date_etablissement_dpe="2023-07-10", version_dpe="2.3")
+
+    insert_mutations(conn, [mutation])
+
+    query, params = conn.calls[0]
+    assert "date_etablissement_dpe" in query
+    assert "version_dpe" in query
+    assert params is not None
+    assert params[18] == "2023-07-10"
+    assert params[19] == "2.3"
+
+
 def test_insert_mutations_passe_les_coordonnees_au_geom() -> None:
     conn = _FakeConnection()
 
@@ -91,5 +108,5 @@ def test_insert_mutations_passe_les_coordonnees_au_geom() -> None:
     query, params = conn.calls[0]
     assert "ST_MakePoint" in query
     assert params is not None
-    assert params[20] == 1.44
-    assert params[21] == 43.6
+    assert params[22] == 1.44
+    assert params[23] == 43.6

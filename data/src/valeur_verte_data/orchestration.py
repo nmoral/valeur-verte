@@ -46,6 +46,7 @@ from .invariants import (
     evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
+from .ruptures import filtrer_regime_dpe
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -237,11 +238,17 @@ def compute_departement(
         limitrophes=voisins,
         type_local=config.segment,
     )
+    # #215 : ne pas pooler à travers une réforme du DPE — on écarte les ventes dont
+    # le diagnostic précède la dernière réforme ≤ N (calendrier config, vide = no-op).
+    charge = len(pool)
+    pool = filtrer_regime_dpe(pool, millesime, config.dpe_reform_boundaries)
+    ecartes = charge - len(pool)
     logger.info(
-        "Pool du département %s (+ %s) : %d vente(s)",
+        "Pool du département %s (+ %s) : %d vente(s)%s",
         departement,
         ", ".join(voisins) if voisins else "aucun limitrophe",
         len(pool),
+        f" ({ecartes} écartée(s) — régime DPE antérieur, #215)" if ecartes else "",
     )
 
     coordonnees = [

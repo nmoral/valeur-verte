@@ -28,6 +28,10 @@ _FIELD_MAP = {
     "adresse_ban": "adresse_ban",
     "code_postal": "code_postal_ban",
     "periode_construction": "periode_construction",
+    # #211 : date d'établissement et version de méthode — datent le diagnostic pour
+    # la gestion des ruptures de réforme DPE (#208/#127).
+    "date_etablissement_dpe": "date_etablissement_dpe",
+    "version_dpe": "version_dpe",
 }
 _INSEE_FIELD = "code_insee_ban"
 # Toulouse compte 186 000 DPE : par pages de 1 000 il faudrait 187 requêtes pour

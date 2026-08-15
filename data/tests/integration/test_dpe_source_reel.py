@@ -42,3 +42,8 @@ def test_les_dpe_d_une_commune_sont_indexables() -> None:
     assert code_postal.startswith("31"), f"code postal inattendu : {code_postal}"
     assert adresse, "clé d'adresse vide : le champ d'adresse a changé de nom"
     assert info.etiquette_dpe in set("ABCDEFG")
+    # #211 : la date d'établissement date le diagnostic (ruptures de réforme, #208).
+    # Au moins un DPE doit la porter, sinon le nom de champ ADEME a changé.
+    assert any(i.date_etablissement_dpe for i in lookup.values()), (
+        "aucune date d'établissement : le champ date_etablissement_dpe a changé de nom"
+    )

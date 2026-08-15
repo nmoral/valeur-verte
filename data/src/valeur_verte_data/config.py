@@ -57,6 +57,13 @@ class CalculConfig:
     # La fenêtre (`fenetre_millesimes`) décide *quels* millésimes entrent, τ
     # décide *combien* chacun pèse.
     decroissance_temporelle_tau: float | None = None
+    # Ruptures de réforme DPE (#215) : calendrier des dates ISO de réforme du DPE
+    # (méthode 3CL 2021-07-01, recalcul petites surfaces 2024-07-01, réforme ~2026).
+    # Une maille sous millésime N écarte du calcul les ventes dont le DPE précède la
+    # dernière réforme ≤ fin N (ne pas pooler à travers une réforme, cf. ruptures.py).
+    # **Vide par défaut** = aucun filtrage (non-régression exacte) ; à activer au VPS
+    # avec les réformes matérielles pour le segment maisons.
+    dpe_reform_boundaries: tuple[str, ...] = ()
     # INV-1 (#119) : une inversion de monotonie entre deux classes DPE adjacentes
     # est tolérée si l'effectif de la moins fournie est sous ce seuil (petit
     # échantillon = faiblesse statistique, pas un bug). Au-delà, anomalie bloquante.
@@ -131,6 +138,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         fenetre_millesimes=_int(env, "FENETRE_MILLESIMES", defaut.fenetre_millesimes),
         decroissance_temporelle_tau=_float_optionnel(
             env, "DECROISSANCE_TEMPORELLE_TAU", defaut.decroissance_temporelle_tau
+        ),
+        dpe_reform_boundaries=_str_tuple(
+            env, "DPE_REFORM_BOUNDARIES", defaut.dpe_reform_boundaries
         ),
         inversion_dpe_seuil=_int(env, "INVERSION_DPE_SEUIL", defaut.inversion_dpe_seuil),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
@@ -214,3 +224,10 @@ def _tuple(env: Mapping[str, str], name: str, default: tuple[int, ...]) -> tuple
     if raw is None:
         return default
     return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
+
+
+def _str_tuple(env: Mapping[str, str], name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw = _raw(env, name)
+    if raw is None:
+        return default
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
