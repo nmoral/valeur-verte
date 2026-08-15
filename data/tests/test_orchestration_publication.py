@@ -1,0 +1,190 @@
+"""REG-2 (#130) : le batch calcule et archive, il ne publie plus.
+
+Un millésime n'est servi qu'après activation explicite depuis l'admin interne. Le
+batch ne doit donc plus toucher la table vive ``coefficient_maille`` — ni pour
+écrire une maille retenue, ni pour effacer une maille refusée. Sinon un millésime
+calculé puis abandonné aurait déjà changé ce que voient les clients.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+import pytest
+from valeur_verte_data import orchestration
+from valeur_verte_data.batch import MailleCoefficient
+from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
+from valeur_verte_data.ecarts import ClasseEcart
+
+
+class _FauxFetcher:
+    def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
+        return [{"code": "31555", "centre": {"coordinates": [1.44, 43.60]}}]
+
+    def get_text(self, url: str, params: Mapping[str, str] | None = None) -> str:
+        raise AssertionError("le calcul ne récupère aucun fichier")
+
+
+class _Curseur:
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return []
+
+
+class _FausseConnexion:
+    def __init__(self) -> None:
+        self.requetes: list[str] = []
+
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> Any:
+        self.requetes.append(query)
+        return _Curseur()
+
+    def commit(self) -> None:
+        pass
+
+    def rollback(self) -> None:
+        pass
+
+
+@pytest.fixture
+def connexion() -> _FausseConnexion:
+    return _FausseConnexion()
+
+
+def _maille(code_insee: str, coef_m2_bati: float = 0.5) -> MailleCoefficient:
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        palier=PalierFiabilite.STANDARD,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=10,
+        n_transactions=40,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=coef_m2_bati,
+        coef_m2_terrain=0.30,
+        coef_dpe={"D": 0.0, "F": -0.20},
+        ic_dpe={},
+        alerte=None,
+    )
+
+
+def test_le_batch_n_ecrit_plus_la_table_vive(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    vives: list[MailleCoefficient] = []
+    _brancher(monkeypatch, [_maille("31555")])
+    monkeypatch.setattr(
+        orchestration, "upsert_coefficient", lambda conn, maille: vives.append(maille)
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert vives == [], "Le batch ne doit plus publier : REG-2 exige une activation explicite."
+
+
+def test_le_batch_n_efface_plus_la_table_vive(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une maille refusée ne disparaît pas du service tant que rien n'est publié.
+
+    Sinon un millésime abandonné aurait quand même retiré des communes du service.
+    """
+    effacees: list[str] = []
+    _brancher(monkeypatch, [])
+    monkeypatch.setattr(
+        orchestration, "delete_coefficient", lambda conn, code: effacees.append(code)
+    )
+    monkeypatch.setattr(orchestration, "enregistrer_refus", lambda conn, code, mil, motif: None)
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert effacees == []
+
+
+def test_une_maille_refusee_est_enregistree_pour_la_publication(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Le refus est différé, pas perdu : c'est la publication qui retirera la
+    commune du service, sans quoi une commune devenue non calculable continuerait
+    d'être servie indéfiniment."""
+    refus: list[tuple[str, int]] = []
+    _brancher(monkeypatch, [])
+    monkeypatch.setattr(
+        orchestration,
+        "enregistrer_refus",
+        lambda conn, code, mil, motif: refus.append((code, mil)),
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert refus == [("31555", 2024)]
+
+
+def test_le_batch_archive_les_mailles_retenues(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
+    _brancher(monkeypatch, [_maille("31555")])
+    monkeypatch.setattr(
+        orchestration,
+        "archiver_coefficient",
+        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [m.code_insee for m, _ in archivees] == ["31555"]
+
+
+def test_l_archive_porte_la_classe_d_ecart(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """La publication doit pouvoir écarter les mailles bloquées par REG-1.
+
+    Elles sont archivées comme les autres : sans classe d'écart portée sur
+    l'archive, projeter « toutes les lignes du millésime » les publierait.
+    """
+    archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
+    # Les deux élasticités restent dans les bornes INV-2 ([0,30 ; 1,50]) — sinon la
+    # maille serait rejetée avant d'être archivée — mais l'écart entre millésimes
+    # dépasse largement le seuil de blocage REG-1 (25 %).
+    precedent = _maille("31555", coef_m2_bati=0.5)
+    _brancher(monkeypatch, [_maille("31555", coef_m2_bati=1.4)])
+    monkeypatch.setattr(
+        orchestration, "lire_coefficient_precedent", lambda conn, code, mil: precedent
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "archiver_coefficient",
+        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [classe for _, classe in archivees] == [ClasseEcart.BLOCAGE]
+
+
+def test_une_maille_sans_precedent_est_archivee_sans_classe(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
+    _brancher(monkeypatch, [_maille("31555")])
+    monkeypatch.setattr(
+        orchestration, "lire_coefficient_precedent", lambda conn, code, mil: None
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "archiver_coefficient",
+        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert [classe for _, classe in archivees] == [None]
+
+
+def _brancher(monkeypatch: pytest.MonkeyPatch, mailles: list[MailleCoefficient]) -> None:
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: list(mailles))
+    monkeypatch.setattr(orchestration, "read_adjacence", lambda conn, dep: {})
