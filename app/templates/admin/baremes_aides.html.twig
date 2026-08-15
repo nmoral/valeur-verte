@@ -1,0 +1,50 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Barème d'aides · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Barème d'aides{% endblock %}
+
+{% block admin_subtitle %}<p>MaPrimeRénov' rénovation d'ampleur : un taux de prise en charge par situation de ménage, appliqué à un plafond de dépenses <abbr title="hors taxes">HT</abbr> qui dépend du gain de classes DPE. Enregistrer ne modifie pas le barème en place : cela publie une nouvelle version à la date d'effet indiquée, et clôture la précédente. Les rapports déjà émis gardent la leur.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if erreur is defined %}
+        <p class="erreur" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('admin_bareme_aides') }}">
+        <label for="date_effet">Date d'effet</label>
+        <input type="date" id="date_effet" name="date_effet" required>
+
+        <p class="sect">Taux de prise en charge (%)</p>
+
+        <label for="taux_tres_modeste">Revenus très modestes</label>
+        <input type="number" id="taux_tres_modeste" name="taux_tres_modeste" min="0" max="100" value="{{ valeurs.taux_tres_modeste }}" required>
+
+        <label for="taux_modeste">Revenus modestes</label>
+        <input type="number" id="taux_modeste" name="taux_modeste" min="0" max="100" value="{{ valeurs.taux_modeste }}" required>
+
+        <label for="taux_intermediaire">Revenus intermédiaires</label>
+        <input type="number" id="taux_intermediaire" name="taux_intermediaire" min="0" max="100" value="{{ valeurs.taux_intermediaire }}" required>
+
+        <label for="taux_superieur">Revenus supérieurs</label>
+        <input type="number" id="taux_superieur" name="taux_superieur" min="0" max="100" value="{{ valeurs.taux_superieur }}" required>
+
+        <p class="sect">Plafonds de dépenses éligibles (€ HT)</p>
+
+        <label for="plafond_2_classes">Gain de 2 classes</label>
+        <input type="number" id="plafond_2_classes" name="plafond_2_classes" min="0" step="500" value="{{ valeurs.plafond_2_classes }}" required>
+
+        <label for="plafond_3_classes">Gain de 3 classes ou plus</label>
+        <input type="number" id="plafond_3_classes" name="plafond_3_classes" min="0" step="500" value="{{ valeurs.plafond_3_classes }}" required>
+
+        <p class="sect">Autres dispositifs</p>
+
+        <label for="plafond_eco_ptz">Plafond de l'éco-PTZ (€)</label>
+        <input type="number" id="plafond_eco_ptz" name="plafond_eco_ptz" min="0" step="1000" value="{{ valeurs.plafond_eco_ptz }}" required>
+
+        <label for="taux_tva_pour_mille">TVA réduite (pour mille — 55 = 5,5 %)</label>
+        <input type="number" id="taux_tva_pour_mille" name="taux_tva_pour_mille" min="0" max="1000" value="{{ valeurs.taux_tva_pour_mille }}" required>
+
+        <button type="submit">Publier ce barème</button>
+    </form>
+{% endblock %}

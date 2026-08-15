@@ -9,6 +9,8 @@ use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Rapport\InstantaneRapport;
 use App\BackOffice\Restitution\AjustementProfessionnel;
+use App\BackOffice\Restitution\DeclarationsPro;
+use App\BackOffice\Restitution\ResteACharge;
 use App\BackOffice\Restitution\Restitution;
 use Twig\Environment;
 
@@ -31,8 +33,11 @@ final readonly class GenerateurPdfRapport
      * Régénère le PDF depuis l'instantané immuable (#33) : reproductibilité à
      * l'identique, sans jamais recalculer.
      */
-    public function depuisInstantane(InstantaneRapport $instantane, ?AjustementProfessionnel $ajustement = null): string
-    {
+    public function depuisInstantane(
+        InstantaneRapport $instantane,
+        ?AjustementProfessionnel $ajustement = null,
+        ?DeclarationsPro $declarations = null,
+    ): string {
         return $this->generer(
             $instantane->saisie(),
             $instantane->restitution(),
@@ -40,6 +45,31 @@ final readonly class GenerateurPdfRapport
             $instantane->reference(),
             $ajustement,
             $instantane->bouquet(),
+            self::resteACharge($instantane, $declarations ?? DeclarationsPro::aucune()),
+        );
+    }
+
+    /**
+     * Reste à charge reconstruit depuis l'instantané figé et les déclarations du
+     * pro (#26). Rien n'est recalculé : le chiffrage et le barème sont ceux du jour
+     * de l'audit, seules les déclarations viennent du présent — ce sont elles que
+     * le pro peut corriger.
+     */
+    public static function resteACharge(InstantaneRapport $instantane, DeclarationsPro $declarations): ?ResteACharge
+    {
+        $chiffrage = $instantane->chiffrage();
+        $bareme = $instantane->baremeAides();
+        if (null === $chiffrage || null === $bareme) {
+            return null;
+        }
+
+        $saisie = $instantane->saisie();
+
+        return ResteACharge::calculer(
+            $declarations->appliquerA($chiffrage),
+            $saisie->dpeAvant()->classesGagneesVers($saisie->dpeApres()),
+            $declarations->categorieRevenu(),
+            $bareme,
         );
     }
 
@@ -50,6 +80,7 @@ final readonly class GenerateurPdfRapport
         ReferenceRapport $reference,
         ?AjustementProfessionnel $ajustement = null,
         ?Bouquet $bouquet = null,
+        ?ResteACharge $resteACharge = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
@@ -60,6 +91,7 @@ final readonly class GenerateurPdfRapport
             // L'ajustement du pro (#30) n'a de sens qu'adossé à une mesure.
             'ajustement' => null !== $restitution ? $ajustement : null,
             'bouquet' => $bouquet,
+            'reste_a_charge' => $resteACharge,
         ]);
 
         return $this->convertisseur->depuisHtml($html);
