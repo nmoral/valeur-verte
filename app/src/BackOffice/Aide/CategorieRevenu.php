@@ -35,6 +35,17 @@ enum CategorieRevenu
         return [self::TresModeste, self::Modeste, self::Intermediaire, self::Superieur];
     }
 
+    public static function parNom(string $nom): self
+    {
+        foreach (self::cases() as $categorie) {
+            if ($categorie->name === $nom) {
+                return $categorie;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('Situation de revenus inconnue : %s.', $nom));
+    }
+
     public function libelle(): string
     {
         return match ($this) {

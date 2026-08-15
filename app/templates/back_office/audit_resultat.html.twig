@@ -89,6 +89,37 @@
         </div>
     {% endif %}
 
+    <div class="declarations">
+        {% if erreur_declarations %}
+            <p class="ajustement-erreur" role="alert">{{ erreur_declarations }}</p>
+        {% endif %}
+
+        <form method="post" action="{{ path('back_office_audit_resultat_declarations') }}" class="ajustement-form">
+            <label for="categorie_revenu">Situation du ménage</label>
+            <select id="categorie_revenu" name="categorie_revenu">
+                <option value="NonPrecisee">Non précisée</option>
+                {% for categorie in categories_revenu %}
+                    <option value="{{ categorie.name }}"{{ declarations.categorieRevenu == categorie ? ' selected' : '' }}>{{ categorie.libelle }}</option>
+                {% endfor %}
+            </select>
+            <p class="ajustement-note">Sert à estimer MaPrimeRénov'. Les plafonds portent sur le <strong>revenu fiscal de référence</strong> du foyer et dépendent du nombre de personnes et de la région — hors Île-de-France, un foyer de 2 personnes est « très modeste » jusqu'à 25 393 €, « modeste » jusqu'à 32 553 €, « intermédiaire » jusqu'à 45 842 €. Estimation indicative, sous réserve d'instruction par l'Anah.</p>
+
+            {% if bouquet %}
+                <p class="ajustement-note">Vous pouvez remplacer le coût issu de votre grille par vos devis, poste par poste.</p>
+                <div class="champs">
+                    {% for poste in bouquet.postes %}
+                        <div>
+                            <label for="chiffrage_{{ poste.name }}">{{ poste.libelle }} (€ HT)</label>
+                            <input type="number" id="chiffrage_{{ poste.name }}" name="chiffrage[{{ poste.name }}]" min="0" step="100">
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <button type="submit">Mettre à jour</button>
+        </form>
+    </div>
+
     {% for avertissement in avertissements %}
         <p class="banner banner-warn resultat-indispo" role="alert">{{ avertissement }}</p>
     {% endfor %}
