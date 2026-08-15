@@ -28,6 +28,26 @@ final class DpeTest extends TestCase
         self::assertFalse(Dpe::C->estMeilleurQue(Dpe::C));
     }
 
+    public function testLeGainSeCompteEnClassesFranchies(): void
+    {
+        // Entrée du barème d'aides (#26) : la rénovation d'ampleur se dimensionne
+        // sur le nombre de classes gagnées, pas sur la liste des gestes.
+        self::assertSame(2, Dpe::E->classesGagneesVers(Dpe::C));
+        self::assertSame(4, Dpe::G->classesGagneesVers(Dpe::C));
+    }
+
+    public function testUnDpeInchangeNeGagneAucuneClasse(): void
+    {
+        self::assertSame(0, Dpe::C->classesGagneesVers(Dpe::C));
+    }
+
+    public function testUneDegradationCompteNegativement(): void
+    {
+        // §9.8 borne déjà la saisie (cible meilleure que l'actuel) : on ne masque
+        // pas le cas, on le rend visible plutôt que de le confondre avec un gain nul.
+        self::assertSame(-2, Dpe::C->classesGagneesVers(Dpe::E));
+    }
+
     #[DataProvider('paires')]
     public function testLOrdreSuitLAlphabet(Dpe $meilleur, Dpe $moins): void
     {
