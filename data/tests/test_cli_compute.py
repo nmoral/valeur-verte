@@ -1,9 +1,13 @@
 """CLI de calcul des coefficients par département (#91, §10.6).
 
 Le pool du département est chargé une seule fois, puis chaque commune est
-calculée par le moteur et écrite dans ``coefficient_maille``. Une commune sous
-le seuil est **refusée** : c'est un résultat normal du cadrage (§7), pas une
-erreur, et le rapport doit les distinguer pour rester lisible.
+calculée par le moteur et **archivée** dans ``coefficient_maille_historique``.
+REG-2 (#130) : le batch ne touche plus la table vive ``coefficient_maille`` —
+un millésime n'est servi qu'après activation explicite. Une commune sous le
+seuil est **refusée** : c'est un résultat normal du cadrage (§7), pas une
+erreur ; le refus est noté dans ``maille_refusee`` (il ne retirera la commune du
+service qu'à la publication) et le rapport doit les distinguer pour rester
+lisible.
 """
 
 from __future__ import annotations
@@ -141,6 +145,46 @@ def connexion() -> _FausseConnexion:
     return _FausseConnexion(_POOL)
 
 
+# REG-2 (#130) : archivage et refus sont **tous deux** des INSERT et se retrouvent
+# donc dans ``ecritures``. On les distingue par leur table, sans quoi « la maille
+# n'est pas archivée » serait confondu avec « aucun refus n'a été noté ».
+_TABLE_ARCHIVE = "coefficient_maille_historique"
+_TABLE_REFUS = "data.maille_refusee"
+
+
+def _archivees(connexion: _FausseConnexion) -> list[Sequence[Any]]:
+    """Paramètres des écritures visant l'archive versionnée par millésime."""
+    return [params for query, params in connexion.ecritures if _TABLE_ARCHIVE in query and params]
+
+
+def _refus_notes(connexion: _FausseConnexion) -> list[Sequence[Any]]:
+    """Paramètres des refus notés (``code_insee``, ``millesime``, ``motif``)."""
+    return [params for query, params in connexion.ecritures if _TABLE_REFUS in query and params]
+
+
+def _capturer_archives(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[MailleCoefficient, ClasseEcart | None]]:
+    """Intercepte l'archivage : c'est là que va désormais chaque maille retenue.
+
+    Le verdict REG-1 part avec l'archive (``classe_ecart``), c'est lui qui permet à
+    la publication d'écarter les mailles aberrantes — on le capture aussi.
+    """
+    archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
+
+    def _archiver(
+        conn: Any,
+        maille: MailleCoefficient,
+        classe_ecart: ClasseEcart | None = None,
+        ecart: float | None = None,
+        ecart_coefficient: str | None = None,
+    ) -> None:
+        archivees.append((maille, classe_ecart))
+
+    monkeypatch.setattr(orchestration, "archiver_coefficient", _archiver)
+    return archivees
+
+
 def test_le_pool_du_departement_n_est_charge_qu_une_fois(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -260,7 +304,11 @@ def test_seules_les_communes_du_departement_recoivent_un_coefficient(
 def test_les_communes_calculees_sont_ecrites(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Un coefficient calculé mais non écrit ne servirait à rien au widget."""
+    """Un coefficient calculé mais non écrit ne servirait à rien au widget.
+
+    REG-2 (#130) : l'écriture va dans l'archive, c'est elle que la publication
+    projettera vers le service — une maille calculée puis non archivée serait perdue.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     _neutraliser_monotonie(monkeypatch)
     _neutraliser_signe_ordre(monkeypatch)
@@ -270,9 +318,7 @@ def test_les_communes_calculees_sont_ecrites(
     )
 
     assert rapport.communes_calculees > 0
-    # Écritures dans la table **vive** (l'archivage REG-1 écrit en plus dans l'historique).
-    vives = [query for query, _ in connexion.ecritures if "_historique" not in query]
-    assert len(vives) == rapport.communes_calculees
+    assert len(_archivees(connexion)) == rapport.communes_calculees
     assert connexion.commits >= 1
 
 
@@ -290,14 +336,18 @@ def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
 
 def test_le_resume_surface_les_ecarts_reg1() -> None:
     """L'opérateur doit voir, dans le résumé du batch, combien de mailles ont été
-    bloquées ou signalées par REG-1 — sinon les suspensions passent inaperçues."""
+    écartées ou signalées par REG-1 — sinon les suspensions passent inaperçues.
+
+    Le batch ne publiant plus rien (REG-2, #130), le libellé parle d'écartement de
+    la publication et non de publication bloquée : rien n'a été publié.
+    """
     rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
     rapport.ecarts.ajouter("31555", EcartMaille(ClasseEcart.BLOCAGE, 0.30, "élasticité bâti"))
     rapport.ecarts.ajouter("31149", EcartMaille(ClasseEcart.ALERTE, 0.15, "DPE F"))
 
     resume = rapport.resume()
 
-    assert "1 publication(s) bloquée(s)" in resume
+    assert "1 maille(s) écartée(s) de la publication" in resume
     assert "1 alerte(s) d'écart" in resume
 
 
@@ -340,14 +390,20 @@ def test_une_commune_devenue_non_calculable_perd_son_coefficient(
     Constaté sur le 31 : après durcissement du seuil, 203 mailles sont
     refusées mais la table en comptait toujours 586 — l'upsert ne supprime
     rien, donc les anciennes valeurs survivaient au recalcul qui les invalide.
+
+    REG-2 (#130) : le refus est **différé**, pas perdu — le batch l'inscrit au
+    registre et c'est la publication du millésime qui retirera la commune du
+    service. Un refus non enregistré, lui, laisserait le coefficient périmé servi
+    indéfiniment.
     """
     connexion = _FausseConnexion([])
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
-    assert len(suppressions) == 2, "chaque commune refusée doit voir son coefficient effacé"
+    refus = _refus_notes(connexion)
+    assert len(refus) == 2, "chaque commune refusée doit être inscrite au registre des refus"
+    assert [params[2] for params in refus] == ["refus", "refus"]
 
 
 def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
@@ -355,6 +411,9 @@ def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
 ) -> None:
     """INV-4 (#122) : une maille calculée mais sous les seuils de qualité n'est pas
     écrite ; elle est comptée en rejet d'invariant, pas en coefficient publié.
+
+    Le rejet a lieu **avant** l'archivage (REG-2, #130) : la maille n'atteint donc
+    même pas l'historique — seul son refus est noté.
 
     Seuil R² porté à 0,99 (impossible) : toute maille calculée est rejetée.
     """
@@ -365,7 +424,7 @@ def test_une_maille_hors_seuils_de_qualite_n_est_pas_publiee(
         _FauxFetcher(), connexion, "31", 2024, config=config
     )
 
-    assert connexion.ecritures == []
+    assert _archivees(connexion) == []
     assert rapport.communes_calculees == 0
     assert set(rapport.rejets_invariants) == {"31555", "31149"}
 
@@ -375,7 +434,7 @@ def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
 ) -> None:
     """#169 cascade : quand le LOCAL ne produit rien de publiable, la commune
     descend au cran EPCI (ventes des communes du même EPCI) avant de refuser.
-    31555 a un EPCI publiable → écrite en mode EPCI ; 31149 sans EPCI → refus.
+    31555 a un EPCI publiable → archivée en mode EPCI ; 31149 sans EPCI → refus.
     """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: iter([]))
@@ -390,15 +449,12 @@ def test_une_commune_sans_local_publiable_bascule_au_cran_epci(
         "compute_maille_epci",
         lambda code, mil, membres, pool, config: maille_epci if code == "31555" else None,
     )
-    ecrites: list[MailleCoefficient] = []
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == ["31555"]
-    assert ecrites[0].mode is CoverageMode.EPCI
+    assert [m.code_insee for m, _ in archivees] == ["31555"]
+    assert archivees[0][0].mode is CoverageMode.EPCI
     assert rapport.communes_calculees == 1
     assert rapport.refus == ["31149"]
 
@@ -428,19 +484,16 @@ def test_le_cran_departemental_est_calcule_une_fois_et_partage(
         return replace(modele, code_insee=code)
 
     monkeypatch.setattr(orchestration, "compute_maille_departement", _departement)
-    ecrites: list[MailleCoefficient] = []
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert len(appels) == 1, "une seule régression départementale pour tout le département"
-    assert {m.code_insee for m in ecrites} == {"31555", "31149"}
-    assert all(m.mode is CoverageMode.DEPARTEMENTAL for m in ecrites)
+    assert {m.code_insee for m, _ in archivees} == {"31555", "31149"}
+    assert all(m.mode is CoverageMode.DEPARTEMENTAL for m, _ in archivees)
     # Coefficients partagés : seul code_insee diffère d'une commune à l'autre.
-    assert ecrites[0].coef_dpe == ecrites[1].coef_dpe
-    assert ecrites[0].coef_m2_bati == ecrites[1].coef_m2_bati
+    assert archivees[0][0].coef_dpe == archivees[1][0].coef_dpe
+    assert archivees[0][0].coef_m2_bati == archivees[1][0].coef_m2_bati
 
 
 def test_le_cran_epci_est_memoise_par_epci(
@@ -471,29 +524,32 @@ def test_le_cran_epci_est_memoise_par_epci(
         return replace(modele, code_insee=code)
 
     monkeypatch.setattr(orchestration, "compute_maille_epci", _epci)
-    ecrites: list[MailleCoefficient] = []
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
     assert len(appels) == 1, "une seule régression EPCI réutilisée pour ses deux communes"
-    assert {m.code_insee for m in ecrites} == {"31555", "31149"}
-    assert all(m.mode is CoverageMode.EPCI for m in ecrites)
+    assert {m.code_insee for m, _ in archivees} == {"31555", "31149"}
+    assert all(m.mode is CoverageMode.EPCI for m, _ in archivees)
 
 
 def test_une_maille_rejetee_efface_le_coefficient_anterieur(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Un coefficient publié qui devient non conforme ne doit plus être servi (#115)."""
+    """Un coefficient publié qui devient non conforme ne doit plus être servi (#115).
+
+    REG-2 (#130) : le rejet d'invariant est noté au registre des refus (motif
+    ``rejet_invariant``, distinct du refus sec) et c'est la publication du millésime
+    qui effacera le coefficient antérieur.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     config = replace(CalculConfig(), r2_min=0.99)
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
 
-    suppressions = [r for r in connexion.requetes if r.strip().upper().startswith("DELETE")]
-    assert len(suppressions) == 2
+    refus = _refus_notes(connexion)
+    assert len(refus) == 2
+    assert [params[2] for params in refus] == ["rejet_invariant", "rejet_invariant"]
 
 
 def test_le_rapport_de_calcul_porte_le_departement_et_le_millesime(
@@ -520,7 +576,7 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     def _boom(*_: Any, **__: Any) -> None:
         raise RuntimeError("base indisponible")
 
-    monkeypatch.setattr(orchestration, "upsert_coefficient", _boom)
+    monkeypatch.setattr(orchestration, "archiver_coefficient", _boom)
 
     rapport = orchestration.compute_departement(
         _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
@@ -554,8 +610,8 @@ def test_rupture_limitrophe_publie_avec_alerte(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """INV-3 #3 : deux communes limitrophes au coef_m2_bati trop écarté restent
-    publiées, mais reçoivent un bandeau d'alerte de bord (facteur affiché)."""
-    ecrites: list[MailleCoefficient] = []
+    retenues pour la publication, mais reçoivent un bandeau d'alerte de bord
+    (facteur affiché) — l'alerte est portée par la maille archivée."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
     monkeypatch.setattr(
         orchestration,
@@ -567,14 +623,12 @@ def test_rupture_limitrophe_publie_avec_alerte(
         "read_adjacence",
         lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
     )
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    par_code = {m.code_insee: m for m in ecrites}
-    assert set(par_code) == {"31555", "31149"}  # les deux restent publiées
+    par_code = {m.code_insee: m for m, _ in archivees}
+    assert set(par_code) == {"31555", "31149"}  # les deux restent retenues
     assert "facteur" in (par_code["31555"].alerte or "")
     assert "facteur" in (par_code["31149"].alerte or "")
     assert set(rapport.alertes_bord) == {"31555", "31149"}
@@ -583,7 +637,6 @@ def test_rupture_limitrophe_publie_avec_alerte(
 def test_sans_rupture_aucune_alerte_de_bord(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    ecrites: list[MailleCoefficient] = []
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
     monkeypatch.setattr(
         orchestration,
@@ -595,20 +648,23 @@ def test_sans_rupture_aucune_alerte_de_bord(
         "read_adjacence",
         lambda conn, dep: {"31555": ("31149",), "31149": ("31555",)},
     )
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert all(m.alerte is None for m in ecrites)
+    assert archivees, "le test ne prouve rien si aucune maille n'est archivée"
+    assert all(m.alerte is None for m, _ in archivees)
     assert rapport.alertes_bord == []
 
 
 def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """INV-3 #1 câblé au gate de publication : rayon > plafond → non publiée."""
+    """INV-3 #1 câblé au gate de publication : rayon > plafond → non publiée.
+
+    Le rejet précède l'archivage (REG-2, #130) : la maille n'entre pas dans
+    l'historique, donc la publication ne pourra jamais la reprendre.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
     monkeypatch.setattr(
         orchestration, "compute_communes", lambda *a, **k: [_maille_publiable("31555", 1000.0)]
@@ -620,7 +676,7 @@ def test_maille_hors_plafond_de_rayon_n_est_pas_publiee(
         _FauxFetcher(), connexion, "31", 2024, config=config
     )
 
-    assert connexion.ecritures == []
+    assert _archivees(connexion) == []
     assert "31555" in rapport.rejets_invariants
 
 
@@ -634,7 +690,11 @@ def _maille_dpe(
 def test_inversion_dpe_bloquante_n_est_pas_publiee(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """INV-1 câblé au gate : F/G inversées et toutes deux fournies → non publiée."""
+    """INV-1 câblé au gate : F/G inversées et toutes deux fournies → non publiée.
+
+    Le rejet précède l'archivage (REG-2, #130) : la maille n'entre pas dans
+    l'historique, donc la publication ne pourra jamais la reprendre.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
     monkeypatch.setattr(
         orchestration,
@@ -645,15 +705,14 @@ def test_inversion_dpe_bloquante_n_est_pas_publiee(
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert connexion.ecritures == []
+    assert _archivees(connexion) == []
     assert "31555" in rapport.rejets_invariants
 
 
 def test_inversion_dpe_toleree_est_publiee_et_journalisee(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """INV-1 : F/G inversées mais G rare (12 < 30) → publiée, mais tracée."""
-    ecrites: list[MailleCoefficient] = []
+    """INV-1 : F/G inversées mais G rare (12 < 30) → retenue, mais tracée."""
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
     monkeypatch.setattr(
         orchestration,
@@ -661,23 +720,25 @@ def test_inversion_dpe_toleree_est_publiee_et_journalisee(
         lambda *a, **k: [_maille_dpe("31555", {"F": -0.30, "G": -0.10}, {"F": 40, "G": 12})],
     )
     monkeypatch.setattr(orchestration, "read_adjacence", lambda *_: {})
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: ecrites.append(maille)
-    )
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == ["31555"]  # publiée
+    assert [m.code_insee for m, _ in archivees] == ["31555"]  # retenue pour la publication
     assert "31555" in rapport.inversions_dpe  # journalisée malgré tout
     assert rapport.rejets_invariants == []
 
 
-def test_maille_dont_l_ecart_depasse_le_seuil_n_est_pas_publiee(
+def test_maille_dont_l_ecart_depasse_le_seuil_est_archivee_en_blocage(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REG-1 (#129) : un coefficient qui bouge trop d'un millésime au précédent bloque
-    la publication de la maille (l'ancienne valeur vive reste), mais la maille est
-    quand même archivée et le rapport d'écarts la liste en blocage."""
+    """REG-1 (#129) : un coefficient qui bouge trop d'un millésime au précédent est
+    bloqué. Depuis REG-2 (#130), le blocage n'empêche plus l'**archivage** — il
+    empêche l'**inscription à la publication** : la maille est archivée en portant
+    ``classe_ecart=BLOCAGE``, et c'est cette classe qui permettra à la publication
+    de l'écarter (sans elle, projeter « toutes les lignes du millésime » la
+    publierait). Le rapport d'écarts la liste toujours en blocage.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     monkeypatch.setattr(
         orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
@@ -688,22 +749,22 @@ def test_maille_dont_l_ecart_depasse_le_seuil_n_est_pas_publiee(
         "lire_coefficient_precedent",
         lambda conn, code, mil: _maille_publiable(code, 0.30) if code == "31555" else None,
     )
-    ecrites: list[MailleCoefficient] = []
-    archives: list[MailleCoefficient] = []
-    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
-    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: archives.append(m))
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == []  # bloquée : non publiée
-    assert [m.code_insee for m in archives] == ["31555"]  # mais archivée
+    assert [m.code_insee for m, _ in archivees] == ["31555"]  # archivée
+    assert [classe for _, classe in archivees] == [ClasseEcart.BLOCAGE]  # mais écartée
     assert [ligne.code_insee for ligne in rapport.ecarts.blocages] == ["31555"]
 
 
 def test_maille_en_alerte_est_publiee_et_signalee(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Un écart 10-25 % publie la maille mais la signale pour revue (REG-1)."""
+    """Un écart 10-25 % retient la maille pour publication mais la signale (REG-1).
+
+    L'archive porte la classe ALERTE, pas BLOCAGE : la publication la reprendra.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     monkeypatch.setattr(
         orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
@@ -714,32 +775,33 @@ def test_maille_en_alerte_est_publiee_et_signalee(
         "lire_coefficient_precedent",
         lambda conn, code, mil: _maille_publiable(code, 0.75) if code == "31555" else None,
     )
-    ecrites: list[MailleCoefficient] = []
-    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
-    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: None)
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == ["31555"]  # publiée
+    assert [m.code_insee for m, _ in archivees] == ["31555"]  # retenue
+    assert [classe for _, classe in archivees] == [ClasseEcart.ALERTE]
     assert [ligne.code_insee for ligne in rapport.ecarts.alertes] == ["31555"]
 
 
 def test_premiere_publication_sans_precedent_publie_sans_comparer(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Sans millésime antérieur (première publication), rien à comparer : on publie."""
+    """Sans millésime antérieur (première publication), rien à comparer : on retient.
+
+    L'archive part sans classe d'écart — absence de verdict, pas verdict défavorable.
+    """
     monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
     monkeypatch.setattr(
         orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
     )
     monkeypatch.setattr(orchestration, "lire_coefficient_precedent", lambda conn, code, mil: None)
-    ecrites: list[MailleCoefficient] = []
-    monkeypatch.setattr(orchestration, "upsert_coefficient", lambda conn, m: ecrites.append(m))
-    monkeypatch.setattr(orchestration, "archiver_coefficient", lambda conn, m: None)
+    archivees = _capturer_archives(monkeypatch)
 
     rapport = orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert [m.code_insee for m in ecrites] == ["31555"]
+    assert [m.code_insee for m, _ in archivees] == ["31555"]
+    assert [classe for _, classe in archivees] == [None]
     assert rapport.ecarts.lignes == []
 
 

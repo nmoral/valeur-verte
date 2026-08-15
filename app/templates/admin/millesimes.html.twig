@@ -1,0 +1,67 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Millésimes · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Millésimes{% endblock %}
+
+{% block admin_subtitle %}<p>Un millésime calculé n'est <strong>jamais servi automatiquement</strong>. Il est calculé, comparé au précédent, puis activé ici. Publier remplace les coefficients vus par tous les clients ; les rapports déjà émis gardent le leur.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if erreur is defined %}
+        <p class="erreur" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    {% for message in app.flashes('succes') %}
+        <p class="banner banner-ok" role="status">{{ message }}</p>
+    {% endfor %}
+
+    <table class="tableau">
+        <thead>
+            <tr>
+                <th>Millésime</th>
+                <th>Mailles calculées</th>
+                <th>Écarts &gt; 25 %</th>
+                <th>Écarts &gt; 10 %</th>
+                <th>État</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for millesime in millesimes %}
+            <tr>
+                <td><strong>{{ millesime.millesime }}</strong></td>
+                <td>{{ millesime.maillesCalculees|number_format(0, ',', ' ') }}</td>
+                <td>
+                    {% if millesime.maillesBloquees > 0 %}
+                        <a href="{{ path('admin_millesime_bloquees', {millesime: millesime.millesime}) }}">{{ millesime.maillesBloquees }} à examiner</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ millesime.maillesEnAlerte > 0 ? millesime.maillesEnAlerte : '—' }}</td>
+                <td>
+                    {% if millesime.estEnAttenteDeDecision %}
+                        <span class="statut statut-attente">En attente de décision</span>
+                    {% else %}
+                        <span class="statut">{{ millesime.estPublie ? 'Publié' : 'Abandonné' }}</span>
+                        <span class="mute">{{ millesime.decidePar }}{% if millesime.decideLe %}, le {{ millesime.decideLe|date('d/m/Y') }}{% endif %}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if millesime.estEnAttenteDeDecision %}
+                        {% if millesime.maillesBloquees > 0 %}
+                            <p class="mute">{{ millesime.maillesBloquees }} maille(s) s'écartent fortement du millésime précédent : elles ne seront pas publiées et garderont leur valeur actuelle.</p>
+                        {% endif %}
+                        <form method="post" action="{{ path('admin_millesime_publier', {millesime: millesime.millesime}) }}" style="display:inline">
+                            <button type="submit">Publier ce millésime</button>
+                        </form>
+                        <form method="post" action="{{ path('admin_millesime_abandonner', {millesime: millesime.millesime}) }}" style="display:inline">
+                            <button type="submit" class="secondaire">Abandonner</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="mute">Aucun millésime calculé.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

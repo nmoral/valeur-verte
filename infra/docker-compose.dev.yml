@@ -17,8 +17,15 @@ services:
       APP_DEBUG: "1"
       APP_DOMAINE: valeurverte.localhost
       DATABASE_URL: "postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
+      # Où trouver l'arbre du pipeline ; à défaut, la disposition du dépôt (CI).
+      VV_DATA_DIR: /pipeline
     volumes:
       - ../app:/app
+      # Lecture seule : un test d'admin (#130) rejoue la migration des fonctions de
+      # publication depuis le fichier source du pipeline, plutôt que d'en recopier le
+      # SQL — la copie dériverait sans que rien ne le signale. Monté sur /pipeline et
+      # non /data, qui est le répertoire de travail de Caddy dans l'image FrankenPHP.
+      - ../data:/pipeline:ro
       - app_dev_var:/app/var
 
 volumes:

@@ -24,7 +24,7 @@
         <tbody>
         {% for maille in page.mailles %}
             <tr{{ maille.estAberrante ? ' class="alerte"' : '' }}>
-                <td>{{ maille.codeInsee }}</td>
+                <td><a href="{{ path('admin_millesime_maille', {millesime: maille.millesime, codeInsee: maille.codeInsee}) }}" title="Tous les critères d'évaluation, expliqués">{{ maille.codeInsee }}</a></td>
                 <td>{{ maille.millesime }}</td>
                 <td>{{ maille.n }}</td>
                 <td>{{ maille.rayonKm is null ? 'départemental' : maille.rayonKm ~ ' km' }}</td>
