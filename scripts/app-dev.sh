@@ -19,12 +19,14 @@ DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset
 
 # `data/` est monté en lecture seule : un test d'admin (#130) rejoue la migration
 # des fonctions de publication depuis le fichier source du pipeline plutôt que d'en
-# recopier le SQL — la copie dériverait sans que rien ne le signale. En CI le dépôt
-# est checkouté en entier, la même résolution de chemin y fonctionne.
+# recopier le SQL — la copie dériverait sans que rien ne le signale. Monté sur
+# /pipeline et non /data, qui est le répertoire de travail de Caddy dans l'image.
+# VV_DATA_DIR dit où le trouver ; à défaut c'est la disposition du dépôt (CI).
 exec docker compose -f "$ROOT/infra/docker-compose.yml" run --rm --no-deps \
-    -v "$ROOT/app:/app" -v "$ROOT/data:/data:ro" -w /app \
+    -v "$ROOT/app:/app" -v "$ROOT/data:/pipeline:ro" -w /app \
     -u "$(id -u):$(id -g)" \
     -e APP_ENV="$APP_ENV" \
     -e DATABASE_URL="$DATABASE_URL" \
+    -e VV_DATA_DIR=/pipeline \
     --entrypoint "" \
     app "$@"

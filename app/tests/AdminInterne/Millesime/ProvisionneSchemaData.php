@@ -125,8 +125,11 @@ trait ProvisionneSchemaData
             )',
         );
 
+        // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
+        // sinon la disposition du dépôt, qui vaut en CI comme en local.
+        $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 4).'/data';
         $migration = file_get_contents(
-            \dirname(__DIR__, 4).'/data/src/valeur_verte_data/db/migrations/012_publication_millesime.sql',
+            $racine.'/src/valeur_verte_data/db/migrations/012_publication_millesime.sql',
         );
         self::assertIsString($migration, 'La migration 012 doit être lisible depuis les tests.');
         $prive->executeStatement(str_replace('valeur_verte_app', 'app', $migration));

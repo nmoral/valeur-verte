@@ -117,6 +117,16 @@ Un nouveau millésime n'est **jamais** publié automatiquement. Il est calculé,
 
 Cohérent avec §9.1 : les rapports déjà émis restent servis depuis leur instantané, sans être affectés.
 
+**Livré.** Le batch écrit uniquement `data.coefficient_maille_historique` ; il ne touche plus la table vive, ni pour écrire une maille retenue, ni pour effacer une maille refusée — sans quoi un millésime calculé puis abandonné aurait déjà modifié ce que voient les clients. Les refus sont différés dans `data.maille_refusee` et ne prennent effet qu'à la publication.
+
+Publier projette l'historique du millésime vers la table vive, **sauf** les mailles que REG-1 classe en blocage : elles gardent leur valeur précédente jusqu'à un déblocage unitaire, décidé après examen de la fiche de diagnostic de la maille. Abandonner n'a **aucun effet de bord** — l'archive reste, la table vive n'est pas touchée, seule la décision est enregistrée pour que le millésime cesse d'être proposé.
+
+Débloquer une maille est refusé tant que le millésime lui-même n'est pas publié : une commune seule en N au milieu d'un parc en N-1 serait précisément l'état mixte que REG-2 évite.
+
+La logique vit dans des fonctions SQL `SECURITY DEFINER` (migration 012) et non dans l'app, qui est en lecture seule sur le schéma `data` (décision D6) et ne reçoit que le droit de les invoquer. Écrans : `/millesimes`, `/millesimes/{n}/bloquees`, `/millesimes/{n}/mailles/{insee}`. Chaque décision est tracée au journal d'audit (#50).
+
+Détail des règles moteur : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) § REG-2.
+
 ### REG-3 — Cas de référence — [#56](../../../issues/56)
 
 10 à 15 adresses figées réparties sur des mailles de qualité différente (solide, correcte, fragile, repli départemental), avec valeurs attendues **en fourchette** et non en valeur exacte.

@@ -8,6 +8,7 @@ sur ce schéma (décision D6), ne fait qu'invoquer la fonction SQL exposée.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from valeur_verte_data.db.publication_repository import (
@@ -56,6 +57,19 @@ def test_publier_rend_le_nombre_de_mailles_projetees() -> None:
     assert publier_millesime(conn, 2024, "admin@vv.test") == 1240
 
 
+def test_une_fonction_qui_ne_rend_rien_compte_zero_maille() -> None:
+    """Ne jamais deviner : sans ligne rendue, aucune maille n'a ete projetee."""
+    conn = _FakeConnection([])
+
+    assert publier_millesime(conn, 2024, "admin@vv.test") == 0
+
+
+def test_une_ligne_vide_compte_zero_maille() -> None:
+    conn = _FakeConnection([()])
+
+    assert publier_millesime(conn, 2024, "admin@vv.test") == 0
+
+
 def test_abandonner_invoque_la_fonction_sql_dediee() -> None:
     """Abandonner est une décision tracée, pas une absence de décision.
 
@@ -71,10 +85,11 @@ def test_abandonner_invoque_la_fonction_sql_dediee() -> None:
 
 
 def test_lire_millesimes_rend_l_etat_et_les_effectifs_par_millesime() -> None:
+    decide_le = datetime(2026, 8, 15, 10, 30)
     conn = _FakeConnection(
         [
             (2024, None, None, None, 1240, 18, 7),
-            (2023, "publie", "admin@vv.test", None, 1198, 0, 3),
+            (2023, "publie", "admin@vv.test", decide_le, 1198, 0, 3),
         ]
     )
 
@@ -87,6 +102,9 @@ def test_lire_millesimes_rend_l_etat_et_les_effectifs_par_millesime() -> None:
     assert millesimes[0].mailles_en_alerte == 7
     assert millesimes[1].etat == "publie"
     assert millesimes[1].decide_par == "admin@vv.test"
+    # Quand la decision a ete prise : c'est ce que l'ecran affiche a cote de l'etat.
+    assert millesimes[1].decide_le == decide_le
+    assert millesimes[0].decide_le is None
 
 
 def test_publier_un_millesime_ecarte_les_mailles_bloquees_par_reg1() -> None:
@@ -120,6 +138,9 @@ def test_lire_mailles_bloquees_rend_l_ecart_de_chaque_maille_du_millesime() -> N
 
     bloquees = lire_mailles_bloquees(conn, 2024)
 
+    requete, _ = conn.calls[0]
+    assert "coefficient_maille_historique" in requete
+    assert "classe_ecart = 'blocage'" in requete
     assert [m.code_insee for m in bloquees] == ["31555", "31149"]
     assert bloquees[0].ecart == 1.80
     assert bloquees[0].coefficient == "élasticité bâti"
