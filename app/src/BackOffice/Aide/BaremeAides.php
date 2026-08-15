@@ -161,4 +161,54 @@ final readonly class BaremeAides
     {
         return $this->periode;
     }
+
+    /**
+     * Sérialisation pour le figeage dans l'instantané du rapport (§9.1). La période
+     * n'en fait pas partie : ce qui doit être reproductible, ce sont les valeurs
+     * appliquées, pas la fenêtre pendant laquelle elles étaient en vigueur.
+     *
+     * @return array{taux_pour_cent: array<string, int>, plafonds: array<int, int>, plafond_eco_ptz: int, taux_tva_pour_mille: int}
+     */
+    public function toArray(): array
+    {
+        $plafonds = [];
+        foreach ($this->gainsCouverts() as $gain) {
+            $plafonds[$gain] = $this->plafondDepenses($gain)->euros();
+        }
+
+        return [
+            'taux_pour_cent' => $this->tauxPourCent,
+            'plafonds' => $plafonds,
+            'plafond_eco_ptz' => $this->plafondEcoPtz->euros(),
+            'taux_tva_pour_mille' => $this->tauxTvaPourMille,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $donnees
+     */
+    public static function fromArray(array $donnees, PeriodeValidite $periode): self
+    {
+        \assert(\is_array($donnees['taux_pour_cent']));
+        \assert(\is_array($donnees['plafonds']));
+        \assert(\is_int($donnees['plafond_eco_ptz']));
+        \assert(\is_int($donnees['taux_tva_pour_mille']));
+
+        /** @var array<string, int> $taux */
+        $taux = $donnees['taux_pour_cent'];
+
+        $plafonds = [];
+        foreach ($donnees['plafonds'] as $gain => $euros) {
+            \assert(\is_int($euros));
+            $plafonds[(int) $gain] = Montant::fromEuros($euros);
+        }
+
+        return self::depuis(
+            $periode,
+            $taux,
+            $plafonds,
+            Montant::fromEuros($donnees['plafond_eco_ptz']),
+            $donnees['taux_tva_pour_mille'],
+        );
+    }
 }

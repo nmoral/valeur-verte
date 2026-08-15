@@ -46,6 +46,32 @@ final readonly class Chiffrage
     }
 
     /**
+     * Recompose un chiffrage figé (relecture de l'instantané, §9.1) : les montants
+     * sont pris tels quels, sans repasser par la grille — qui a pu changer depuis.
+     *
+     * @param array<string, Montant> $derives indexé par Poste->name
+     */
+    public static function figee(array $derives): self
+    {
+        return new self($derives, []);
+    }
+
+    /**
+     * Montants issus de la grille, en euros, pour le figeage dans l'instantané.
+     *
+     * @return array<string, int>
+     */
+    public function montantsDerives(): array
+    {
+        $montants = [];
+        foreach ($this->derives as $nom => $montant) {
+            $montants[$nom] = $montant->euros();
+        }
+
+        return $montants;
+    }
+
+    /**
      * @param array<string, Montant> $retouches indexé par Poste->name
      */
     public function avecRetouches(array $retouches): self

@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Rapport;
 
+use App\BackOffice\Aide\BaremeAides;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\Couleur;
+use App\BackOffice\Chiffrage\Chiffrage;
 use App\BackOffice\Estimation\ContexteCalcul;
+use App\BackOffice\GrilleCout\Montant;
+use App\BackOffice\GrilleCout\PeriodeValidite;
 use App\BackOffice\GrilleCout\Poste;
 use App\BackOffice\Pdf\ReferenceRapport;
 use App\BackOffice\Restitution\Restitution;
@@ -24,7 +28,12 @@ use App\BackOffice\Restitution\Restitution;
  */
 final readonly class InstantaneRapport
 {
-    private const VERSION = 1;
+    /**
+     * v2 (#26) : ajoute le chiffrage dérivé et le barème d'aides. Les instantanés
+     * v1 en sont dépourvus et se relisent sans — ils n'affichent pas de reste à
+     * charge, ce qui est exact plutôt qu'inventé.
+     */
+    private const VERSION = 2;
 
     private function __construct(
         private SaisieAudit $saisie,
@@ -34,6 +43,8 @@ final readonly class InstantaneRapport
         private ReferenceRapport $reference,
         private \DateTimeImmutable $genereLe,
         private ?Bouquet $bouquet = null,
+        private ?Chiffrage $chiffrage = null,
+        private ?BaremeAides $baremeAides = null,
     ) {
     }
 
@@ -45,8 +56,20 @@ final readonly class InstantaneRapport
         ReferenceRapport $reference,
         \DateTimeImmutable $genereLe,
         ?Bouquet $bouquet = null,
+        ?Chiffrage $chiffrage = null,
+        ?BaremeAides $baremeAides = null,
     ): self {
-        return new self($saisie, $restitution, $contexte, $branding, $reference, $genereLe, $bouquet);
+        return new self(
+            $saisie,
+            $restitution,
+            $contexte,
+            $branding,
+            $reference,
+            $genereLe,
+            $bouquet,
+            $chiffrage,
+            $baremeAides,
+        );
     }
 
     /**
@@ -64,6 +87,8 @@ final readonly class InstantaneRapport
             ReferenceRapport::depuis(self::texte($donnees['reference'])),
             new \DateTimeImmutable(self::texte($donnees['genere_le'])),
             self::bouquetDepuis($donnees['bouquet'] ?? null),
+            self::chiffrageDepuis($donnees['chiffrage'] ?? null),
+            self::baremeDepuis($donnees['bareme_aides'] ?? null, self::texte($donnees['genere_le'])),
         );
     }
 
@@ -100,6 +125,24 @@ final readonly class InstantaneRapport
     public function bouquet(): ?Bouquet
     {
         return $this->bouquet;
+    }
+
+    /**
+     * Chiffrage tel que la grille du pro le donnait au moment de l'audit. Null sur
+     * les instantanés antérieurs à #26.
+     */
+    public function chiffrage(): ?Chiffrage
+    {
+        return $this->chiffrage;
+    }
+
+    /**
+     * Barème d'aides appliqué au moment de l'audit. Null sur les instantanés
+     * antérieurs à #26.
+     */
+    public function baremeAides(): ?BaremeAides
+    {
+        return $this->baremeAides;
     }
 
     /**
@@ -141,7 +184,37 @@ final readonly class InstantaneRapport
                 'nom' => $this->bouquet->nom(),
                 'postes' => array_map(static fn (Poste $poste): string => $poste->name, $this->bouquet->postes()),
             ],
+            'chiffrage' => $this->chiffrage?->montantsDerives(),
+            'bareme_aides' => $this->baremeAides?->toArray(),
         ];
+    }
+
+    private static function chiffrageDepuis(mixed $chiffrage): ?Chiffrage
+    {
+        if (null === $chiffrage) {
+            return null;
+        }
+
+        $montants = [];
+        foreach (self::sousTableau($chiffrage) as $poste => $euros) {
+            $montants[$poste] = Montant::fromEuros(self::entier($euros));
+        }
+
+        return Chiffrage::figee($montants);
+    }
+
+    private static function baremeDepuis(mixed $bareme, string $genereLe): ?BaremeAides
+    {
+        if (null === $bareme) {
+            return null;
+        }
+
+        // La période est reconstruite depuis la date de génération : le barème figé
+        // vaut pour ce rapport, sa fenêtre de validité d'origine n'a plus d'usage.
+        return BaremeAides::fromArray(
+            self::sousTableau($bareme),
+            PeriodeValidite::depuis(new \DateTimeImmutable($genereLe)),
+        );
     }
 
     /**
