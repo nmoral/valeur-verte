@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller\BackOffice;
 
+use App\BackOffice\Aide\CategorieRevenu;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Bouquet\Bouquet;
+use App\BackOffice\Pdf\GenerateurPdfRapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Restitution\AjustementInvalide;
 use App\BackOffice\Restitution\AjustementProfessionnel;
+use App\BackOffice\Restitution\DeclarationsPro;
 use App\BackOffice\Restitution\Restitution;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,6 +51,58 @@ final class AuditResultatController extends AbstractController
     }
 
     /**
+     * Déclarations du pro (#26) : situation de revenus du ménage et retouches de
+     * chiffrage. Écrit dans le champ dédié du rapport, jamais dans l'instantané
+     * figé — le pro peut y revenir sans réémettre de rapport.
+     */
+    #[Route('/audit/resultat/declarations', name: 'back_office_audit_resultat_declarations', methods: ['POST'])]
+    public function declarer(Request $request): Response
+    {
+        $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
+        if (!\is_array($resultat) || !(($resultat['saisie'] ?? null) instanceof SaisieAudit)) {
+            return $this->redirectToRoute('back_office_audit');
+        }
+
+        try {
+            $declarations = DeclarationsPro::depuis(
+                CategorieRevenu::parNom($request->request->getString('categorie_revenu')),
+                self::retouchesSaisies($request),
+            );
+        } catch (\InvalidArgumentException $erreur) {
+            return $this->rendre($resultat, erreurDeclarations: $erreur->getMessage());
+        }
+
+        $reference = $resultat['reference'] ?? null;
+        $rapport = \is_string($reference) ? $this->rapports->parReference($reference) : null;
+        if (null !== $rapport) {
+            $rapport->declarerPar($declarations);
+            $this->rapports->enregistrer($rapport);
+        }
+
+        $resultat['declarations'] = $declarations;
+        $request->getSession()->set(AuditController::SESSION_RESULTAT, $resultat);
+
+        return $this->redirectToRoute('back_office_audit_resultat');
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function retouchesSaisies(Request $request): array
+    {
+        $retouches = [];
+        foreach ($request->request->all('chiffrage') as $poste => $euros) {
+            if (!\is_string($poste) || !\is_scalar($euros) || '' === $euros) {
+                continue;
+            }
+
+            $retouches[$poste] = (int) $euros;
+        }
+
+        return $retouches;
+    }
+
+    /**
      * @param array<array-key, mixed> $resultat
      */
     private function ajuster(Request $request, array $resultat): Response
@@ -81,15 +136,28 @@ final class AuditResultatController extends AbstractController
     /**
      * @param array<array-key, mixed> $resultat
      */
-    private function rendre(array $resultat, ?string $erreurAjustement = null, ?int $montantSaisi = null, ?string $motifSaisi = null): Response
-    {
+    private function rendre(
+        array $resultat,
+        ?string $erreurAjustement = null,
+        ?int $montantSaisi = null,
+        ?string $motifSaisi = null,
+        ?string $erreurDeclarations = null,
+    ): Response {
         $saisie = $resultat['saisie'];
         \assert($saisie instanceof SaisieAudit);
         $restitution = $resultat['restitution'] ?? null;
         $ajustement = $resultat['ajustement'] ?? null;
         $bouquet = $resultat['bouquet'] ?? null;
 
-        $reponse = new Response('', null === $erreurAjustement ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY);
+        // Le rapport archivé fait foi : l'écran lit le **même** instantané figé et
+        // les mêmes déclarations que le PDF (#26). Recalculer de son côté ferait
+        // diverger les deux documents.
+        $reference = $resultat['reference'] ?? null;
+        $rapport = \is_string($reference) ? $this->rapports->parReference($reference) : null;
+        $declarations = $rapport?->declarations() ?? DeclarationsPro::aucune();
+
+        $enErreur = null !== $erreurAjustement || null !== $erreurDeclarations;
+        $reponse = new Response('', $enErreur ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK);
 
         return $this->render('back_office/audit_resultat.html.twig', [
             'page_title' => 'Restitution',
@@ -102,6 +170,12 @@ final class AuditResultatController extends AbstractController
             'erreur_ajustement' => $erreurAjustement,
             'montant_saisi' => $montantSaisi,
             'motif_saisi' => $motifSaisi,
+            'declarations' => $declarations,
+            'categories_revenu' => CategorieRevenu::tranches(),
+            'erreur_declarations' => $erreurDeclarations,
+            'reste_a_charge' => null === $rapport
+                ? null
+                : GenerateurPdfRapport::resteACharge($rapport->instantane(), $declarations),
         ], $reponse);
     }
 }

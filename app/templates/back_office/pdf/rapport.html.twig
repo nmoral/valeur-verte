@@ -72,6 +72,8 @@
         </div>
     {% endif %}
 
+    {% include 'back_office/_reste_a_charge.html.twig' %}
+
     {% for avertissement in avertissements %}
         <div class="bandeau-info">{{ avertissement }}</div>
     {% endfor %}

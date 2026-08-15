@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Rapport;
 
+use App\BackOffice\Aide\BaremeAidesRepository;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\BrandingRepository;
+use App\BackOffice\Chiffrage\Chiffrage;
+use App\BackOffice\Chiffrage\QuantitesTravaux;
 use App\BackOffice\Estimation\ContexteCalcul;
+use App\BackOffice\GrilleCout\GrilleCoutRepository;
 use App\BackOffice\Pdf\GenerateurReferenceRapport;
 use App\BackOffice\Restitution\Restitution;
 use App\Compte\NotificationPremierRapport;
@@ -27,6 +31,8 @@ final readonly class ArchiveurRapport
         private RapportRepository $rapports,
         private UrlGeneratorInterface $urls,
         private NotificationPremierRapport $notificationPremierRapport,
+        private GrilleCoutRepository $grilles,
+        private BaremeAidesRepository $baremes,
     ) {
     }
 
@@ -42,6 +48,15 @@ final readonly class ArchiveurRapport
             $reference,
             new \DateTimeImmutable(),
             $bouquet,
+            // Chiffrage et barème figés au moment de l'audit (#26, §9.1) : ni la
+            // grille du pro ni le barème national ne pourront le faire bouger après
+            // coup. Sans travaux retenus, il n'y a pas de coût à figer.
+            null === $bouquet ? null : Chiffrage::derive(
+                $bouquet,
+                $this->grilles->courant(),
+                QuantitesTravaux::depuis($saisie),
+            ),
+            null === $bouquet ? null : $this->baremes->courant(),
         );
 
         $rapport = Rapport::creer(
