@@ -89,6 +89,8 @@ def attach_dpe(
                     mutation,
                     etiquette_dpe=info.etiquette_dpe,
                     periode_construction=info.periode_construction,
+                    date_etablissement_dpe=info.date_etablissement_dpe,
+                    version_dpe=info.version_dpe,
                 )
             )
     return result
