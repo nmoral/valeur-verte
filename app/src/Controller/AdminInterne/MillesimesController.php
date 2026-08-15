@@ -7,6 +7,7 @@ namespace App\Controller\AdminInterne;
 use App\AdminInterne\Coefficient\SeuilsSupervisionRepository;
 use App\AdminInterne\Millesime\DecisionMillesime;
 use App\AdminInterne\Millesime\LectureMillesimes;
+use App\AdminInterne\Millesime\MillesimeEnRevue;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -67,7 +68,46 @@ final class MillesimesController extends AbstractController
             throw $this->createNotFoundException('Cette commune n\'a pas ete calculee sous ce millesime.');
         }
 
-        return $this->render('admin/millesime_maille.html.twig', ['fiche' => $fiche]);
+        return $this->render('admin/millesime_maille.html.twig', [
+            'fiche' => $fiche,
+            'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
+        ]);
+    }
+
+    /**
+     * Valider une maille écartée depuis sa fiche : c'est là qu'on voit *pourquoi*
+     * elle l'a été, donc là que la décision se prend. Même garde SQL que depuis la
+     * liste — le millésime doit être publié.
+     */
+    #[Route('/millesimes/{millesime}/mailles/{codeInsee}/valider', name: 'admin_millesime_maille_valider', host: 'admin.%app.domaine%', requirements: ['millesime' => '\\d{4}', 'codeInsee' => '\\w{5}'], methods: ['POST'])]
+    public function validerMaille(
+        int $millesime,
+        string $codeInsee,
+        DecisionMillesime $decision,
+        LectureMillesimes $lecture,
+        SeuilsSupervisionRepository $seuils,
+    ): Response {
+        try {
+            $decision->debloquer($codeInsee, $millesime, $this->auteur());
+        } catch (\RuntimeException $erreur) {
+            $fiche = $lecture->fiche($codeInsee, $millesime, $seuils->courants());
+            if (null === $fiche) {
+                throw $this->createNotFoundException();
+            }
+
+            return $this->render('admin/millesime_maille.html.twig', [
+                'fiche' => $fiche,
+                'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
+                'erreur' => $erreur->getMessage(),
+            ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+        }
+
+        $this->addFlash('succes', \sprintf('Maille %s validée et mise en service.', $codeInsee));
+
+        return $this->redirectToRoute('admin_millesime_maille', [
+            'millesime' => $millesime,
+            'codeInsee' => $codeInsee,
+        ]);
     }
 
     #[Route('/millesimes/{millesime}/bloquees', name: 'admin_millesime_bloquees', host: 'admin.%app.domaine%', requirements: ['millesime' => '\d{4}'], methods: ['GET'])]

@@ -84,11 +84,22 @@ final readonly class DecisionMillesime
      */
     private function invoquer(string $requete, array $parametres): int
     {
+        // Une garde du pipeline lève un RAISE EXCEPTION, qui **avorte la
+        // transaction** : sans isolation, la moindre requête suivante échouerait à
+        // son tour (« current transaction is aborted ») et l'écran d'erreur ne
+        // pourrait même pas se réafficher. On borne donc l'appel à sa propre
+        // transaction imbriquée (savepoint), que l'échec seul annule.
+        $this->connexion->setNestTransactionsWithSavepoints(true);
+        $this->connexion->beginTransaction();
+
         try {
             $resultat = $this->connexion->fetchOne($requete, $parametres);
+            $this->connexion->commit();
         } catch (\Doctrine\DBAL\Exception $erreur) {
-            // Les gardes du pipeline remontent en exception SQL : on les traduit en
-            // erreur exploitable plutôt que de laisser fuiter une trace Doctrine.
+            $this->connexion->rollBack();
+
+            // Les gardes remontent en exception SQL : on les traduit en erreur
+            // exploitable plutôt que de laisser fuiter une trace Doctrine.
             throw new \RuntimeException(self::message($erreur), previous: $erreur);
         }
 

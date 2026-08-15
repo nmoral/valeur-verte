@@ -43,6 +43,7 @@ final readonly class FicheMaille
         private string $codeInsee,
         private int $millesime,
         private array $rubriques,
+        private bool $ecartee,
     ) {
     }
 
@@ -67,6 +68,7 @@ final readonly class FicheMaille
             self::texte($ligne['code_insee'] ?? ''),
             self::entier($ligne['millesime'] ?? 0),
             $rubriques,
+            'blocage' === self::texteOuNull($ligne['classe_ecart'] ?? null),
         );
     }
 
@@ -86,6 +88,15 @@ final readonly class FicheMaille
     public function rubriques(): array
     {
         return $this->rubriques;
+    }
+
+    /**
+     * Vrai si REG-1 a retiré cette maille de la publication du millésime. Une simple
+     * alerte ne l'écarte pas : elle est publiée, seulement signalée.
+     */
+    public function estEcartee(): bool
+    {
+        return $this->ecartee;
     }
 
     public function toutRespecte(): bool

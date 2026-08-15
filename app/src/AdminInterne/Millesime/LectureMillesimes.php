@@ -100,6 +100,19 @@ final readonly class LectureMillesimes
         return false === $ligne ? null : FicheMaille::depuis($ligne, $seuils);
     }
 
+    /**
+     * État décidé d'un millésime, ou `null` s'il attend encore une décision.
+     */
+    public function etat(int $millesime): ?string
+    {
+        $etat = $this->connexion->fetchOne(
+            'SELECT etat FROM data.publication_millesime WHERE millesime = :millesime',
+            ['millesime' => $millesime],
+        );
+
+        return self::texteOuNull($etat);
+    }
+
     private static function entier(mixed $valeur): int
     {
         return is_numeric($valeur) ? (int) $valeur : 0;
