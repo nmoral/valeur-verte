@@ -90,6 +90,8 @@
     {% endif %}
 
     <div class="declarations">
+        {% include 'back_office/_reste_a_charge.html.twig' %}
+
         {% if erreur_declarations %}
             <p class="ajustement-erreur" role="alert">{{ erreur_declarations }}</p>
         {% endif %}

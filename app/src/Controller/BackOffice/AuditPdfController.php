@@ -36,7 +36,13 @@ final class AuditPdfController extends AbstractController
             return $this->redirectToRoute('back_office_audit');
         }
 
-        $pdf = $this->generateur->depuisInstantane($rapport->instantane(), $rapport->ajustement());
+        // Les déclarations (#26) vivent hors de l'instantané : sans elles, le PDF
+        // afficherait une fourchette là où l'écran montre un montant.
+        $pdf = $this->generateur->depuisInstantane(
+            $rapport->instantane(),
+            $rapport->ajustement(),
+            $rapport->declarations(),
+        );
 
         $disposition = HeaderUtils::makeDisposition(
             HeaderUtils::DISPOSITION_ATTACHMENT,

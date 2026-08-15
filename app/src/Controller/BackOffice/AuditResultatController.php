@@ -7,6 +7,7 @@ namespace App\Controller\BackOffice;
 use App\BackOffice\Aide\CategorieRevenu;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Bouquet\Bouquet;
+use App\BackOffice\Pdf\GenerateurPdfRapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Restitution\AjustementInvalide;
 use App\BackOffice\Restitution\AjustementProfessionnel;
@@ -147,7 +148,13 @@ final class AuditResultatController extends AbstractController
         $restitution = $resultat['restitution'] ?? null;
         $ajustement = $resultat['ajustement'] ?? null;
         $bouquet = $resultat['bouquet'] ?? null;
-        $declarations = $resultat['declarations'] ?? null;
+
+        // Le rapport archivé fait foi : l'écran lit le **même** instantané figé et
+        // les mêmes déclarations que le PDF (#26). Recalculer de son côté ferait
+        // diverger les deux documents.
+        $reference = $resultat['reference'] ?? null;
+        $rapport = \is_string($reference) ? $this->rapports->parReference($reference) : null;
+        $declarations = $rapport?->declarations() ?? DeclarationsPro::aucune();
 
         $enErreur = null !== $erreurAjustement || null !== $erreurDeclarations;
         $reponse = new Response('', $enErreur ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK);
@@ -163,9 +170,12 @@ final class AuditResultatController extends AbstractController
             'erreur_ajustement' => $erreurAjustement,
             'montant_saisi' => $montantSaisi,
             'motif_saisi' => $motifSaisi,
-            'declarations' => $declarations instanceof DeclarationsPro ? $declarations : DeclarationsPro::aucune(),
+            'declarations' => $declarations,
             'categories_revenu' => CategorieRevenu::tranches(),
             'erreur_declarations' => $erreurDeclarations,
+            'reste_a_charge' => null === $rapport
+                ? null
+                : GenerateurPdfRapport::resteACharge($rapport->instantane(), $declarations),
         ], $reponse);
     }
 }

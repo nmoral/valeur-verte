@@ -1,0 +1,40 @@
+{# Reste à charge (#26), partagé par la restitution et le PDF : les deux doivent
+   afficher le même chiffre, un écart décrédibiliserait le rapport. #}
+{% if reste_a_charge %}
+    <table class="ajustement-lignes">
+        <tr class="mesure">
+            <td>Coût des travaux <span class="ajustement-motif">(HT)</span></td>
+            <td class="montant">{{ reste_a_charge.coutHt.euros|number_format(0, ',', ' ') }} €</td>
+        </tr>
+        <tr class="ajust">
+            <td>Aides estimées <span class="ajustement-motif">(MaPrimeRénov' rénovation d'ampleur)</span></td>
+            <td class="montant">
+                {%- if not reste_a_charge.ouvreDroit -%}
+                    —
+                {%- elseif reste_a_charge.estUneFourchette -%}
+                    {{ reste_a_charge.aideMinimum.euros|number_format(0, ',', ' ') }} – {{ reste_a_charge.aideMaximum.euros|number_format(0, ',', ' ') }} €
+                {%- else -%}
+                    −{{ reste_a_charge.aideMaximum.euros|number_format(0, ',', ' ') }} €
+                {%- endif -%}
+            </td>
+        </tr>
+        <tr class="retenue">
+            <td>Reste à charge</td>
+            <td class="montant">
+                {%- if reste_a_charge.estUneFourchette -%}
+                    {{ reste_a_charge.minimum.euros|number_format(0, ',', ' ') }} – {{ reste_a_charge.maximum.euros|number_format(0, ',', ' ') }} €
+                {%- else -%}
+                    {{ reste_a_charge.minimum.euros|number_format(0, ',', ' ') }} €
+                {%- endif -%}
+            </td>
+        </tr>
+    </table>
+    <p class="ajustement-note">
+        {% if not reste_a_charge.ouvreDroit %}
+            Le gain de classes visé n'atteint pas les deux classes qu'exige la rénovation d'ampleur : aucune aide n'est estimée à ce titre.
+        {% elseif reste_a_charge.estUneFourchette %}
+            Précisez la situation du ménage pour resserrer cette fourchette en un montant.
+        {% endif %}
+        Estimation indicative, sous réserve d'éligibilité et d'instruction par l'Anah.
+    </p>
+{% endif %}
