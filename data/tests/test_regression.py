@@ -5,11 +5,14 @@ from __future__ import annotations
 import math
 from dataclasses import replace
 
+import numpy as np
 import pytest
 
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.regression import (
     InsufficientSampleError,
+    _indice_local,
+    _Row,
     fit,
     gaussian_weight,
     is_pre_1989,
@@ -85,6 +88,69 @@ def test_gaussian_weight_decroit_avec_la_distance() -> None:
 
 def test_gaussian_weight_a_un_sigma_vaut_exp_moins_un_demi() -> None:
     assert round(gaussian_weight(10.0, sigma_km=10.0), 6) == round(math.exp(-0.5), 6)
+
+
+def _rows_spatiaux(n: int) -> list[_Row]:
+    """Lignes réparties dans l'espace, prix/m² variés (indice local non trivial)."""
+    return [
+        _Row(
+            prix=200000.0 + i * 1500,
+            bati=80.0 + i,
+            terrain=100.0,
+            dpe="D",
+            periode="1948-1974",
+            insee="31555",
+            annee="2024",
+            lat=43.6 + 0.01 * i,
+            lon=1.44 + 0.008 * i,
+        )
+        for i in range(n)
+    ]
+
+
+def test_indice_local_chunke_est_identique_sans_reference() -> None:
+    # #218 : le chunking borne la mémoire (matrice par tranches) sans changer le
+    # résultat — mêmes voisins, même médiane, exclusion diagonale préservée.
+    rows = _rows_spatiaux(12)
+
+    complet = _indice_local(rows, chunk=1000)
+    morcele = _indice_local(rows, chunk=3)
+
+    assert np.allclose(complet, morcele)
+
+
+def test_indice_local_selectionne_le_plus_proche_en_excluant_soi() -> None:
+    # Valeurs exactes : pin la formule de distance (somme lat²+lon², facteur 0,73),
+    # l'exclusion de soi (diagonale) et la sélection du plus proche voisin.
+    def _r(prix: float, lon: float) -> _Row:
+        return _Row(
+            prix=prix,
+            bati=100.0,
+            terrain=0.0,
+            dpe="D",
+            periode="",
+            insee="x",
+            annee="2024",
+            lat=0.0,
+            lon=lon,
+        )
+
+    rows = [_r(10000.0, 0.0), _r(20000.0, 0.01), _r(30000.0, 1.0)]  # prix/m² = 100, 200, 300
+
+    indice = _indice_local(rows, voisins=1)
+
+    # A(100) → plus proche B(200) ; B(200) → A(100) ; C(300) → B(200). Soi exclu.
+    assert list(indice) == [200.0, 100.0, 200.0]
+
+
+def test_indice_local_chunke_est_identique_avec_reference() -> None:
+    apprentissage = _rows_spatiaux(15)
+    test_rows = _rows_spatiaux(7)
+
+    complet = _indice_local(test_rows, apprentissage, chunk=1000)
+    morcele = _indice_local(test_rows, apprentissage, chunk=2)
+
+    assert np.allclose(complet, morcele)
 
 
 def test_poids_temporel_desactive_vaut_un() -> None:
