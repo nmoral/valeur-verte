@@ -6,6 +6,7 @@ Joué en CI contre un service ``postgis/postgis`` ; ignoré sans ``DATABASE_URL`
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 
 import psycopg
 import pytest
@@ -61,3 +62,28 @@ def test_insert_mutations_ecrit_la_ligne_et_le_geom() -> None:
     assert row[1] == "12 rue fleurs"
     assert round(row[2], 2) == 1.44
     assert round(row[3], 2) == 43.6
+
+
+def test_insert_mutations_persiste_date_et_version_dpe() -> None:
+    # #211 : la migration 011 ajoute les colonnes et le writer les persiste.
+    cli.run(os.environ)  # garantit le schéma (migrations jouées)
+
+    with psycopg.connect(DSN) as conn:
+        exiger_base_jetable(os.environ)
+        conn.execute("TRUNCATE data.vente")
+        mutation = replace(
+            _mutation("itest-dpe"),
+            date_etablissement_dpe="2023-07-10",
+            version_dpe="2.3",
+        )
+        insert_mutations(conn, [mutation])
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT date_etablissement_dpe, version_dpe "
+            "FROM data.vente WHERE id_mutation = 'itest-dpe'"
+        ).fetchone()
+
+    assert row is not None
+    assert str(row[0]) == "2023-07-10"
+    assert row[1] == "2.3"
