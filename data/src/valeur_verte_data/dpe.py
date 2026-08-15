@@ -1,14 +1,15 @@
 """Index DPE (ADEME) pour l'appariement aux ventes DVF.
 
-Construit un index ``(code_postal, clé d'adresse) → étiquette + période de
-construction`` à partir des enregistrements DPE. En cas de DPE multiples pour une
-même adresse, on retient l'étiquette et la période **les plus fréquentes** (ce qui
-lisse les diagnostics successifs d'un même logement). Logique pure, hors-ligne.
+Construit un index ``(code_postal, clé d'adresse) → DpeInfo`` à partir des
+enregistrements DPE. En cas de DPE multiples pour une même adresse, on retient le
+**diagnostic le plus récent** (date d'établissement max) : étiquette, période, date
+et version viennent tous du même DPE — cohérent pour dater les ruptures de réforme
+(#211, prérequis #208/#127). Un DPE daté prime sur un DPE sans date. Logique pure,
+hors-ligne.
 """
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 
@@ -20,18 +21,24 @@ VALID_LABELS = ("A", "B", "C", "D", "E", "F", "G")
 
 @dataclass(frozen=True)
 class DpeInfo:
-    """Résultat d'appariement DPE : étiquette et période de construction."""
+    """Résultat d'appariement DPE : étiquette, période, date et version (#211)."""
 
     etiquette_dpe: str
     periode_construction: str | None
+    date_etablissement_dpe: str | None = None
+    version_dpe: str | None = None
 
 
 def build_dpe_lookup(
     records: Iterable[Mapping[str, str]],
 ) -> dict[tuple[str, str], DpeInfo]:
-    """Indexe les DPE par ``(code_postal, clé d'adresse)``."""
-    labels: dict[tuple[str, str], Counter[str]] = {}
-    periodes: dict[tuple[str, str], Counter[str]] = {}
+    """Indexe les DPE par ``(code_postal, clé d'adresse)`` — le plus récent fait foi.
+
+    À date d'établissement égale, le **premier rencontré** est conservé (tri stable,
+    reproductible pour un même jeu d'entrée). Une date absente est traitée comme la
+    moins récente.
+    """
+    best: dict[tuple[str, str], tuple[str, DpeInfo]] = {}
     for record in records:
         etiquette = str(record.get("etiquette_dpe", "")).strip().upper()
         if etiquette not in VALID_LABELS:
@@ -40,19 +47,23 @@ def build_dpe_lookup(
         if not adresse_key:
             continue
         key = (str(record.get("code_postal", "")).strip(), adresse_key)
-        labels.setdefault(key, Counter())[etiquette] += 1
+        date = str(record.get("date_etablissement_dpe", "")).strip()
         periode = str(record.get("periode_construction", "")).strip()
-        if periode:
-            periodes.setdefault(key, Counter())[periode] += 1
-
-    lookup: dict[tuple[str, str], DpeInfo] = {}
-    for key, label_counts in labels.items():
-        periode_counts = periodes.get(key)
-        lookup[key] = DpeInfo(
-            etiquette_dpe=label_counts.most_common(1)[0][0],
-            periode_construction=(periode_counts.most_common(1)[0][0] if periode_counts else None),
-        )
-    return lookup
+        version = str(record.get("version_dpe", "")).strip()
+        existant = best.get(key)
+        # Les dates ADEME sont au format ISO (YYYY-MM-DD…) : le tri lexicographique
+        # ordonne les diagnostics ; "" (date absente) est le plus petit → le moins récent.
+        if existant is None or date > existant[0]:
+            best[key] = (
+                date,
+                DpeInfo(
+                    etiquette_dpe=etiquette,
+                    periode_construction=periode or None,
+                    date_etablissement_dpe=date or None,
+                    version_dpe=version or None,
+                ),
+            )
+    return {key: info for key, (_, info) in best.items()}
 
 
 def attach_dpe(
