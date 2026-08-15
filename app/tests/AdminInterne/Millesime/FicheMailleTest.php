@@ -132,6 +132,35 @@ final class FicheMailleTest extends TestCase
         self::assertStringContainsString('écartée', (string) $critere->explication());
     }
 
+    public function testUneMailleEnBlocageEstMarqueeEcartee(): void
+    {
+        // Pilote l'action de validation : elle n'a de sens que sur une maille que
+        // REG-1 a retirée de la publication.
+        $fiche = $this->fiche([
+            'classe_ecart' => 'blocage',
+            'ecart' => 1.80,
+            'ecart_coefficient' => 'élasticité bâti',
+        ]);
+
+        self::assertTrue($fiche->estEcartee());
+    }
+
+    public function testUneMailleEnSimpleAlerteNestPasEcartee(): void
+    {
+        $fiche = $this->fiche([
+            'classe_ecart' => 'alerte',
+            'ecart' => 0.15,
+            'ecart_coefficient' => 'effet DPE F',
+        ]);
+
+        self::assertFalse($fiche->estEcartee(), 'Une alerte est publiée, seulement signalée.');
+    }
+
+    public function testUneMailleSansEcartNestPasEcartee(): void
+    {
+        self::assertFalse($this->fiche()->estEcartee());
+    }
+
     /**
      * @param array<string, mixed> $surcharges
      */
