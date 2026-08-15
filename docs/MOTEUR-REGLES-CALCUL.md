@@ -43,6 +43,15 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 **Ingestion** (`ingest.ingest_commune`) : DVF → nettoyage → appariement DPE/période → écriture.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
+- **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
+  clé d'adresse BAN)`. Quand une adresse porte plusieurs diagnostics, le **DPE le plus
+  récent** (date d'établissement max) fait foi — étiquette, période, **date
+  d'établissement** et **version de méthode** viennent tous du même diagnostic (#211).
+  Un DPE daté prime sur un DPE sans date. La vente persiste `etiquette_dpe`,
+  `periode_construction`, `date_etablissement_dpe` (`DATE`) et `version_dpe` (migration
+  011). La date/version datent le diagnostic pour la gestion des **ruptures de réforme
+  DPE** en aval (#208 pondération temporelle, #127 DAT-4) ; elles ne sont pas encore
+  lues au calcul.
 - ⚠️ **MAIS la base prod/lab est ré-ingérée SANS bornes (S12)** : ces bornes ont été
   élargies à l'ingestion réelle car le plafond censurait le haut de gamme et
   sous-estimait le gain E→C de +3 à +6 pts. `data.vente` est donc **brute**. Réduire

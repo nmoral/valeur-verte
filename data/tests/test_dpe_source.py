@@ -13,12 +13,21 @@ from typing import Any
 from valeur_verte_data.dpe_source import ADEME_LINES_URL, dpe_lookup, fetch_dpe_records
 
 
-def _ademe(etiquette: str, adresse: str, periode: str) -> dict[str, str]:
+def _ademe(
+    etiquette: str,
+    adresse: str,
+    periode: str,
+    *,
+    date: str = "2022-06-15",
+    version: str = "2.2",
+) -> dict[str, str]:
     return {
         "etiquette_dpe": etiquette,
         "adresse_ban": adresse,
         "code_postal_ban": "31000",
         "periode_construction": periode,
+        "date_etablissement_dpe": date,
+        "version_dpe": version,
     }
 
 
@@ -56,6 +65,8 @@ def test_fetch_dpe_records_suit_la_pagination_et_mappe_les_champs() -> None:
     assert records[0]["adresse_ban"] == "12 Rue des Fleurs 31000 Toulouse"
     assert records[0]["code_postal"] == "31000"
     assert records[0]["periode_construction"] == "1948-1974"
+    assert records[0]["date_etablissement_dpe"] == "2022-06-15"
+    assert records[0]["version_dpe"] == "2.2"
     # 1er appel = endpoint ADEME + filtre commune ; 2e = URL 'next'.
     assert fetcher.calls[0][0] == ADEME_LINES_URL
     # 10 000 = maximum accepté par l'API : Toulouse compte 186 000 DPE, soit
@@ -64,7 +75,8 @@ def test_fetch_dpe_records_suit_la_pagination_et_mappe_les_champs() -> None:
     assert "31555" in fetcher.calls[0][1]["qs"]
     assert (
         fetcher.calls[0][1]["select"]
-        == "etiquette_dpe,adresse_ban,code_postal_ban,periode_construction"
+        == "etiquette_dpe,adresse_ban,code_postal_ban,periode_construction,"
+        "date_etablissement_dpe,version_dpe"
     )
     assert fetcher.calls[1][0] == "https://data.ademe.fr/data-fair/.../lines?after=cursor42"
 

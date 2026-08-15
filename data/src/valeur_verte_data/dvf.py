@@ -44,6 +44,10 @@ class Mutation:
     # Renseignés par l'appariement DPE (voir dpe.attach_dpe), None sinon.
     etiquette_dpe: str | None = None
     periode_construction: str | None = None
+    # Date d'établissement et version de méthode du DPE apparié (#211) : datent le
+    # diagnostic pour gérer les ruptures de réforme DPE en aval (#208/#127).
+    date_etablissement_dpe: str | None = None
+    version_dpe: str | None = None
 
 
 def _to_float(value: object) -> float | None:
