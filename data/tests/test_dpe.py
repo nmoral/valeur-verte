@@ -121,6 +121,20 @@ def test_attach_dpe_renseigne_etiquette_et_periode() -> None:
     assert result.periode_construction == "1948-1974"
 
 
+def test_attach_dpe_renseigne_date_et_version() -> None:
+    # #211 : la date et la version du DPE apparié remontent sur la mutation,
+    # pour dater les ruptures de réforme en aval (#208/#127).
+    mutation = _mutation("12", "RUE DES FLEURS", "31000")
+    lookup = {
+        ("31000", "12 rue fleurs"): DpeInfo("D", "1948-1974", "2023-07-10", "2.3"),
+    }
+
+    (result,) = attach_dpe([mutation], lookup)
+
+    assert result.date_etablissement_dpe == "2023-07-10"
+    assert result.version_dpe == "2.3"
+
+
 def test_attach_dpe_sans_correspondance_laisse_none() -> None:
     mutation = _mutation("12", "RUE DES FLEURS", "31000")
 
