@@ -1,10 +1,15 @@
-"""Écriture des coefficients pré-calculés dans ``data.coefficient_maille`` (§10.6).
+"""Archivage des coefficients pré-calculés, versionné par millésime (§10.6).
 
-Une ligne par commune (clé ``code_insee``) : upsert idempotent. ``coef_dpe``,
-``ic_dpe``, ``bandes`` et ``effectifs_dpe`` sont sérialisés en JSONB. Le rayon
-départemental (``None``) est stocké à ``0`` (la colonne est ``NOT NULL``). Le cran
-de la cascade (``mode``) et le tier de fiabilité (``palier``) sont stockés par leur
-valeur d'énumération (#169) — le contrat data→app en a besoin pour la restitution.
+Le batch écrit **uniquement** l'historique (``data.coefficient_maille_historique``,
+clé ``code_insee`` + ``millesime``). La table vive ``data.coefficient_maille`` n'est
+alimentée qu'à la publication d'un millésime (REG-2, #130), par les fonctions SQL de
+{@see publication_repository} — d'où l'absence d'écriture vive ici.
+
+``coef_dpe``, ``ic_dpe``, ``bandes`` et ``effectifs_dpe`` sont sérialisés en JSONB.
+Le rayon départemental (``None``) est stocké à ``0`` (la colonne est ``NOT NULL``).
+Le cran de la cascade (``mode``) et le tier de fiabilité (``palier``) sont stockés
+par leur valeur d'énumération (#169) — le contrat data→app en a besoin pour la
+restitution.
 """
 
 from __future__ import annotations
@@ -16,24 +21,6 @@ from ..batch import MailleCoefficient
 from ..degraded import CoverageMode, PalierFiabilite
 from ..ecarts import ClasseEcart, MotifRefus
 from .runner import Connection
-
-_UPSERT = (
-    "INSERT INTO data.coefficient_maille ("
-    "code_insee, millesime, rayon_retenu_km, n_transactions, r2, erreur_mediane, "
-    "coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe, alerte, "
-    "mode, palier, bandes, effectifs_dpe"
-    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, "
-    "%s, %s, %s::jsonb, %s::jsonb) "
-    "ON CONFLICT (code_insee) DO UPDATE SET "
-    "millesime = EXCLUDED.millesime, rayon_retenu_km = EXCLUDED.rayon_retenu_km, "
-    "n_transactions = EXCLUDED.n_transactions, r2 = EXCLUDED.r2, "
-    "erreur_mediane = EXCLUDED.erreur_mediane, coef_m2_bati = EXCLUDED.coef_m2_bati, "
-    "coef_m2_terrain = EXCLUDED.coef_m2_terrain, coef_dpe = EXCLUDED.coef_dpe, "
-    "ic_dpe = EXCLUDED.ic_dpe, alerte = EXCLUDED.alerte, mode = EXCLUDED.mode, "
-    "palier = EXCLUDED.palier, bandes = EXCLUDED.bandes, "
-    "effectifs_dpe = EXCLUDED.effectifs_dpe, calcule_le = now()"
-)
-
 
 # Historique versionné (REG-1, #129) : mêmes colonnes et mêmes valeurs que la table
 # vive, mais conflit sur (code_insee, millesime) — chaque millésime est conservé.
@@ -101,11 +88,6 @@ def _params(maille: MailleCoefficient) -> list[object]:
         json.dumps(maille.bandes),
         json.dumps(maille.effectifs_dpe),
     ]
-
-
-def upsert_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
-    """Insère ou met à jour la ligne vive ``coefficient_maille`` d'une commune."""
-    conn.execute(_UPSERT, _params(maille))
 
 
 def archiver_coefficient(

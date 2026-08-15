@@ -15,7 +15,8 @@ import pytest
 from valeur_verte_data.batch import MailleCoefficient, compute_maille
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.db import migrate as cli
-from valeur_verte_data.db.coefficient_repository import upsert_coefficient
+from valeur_verte_data.db.coefficient_repository import archiver_coefficient
+from valeur_verte_data.db.publication_repository import publier_maille, publier_millesime
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
@@ -69,8 +70,11 @@ def test_compute_maille_puis_upsert_est_relu_et_idempotent() -> None:
 
     with psycopg.connect(DSN) as conn:
         conn.execute("DELETE FROM data.coefficient_maille WHERE code_insee = '31555'")
-        upsert_coefficient(conn, maille)
-        upsert_coefficient(conn, maille)  # deuxième passe : upsert idempotent
+        # REG-2 (#130) : le batch archive, la publication projette. Publier deux fois
+        # doit rester idempotent — une commune, une ligne vive.
+        archiver_coefficient(conn, maille)
+        publier_millesime(conn, 2024, "test@integration")
+        publier_millesime(conn, 2024, "test@integration")
         conn.commit()
 
         row = conn.execute(
@@ -105,7 +109,7 @@ def _maille(code_insee: str, alerte: str | None) -> MailleCoefficient:
     )
 
 
-def test_upsert_persiste_l_alerte_de_bord() -> None:
+def test_la_publication_persiste_l_alerte_de_bord() -> None:
     # #162 : le bandeau (bord INV-3 #121 / dégradé #22) doit être servable, donc
     # écrit en base. Sans alerte, la colonne reste NULL.
     cli.run(os.environ)
@@ -114,8 +118,9 @@ def test_upsert_persiste_l_alerte_de_bord() -> None:
 
     with psycopg.connect(DSN) as conn:
         conn.execute("DELETE FROM data.coefficient_maille WHERE code_insee IN ('31901', '31902')")
-        upsert_coefficient(conn, avec)
-        upsert_coefficient(conn, sans)
+        archiver_coefficient(conn, avec)
+        archiver_coefficient(conn, sans)
+        publier_millesime(conn, 2024, "test@integration")
         conn.commit()
 
         lu_avec = conn.execute(
@@ -127,3 +132,28 @@ def test_upsert_persiste_l_alerte_de_bord() -> None:
 
     assert lu_avec is not None and lu_avec[0] == avec.alerte
     assert lu_sans is not None and lu_sans[0] is None
+
+
+def test_debloquer_une_maille_est_refuse_tant_que_le_millesime_n_est_pas_publie() -> None:
+    """REG-2 (#130) : la garde vit dans la fonction SQL, pas côté Python.
+
+    L'app invoque ces fonctions directement (elle est en lecture seule sur les
+    tables) : une garde côté client serait contournable. Débloquer une maille d'un
+    millésime non publié créerait une commune seule en N au milieu d'un parc en N-1.
+    """
+    cli.run(os.environ)
+    maille = replace(_maille("31903", None), millesime=2099)
+
+    with psycopg.connect(DSN) as conn:
+        conn.execute("DELETE FROM data.publication_millesime WHERE millesime = 2099")
+        archiver_coefficient(conn, maille)
+        conn.commit()
+
+        with pytest.raises(psycopg.errors.RaiseException, match="pas publie"):
+            publier_maille(conn, "31903", 2099, "test@integration")
+        conn.rollback()
+
+        # Une fois le millésime publié, le déblocage est accepté.
+        publier_millesime(conn, 2099, "test@integration")
+        assert publier_maille(conn, "31903", 2099, "test@integration") == 1
+        conn.commit()

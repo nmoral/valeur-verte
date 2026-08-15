@@ -10,7 +10,6 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.db.coefficient_repository import (
     archiver_coefficient,
     lire_coefficient_precedent,
-    upsert_coefficient,
 )
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 
@@ -48,23 +47,10 @@ def _maille(**overrides: Any) -> MailleCoefficient:
     return MailleCoefficient(**base)
 
 
-def test_upsert_coefficient_construit_l_upsert() -> None:
+def test_les_jsonb_sont_serialises() -> None:
     conn = _FakeConnection()
 
-    upsert_coefficient(conn, _maille())
-
-    query, params = conn.calls[0]
-    assert "data.coefficient_maille" in query
-    assert "on conflict" in query.lower()
-    assert params is not None
-    assert params[0] == "31555"
-    assert params[1] == 2024
-
-
-def test_upsert_coefficient_serialise_les_jsonb() -> None:
-    conn = _FakeConnection()
-
-    upsert_coefficient(conn, _maille())
+    archiver_coefficient(conn, _maille())
 
     _, params = conn.calls[0]
     assert params is not None
@@ -72,24 +58,24 @@ def test_upsert_coefficient_serialise_les_jsonb() -> None:
     assert json.loads(params[9])["F"] == [-27000.0, -23000.0]  # ic_dpe
 
 
-def test_upsert_coefficient_rayon_departemental_devient_zero() -> None:
+def test_le_rayon_departemental_devient_zero() -> None:
     conn = _FakeConnection()
 
-    upsert_coefficient(conn, _maille(mode=CoverageMode.DEPARTEMENTAL, rayon_retenu_km=None))
+    archiver_coefficient(conn, _maille(mode=CoverageMode.DEPARTEMENTAL, rayon_retenu_km=None))
 
     _, params = conn.calls[0]
     assert params is not None
     assert params[2] == 0
 
 
-def test_upsert_coefficient_persiste_cran_palier_bandes_effectifs() -> None:
+def test_le_cran_palier_bandes_et_effectifs_sont_persistes() -> None:
     """#169 : le contrat data→app doit transporter le cran (mode), le tier (palier),
     le mapping des bandes et l'effectif par classe — sinon la restitution ne peut ni
     distinguer EPCI/DÉPT, ni servir une classe fusionnée, ni tolérer INV-1 au rechargement.
     """
     conn = _FakeConnection()
 
-    upsert_coefficient(
+    archiver_coefficient(
         conn,
         _maille(
             mode=CoverageMode.EPCI,
