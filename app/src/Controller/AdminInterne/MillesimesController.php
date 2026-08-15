@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\AdminInterne;
 
+use App\AdminInterne\Coefficient\SeuilsSupervisionRepository;
 use App\AdminInterne\Millesime\DecisionMillesime;
 use App\AdminInterne\Millesime\LectureMillesimes;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -52,6 +53,21 @@ final class MillesimesController extends AbstractController
         $this->addFlash('succes', \sprintf('Millésime %d abandonné — rien n\'a été publié.', $millesime));
 
         return $this->redirectToRoute('admin_millesimes');
+    }
+
+    #[Route('/millesimes/{millesime}/mailles/{codeInsee}', name: 'admin_millesime_maille', host: 'admin.%app.domaine%', requirements: ['millesime' => '\\d{4}', 'codeInsee' => '\\w{5}'], methods: ['GET'])]
+    public function maille(
+        int $millesime,
+        string $codeInsee,
+        LectureMillesimes $lecture,
+        SeuilsSupervisionRepository $seuils,
+    ): Response {
+        $fiche = $lecture->fiche($codeInsee, $millesime, $seuils->courants());
+        if (null === $fiche) {
+            throw $this->createNotFoundException('Cette commune n\'a pas ete calculee sous ce millesime.');
+        }
+
+        return $this->render('admin/millesime_maille.html.twig', ['fiche' => $fiche]);
     }
 
     #[Route('/millesimes/{millesime}/bloquees', name: 'admin_millesime_bloquees', host: 'admin.%app.domaine%', requirements: ['millesime' => '\d{4}'], methods: ['GET'])]

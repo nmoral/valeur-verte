@@ -24,7 +24,7 @@
         <tbody>
         {% for maille in bloquees %}
             <tr>
-                <td><strong>{{ maille.codeInsee }}</strong></td>
+                <td><a href="{{ path('admin_millesime_maille', {millesime: millesime, codeInsee: maille.codeInsee}) }}"><strong>{{ maille.codeInsee }}</strong></a></td>
                 <td>{{ maille.ecartPourCent }} %</td>
                 <td>{{ maille.coefficient }}</td>
                 <td>

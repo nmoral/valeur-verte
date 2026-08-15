@@ -1,0 +1,46 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ fiche.codeInsee }} · millésime {{ fiche.millesime }} · Admin interne{% endblock %}
+
+{% block admin_title %}Commune {{ fiche.codeInsee }} — millésime {{ fiche.millesime }}{% endblock %}
+
+{% block admin_subtitle %}<p>Tous les critères d'évaluation de cette maille, avec la borne que chacun doit respecter. Les coefficients du modèle sont exprimés en logarithme : ils sont convertis ici en effet sur le prix.</p>{% endblock %}
+
+{% block admin_actions %}<a href="{{ path('admin_millesime_bloquees', {millesime: fiche.millesime}) }}">Mailles écartées</a>{% endblock %}
+
+{% block admin_content %}
+    <p class="banner {{ fiche.toutRespecte ? 'banner-ok' : 'banner-warn' }}" role="status">
+        {{ fiche.toutRespecte
+            ? 'Tous les critères sont respectés.'
+            : 'Au moins un critère n\'est pas respecté — voir les lignes signalées ci-dessous.' }}
+    </p>
+
+    {% for rubrique in fiche.rubriques %}
+        <section class="fiche-bloc">
+            <h2>{{ rubrique.titre }}</h2>
+            <table class="tableau fiche">
+                <tbody>
+                {% for critere in rubrique.criteres %}
+                    <tr class="{{ critere.respecte is same as(false) ? 'fiche-ko' : '' }}">
+                        <th scope="row">{{ critere.libelle }}</th>
+                        <td class="fiche-valeur">{{ critere.valeur }}</td>
+                        <td class="fiche-seuil">{{ critere.seuil ?? '—' }}</td>
+                        <td class="fiche-verdict">
+                            {%- if critere.estInformatif -%}
+                                <span class="mute" title="Indicateur informatif, sans seuil">indicatif</span>
+                            {%- elseif critere.respecte -%}
+                                <span class="ok" aria-label="critère respecté">✓</span>
+                            {%- else -%}
+                                <span class="ko" aria-label="critère non respecté">✗</span>
+                            {%- endif -%}
+                        </td>
+                    </tr>
+                    {% if critere.explication %}
+                        <tr class="fiche-explication"><td colspan="4">{{ critere.explication }}</td></tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endfor %}
+{% endblock %}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\AdminInterne\Millesime;
 
+use App\AdminInterne\Coefficient\SeuilsSupervision;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -79,6 +80,24 @@ final readonly class LectureMillesimes
         }
 
         return $bloquees;
+    }
+
+    /**
+     * Fiche de diagnostic d'une maille : tous ses critères d'évaluation en clair.
+     * `null` si la commune n'a pas été calculée sous ce millésime.
+     */
+    public function fiche(string $codeInsee, int $millesime, SeuilsSupervision $seuils): ?FicheMaille
+    {
+        $ligne = $this->connexion->fetchAssociative(
+            'SELECT code_insee, millesime, rayon_retenu_km, n_transactions, r2, erreur_mediane,
+                    coef_m2_bati, coef_m2_terrain, coef_dpe, effectifs_dpe, mode, palier, alerte,
+                    classe_ecart, ecart, ecart_coefficient
+             FROM data.coefficient_maille_historique
+             WHERE code_insee = :code AND millesime = :millesime',
+            ['code' => $codeInsee, 'millesime' => $millesime],
+        );
+
+        return false === $ligne ? null : FicheMaille::depuis($ligne, $seuils);
     }
 
     private static function entier(mixed $valeur): int
