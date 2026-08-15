@@ -23,6 +23,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class DecisionMillesimeTest extends KernelTestCase
 {
+    private Connection $app;
     private Connection $prive;
 
     protected function setUp(): void
@@ -30,7 +31,8 @@ final class DecisionMillesimeTest extends KernelTestCase
         self::bootKernel();
         $manager = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $manager);
-        $app = $manager->getConnection();
+        $this->app = $manager->getConnection();
+        $app = $this->app;
 
         $params = $app->getParams();
         $hote = \is_string($params['host'] ?? null) ? $params['host'] : '127.0.0.1';
@@ -79,10 +81,10 @@ final class DecisionMillesimeTest extends KernelTestCase
     {
         $this->decision()->publier(2024, 'admin@vv.test');
 
-        $servies = $this->prive->fetchFirstColumn(
+        $servies = $this->app->fetchFirstColumn(
             'SELECT code_insee FROM data.coefficient_maille ORDER BY code_insee',
         );
-        self::assertSame(['31001', '31002'], array_map(trim(...), $servies));
+        self::assertSame(['31001', '31002'], self::codes($servies));
     }
 
     public function testPublierEstTraceAuJournalAvecLeNombreDeMaillesServies(): void
@@ -102,7 +104,7 @@ final class DecisionMillesimeTest extends KernelTestCase
 
         self::assertSame(
             0,
-            (int) $this->prive->fetchOne('SELECT count(*) FROM data.coefficient_maille'),
+            self::compte($this->app->fetchOne('SELECT count(*) FROM data.coefficient_maille')),
             'Abandonner doit rester sans effet de bord : rien ne doit être servi.',
         );
         self::assertSame('abandonne', $this->lecture()->tous()[0]->etat());
@@ -121,8 +123,8 @@ final class DecisionMillesimeTest extends KernelTestCase
 
         $this->decision()->debloquer('31003', 2024, 'admin@vv.test');
 
-        $servies = $this->prive->fetchFirstColumn('SELECT code_insee FROM data.coefficient_maille');
-        self::assertContains('31003', array_map(trim(...), $servies));
+        $servies = $this->app->fetchFirstColumn('SELECT code_insee FROM data.coefficient_maille');
+        self::assertContains('31003', self::codes($servies));
         self::assertNotNull($this->dernierEvenement('millesime.maille_debloquee'));
     }
 
@@ -143,6 +145,23 @@ final class DecisionMillesimeTest extends KernelTestCase
         self::assertSame('31003', $bloquees[0]->codeInsee());
         self::assertSame(1.8, $bloquees[0]->ecart());
         self::assertSame('élasticité bâti', $bloquees[0]->coefficient());
+    }
+
+    /**
+     * Codes INSEE nettoyés du remplissage CHAR(5).
+     *
+     * @param list<mixed> $lignes
+     *
+     * @return list<string>
+     */
+    private static function codes(array $lignes): array
+    {
+        return array_map(static fn (mixed $code): string => \is_string($code) ? trim($code) : '', $lignes);
+    }
+
+    private static function compte(mixed $valeur): int
+    {
+        return is_numeric($valeur) ? (int) $valeur : -1;
     }
 
     private function lecture(): LectureMillesimes
@@ -198,6 +217,24 @@ final class DecisionMillesimeTest extends KernelTestCase
                 calcule_le      TIMESTAMP NOT NULL DEFAULT now()
             )',
         );
+        // Un autre test (#45) crée la même table dans une forme minimale : on la
+        // complète au lieu de la remplacer, pour que l'ordre d'exécution n'importe pas.
+        foreach ([
+            'r2 NUMERIC(4,3)',
+            'coef_m2_bati NUMERIC(8,2)',
+            'coef_m2_terrain NUMERIC(8,2)',
+            'ic_dpe JSONB',
+            'mode TEXT',
+            'palier TEXT',
+            'bandes JSONB',
+            'effectifs_dpe JSONB',
+            'calcule_le TIMESTAMP NOT NULL DEFAULT now()',
+        ] as $colonne) {
+            $this->prive->executeStatement(
+                \sprintf('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS %s', $colonne),
+            );
+        }
+
         $this->prive->executeStatement(
             'CREATE TABLE IF NOT EXISTS data.coefficient_maille_historique (
                 code_insee      CHAR(5) NOT NULL,
