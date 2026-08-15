@@ -253,8 +253,10 @@ Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur
 ### REG-1 — écart au millésime précédent (#129, `ecarts.py`)
 
 Dernière porte, **après** les invariants, sur une maille par ailleurs publiable. Chaque
-maille calculée est **archivée** dans `data.coefficient_maille_historique` (versionnée
-par `code_insee`+`millesime`), puis comparée à son millésime précédent :
+maille calculée est comparée à son millésime précédent, **puis archivée** dans
+`data.coefficient_maille_historique` (versionnée par `code_insee`+`millesime`) — la
+comparaison précède l'archivage depuis REG-2 (#130), car le verdict part **avec**
+l'archive (`classe_ecart`, `ecart`, `ecart_coefficient`) :
 
 - **métrique** : écart relatif sur l'**effet `exp(coef)`** des classes DPE communes (un
   effet log peut bouger beaucoup sans que le prix bouge) et sur la valeur brute des
@@ -262,11 +264,36 @@ par `code_insee`+`millesime`), puis comparée à son millésime précédent :
   Un changement de l'ensemble des classes publiées (rebanding) vaut au moins une alerte ;
 - **paliers** : `< ecart_alerte_pct` (**10 %**) normal ; jusqu'à `ecart_blocage_pct`
   (**25 %**) **alerte** (publiée, signalée pour revue) ; au-delà **blocage** — la maille
-  **n'est pas publiée** (l'ancienne valeur vive reste servie jusqu'à validation manuelle,
-  REG-2). Blocage **par maille**, jamais du batch entier.
+  est archivée mais **écartée de la publication** du millésime (l'ancienne valeur vive
+  reste servie jusqu'à déblocage explicite, REG-2). Blocage **par maille**, jamais du
+  batch entier.
 
 Prérequis INV-5 satisfait (CV déterministe → l'écart est de la dérive, pas de l'aléa). Le
 batch renvoie un `RapportEcarts` dédié (une ligne par maille) pour l'écran de supervision (#45).
+
+### REG-2 — publication manuelle d'un millésime (#130, `db/publication_repository.py`)
+
+Un millésime n'est **jamais publié automatiquement**. Le batch **calcule et archive** ;
+il ne touche plus `data.coefficient_maille`, ni pour écrire une maille retenue, ni pour
+effacer une maille refusée. Sans cette seconde moitié, un millésime calculé puis
+abandonné aurait déjà modifié ce que voient les clients.
+
+- **Refus différé** : une commune non calculable est inscrite dans `data.maille_refusee`
+  (`code_insee`+`millesime`+motif). Elle ne sort du service qu'à la publication.
+- **Publier** (`data.publier_millesime(millesime, auteur)`) projette l'historique du
+  millésime vers la table vive, **sauf** les mailles en `classe_ecart = 'blocage'`, puis
+  applique les refus du millésime et inscrit la décision dans `data.publication_millesime`.
+- **Abandonner** (`data.abandonner_millesime`) n'a **aucun effet de bord** : l'archive
+  reste, la table vive n'est pas touchée. Seule la décision est enregistrée, pour que le
+  millésime cesse d'être proposé.
+- **Débloquer une maille** (`data.publier_maille`) est **refusé tant que le millésime
+  n'est pas publié** : une commune seule en N au milieu d'un parc en N-1 serait l'état
+  mixte que REG-2 cherche justement à éviter. C'est une correction *après* publication.
+
+La logique vit dans des fonctions SQL `SECURITY DEFINER` (migration 012), pas dans l'app :
+celle-ci est en **lecture seule** sur le schéma `data` (décision D6) et ne reçoit que le
+droit de les invoquer. Le contrat A/B tient — le pipeline reste réécrivable sans toucher
+à l'app.
 
 ## 12. Sortie — `coefficient_maille` (`batch.MailleCoefficient`)
 

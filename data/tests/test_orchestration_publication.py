@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
+
 from valeur_verte_data import orchestration
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
@@ -69,18 +70,26 @@ def _maille(code_insee: str, coef_m2_bati: float = 0.5) -> MailleCoefficient:
     )
 
 
+def _touche_la_table_vive(requetes: list[str]) -> list[str]:
+    """Requêtes visant ``coefficient_maille`` — l'historique porte un autre nom."""
+    return [
+        r
+        for r in requetes
+        if "data.coefficient_maille " in r.replace("(", " (")
+        and "coefficient_maille_historique" not in r
+    ]
+
+
 def test_le_batch_n_ecrit_plus_la_table_vive(
     connexion: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    vives: list[MailleCoefficient] = []
     _brancher(monkeypatch, [_maille("31555")])
-    monkeypatch.setattr(
-        orchestration, "upsert_coefficient", lambda conn, maille: vives.append(maille)
-    )
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert vives == [], "Le batch ne doit plus publier : REG-2 exige une activation explicite."
+    assert _touche_la_table_vive(connexion.requetes) == [], (
+        "Le batch ne doit plus publier : REG-2 exige une activation explicite."
+    )
 
 
 def test_le_batch_n_efface_plus_la_table_vive(
@@ -90,16 +99,11 @@ def test_le_batch_n_efface_plus_la_table_vive(
 
     Sinon un millésime abandonné aurait quand même retiré des communes du service.
     """
-    effacees: list[str] = []
     _brancher(monkeypatch, [])
-    monkeypatch.setattr(
-        orchestration, "delete_coefficient", lambda conn, code: effacees.append(code)
-    )
-    monkeypatch.setattr(orchestration, "enregistrer_refus", lambda conn, code, mil, motif: None)
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert effacees == []
+    assert _touche_la_table_vive(connexion.requetes) == []
 
 
 def test_une_maille_refusee_est_enregistree_pour_la_publication(
@@ -129,7 +133,9 @@ def test_le_batch_archive_les_mailles_retenues(
     monkeypatch.setattr(
         orchestration,
         "archiver_coefficient",
-        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+        lambda conn, maille, classe_ecart=None, ecart=None, ecart_coefficient=None: (
+            archivees.append((maille, classe_ecart))
+        ),
     )
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
@@ -137,9 +143,7 @@ def test_le_batch_archive_les_mailles_retenues(
     assert [m.code_insee for m, _ in archivees] == ["31555"]
 
 
-def test_l_archive_porte_la_classe_d_ecart(
-    connexion: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_l_archive_porte_la_classe_d_ecart(connexion: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """La publication doit pouvoir écarter les mailles bloquées par REG-1.
 
     Elles sont archivées comme les autres : sans classe d'écart portée sur
@@ -157,7 +161,9 @@ def test_l_archive_porte_la_classe_d_ecart(
     monkeypatch.setattr(
         orchestration,
         "archiver_coefficient",
-        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+        lambda conn, maille, classe_ecart=None, ecart=None, ecart_coefficient=None: (
+            archivees.append((maille, classe_ecart))
+        ),
     )
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
@@ -170,13 +176,13 @@ def test_une_maille_sans_precedent_est_archivee_sans_classe(
 ) -> None:
     archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
     _brancher(monkeypatch, [_maille("31555")])
-    monkeypatch.setattr(
-        orchestration, "lire_coefficient_precedent", lambda conn, code, mil: None
-    )
+    monkeypatch.setattr(orchestration, "lire_coefficient_precedent", lambda conn, code, mil: None)
     monkeypatch.setattr(
         orchestration,
         "archiver_coefficient",
-        lambda conn, maille, classe_ecart=None: archivees.append((maille, classe_ecart)),
+        lambda conn, maille, classe_ecart=None, ecart=None, ecart_coefficient=None: (
+            archivees.append((maille, classe_ecart))
+        ),
     )
 
     orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)

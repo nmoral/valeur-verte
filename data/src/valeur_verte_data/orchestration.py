@@ -23,9 +23,8 @@ from .batch import (
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import (
     archiver_coefficient,
-    delete_coefficient,
+    enregistrer_refus,
     lire_coefficient_precedent,
-    upsert_coefficient,
 )
 from .db.epci_repository import communes_de_meme_epci, upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
@@ -33,7 +32,7 @@ from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .degraded import CoverageMode
-from .ecarts import ClasseEcart, RapportEcarts, ecart_maille
+from .ecarts import ClasseEcart, MotifRefus, RapportEcarts, ecart_maille
 from .http import Fetcher
 from .ingest import ingest_commune
 from .invariants import (
@@ -114,7 +113,8 @@ class RapportCalcul:
     inversions_dpe: list[str] = field(default_factory=list)
     # REG-1 (#129) : écarts des mailles au millésime précédent — objet dédié, une
     # ligne par maille comparée, alimentant l'écran de supervision (#45). Les mailles
-    # en blocage n'ont pas été publiées (leur ancienne valeur reste vive).
+    # en blocage sont archivées comme les autres, mais **écartées de la publication**
+    # du millésime (REG-2, #130) : leur ancienne valeur reste servie jusqu'à déblocage.
     ecarts: RapportEcarts = field(default_factory=RapportEcarts)
     # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
     # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
@@ -129,12 +129,12 @@ class RapportCalcul:
     def resume(self) -> str:
         return (
             f"Département {self.departement}, millésime {self.millesime} : "
-            f"{self.communes_calculees} coefficient(s), "
+            f"{self.communes_calculees} coefficient(s) archivé(s), "
             f"{len(self.refus)} refus sous seuil, "
             f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.alertes_bord)} alerte(s) de bord, "
             f"{len(self.inversions_dpe)} inversion(s) DPE tolérée(s), "
-            f"{len(self.ecarts.blocages)} publication(s) bloquée(s) (REG-1), "
+            f"{len(self.ecarts.blocages)} maille(s) écartée(s) de la publication (REG-1), "
             f"{len(self.ecarts.alertes)} alerte(s) d'écart, "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
@@ -326,11 +326,13 @@ def compute_departement(
                     retenue, monotonie = dept, monotonie_dept
 
         if retenue is None:
-            # Aucun cran ne publie : on efface une éventuelle valeur antérieure
-            # (sinon un coefficient invalidé continuerait d'être servi, #115). On
+            # REG-2 (#130) : le refus est **enregistré**, pas appliqué. La commune ne
+            # sort du service qu'à la publication du millésime — sinon un millésime
+            # calculé puis abandonné aurait déjà fait disparaître des communes. On
             # distingue le refus sec (rien de calculable) du rejet d'invariant
             # (calculé mais hors seuils) pour garder le rapport lisible.
-            delete_coefficient(conn, code_insee)
+            motif = MotifRefus.REFUS if local is None else MotifRefus.REJET_INVARIANT
+            enregistrer_refus(conn, code_insee, millesime, motif)
             conn.commit()
             if local is None:
                 rapport.refus.append(code_insee)
@@ -355,12 +357,14 @@ def compute_departement(
             retenue = replace(retenue, alerte=alerte_bord)
             rapport.alertes_bord.append(code_insee)
 
-        # REG-1 (#129) : archiver le millésime calculé, puis comparer au précédent.
-        # Un écart au-delà du seuil de blocage **suspend la publication de la maille**
-        # (l'ancienne valeur vive reste servie jusqu'à validation manuelle — REG-2) ;
-        # la maille reste archivée pour la revue. Sans précédent, rien à comparer.
-        archiver_coefficient(conn, retenue)
+        # REG-1 (#129) : comparer au précédent **avant** d'archiver, pour que le
+        # verdict parte avec l'archive. C'est lui qui permettra à la publication
+        # (REG-2, #130) d'écarter les mailles aberrantes : sans classe portée, une
+        # projection « toutes les lignes du millésime » les publierait aussi. Sans
+        # précédent, rien à comparer — la classe reste absente, ce qui n'est pas un
+        # verdict favorable mais une absence de verdict.
         precedent = lire_coefficient_precedent(conn, code_insee, millesime)
+        ecart = None
         if precedent is not None:
             ecart = ecart_maille(
                 precedent,
@@ -370,17 +374,23 @@ def compute_departement(
             )
             rapport.ecarts.ajouter(code_insee, ecart)
             if ecart.classe is ClasseEcart.BLOCAGE:
-                conn.commit()  # persiste l'archive ; la table vive garde l'ancienne valeur
                 logger.warning(
-                    "%s : publication bloquée — écart %.0f %% sur %s (REG-1)",
+                    "%s : écartée de la publication — écart %.0f %% sur %s (REG-1)",
                     code_insee,
                     ecart.ecart * 100,
                     ecart.coefficient,
                 )
-                continue
 
+        # REG-2 (#130) : le batch archive, il ne publie pas. La table vive n'est
+        # servie qu'après activation explicite depuis l'admin interne.
         try:
-            upsert_coefficient(conn, retenue)
+            archiver_coefficient(
+                conn,
+                retenue,
+                classe_ecart=None if ecart is None else ecart.classe,
+                ecart=None if ecart is None else ecart.ecart,
+                ecart_coefficient=None if ecart is None else ecart.coefficient,
+            )
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
             conn.rollback()
             rapport.echecs.append(code_insee)

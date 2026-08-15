@@ -14,6 +14,7 @@ from typing import Any
 
 from ..batch import MailleCoefficient
 from ..degraded import CoverageMode, PalierFiabilite
+from ..ecarts import ClasseEcart, MotifRefus
 from .runner import Connection
 
 _UPSERT = (
@@ -34,24 +35,34 @@ _UPSERT = (
 )
 
 
-_DELETE = "DELETE FROM data.coefficient_maille WHERE code_insee = %s"
-
 # Historique versionné (REG-1, #129) : mêmes colonnes et mêmes valeurs que la table
 # vive, mais conflit sur (code_insee, millesime) — chaque millésime est conservé.
 _ARCHIVE = (
     "INSERT INTO data.coefficient_maille_historique ("
     "code_insee, millesime, rayon_retenu_km, n_transactions, r2, erreur_mediane, "
     "coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe, alerte, "
-    "mode, palier, bandes, effectifs_dpe"
+    "mode, palier, bandes, effectifs_dpe, classe_ecart, ecart, ecart_coefficient"
     ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, "
-    "%s, %s, %s::jsonb, %s::jsonb) "
+    "%s, %s, %s::jsonb, %s::jsonb, %s, %s, %s) "
     "ON CONFLICT (code_insee, millesime) DO UPDATE SET "
     "rayon_retenu_km = EXCLUDED.rayon_retenu_km, n_transactions = EXCLUDED.n_transactions, "
     "r2 = EXCLUDED.r2, erreur_mediane = EXCLUDED.erreur_mediane, "
     "coef_m2_bati = EXCLUDED.coef_m2_bati, coef_m2_terrain = EXCLUDED.coef_m2_terrain, "
     "coef_dpe = EXCLUDED.coef_dpe, ic_dpe = EXCLUDED.ic_dpe, alerte = EXCLUDED.alerte, "
     "mode = EXCLUDED.mode, palier = EXCLUDED.palier, bandes = EXCLUDED.bandes, "
-    "effectifs_dpe = EXCLUDED.effectifs_dpe, calcule_le = now()"
+    "effectifs_dpe = EXCLUDED.effectifs_dpe, classe_ecart = EXCLUDED.classe_ecart, "
+    "ecart = EXCLUDED.ecart, ecart_coefficient = EXCLUDED.ecart_coefficient, "
+    "calcule_le = now()"
+)
+
+
+# REG-2 (#130) : le refus est **différé** — il ne retire la commune du service qu'à
+# la publication du millésime, jamais au moment du calcul. Sans cela, un millésime
+# calculé puis abandonné aurait déjà fait disparaître des communes.
+_REFUS = (
+    "INSERT INTO data.maille_refusee (code_insee, millesime, motif) "
+    "VALUES (%s, %s, %s) "
+    "ON CONFLICT (code_insee, millesime) DO UPDATE SET motif = EXCLUDED.motif"
 )
 
 
@@ -92,28 +103,45 @@ def _params(maille: MailleCoefficient) -> list[object]:
     ]
 
 
-def delete_coefficient(conn: Connection, code_insee: str) -> None:
-    """Efface le coefficient d'une commune devenue non calculable.
-
-    Sans cela, un recalcul qui refuse une maille laisserait l'ancienne valeur
-    en base : elle continuerait d'être servie alors qu'elle vient d'être jugée
-    non publiable.
-    """
-    conn.execute(_DELETE, [code_insee])
-
-
 def upsert_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
     """Insère ou met à jour la ligne vive ``coefficient_maille`` d'une commune."""
     conn.execute(_UPSERT, _params(maille))
 
 
-def archiver_coefficient(conn: Connection, maille: MailleCoefficient) -> None:
+def archiver_coefficient(
+    conn: Connection,
+    maille: MailleCoefficient,
+    classe_ecart: ClasseEcart | None = None,
+    ecart: float | None = None,
+    ecart_coefficient: str | None = None,
+) -> None:
     """Archive la maille dans l'historique versionné par millésime (REG-1, #129).
 
     Distinct de l'écriture vive : conserve chaque millésime pour comparer au
     précédent. Idempotent au recalcul d'un même millésime (conflit sur la clé).
+
+    Le verdict REG-1 est porté ici (REG-2, #130) : c'est lui qui permet à la
+    publication d'écarter les mailles aberrantes. Sans précédent à comparer, la
+    classe est ``None`` — absence de verdict, pas verdict favorable.
     """
-    conn.execute(_ARCHIVE, _params(maille))
+    conn.execute(
+        _ARCHIVE,
+        [
+            *_params(maille),
+            None if classe_ecart is None else classe_ecart.value,
+            ecart,
+            ecart_coefficient,
+        ],
+    )
+
+
+def enregistrer_refus(conn: Connection, code_insee: str, millesime: int, motif: MotifRefus) -> None:
+    """Note qu'une commune n'est pas calculable sous ce millésime (REG-2, #130).
+
+    Le refus ne prend effet qu'à la publication : c'est elle qui retirera la commune
+    du service. Différer évite qu'un millésime abandonné laisse des trous.
+    """
+    conn.execute(_REFUS, [code_insee, millesime, motif.value])
 
 
 def lire_coefficient_precedent(

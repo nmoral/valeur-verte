@@ -26,6 +26,18 @@ class ClasseEcart(Enum):
     BLOCAGE = "blocage"
 
 
+class MotifRefus(Enum):
+    """Pourquoi une commune n'entre pas dans un millésime (REG-2, #130).
+
+    Le refus est **différé** : il n'écarte la commune du service qu'à la publication
+    du millésime. On distingue le refus sec (rien de calculable) du rejet d'invariant
+    (calculé mais hors seuils) — les deux ne demandent pas la même enquête.
+    """
+
+    REFUS = "refus"
+    REJET_INVARIANT = "rejet_invariant"
+
+
 # Gravité croissante : la maille retient le pire écart de ses coefficients.
 _GRAVITE = (ClasseEcart.NORMAL, ClasseEcart.ALERTE, ClasseEcart.BLOCAGE)
 
