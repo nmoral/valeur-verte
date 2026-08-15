@@ -70,6 +70,36 @@ def test_upsert_communes_ecrit_chaque_commune() -> None:
     assert [params[0] for _, params in conn.calls if params] == ["31555", "31149"]
 
 
+def test_upsert_communes_rend_le_nombre_de_lignes_ecrites() -> None:
+    """Le compte alimente le rapport d'ingestion : sans lui, l'opérateur ne voit
+    pas si le référentiel a été rafraîchi."""
+    conn = _FakeConnection()
+
+    assert (
+        upsert_communes(conn, [_commune("31555", "Toulouse"), _commune("31149", "Colomiers")]) == 2
+    )
+
+
+def test_une_entree_incomplete_n_interrompt_pas_les_suivantes() -> None:
+    """Ignorer une entrée bancale ne doit pas faire perdre tout le reste du
+    département — on la saute, on ne s'arrête pas."""
+    conn = _FakeConnection()
+
+    ecrites = upsert_communes(
+        conn,
+        [_commune("31555", "  "), _commune("31149", "Colomiers")],
+    )
+
+    assert ecrites == 1
+    assert [params[0] for _, params in conn.calls if params] == ["31149"]
+
+
+def test_sans_aucune_commune_valide_rien_n_est_ecrit() -> None:
+    conn = _FakeConnection()
+
+    assert upsert_communes(conn, []) == 0
+
+
 def test_une_commune_sans_departement_est_ignoree() -> None:
     """Le département est requis en base (il sert à recharger par lot). Une entrée
     incomplète du référentiel ne doit pas faire échouer toute l'ingestion."""

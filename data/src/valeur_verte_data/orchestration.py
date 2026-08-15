@@ -73,6 +73,9 @@ class RapportIngestion:
     mutations_inserees: int = 0
     contours_charges: int = 0
     epci_charges: int = 0
+    # #220 : communes dont le nom a été référencé. L'opérateur doit voir que le
+    # référentiel a bien été rafraîchi, au même titre que contours et EPCI.
+    communes_referencees: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
 
@@ -86,6 +89,7 @@ class RapportIngestion:
             f"Département {self.departement}, millésime {self.millesime} : "
             f"{self.communes_traitees} commune(s), "
             f"{self.mutations_inserees} mutation(s), "
+            f"{self.communes_referencees} commune(s) référencée(s), "
             f"{len(self.sans_donnees)} sans transaction publiée, "
             f"{len(self.echecs)} échec(s)"
         )
@@ -163,7 +167,7 @@ def ingest_departement(
     # Référentiel des noms (#220) écrit **avant** la boucle : une exécution
     # interrompue doit quand même laisser les noms en base. Ils ne dépendent pas
     # des ventes et servent aux écrans dès la première maille calculée.
-    upsert_communes(conn, communes)
+    rapport.communes_referencees = upsert_communes(conn, communes)
     conn.commit()
 
     for rang, commune in enumerate(communes, 1):

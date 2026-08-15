@@ -73,6 +73,18 @@ def test_l_ingestion_persiste_le_referentiel_des_communes(monkeypatch: pytest.Mo
     assert [c.nom for c in persistees[0]] == ["Toulouse", "Colomiers"]
 
 
+def test_le_rapport_compte_les_communes_referencees(monkeypatch: pytest.MonkeyPatch) -> None:
+    _brancher(monkeypatch)
+    monkeypatch.setattr(
+        orchestration, "upsert_communes", lambda conn, communes: len(list(communes))
+    )
+
+    rapport = orchestration.ingest_departement(_FauxFetcher(), _FausseConnexion(), "31", 2024)
+
+    assert rapport.communes_referencees == 2
+    assert "2 commune(s) référencée(s)" in rapport.resume()
+
+
 def test_le_referentiel_est_ecrit_avant_la_boucle_d_ingestion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
