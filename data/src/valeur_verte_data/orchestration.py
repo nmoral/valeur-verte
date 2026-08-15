@@ -26,6 +26,7 @@ from .db.coefficient_repository import (
     enregistrer_refus,
     lire_coefficient_precedent,
 )
+from .db.commune_repository import upsert_communes
 from .db.epci_repository import communes_de_meme_epci, upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
@@ -158,6 +159,12 @@ def ingest_departement(
     rapport = RapportIngestion(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
     total = len(communes)
+
+    # Référentiel des noms (#220) écrit **avant** la boucle : une exécution
+    # interrompue doit quand même laisser les noms en base. Ils ne dépendent pas
+    # des ventes et servent aux écrans dès la première maille calculée.
+    upsert_communes(conn, communes)
+    conn.commit()
 
     for rang, commune in enumerate(communes, 1):
         try:

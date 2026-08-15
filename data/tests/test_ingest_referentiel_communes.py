@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
+
 from valeur_verte_data import orchestration
 from valeur_verte_data.decoupage import Commune
 
