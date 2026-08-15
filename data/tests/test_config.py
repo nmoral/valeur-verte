@@ -137,9 +137,7 @@ def test_decroissance_temporelle_tau_vide_retombe_sur_none() -> None:
 
 def test_surcharge_dpe_reform_boundaries() -> None:
     # Ruptures de réforme DPE (#215) : calendrier de dates ISO, séparées par virgule.
-    config = resolve_config(
-        {"VV_MOTEUR_DPE_REFORM_BOUNDARIES": "2021-07-01,2024-07-01"}
-    )
+    config = resolve_config({"VV_MOTEUR_DPE_REFORM_BOUNDARIES": "2021-07-01,2024-07-01"})
     assert config.dpe_reform_boundaries == ("2021-07-01", "2024-07-01")
 
 
