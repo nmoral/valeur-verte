@@ -136,6 +136,17 @@ final readonly class BaremeAides
         return $plafond ?? throw new \OutOfBoundsException(\sprintf('Aucun plafond de dépenses pour un gain de %d classe(s).', $gainDeClasses));
     }
 
+    /**
+     * Gains de classes pour lesquels le barème porte un plafond propre.
+     * Sert la persistance, qui doit restituer le barème à l'identique.
+     *
+     * @return list<int>
+     */
+    public function gainsCouverts(): array
+    {
+        return array_keys($this->plafondsParGain);
+    }
+
     public function plafondEcoPtz(): Montant
     {
         return $this->plafondEcoPtz;
