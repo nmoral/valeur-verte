@@ -208,6 +208,31 @@ def test_le_pool_deborde_sur_les_departements_limitrophes(
     assert appels == [("31", ("09", "11", "32", "65", "81", "82"))]
 
 
+def test_le_calcul_ecarte_les_dpe_d_un_regime_de_reforme_anterieur(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#215 : avec un calendrier de réformes, le pool est filtré avant calcul —
+    les ventes dont le DPE précède la dernière réforme ≤ N n'entrent pas."""
+    ancien = replace(_vente(1, "D", 200000.0), date_etablissement_dpe="2023-05-01")
+    recent = replace(_vente(2, "D", 200000.0), date_etablissement_dpe="2024-09-01")
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [ancien, recent])
+
+    recu: list[Mutation] = []
+
+    def _capturer(
+        coordonnees: Any, pool: Sequence[Mutation], millesime: int, *, config: CalculConfig
+    ) -> list[MailleCoefficient]:
+        recu.extend(pool)
+        return []
+
+    monkeypatch.setattr(orchestration, "compute_communes", _capturer)
+
+    config = replace(CalculConfig(), dpe_reform_boundaries=("2024-07-01",))
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+
+    assert [vente.id_mutation for vente in recu] == ["m2"]
+
+
 def test_seules_les_communes_du_departement_recoivent_un_coefficient(
     connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
 ) -> None:

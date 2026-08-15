@@ -67,7 +67,20 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 **Pool** (`pool_repository.load_pool`) : ventes du département **+ départements
 limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), sur la **fenêtre de
 millésimes** demandée, `type_local='Maison'`, triées par `id_mutation` (ordre
-canonique INV-5).
+canonique INV-5). Charge aussi `date_etablissement_dpe` (#211) pour le filtre de
+rupture ci-dessous.
+
+- **Rupture de réforme DPE** (#215, `ruptures.filtrer_regime_dpe`, calendrier
+  `dpe_reform_boundaries`) : une réforme du DPE (méthode 3CL 2021-07-01, recalcul
+  petites surfaces 2024-07-01, réforme ~2026) casse la comparabilité des étiquettes
+  (un « D » d'avant ≠ un « D » d'après). Pour une maille sous millésime N, on **écarte
+  du pool** les ventes dont le DPE (`date_etablissement_dpe`) précède la **dernière
+  réforme ≤ `{N}-12-31`** — on ne poole pas à travers une réforme. Une vente au DPE
+  **sans date** est **conservée** (on n'exclut que ce qu'on peut positivement dater
+  avant la borne) ; une réforme **future** (> N) n'a aucun effet. La cascade (#169)
+  absorbe la baisse d'effectif. **Calendrier vide par défaut** = aucun filtrage
+  (non-régression exacte) ; à activer au VPS avec les réformes **matérielles pour les
+  maisons** (le recalcul 2024 des < 40 m² ne les touche quasi pas).
 
 - **Fenêtre glissante** (#177, `fenetre_millesimes`) : le pool empile les
   `fenetre_millesimes` derniers millésimes finissant au millésime de référence N
@@ -293,6 +306,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `min_classes_publiees` | 2 | dont la référence |
 | `fenetre_millesimes` | 2 | #177 — millésimes empilés (fenêtre glissante) ; W2 = compromis biais-variance validé (15 depts) ; 1 = mono-millésime historique ; #208 pondérera |
 | `decroissance_temporelle_tau` | `None` | #208 — τ du poids temporel `exp(-(N−millésime)/τ)` ; `None` = désactivé (poids égaux #177) ; §4bis |
+| `dpe_reform_boundaries` | `()` | #215 — calendrier de réformes DPE (dates ISO) ; écarte les DPE d'un régime antérieur à la dernière réforme ≤ N ; vide = aucun filtrage ; §3 |
 | `inversion_dpe_seuil` | 30 | tolérance INV-1 |
 | `sigma_mode` / `sigma_diviseur` / `sigma_min` | `densite` / 1,0 / 3,0 | S23 |
 | `departemental_sigma_km` | 1000 | repli quasi-uniforme |

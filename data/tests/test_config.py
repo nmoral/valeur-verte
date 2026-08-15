@@ -75,6 +75,9 @@ def test_defauts_sans_environnement() -> None:
     # Pondération temporelle décroissante (#208) : désactivée par défaut (None =
     # poids égaux, comportement #177 exact). Opt-in par l'environnement.
     assert config.decroissance_temporelle_tau is None
+    # Ruptures de réforme DPE (#215) : calendrier vide par défaut = aucun filtrage
+    # (non-régression exacte). Opt-in par l'environnement.
+    assert config.dpe_reform_boundaries == ()
 
 
 def test_config_est_immuable() -> None:
@@ -130,6 +133,16 @@ def test_decroissance_temporelle_tau_vide_retombe_sur_none() -> None:
         resolve_config({"VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU": ""}).decroissance_temporelle_tau
         is None
     )
+
+
+def test_surcharge_dpe_reform_boundaries() -> None:
+    # Ruptures de réforme DPE (#215) : calendrier de dates ISO, séparées par virgule.
+    config = resolve_config({"VV_MOTEUR_DPE_REFORM_BOUNDARIES": "2021-07-01,2024-07-01"})
+    assert config.dpe_reform_boundaries == ("2021-07-01", "2024-07-01")
+
+
+def test_dpe_reform_boundaries_vide_retombe_sur_tuple_vide() -> None:
+    assert resolve_config({"VV_MOTEUR_DPE_REFORM_BOUNDARIES": ""}).dpe_reform_boundaries == ()
 
 
 def test_surcharge_rayon_max() -> None:
