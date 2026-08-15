@@ -233,12 +233,20 @@ def _encode(
     return np.hstack(blocks)
 
 
+# Taille de tranche pour le calcul de l'indice local (#218) : la matrice de
+# distances est construite par blocs de `chunk` lignes → pic mémoire chunk ×
+# |voisinage| au lieu de n × |voisinage|. Indispensable aux crans EPCI/DÉPARTEMENTAL
+# des départements denses (pool de dizaines de milliers de ventes), sinon OOM.
+_CHUNK_INDICE = 512
+
+
 def _indice_local(
     rows: list[_Row],
     reference: list[_Row] | None = None,
     *,
     voisins: int = VOISINS_INDICE_LOCAL,
     etendue_minimale: float = ETENDUE_MINIMALE_INDICE,
+    chunk: int = _CHUNK_INDICE,
 ) -> NDArray[np.float64]:
     """Niveau de prix du quartier de chaque ligne, le bien lui-même exclu.
 
@@ -265,18 +273,29 @@ def _indice_local(
     lat = np.array([row.lat for row in rows], dtype=float)
     lon = np.array([row.lon for row in rows], dtype=float)
 
-    # Distances euclidiennes approchées : le facteur corrige l'écrasement des
-    # longitudes aux latitudes métropolitaines. Un ordre suffit ici.
-    ecarts = (lat[:, None] - lat_v[None, :]) ** 2 + ((lon[:, None] - lon_v[None, :]) * 0.73) ** 2
-    if reference is None:
-        np.fill_diagonal(ecarts, np.inf)
-
-    retenus = min(voisins, ecarts.shape[1] - (1 if reference is None else 0))
+    retenus = min(voisins, len(voisinage) - (1 if reference is None else 0))
     if retenus < 1:
         return np.ones(len(rows))
 
-    indices_voisins = np.argsort(ecarts, axis=1)[:, :retenus]
-    return np.asarray(np.median(prix_m2[indices_voisins], axis=1), dtype=float)
+    # La matrice de distances est calculée **par tranches de lignes** (#218) : le pic
+    # mémoire vaut chunk × |voisinage| au lieu de n × |voisinage|. Résultat identique
+    # (argsort par ligne indépendant du découpage ; exclusion diagonale préservée).
+    # Distances euclidiennes approchées : le facteur 0,73 corrige l'écrasement des
+    # longitudes aux latitudes métropolitaines. Un ordre suffit ici.
+    pas = max(chunk, 1)
+    resultat = np.empty(len(rows), dtype=np.float64)
+    for debut in range(0, len(rows), pas):
+        fin = min(debut + pas, len(rows))
+        ecarts = (lat[debut:fin, None] - lat_v[None, :]) ** 2 + (
+            (lon[debut:fin, None] - lon_v[None, :]) * 0.73
+        ) ** 2
+        if reference is None:
+            # Exclure chaque ligne d'elle-même (sa position globale dans le voisinage).
+            locales = np.arange(fin - debut)
+            ecarts[locales, np.arange(debut, fin)] = np.inf
+        indices_voisins = np.argsort(ecarts, axis=1)[:, :retenus]
+        resultat[debut:fin] = np.median(prix_m2[indices_voisins], axis=1)
+    return resultat
 
 
 def _weights(
