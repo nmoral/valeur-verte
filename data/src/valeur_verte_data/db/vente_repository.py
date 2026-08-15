@@ -20,9 +20,10 @@ _INSERT = (
     "id_mutation, date_mutation, millesime, code_insee, code_postal, nom_commune, "
     "type_local, nombre_pieces_principales, prix, surface_bati, surface_terrain, "
     "prix_m2, adresse_numero, adresse_suffixe, adresse_nom_voie, adresse_key, "
-    "etiquette_dpe, periode_construction, longitude, latitude, geom"
+    "etiquette_dpe, periode_construction, date_etablissement_dpe, version_dpe, "
+    "longitude, latitude, geom"
     ") VALUES ("
-    "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+    "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
     "ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography"
     ")"
 )
@@ -49,6 +50,8 @@ def _params(mutation: Mutation) -> list[Any]:
         key or None,
         mutation.etiquette_dpe,
         mutation.periode_construction,
+        mutation.date_etablissement_dpe,
+        mutation.version_dpe,
         mutation.longitude,
         mutation.latitude,
         mutation.longitude,
