@@ -124,8 +124,15 @@ def test_indice_local_selectionne_le_plus_proche_en_excluant_soi() -> None:
     # l'exclusion de soi (diagonale) et la sélection du plus proche voisin.
     def _r(prix: float, lon: float) -> _Row:
         return _Row(
-            prix=prix, bati=100.0, terrain=0.0, dpe="D", periode="",
-            insee="x", annee="2024", lat=0.0, lon=lon,
+            prix=prix,
+            bati=100.0,
+            terrain=0.0,
+            dpe="D",
+            periode="",
+            insee="x",
+            annee="2024",
+            lat=0.0,
+            lon=lon,
         )
 
     rows = [_r(10000.0, 0.0), _r(20000.0, 0.01), _r(30000.0, 1.0)]  # prix/m² = 100, 200, 300
