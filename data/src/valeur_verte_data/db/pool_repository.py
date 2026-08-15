@@ -24,7 +24,8 @@ SEGMENT_MVP = "Maison"
 
 _SELECT_POOL = (
     "SELECT id_mutation, date_mutation, millesime, code_insee, prix, surface_bati, "
-    "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude "
+    "surface_terrain, etiquette_dpe, periode_construction, longitude, latitude, "
+    "date_etablissement_dpe "
     "FROM data.vente "
     "WHERE code_insee LIKE ANY(%s) AND millesime = ANY(%s) AND type_local = %s "
     # INV-5 (#123) : ordre canonique à la source, en défense du tri appliqué
@@ -55,6 +56,7 @@ def _mutation(ligne: tuple[object, ...]) -> Mutation:
         latitude=None if ligne[10] is None else float(str(ligne[10])),
         etiquette_dpe=None if ligne[7] is None else str(ligne[7]),
         periode_construction=None if ligne[8] is None else str(ligne[8]),
+        date_etablissement_dpe=None if ligne[11] is None else str(ligne[11]),
     )
 
 
