@@ -7,11 +7,17 @@ namespace App\BackOffice\Restitution;
 /**
  * Restitution d'une estimation (§5.3) : le chiffre n'est jamais présenté seul.
  * Il vient toujours avec son contexte — effectif, intervalle de confiance,
- * rayon retenu, millésime — et un indicateur de fiabilité dérivé (§9.7). Un
- * rayon absent traduit le repli départemental.
+ * rayon retenu, millésime — et un indicateur de fiabilité dérivé (§9.7). La
+ * cascade de couverture rurale (#169) l'enrichit : la portée situe le cran
+ * (local / intercommunal / départemental), le palier signale le tier dégradé,
+ * et les bandes appliquées disent quelles classes DPE ont été servies par leur
+ * représentant de bande.
  */
 final readonly class Restitution
 {
+    /**
+     * @param array<string, string> $bandesAppliquees classe DPE saisie → représentant de sa bande
+     */
     private function __construct(
         private int $montantEuros,
         private int $borneBasseEuros,
@@ -21,9 +27,15 @@ final readonly class Restitution
         private int $millesime,
         private int $prixBaseEuros,
         private bool $prixSaisiParLePro,
+        private PorteeEstimation $portee,
+        private PalierFiabilite $palier,
+        private array $bandesAppliquees,
     ) {
     }
 
+    /**
+     * @param array<string, string> $bandesAppliquees
+     */
     public static function depuis(
         int $montantEuros,
         int $borneBasseEuros,
@@ -33,8 +45,11 @@ final readonly class Restitution
         int $millesime,
         int $prixBaseEuros,
         bool $prixSaisiParLePro,
+        PorteeEstimation $portee = PorteeEstimation::Local,
+        PalierFiabilite $palier = PalierFiabilite::Standard,
+        array $bandesAppliquees = [],
     ): self {
-        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime, $prixBaseEuros, $prixSaisiParLePro);
+        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime, $prixBaseEuros, $prixSaisiParLePro, $portee, $palier, $bandesAppliquees);
     }
 
     public function montantEuros(): int
@@ -77,6 +92,37 @@ final readonly class Restitution
         return $this->prixSaisiParLePro;
     }
 
+    public function portee(): PorteeEstimation
+    {
+        return $this->portee;
+    }
+
+    public function palier(): PalierFiabilite
+    {
+        return $this->palier;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function bandesAppliquees(): array
+    {
+        return $this->bandesAppliquees;
+    }
+
+    /**
+     * Libellé court du cran retenu, pour la cellule « Rayon retenu ».
+     */
+    public function intitulePortee(): string
+    {
+        return $this->portee->intitule($this->rayonKm);
+    }
+
+    public function estDegradee(): bool
+    {
+        return $this->palier->estDegrade();
+    }
+
     public function fiabilite(): IndicateurFiabilite
     {
         return IndicateurFiabilite::depuis($this->n, $this->rayonKm);
@@ -84,17 +130,13 @@ final readonly class Restitution
 
     public function phrase(): string
     {
-        $portee = null === $this->rayonKm
-            ? 'au niveau départemental'
-            : \sprintf('dans un rayon de %d km', $this->rayonKm);
-
         return \sprintf(
             '+%s € (fourchette %s – %s €, sur %d transactions %s)',
             $this->euros($this->montantEuros),
             $this->euros($this->borneBasseEuros),
             $this->euros($this->borneHauteEuros),
             $this->n,
-            $portee,
+            $this->portee->formulation($this->rayonKm),
         );
     }
 

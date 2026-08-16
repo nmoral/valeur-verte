@@ -6,6 +6,8 @@ namespace App\BackOffice\Estimation;
 
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\EffetDeSeuil;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
 
 /**
@@ -18,7 +20,8 @@ use App\BackOffice\Restitution\Restitution;
 final readonly class CoefficientMaille
 {
     /**
-     * @param array<string, float> $coefDpe effets log par étiquette DPE publiée
+     * @param array<string, float>  $coefDpe effets log par étiquette DPE publiée
+     * @param array<string, string> $bandes  classe DPE → représentant de sa bande (vide au cran local, #169)
      */
     private function __construct(
         private int $millesime,
@@ -26,11 +29,15 @@ final readonly class CoefficientMaille
         private int $n,
         private float $erreurMediane,
         private array $coefDpe,
+        private PorteeEstimation $portee,
+        private PalierFiabilite $palier,
+        private array $bandes,
     ) {
     }
 
     /**
-     * @param array<string, float> $coefDpe
+     * @param array<string, float>  $coefDpe
+     * @param array<string, string> $bandes
      */
     public static function depuis(
         int $millesime,
@@ -38,8 +45,11 @@ final readonly class CoefficientMaille
         int $n,
         float $erreurMediane,
         array $coefDpe,
+        PorteeEstimation $portee = PorteeEstimation::Local,
+        PalierFiabilite $palier = PalierFiabilite::Standard,
+        array $bandes = [],
     ): self {
-        return new self($millesime, $rayonKm, $n, $erreurMediane, $coefDpe);
+        return new self($millesime, $rayonKm, $n, $erreurMediane, $coefDpe, $portee, $palier, $bandes);
     }
 
     /**
@@ -62,6 +72,9 @@ final readonly class CoefficientMaille
             millesime: $this->millesime,
             prixBaseEuros: $prixBaseEuros,
             prixSaisiParLePro: $prixSaisiParLePro,
+            portee: $this->portee,
+            palier: $this->palier,
+            bandesAppliquees: $this->bandesAppliquees($avant, $apres),
         );
     }
 
@@ -85,10 +98,31 @@ final readonly class CoefficientMaille
 
     private function coefficient(Dpe $classe): float
     {
-        if (!\array_key_exists($classe->value, $this->coefDpe)) {
+        $representant = $this->bandes[$classe->value] ?? $classe->value;
+        if (!\array_key_exists($representant, $this->coefDpe)) {
             throw new ClasseNonPubliee($classe);
         }
 
-        return $this->coefDpe[$classe->value];
+        return $this->coefDpe[$representant];
+    }
+
+    /**
+     * Substitutions de bande réellement employées par l'estimation : seules les
+     * classes avant/après dont le représentant diffère (classe fusionnée, ex.
+     * G → F) sont signalées ; une bande identité ou l'absence de bande ne l'est pas.
+     *
+     * @return array<string, string>
+     */
+    private function bandesAppliquees(Dpe $avant, Dpe $apres): array
+    {
+        $appliquees = [];
+        foreach ([$avant, $apres] as $classe) {
+            $representant = $this->bandes[$classe->value] ?? $classe->value;
+            if ($representant !== $classe->value) {
+                $appliquees[$classe->value] = $representant;
+            }
+        }
+
+        return $appliquees;
     }
 }

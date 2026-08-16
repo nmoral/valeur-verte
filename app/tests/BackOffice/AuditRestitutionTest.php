@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\BackOffice;
 
 use App\BackOffice\Estimation\CoefficientMaille;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -63,6 +65,52 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertStringContainsString('12 rue des Lilas, Toulouse', $html);
         self::assertSelectorExists('.fiabilite-rouge');
         self::assertSelectorExists('.banner-fiabilite');
+    }
+
+    public function testUneMailleEpciAfficheLaPorteeIntercommunale(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 60, rayonKm: null, portee: PorteeEstimation::Epci));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client);
+
+        // Cran EPCI (#169) : rayon absent, mais la stat nomme l'intercommunalité
+        // au lieu d'annoncer un repli départemental.
+        self::assertSelectorTextContains('.stats', 'intercommunal (EPCI)');
+    }
+
+    public function testUneMailleDegradeeAfficheLeBandeauDedie(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10, palier: PalierFiabilite::Degrade));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client);
+
+        // Palier dégradé (#169) : bandeau propre, distinct du bandeau Fragile.
+        self::assertSelectorExists('.banner-degrade');
+        self::assertSelectorTextContains('.banner-degrade', 'dégradée');
+    }
+
+    public function testUneClasseFusionneeAfficheLaNoteDeBande(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(
+            n: 60,
+            rayonKm: null,
+            portee: PorteeEstimation::Epci,
+            coefDpe: ['D' => 0.0, 'C' => 0.10, 'F' => -0.30],
+            bandes: ['F' => 'F', 'G' => 'F'],
+        ));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client, dpeAvant: 'G', dpeApres: 'C');
+
+        // Rendu par bande (#169) : la classe G, servie via F, est signalée.
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('classe G', $html);
+        self::assertStringContainsString('bande F', $html);
     }
 
     public function testLeProPeutAjusterLaValeurDuBien(): void
@@ -181,14 +229,27 @@ final class AuditRestitutionTest extends WebTestCase
         return $double;
     }
 
-    private static function maille(int $n, ?int $rayonKm): CoefficientMaille
-    {
+    /**
+     * @param array<string, float>  $coefDpe
+     * @param array<string, string> $bandes
+     */
+    private static function maille(
+        int $n,
+        ?int $rayonKm,
+        PorteeEstimation $portee = PorteeEstimation::Local,
+        PalierFiabilite $palier = PalierFiabilite::Standard,
+        array $coefDpe = ['D' => 0.0, 'C' => 0.10, 'E' => -0.20],
+        array $bandes = [],
+    ): CoefficientMaille {
         return CoefficientMaille::depuis(
             millesime: 2024,
             rayonKm: $rayonKm,
             n: $n,
             erreurMediane: 17.22,
-            coefDpe: ['D' => 0.0, 'C' => 0.10, 'E' => -0.20],
+            coefDpe: $coefDpe,
+            portee: $portee,
+            palier: $palier,
+            bandes: $bandes,
         );
     }
 
