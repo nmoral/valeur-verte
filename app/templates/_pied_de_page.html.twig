@@ -1,0 +1,17 @@
+{# Pied de page du site public, partagé par la vitrine et les pages légales (#228).
+   C'est le seul chemin d'accès aux mentions obligatoires : tout lien y est vivant. #}
+<footer>
+  <div class="wrap">
+    <p>Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.<br>
+      Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+    <nav aria-label="Liens de bas de page">
+      <ul class="foot-links">
+        <li><a href="{{ path('home') }}#methode">Méthode détaillée</a></li>
+        <li><a href="{{ path('mentions_legales') }}">Mentions légales</a></li>
+        <li><a href="{{ path('confidentialite') }}">Confidentialité</a></li>
+        <li><a href="{{ path('cgu') }}">CGU</a></li>
+        <li><a href="{{ path('cgv') }}">CGV</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>

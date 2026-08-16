@@ -1,0 +1,82 @@
+{% extends 'legal/_page.html.twig' %}
+
+{% block route %}mentions_legales{% endblock %}
+{% block titre_seo %}Mentions légales{% endblock %}
+{% block description_seo %}Identité de l'éditeur du site Valeur Verte, directeur de la publication, coordonnées de contact et identité de l'hébergeur, conformément à la loi pour la confiance dans l'économie numérique.{% endblock %}
+
+{% block titre %}Mentions légales{% endblock %}
+
+{% block chapeau %}
+  <p class="section-lead">Informations exigées par l'article 6-III de la loi n° 2004-575 du 21 juin 2004
+    pour la confiance dans l'économie numérique.</p>
+{% endblock %}
+
+{% block contenu %}
+  <section id="editeur" aria-labelledby="editeur-titre">
+    <h2 id="editeur-titre">Éditeur du site</h2>
+    <dl class="mentions">
+      <div>
+        <dt>Dénomination</dt>
+        <dd data-mention="editeur.raison_sociale">{{ editeur.raison_sociale }}</dd>
+      </div>
+      <div>
+        <dt>Forme juridique</dt>
+        <dd data-mention="editeur.forme_juridique">{{ editeur.forme_juridique }}</dd>
+      </div>
+      <div>
+        <dt>Immatriculation</dt>
+        <dd data-mention="editeur.immatriculation">{{ editeur.immatriculation }}</dd>
+      </div>
+      <div>
+        <dt>Siège</dt>
+        <dd data-mention="editeur.siege">{{ editeur.siege }}</dd>
+      </div>
+      <div>
+        <dt>Directeur de la publication</dt>
+        <dd data-mention="editeur.directeur_publication">{{ editeur.directeur_publication }}</dd>
+      </div>
+      <div>
+        <dt>Contact</dt>
+        <dd data-mention="editeur.contact"><a href="mailto:{{ editeur.contact }}">{{ editeur.contact }}</a></dd>
+      </div>
+    </dl>
+  </section>
+
+  <section id="hebergeur" aria-labelledby="hebergeur-titre">
+    <h2 id="hebergeur-titre">Hébergeur</h2>
+    <dl class="mentions">
+      <div>
+        <dt>Dénomination</dt>
+        <dd data-mention="hebergeur.identite">{{ hebergeur.identite }}</dd>
+      </div>
+      <div>
+        <dt>Adresse</dt>
+        <dd data-mention="hebergeur.adresse">{{ hebergeur.adresse }}</dd>
+      </div>
+      <div>
+        <dt>Téléphone</dt>
+        <dd data-mention="hebergeur.telephone">{{ hebergeur.telephone }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section id="sources" aria-labelledby="sources-titre">
+    <h2 id="sources-titre">Sources des données</h2>
+    <p>Le service repose sur des jeux de données publics réutilisés sous
+      <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence/" rel="noopener">Licence Ouverte / Open Licence</a> :</p>
+    <ul class="liste">
+      <li><strong>DVF</strong> — Demandes de valeurs foncières, Direction générale des finances publiques.</li>
+      <li><strong>DPE</strong> — Diagnostics de performance énergétique, ADEME.</li>
+      <li><strong>BAN</strong> — Base adresse nationale, IGN / DINUM.</li>
+    </ul>
+    <p>Les traitements statistiques appliqués à ces données sont l'œuvre de l'éditeur et n'engagent
+      en rien les producteurs des jeux de données.</p>
+  </section>
+
+  <section id="propriete" aria-labelledby="propriete-titre">
+    <h2 id="propriete-titre">Propriété intellectuelle</h2>
+    <p>La structure du site, les textes, la méthode de calcul et les rapports produits sont protégés.
+      Toute reproduction hors usage prévu par les <a href="{{ path('cgu') }}">conditions générales d'utilisation</a>
+      est soumise à autorisation préalable de l'éditeur.</p>
+  </section>
+{% endblock %}
