@@ -74,9 +74,7 @@ def test_l_adjacence_est_symetrique() -> None:
     """
     for departement, voisins in LIMITROPHES.items():
         for voisin in voisins:
-            assert voisin in LIMITROPHES, (
-                f"{departement} cite {voisin}, absent de la table"
-            )
+            assert voisin in LIMITROPHES, f"{departement} cite {voisin}, absent de la table"
             assert departement in LIMITROPHES[voisin], (
                 f"{departement} déclare {voisin} comme voisin, "
                 f"mais {voisin} ne déclare pas {departement}"
