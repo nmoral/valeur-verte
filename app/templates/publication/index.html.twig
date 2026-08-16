@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Rénovation énergétique : s\'arrêter à la classe D vous coûte la moitié du gain',
+  description: 'Mesure de la valeur verte département par département, sur ' ~ etude.zonesMesurees|number_format(0, ',', ' ') ~ ' zones et les ventes réellement enregistrées par les notaires.',
+  canonical: url('publication'),
+  og_type: 'article',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/publication.css') }}">
+</head>
+<body>
+<div id="app">
+
+  <nav class="topbar">
+    <a class="brand" href="{{ url('home') }}" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+  </nav>
+
+  <header class="hero">
+    <p class="eyebrow">Étude · Valeur verte des maisons · France, millésime <span data-etat="millesime">{{ etude.millesime }}</span></p>
+    <h1>S'arrêter à la classe D, c'est laisser <em>la moitié du gain</em> sur la table.</h1>
+    <p class="chapo">
+      Nous avons mesuré, zone par zone, l'écart de prix entre des maisons comparables de classes
+      énergétiques différentes — à partir des ventes réellement enregistrées par les notaires,
+      croisées aux diagnostics de l'ADEME. Une rénovation de E vers D fait gagner {{ etude.medianeGainEd }} % de valeur.
+      Aller jusqu'à C en fait gagner {{ etude.medianeGainEc }} %. Le second palier vaut donc autant que le premier,
+      et il est presque toujours moins cher à atteindre.
+    </p>
+    <div class="proof">
+      <div class="pf" data-mesure="zones"><b>{{ etude.zonesMesurees|number_format(0, ',', ' ') }}</b><span>zones mesurées</span></div>
+      <div class="pf" data-mesure="departements"><b>{{ etude.departementsCouverts }}</b><span>départements</span></div>
+      <div class="pf" data-mesure="gain-d"><b>+{{ etude.medianeGainEd }} %</b><span>en s'arrêtant à D</span></div>
+      <div class="pf" data-mesure="gain-c"><b>+{{ etude.medianeGainEc }} %</b><span>en allant jusqu'à C</span></div>
+    </div>
+  </header>
+
+  {# #48 — « c'est à jour ? » : le millésime servi, ses dates, sa couverture. #}
+  <section class="block statut">
+    <h2 class="h2">État du modèle</h2>
+    <dl class="etat">
+      <div>
+        <dt>Millésime publié</dt>
+        <dd>{{ etude.millesime }}</dd>
+      </div>
+      <div>
+        <dt>Dernier calcul</dt>
+        <dd>
+          {%- if etude.calculeLe -%}
+            <time data-etat="calcule-le" datetime="{{ etude.calculeLe|date('Y-m-d') }}">{{ etude.calculeLe|date('d/m/Y') }}</time>
+          {%- else -%}
+            <span data-etat="calcule-le">—</span>
+          {%- endif -%}
+        </dd>
+      </div>
+      <div>
+        <dt>Mis en ligne le</dt>
+        <dd><time data-etat="publie-le" datetime="{{ etude.publieLe|date('Y-m-d') }}">{{ etude.publieLe|date('d/m/Y') }}</time></dd>
+      </div>
+      <div>
+        <dt>Communes référencées</dt>
+        <dd data-etat="communes">{{ etude.communesReferencees|number_format(0, ',', ' ') }}</dd>
+      </div>
+    </dl>
+    <p class="note">
+      Un millésime n'est mis en ligne qu'après validation manuelle : ce que montre cette page est
+      exactement ce que servent les rapports, jamais un calcul en cours.
+    </p>
+  </section>
+
+  <section class="block">
+    <div class="ctl">
+      <div class="seg" id="seg" role="tablist">
+        <button data-m="delta" class="on">Ce que coûte l'arrêt en D</button>
+        <button data-m="gain">Où rénover rapporte le plus</button>
+        <button data-m="solid">Où la mesure est la plus fine</button>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="main">
+      <div class="mapwrap">
+        <svg id="map" viewBox="0 0 {{ etude.carte.w }} {{ etude.carte.h }}" role="img"
+             aria-label="Carte de France du bénéfice de la rénovation par département"></svg>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+
+      <aside class="panel">
+        {# Contenu en flux détaché : le panneau se cale sur la hauteur de la carte
+           et défile en interne, au lieu de la dépasser quand la fiche s'ouvre. #}
+        <div class="panel-flux">
+          <label class="srch">
+            <span>Votre département</span>
+            <input id="q" type="search" placeholder="Nom ou numéro…" autocomplete="off">
+          </label>
+          <div id="qres" class="qres" hidden></div>
+          <h2 id="ptitle"></h2>
+          <p class="pnote" id="pnote"></p>
+          <ol class="rank" id="rank"></ol>
+          <button class="flip" id="flip"></button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 class="h2">Trois constats</h2>
+    <div class="findings">
+      <article>
+        <span class="fnum">01</span>
+        <h3>Le deuxième palier vaut autant que le premier</h3>
+        <p>
+          Passer de E à D fait gagner {{ etude.medianeGainEd }} % de valeur ; aller jusqu'à C en fait gagner {{ etude.medianeGainEc }} %.
+          La seconde moitié du chemin rapporte donc autant que la première — alors qu'elle
+          coûte généralement moins cher, l'essentiel du chantier étant déjà engagé.
+          Dans l'Indre, la Vienne ou la Meuse, l'écart dépasse 17 points.
+        </p>
+      </article>
+      <article>
+        <span class="fnum">02</span>
+        <h3>Plus l'immobilier est cher, moins l'étiquette compte</h3>
+        <p>
+          Les départements où la rénovation rapporte le moins sont tous des marchés tendus :
+          Hauts-de-Seine (+5 %), Seine-Saint-Denis (+7 %), Var et Val-de-Marne (+8 %),
+          Alpes-Maritimes (+8 %). Là où l'emplacement et le foncier dominent le prix,
+          la performance énergétique pèse peu dans l'arbitrage de l'acheteur.
+        </p>
+      </article>
+      <article>
+        <span class="fnum">03</span>
+        <h3>La France rurale est celle qui gagne le plus</h3>
+        <p>
+          Indre (+36 %), Vienne et Meuse (+35 %), Haute-Marne et Orne (+32 %), Mayenne et
+          Cher (+31 %). Onze départements dépassent +30 %. Le bâti y est plus ancien, les
+          passoires plus nombreuses, et le coût de l'énergie pèse davantage dans le budget
+          des ménages : une maison rénovée s'y distingue nettement.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="block method">
+    <h2 class="h2">Comment c'est mesuré</h2>
+    <div class="mcols">
+      <div>
+        <h3>Les sources</h3>
+        <ul class="src">
+          <li><b>DVF</b> — l'ensemble des ventes enregistrées par la DGFiP : prix signé, surface bâtie, terrain, date, parcelle.</li>
+          <li><b>ADEME</b> — les diagnostics de performance énergétique : étiquette et période de construction.</li>
+          <li><b>BAN</b> — la Base Adresse Nationale, qui sert de clé entre les deux.</li>
+        </ul>
+        <p class="note">Trois bases publiques sous licence ouverte. Tout est vérifiable.</p>
+      </div>
+      <div>
+        <h3>Le principe</h3>
+        <p>
+          Pour chaque zone, on compare des maisons de surface, de terrain et de localisation
+          équivalents, et on isole l'écart de prix attribuable à la seule étiquette. Le rayon
+          de comparaison s'élargit jusqu'à réunir assez de ventes ; celui qui a été retenu est
+          affiché avec chaque estimation.
+        </p>
+        <p>
+          La mesure porte sur une fenêtre glissante de deux ans, sans extrapolation de tendance.
+          Elle décrit le passé récent, elle ne prédit pas le marché à venir.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block limits">
+    <h2 class="h2">Ce que ces chiffres ne disent pas</h2>
+    <ul>
+      <li><b>Environ la moitié du prix nous échappe.</b> État réel du bien, exposition, dépendances, vue : le modèle ne les voit pas. C'est pourquoi chaque estimation est publiée avec une fourchette.</li>
+      <li><b>L'étiquette n'est pas qu'une mesure d'énergie.</b> Dans les centres anciens, les logements les plus mal classés sont parfois les plus recherchés — le cachet du bâti se paie, indépendamment de la consommation. Les écarts impliquant la classe G doivent être lus avec prudence.</li>
+      <li><b>Un département n'est pas un marché.</b> Les chiffres présentés ici sont des médianes départementales, qui recouvrent des écarts locaux importants entre une métropole et son arrière-pays.</li>
+      <li><b>Maisons individuelles uniquement.</b> En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</li>
+      <li><b>Six départements sont absents.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
+      <li><b>Une corrélation, pas une garantie.</b> Ces écarts décrivent un marché observé. Ils n'engagent aucune valeur pour un bien particulier.</li>
+    </ul>
+  </section>
+
+  <section class="block compte">
+    <div>
+      <h2>Vous mesurez ces gains pour vos clients ?</h2>
+      <p>
+        Valeur Verte produit le même calcul à l'adresse près, avec le rapport à remettre au
+        propriétaire. Deux mois d'essai, sans engagement.
+      </p>
+    </div>
+    <p class="compte-liens">
+      <a href="{{ url('inscription') }}" data-lien="inscription">Créer un compte</a>
+      <a href="{{ url('login') }}" class="secondaire">J'ai déjà un compte</a>
+    </p>
+  </section>
+
+  <footer class="ft">
+    <p>Millésime {{ etude.millesime }} · fenêtre glissante de deux ans · segment maisons individuelles.
+    Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.</p>
+    <p class="dl"><a href="{{ url('home') }}">Valeur Verte — l'outil des entreprises RGE</a></p>
+  </footer>
+
+</div>
+
+<script type="application/json" id="carte-donnees">{{ etude.carte|merge({ med: { ec: etude.medianeGainEc, ed: etude.medianeGainEd } })|json_encode|raw }}</script>
+<script src="{{ asset('js/publication.js') }}" defer></script>
+</body>
+</html>

@@ -222,3 +222,7 @@ footer .foot-links{list-style:none;display:flex;flex-wrap:wrap;gap:10px;justify-
   section{padding:40px 0}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* Renvoi vers l'étude publique (#224), depuis « D'où vient le chiffre ». */
+.methode-etude{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:22px 0 0}
+.methode-etude span{font-size:14px;color:var(--mute)}
