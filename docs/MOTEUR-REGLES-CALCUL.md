@@ -68,7 +68,12 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), sur la **fenêtre de
 millésimes** demandée, `type_local='Maison'`, triées par `id_mutation` (ordre
 canonique INV-5). Charge aussi `date_etablissement_dpe` (#211) pour le filtre de
-rupture ci-dessous.
+rupture ci-dessous. La carte `LIMITROPHES` couvre **toute la métropole** (96
+départements, Corse 2A/2B comprise, #223) : le débordement joue au bord de tout
+département, plus seulement dans les zones pilotes. Un voisin absent de la base
+ne contribue simplement à rien. L'adjacence a été dérivée des contours
+départementaux (`docs/carte-validation/dept-contours.geojson`, frontière réelle
+partagée, contacts ponctuels aux tripoints écartés) puis figée dans le module.
 
 - **Rupture de réforme DPE** (#215, `ruptures.filtrer_regime_dpe`, calendrier
   `dpe_reform_boundaries`) : une réforme du DPE (méthode 3CL 2021-07-01, recalcul
