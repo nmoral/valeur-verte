@@ -29,7 +29,7 @@ final class LienDepuisLaHomeTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(
-            'http://valeurverte.localhost/valeur-verte-par-departement',
+            '/valeur-verte-par-departement',
             $crawler->filter('#methode a[data-lien="etude"]')->attr('href'),
         );
     }

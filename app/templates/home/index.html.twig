@@ -201,6 +201,13 @@
         <li>Chaque estimation affiche son effectif, son rayon et sa marge d'erreur. <strong>Jamais un chiffre nu.</strong></li>
       </ul>
 
+      {% if etude_publiee %}
+        <p class="methode-etude">
+          <a href="{{ path('publication') }}" class="btn btn-ghost" data-lien="etude">Voir notre étude {{ etude_publiee }}</a>
+          <span>La mesure, département par département, sur la France entière.</span>
+        </p>
+      {% endif %}
+
       <div class="devis-card">
         <div>
           <p class="eyebrow">CE QUE ÇA CHANGE POUR LE DEVIS</p>
