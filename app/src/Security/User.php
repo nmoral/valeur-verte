@@ -45,6 +45,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'email_verifie_le', nullable: true)]
     private ?\DateTimeImmutable $emailVerifieLe = null;
 
+    // Acceptation des conditions à l'inscription (#228) : preuve de ce qui a été
+    // accepté (version) et de quand. Null pour les comptes créés hors self-service
+    // (admin interne) ou antérieurs à la fonctionnalité.
+    #[ORM\Column(name: 'conditions_acceptees_version', nullable: true)]
+    private ?string $conditionsAccepteesVersion = null;
+
+    #[ORM\Column(name: 'conditions_acceptees_le', nullable: true)]
+    private ?\DateTimeImmutable $conditionsAccepteesLe = null;
+
     /**
      * @param list<string> $roles
      */
@@ -72,6 +81,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function marquerEmailVerifie(\DateTimeImmutable $le): void
     {
         $this->emailVerifieLe = $le;
+    }
+
+    public function aAccepteLesConditions(): bool
+    {
+        return null !== $this->conditionsAccepteesLe;
+    }
+
+    public function versionConditionsAcceptee(): ?string
+    {
+        return $this->conditionsAccepteesVersion;
+    }
+
+    public function conditionsAccepteesLe(): ?\DateTimeImmutable
+    {
+        return $this->conditionsAccepteesLe;
+    }
+
+    public function accepterLesConditions(string $version, \DateTimeImmutable $le): void
+    {
+        $this->conditionsAccepteesVersion = $version;
+        $this->conditionsAccepteesLe = $le;
     }
 
     public function getTenantId(): ?int

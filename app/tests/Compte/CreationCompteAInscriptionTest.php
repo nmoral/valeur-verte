@@ -24,7 +24,7 @@ final class CreationCompteAInscriptionTest extends WebTestCase
         $createur = self::getContainer()->get(CreateurDeCompte::class);
         self::assertInstanceOf(CreateurDeCompte::class, $createur);
 
-        $user = $createur->creer('compte@example.com', 'motdepasse-solide');
+        $user = $createur->creer('compte@example.com', 'motdepasse-solide', '2026-08-16');
         $tenantId = $user->getTenantId();
         self::assertNotNull($tenantId);
 
