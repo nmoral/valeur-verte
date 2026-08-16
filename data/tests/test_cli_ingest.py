@@ -114,10 +114,14 @@ def test_une_commune_en_echec_n_interrompt_pas_les_suivantes(
 
 
 def test_chaque_commune_est_validee_separement(connexion: _FausseConnexion) -> None:
-    """Une interruption doit laisser en base le travail déjà accompli."""
+    """Une interruption doit laisser en base le travail déjà accompli.
+
+    Deux communes, donc deux validations — plus celle du référentiel des noms
+    (#220), validé avant la boucle pour survivre lui aussi à une interruption.
+    """
     orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert connexion.commits == 2
+    assert connexion.commits == 1 + 2
 
 
 def test_une_commune_en_echec_est_annulee_sans_toucher_aux_autres(
@@ -127,7 +131,8 @@ def test_une_commune_en_echec_est_annulee_sans_toucher_aux_autres(
     orchestration.ingest_departement(_FauxFetcher(echecs=["31555"]), connexion, "31", 2024)
 
     assert connexion.rollbacks == 1
-    assert connexion.commits == 1
+    # Une seule commune aboutit, plus le référentiel des noms (#220).
+    assert connexion.commits == 1 + 1
 
 
 def test_la_commande_ingest_exige_departement_et_millesime() -> None:
