@@ -169,8 +169,12 @@ internes de la validation croisée — l'erreur médiane mesure l'estimateur pub
   bandes (§14) — restent sur le **poids spatial seul** : un outlier ancien reste un
   outlier, et la structure de bandes doit rester stable, indépendante de la récence.
 - **Statut** : opt-in (`VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU`), désactivé par défaut.
-  Calibration de τ sur la dérive réelle (protocole VPS multi-depts) à mener avant
-  toute bascule du défaut.
+  **Calibration faite** (#208, 6 depts denses+ruraux, N=2024, gain E→C à périmètre
+  constant) : la dérive du premium est confirmée (~+16 %/an), mais **une fenêtre
+  profonde + τ ajoute plus de retard qu'elle n'en corrige** — le meilleur W4+τ
+  (retard −2,0) reste sous **W2 à poids plats** (retard −1,2, et meilleure erreur CV).
+  **Décision : garder W2 par défaut, τ reste opt-in, pas de bascule du défaut.** Le
+  mécanisme reste disponible pour un territoire à très forte dérive.
 
 ## 5. Sélection par rayon adaptatif (`radius.adaptive_selection`)
 
@@ -399,3 +403,13 @@ Config gagnante et protocole : [`docs/lab/RECAP.md`](lab/RECAP.md). Diagnostics 
 [`lab/diagnostic-inversion-FG-toulouse.md`](lab/diagnostic-inversion-FG-toulouse.md),
 [`lab/diagnostic-115-type-et-rural.md`](lab/diagnostic-115-type-et-rural.md). Glossaire :
 [`docs/GLOSSAIRE-STATISTIQUE.md`](GLOSSAIRE-STATISTIQUE.md).
+
+**Décision #115 (coefficients DPE non monotones)** — tranchée et **en prod** : le biais
+d'inversion (passoires plus chères que la moyenne à Toulouse) venait de trois causes
+cumulées. Les trois corrections retenues sont implémentées : **(1)** modèle en **log-prix**
+(coefficients en %, comparables entre communes, §4), **(2)** **effets fixes période de
+construction** (44 % des `G` sont d'avant 1948 vs 2 % des `A`, §4), **(3)** **indice de
+quartier leave-one-out** (médiane des 20 ventes les plus proches, bien exclu, §4). Restent
+**décidés séparément** (hors #115) : le **pooling partiel** (tirer un coef communal à faible
+effectif vers le départemental) et un **garde-fou de monotonie** à la publication — la
+tolérance INV-1 (§11) couvre aujourd'hui les inversions robustes en attendant.
