@@ -27,10 +27,12 @@ final class GenerateurPdfRapportEffetDeSeuilTest extends KernelTestCase
     {
         $html = $this->htmlDepuisInstantane($this->instantane($this->effetDeSeuil()));
 
-        self::assertStringContainsString('effet-seuil', $html);
+        // On vise l'attribut de classe (rendu réel), pas la simple sous-chaîne :
+        // les noms de classe figurent aussi dans le bloc <style> du document.
+        self::assertStringContainsString('class="effet-seuil"', $html);
         self::assertStringContainsString('32 579', $html); // E→D
         self::assertStringContainsString('51 482', $html); // E→C (seuil)
-        self::assertStringContainsString('palier-seuil', $html);
+        self::assertStringContainsString('palier palier-seuil', $html);
         self::assertStringContainsString('rémunère le plus', $html);
     }
 
@@ -38,7 +40,7 @@ final class GenerateurPdfRapportEffetDeSeuilTest extends KernelTestCase
     {
         $html = $this->htmlDepuisInstantane($this->instantane(null));
 
-        self::assertStringNotContainsString('effet-seuil', $html);
+        self::assertStringNotContainsString('class="effet-seuil"', $html);
     }
 
     private function htmlDepuisInstantane(InstantaneRapport $instantane): string
