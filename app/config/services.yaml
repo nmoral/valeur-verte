@@ -11,6 +11,24 @@ parameters:
     # (app., admin., widget.). Surchargé par l'environnement en production.
     app.domaine: '%env(APP_DOMAINE)%'
 
+    # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
+    # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
+    # siège ou de statut ne doit pas passer par une modification de HTML.
+    # ⚠ VALEURS DE TEST tant que l'identité réelle n'est pas arrêtée : la page
+    # les affiche telles quelles, elles doivent être remplacées avant l'ouverture
+    # au public.
+    app.editeur:
+        raison_sociale: 'Valeur Verte'
+        forme_juridique: 'Entreprise individuelle (forme à confirmer)'
+        immatriculation: 'SIREN 000 000 000 — RCS à compléter'
+        siege: 'Adresse du siège à compléter, France'
+        directeur_publication: 'Nicolas Moral'
+        contact: '%env(CONTACT_REPONSE)%'
+    app.hebergeur:
+        identite: 'OVH SAS'
+        adresse: '2 rue Kellermann, 59100 Roubaix, France'
+        telephone: '+33 9 72 10 10 07'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -21,6 +39,13 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+
+    # Mentions légales (#228) : identité de l'éditeur et de l'hébergeur.
+    App\Controller\PagesLegalesController:
+        arguments:
+            $editeur: '%app.editeur%'
+            $hebergeur: '%app.hebergeur%'
+        tags: ['controller.service_arguments']
 
     # Traçabilité de la levée du cloisonnement (#54) : inscrite au journal d'audit (#50).
     App\Tenant\TraceDesactivationTenant: '@App\AdminInterne\JournalAudit\TraceDesactivationViaJournal'

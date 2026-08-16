@@ -68,9 +68,9 @@ final class PagesLegalesControllerTest extends WebTestCase
     {
         $crawler = $this->page('/mentions-legales');
 
-        $valeur = $crawler->filter(sprintf('[data-mention="%s"]', $champ));
-        self::assertSame(1, $valeur->count(), sprintf('La mention « %s » est attendue sur la page.', $champ));
-        self::assertNotSame('', trim($valeur->text()), sprintf('La mention « %s » est vide.', $champ));
+        $valeur = $crawler->filter(\sprintf('[data-mention="%s"]', $champ));
+        self::assertSame(1, $valeur->count(), \sprintf('La mention « %s » est attendue sur la page.', $champ));
+        self::assertNotSame('', trim($valeur->text()), \sprintf('La mention « %s » est vide.', $champ));
     }
 
     /**
@@ -121,9 +121,9 @@ final class PagesLegalesControllerTest extends WebTestCase
         $traitements->each(static function (Crawler $traitement): void {
             $nom = (string) $traitement->attr('data-traitement');
             foreach (['finalite', 'base-legale', 'duree'] as $rubrique) {
-                $cellule = $traitement->filter(sprintf('[data-rubrique="%s"]', $rubrique));
-                self::assertSame(1, $cellule->count(), sprintf('Traitement « %s » : rubrique « %s » absente.', $nom, $rubrique));
-                self::assertNotSame('', trim($cellule->text()), sprintf('Traitement « %s » : rubrique « %s » vide.', $nom, $rubrique));
+                $cellule = $traitement->filter(\sprintf('[data-rubrique="%s"]', $rubrique));
+                self::assertSame(1, $cellule->count(), \sprintf('Traitement « %s » : rubrique « %s » absente.', $nom, $rubrique));
+                self::assertNotSame('', trim($cellule->text()), \sprintf('Traitement « %s » : rubrique « %s » vide.', $nom, $rubrique));
             }
         });
     }
@@ -136,7 +136,7 @@ final class PagesLegalesControllerTest extends WebTestCase
         self::assertStringContainsString('Brevo', $texte, 'Le sous-traitant qui reçoit les emails doit être nommé.');
         self::assertStringContainsString('CNIL', $texte, 'Le droit d\'introduire une réclamation doit être indiqué.');
         foreach (['accès', 'rectification', 'effacement', 'opposition'] as $droit) {
-            self::assertStringContainsString($droit, $texte, sprintf('Le droit d\'%s doit être mentionné.', $droit));
+            self::assertStringContainsString($droit, $texte, \sprintf('Le droit d\'%s doit être mentionné.', $droit));
         }
     }
 
@@ -188,7 +188,7 @@ final class PagesLegalesControllerTest extends WebTestCase
         self::assertStringContainsString('40 €', $texte, 'L\'indemnité forfaitaire de recouvrement est obligatoire.');
         self::assertStringContainsString('pénalités de retard', mb_strtolower($texte));
         foreach (['#prix', '#duree', '#resiliation', '#paiement'] as $section) {
-            self::assertSame(1, $crawler->filter($section)->count(), sprintf('Section « %s » attendue.', $section));
+            self::assertSame(1, $crawler->filter($section)->count(), \sprintf('Section « %s » attendue.', $section));
         }
     }
 

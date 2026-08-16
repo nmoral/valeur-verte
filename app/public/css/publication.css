@@ -143,3 +143,6 @@ html, body { margin: 0; background: #eef1f2; }
 .compte-liens a:hover{background:var(--teal)}
 .compte-liens a.secondaire{background:transparent;color:var(--mut);padding:9px 0;font-weight:500}
 .compte-liens a.secondaire:hover{color:var(--ink);text-decoration:underline}
+
+/* Accès aux mentions obligatoires depuis la page publique (#228). */
+.ft-legal{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px}

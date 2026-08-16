@@ -117,9 +117,11 @@ final class PagePublicationTest extends WebTestCase
     {
         $crawler = $this->page();
 
-        $liens = $crawler->filter('footer a')->extract(['href']);
+        $liens = $crawler->filter('footer a')->each(
+            static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
+        );
         foreach (['/mentions-legales', '/confidentialite', '/cgu', '/cgv'] as $attendu) {
-            self::assertContains($attendu, $liens, sprintf('Le pied de page doit mener à %s.', $attendu));
+            self::assertContains($attendu, $liens, \sprintf('Le pied de page doit mener à %s.', $attendu));
         }
     }
 

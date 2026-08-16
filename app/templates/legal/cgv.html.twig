@@ -1,0 +1,91 @@
+{% extends 'legal/_page.html.twig' %}
+
+{% block route %}cgv{% endblock %}
+{% block titre_seo %}Conditions générales de vente{% endblock %}
+{% block description_seo %}Conditions générales de vente de l'abonnement Valeur Verte entre professionnels : formules et prix, essai gratuit, durée et reconduction, paiement, pénalités de retard et résiliation.{% endblock %}
+
+{% block titre %}Conditions générales de vente{% endblock %}
+
+{% block chapeau %}
+  <p class="section-lead">Version <span data-version-cgv="{{ version }}">{{ version }}</span>.
+    Socle unique de la négociation commerciale au sens de l'article L441-1 du code de commerce.
+    Elles complètent les <a href="{{ path('cgu') }}">conditions générales d'utilisation</a>.</p>
+  <p class="avis">Premier jet en attente de validation juridique.</p>
+{% endblock %}
+
+{% block contenu %}
+  <section id="champ" aria-labelledby="champ-titre">
+    <h2 id="champ-titre">1. Champ d'application</h2>
+    <p>Les présentes conditions régissent la vente d'un abonnement au service par
+      {{ editeur.raison_sociale }} à un professionnel. Elles prévalent sur les conditions d'achat de
+      l'acheteur, sauf accord écrit contraire. Le service n'étant pas proposé à des consommateurs, le
+      droit de rétractation du code de la consommation ne trouve pas à s'appliquer.</p>
+  </section>
+
+  <section id="prix" aria-labelledby="prix-titre">
+    <h2 id="prix-titre">2. Formules et prix</h2>
+    <ul class="liste">
+      <li><strong>Membre</strong> — 129 € HT par mois, sans quota de rapports ; option annuelle à
+        dix mois payés pour douze.</li>
+      <li><strong>Fondateur</strong> — 89 € HT par mois, dans la limite des places ouvertes, tarif
+        garanti pour la durée de l'abonnement tant qu'il n'est pas résilié, en contrepartie de la
+        participation à des points de retour d'usage.</li>
+    </ul>
+    <p>Les prix s'entendent hors taxes ; la TVA au taux en vigueur s'y ajoute. Aucun escompte n'est
+      accordé pour paiement anticipé. Les prix peuvent être révisés une fois par an, moyennant un
+      préavis de deux mois ; le professionnel peut alors résilier sans frais avant l'entrée en vigueur
+      du nouveau tarif.</p>
+  </section>
+
+  <section id="essai" aria-labelledby="essai-titre">
+    <h2 id="essai-titre">3. Essai gratuit</h2>
+    <p>L'inscription ouvre une période d'essai gratuite, sans carte bancaire, bornée en durée et en
+      nombre de rapports. Aucun engagement n'en découle : à son terme, l'accès est suspendu tant
+      qu'aucun abonnement n'est souscrit. Les rapports déjà produits restent téléchargeables.</p>
+  </section>
+
+  <section id="duree" aria-labelledby="duree-titre">
+    <h2 id="duree-titre">4. Durée et reconduction</h2>
+    <p>L'abonnement est souscrit pour une période d'un mois ou d'un an selon la formule choisie. Il se
+      reconduit tacitement pour la même durée, sauf résiliation dans les conditions de l'article 6.</p>
+  </section>
+
+  <section id="paiement" aria-labelledby="paiement-titre">
+    <h2 id="paiement-titre">5. Facturation et paiement</h2>
+    <p>La facture est émise à l'échéance de chaque période et payable à réception, par prélèvement ou
+      carte bancaire. Une facture électronique conforme est mise à disposition dans l'espace
+      professionnel.</p>
+    <p>Tout retard de paiement entraîne de plein droit, sans mise en demeure préalable, l'application
+      de <strong>pénalités de retard</strong> au taux d'intérêt de la Banque centrale européenne à son
+      opération de refinancement la plus récente majoré de dix points, ainsi qu'une
+      <strong>indemnité forfaitaire pour frais de recouvrement de 40 €</strong> (art. L441-10 et
+      D441-5 du code de commerce), sans préjudice de l'indemnisation du surcoût réellement exposé.</p>
+    <p>En cas d'impayé persistant après relance restée quinze jours sans effet, l'accès au service peut
+      être suspendu jusqu'à régularisation.</p>
+  </section>
+
+  <section id="resiliation" aria-labelledby="resiliation-titre">
+    <h2 id="resiliation-titre">6. Résiliation</h2>
+    <p>Le professionnel peut résilier à tout moment depuis son espace, sans motif ni frais : la
+      résiliation prend effet au terme de la période en cours, déjà réglée et non remboursable.</p>
+    <p>L'éditeur peut résilier en cas de manquement grave (non-paiement, usage frauduleux, revente de
+      l'accès) après mise en demeure restée quinze jours sans effet.</p>
+    <p>Au terme de l'abonnement, les rapports produits demeurent accessibles en téléchargement pendant
+      trente jours, puis les données sont supprimées dans les conditions prévues par la
+      <a href="{{ path('confidentialite') }}">politique de confidentialité</a>.</p>
+  </section>
+
+  <section id="garantie" aria-labelledby="garantie-titre">
+    <h2 id="garantie-titre">7. Garantie et responsabilité</h2>
+    <p>Le service est fourni en l'état. Les limites de responsabilité, le plafond d'indemnisation et le
+      statut du chiffre produit sont ceux énoncés aux
+      <a href="{{ path('cgu') }}">conditions générales d'utilisation</a>, qui font partie intégrante du
+      contrat.</p>
+  </section>
+
+  <section id="droit-applicable" aria-labelledby="droit-applicable-titre">
+    <h2 id="droit-applicable-titre">8. Droit applicable</h2>
+    <p>Les présentes conditions sont soumises au droit français. Tout litige relève des tribunaux
+      compétents dans les conditions du droit commun.</p>
+  </section>
+{% endblock %}

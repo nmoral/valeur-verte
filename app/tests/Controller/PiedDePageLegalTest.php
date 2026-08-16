@@ -34,9 +34,11 @@ final class PiedDePageLegalTest extends WebTestCase
     {
         $crawler = $this->page($chemin);
 
-        $liens = $crawler->filter('footer a')->extract(['href']);
+        $liens = $crawler->filter('footer a')->each(
+            static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
+        );
         foreach (['/mentions-legales', '/confidentialite', '/cgu', '/cgv'] as $attendu) {
-            self::assertContains($attendu, $liens, sprintf('Le pied de page de « %s » doit mener à %s.', $chemin, $attendu));
+            self::assertContains($attendu, $liens, \sprintf('Le pied de page de « %s » doit mener à %s.', $chemin, $attendu));
         }
     }
 
@@ -48,10 +50,10 @@ final class PiedDePageLegalTest extends WebTestCase
         $crawler = $this->page($chemin);
 
         $morts = $crawler->filter('footer a')->reduce(
-            static fn (Crawler $lien): bool => in_array(trim((string) $lien->attr('href')), ['', '#'], true),
+            static fn (Crawler $lien): bool => \in_array(trim((string) $lien->attr('href')), ['', '#'], true),
         );
 
-        self::assertSame(0, $morts->count(), sprintf('Des liens morts subsistent dans le pied de page de « %s ».', $chemin));
+        self::assertSame(0, $morts->count(), \sprintf('Des liens morts subsistent dans le pied de page de « %s ».', $chemin));
     }
 
     /**
