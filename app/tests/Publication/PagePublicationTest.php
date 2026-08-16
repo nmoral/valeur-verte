@@ -109,6 +109,20 @@ final class PagePublicationTest extends WebTestCase
         self::assertSame(1, $crawler->filter('link[rel="canonical"]')->count());
     }
 
+    /**
+     * Page publique à part entière : elle doit ouvrir sur les mentions
+     * obligatoires comme la vitrine (#228).
+     */
+    public function testLePiedDePageMeneAuxPagesLegales(): void
+    {
+        $crawler = $this->page();
+
+        $liens = $crawler->filter('footer a')->extract(['href']);
+        foreach (['/mentions-legales', '/confidentialite', '/cgu', '/cgv'] as $attendu) {
+            self::assertContains($attendu, $liens, sprintf('Le pied de page doit mener à %s.', $attendu));
+        }
+    }
+
     public function testLaPageEstMiseEnCachePubliquement(): void
     {
         $client = $this->naviguer();
