@@ -89,6 +89,32 @@ final class EffetDeSeuilTest extends TestCase
         self::assertNull($effet);
     }
 
+    public function testLeMessageSigneLOptimumQuandLeProViseC(): void
+    {
+        $effet = EffetDeSeuil::calculer(Dpe::E, Dpe::C, self::COEF_DPE, 100000);
+
+        self::assertNotNull($effet);
+        self::assertStringContainsString('rémunère le plus', $effet->message());
+    }
+
+    public function testLeMessageAlerteSurLeGainMarginalAuDelaDeC(): void
+    {
+        // Le pro vise B : payer au-delà de C ne rapporte presque plus.
+        $effet = EffetDeSeuil::calculer(Dpe::E, Dpe::B, self::COEF_DPE, 100000);
+
+        self::assertNotNull($effet);
+        self::assertStringContainsString('marginal', $effet->message());
+    }
+
+    public function testLeMessageAlerteQuandLeProSArreteAvantC(): void
+    {
+        // Le pro vise D : il laisse la plus grande part du gain sur la table.
+        $effet = EffetDeSeuil::calculer(Dpe::E, Dpe::D, self::COEF_DPE, 100000);
+
+        self::assertNotNull($effet);
+        self::assertStringContainsString('sur la table', $effet->message());
+    }
+
     public function testLEffetDeSeuilSeFigeEtSeReluAlIdentique(): void
     {
         $effet = EffetDeSeuil::calculer(Dpe::E, Dpe::C, self::COEF_DPE, 100000);

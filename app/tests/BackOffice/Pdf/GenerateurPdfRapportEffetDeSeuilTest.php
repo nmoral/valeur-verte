@@ -31,6 +31,7 @@ final class GenerateurPdfRapportEffetDeSeuilTest extends KernelTestCase
         self::assertStringContainsString('32 579', $html); // E→D
         self::assertStringContainsString('51 482', $html); // E→C (seuil)
         self::assertStringContainsString('palier-seuil', $html);
+        self::assertStringContainsString('rémunère le plus', $html);
     }
 
     public function testUnInstantaneSansEffetDeSeuilNAffichePasDeTable(): void

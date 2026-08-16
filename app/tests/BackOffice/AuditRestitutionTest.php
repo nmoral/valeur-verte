@@ -119,6 +119,8 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertSelectorTextContains('.effet-seuil', '51 482');
         // La ligne C est mise en avant comme le seuil qui rémunère.
         self::assertSelectorTextContains('.effet-seuil .palier-seuil', 'C');
+        // Un message pédagogique accompagne la table (ici : le pro vise C).
+        self::assertSelectorTextContains('.effet-seuil-message', 'rémunère le plus');
     }
 
     public function testSansContrasteAucuneTableDeSeuilNEstAffichee(): void
