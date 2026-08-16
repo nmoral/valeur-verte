@@ -13,6 +13,7 @@ use App\BackOffice\Chiffrage\QuantitesTravaux;
 use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\GrilleCout\GrilleCoutRepository;
 use App\BackOffice\Pdf\GenerateurReferenceRapport;
+use App\BackOffice\Restitution\EffetDeSeuil;
 use App\BackOffice\Restitution\Restitution;
 use App\Compte\NotificationPremierRapport;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -36,7 +37,7 @@ final readonly class ArchiveurRapport
     ) {
     }
 
-    public function archiver(SaisieAudit $saisie, ?Restitution $restitution, ?ContexteCalcul $contexte, ?Bouquet $bouquet = null): Rapport
+    public function archiver(SaisieAudit $saisie, ?Restitution $restitution, ?ContexteCalcul $contexte, ?Bouquet $bouquet = null, ?EffetDeSeuil $effetDeSeuil = null): Rapport
     {
         $reference = $this->references->generer();
 
@@ -57,6 +58,7 @@ final readonly class ArchiveurRapport
                 QuantitesTravaux::depuis($saisie),
             ),
             null === $bouquet ? null : $this->baremes->courant(),
+            $effetDeSeuil,
         );
 
         $rapport = Rapport::creer(

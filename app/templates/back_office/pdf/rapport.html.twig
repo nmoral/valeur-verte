@@ -30,6 +30,12 @@
     .stat-k{color:#6b7c80;font-size:10px;text-transform:uppercase}
     .stat-v{font-size:15px;font-weight:bold}
     .prix{margin-top:14px;color:#41585d}
+    table.effet-seuil{width:100%;margin-top:16px;border-collapse:collapse}
+    table.effet-seuil td{padding:7px 10px;color:#41585d;border-bottom:1px solid #dfe6e7}
+    table.effet-seuil td.m{text-align:right;font-weight:bold;color:#1a2b2f;white-space:nowrap}
+    table.effet-seuil tr.titre td{font-weight:bold;color:#1a2b2f;border-bottom:2px solid #1a2b2f;padding-left:0}
+    table.effet-seuil tr.palier-seuil td{background:#eef6f4;color:#0e4a5c;font-weight:bold}
+    .effet-seuil-message{margin-top:6px;font-size:11px;color:#41585d}
     table.ajustement{width:100%;margin-top:16px;border-collapse:collapse}
     table.ajustement td{padding:7px 0;color:#41585d}
     table.ajustement td.m{text-align:right;font-weight:bold;color:#1a2b2f;white-space:nowrap}
@@ -107,6 +113,19 @@
 
         <p class="prix">Prix de base : <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong>
             ({{ restitution.prixSaisiParLePro ? 'valeur saisie par le professionnel' : 'médiane de la commune' }})</p>
+
+        {% if effet_de_seuil %}
+            <table class="effet-seuil" cellpadding="0" cellspacing="0">
+                <tr class="titre"><td colspan="2">Le marché paie surtout le passage en classe C</td></tr>
+                {% for palier in effet_de_seuil.paliers %}
+                    <tr class="palier{{ palier.estSeuil ? ' palier-seuil' : '' }}{{ palier.estCible ? ' palier-cible' : '' }}">
+                        <td>{{ saisie.dpeAvant.value }} → {{ palier.classeCible.value }}{% if palier.estCible %} (votre objectif){% endif %}</td>
+                        <td class="m">+{{ palier.gainEuros|number_format(0, ',', ' ') }} €</td>
+                    </tr>
+                {% endfor %}
+            </table>
+            <p class="effet-seuil-message">{{ effet_de_seuil.message }}</p>
+        {% endif %}
 
         {% if ajustement %}
             <table class="ajustement" cellpadding="0" cellspacing="0">

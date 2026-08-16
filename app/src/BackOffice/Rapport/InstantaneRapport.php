@@ -15,6 +15,7 @@ use App\BackOffice\GrilleCout\Montant;
 use App\BackOffice\GrilleCout\PeriodeValidite;
 use App\BackOffice\GrilleCout\Poste;
 use App\BackOffice\Pdf\ReferenceRapport;
+use App\BackOffice\Restitution\EffetDeSeuil;
 use App\BackOffice\Restitution\PalierFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
@@ -31,11 +32,12 @@ use App\BackOffice\Restitution\Restitution;
 final readonly class InstantaneRapport
 {
     /**
-     * v2 (#26) : ajoute le chiffrage dérivé et le barème d'aides. Les instantanés
-     * v1 en sont dépourvus et se relisent sans — ils n'affichent pas de reste à
-     * charge, ce qui est exact plutôt qu'inventé.
+     * v2 (#26) : ajoute le chiffrage dérivé et le barème d'aides. v3 (#27) : ajoute
+     * l'effet de seuil. Les instantanés antérieurs en sont dépourvus et se relisent
+     * sans — ils n'affichent ni reste à charge ni table de seuil, ce qui est exact
+     * plutôt qu'inventé.
      */
-    private const VERSION = 2;
+    private const VERSION = 3;
 
     private function __construct(
         private SaisieAudit $saisie,
@@ -47,6 +49,7 @@ final readonly class InstantaneRapport
         private ?Bouquet $bouquet = null,
         private ?Chiffrage $chiffrage = null,
         private ?BaremeAides $baremeAides = null,
+        private ?EffetDeSeuil $effetDeSeuil = null,
     ) {
     }
 
@@ -60,6 +63,7 @@ final readonly class InstantaneRapport
         ?Bouquet $bouquet = null,
         ?Chiffrage $chiffrage = null,
         ?BaremeAides $baremeAides = null,
+        ?EffetDeSeuil $effetDeSeuil = null,
     ): self {
         return new self(
             $saisie,
@@ -71,6 +75,7 @@ final readonly class InstantaneRapport
             $bouquet,
             $chiffrage,
             $baremeAides,
+            $effetDeSeuil,
         );
     }
 
@@ -91,6 +96,7 @@ final readonly class InstantaneRapport
             self::bouquetDepuis($donnees['bouquet'] ?? null),
             self::chiffrageDepuis($donnees['chiffrage'] ?? null),
             self::baremeDepuis($donnees['bareme_aides'] ?? null, self::texte($donnees['genere_le'])),
+            self::effetDeSeuilDepuis($donnees['effet_de_seuil'] ?? null),
         );
     }
 
@@ -127,6 +133,14 @@ final readonly class InstantaneRapport
     public function bouquet(): ?Bouquet
     {
         return $this->bouquet;
+    }
+
+    /**
+     * Effet de seuil C figé (#27). Null sur les instantanés antérieurs à v3.
+     */
+    public function effetDeSeuil(): ?EffetDeSeuil
+    {
+        return $this->effetDeSeuil;
     }
 
     /**
@@ -191,7 +205,29 @@ final readonly class InstantaneRapport
             ],
             'chiffrage' => $this->chiffrage?->montantsDerives(),
             'bareme_aides' => $this->baremeAides?->toArray(),
+            'effet_de_seuil' => $this->effetDeSeuil?->toArray(),
         ];
+    }
+
+    private static function effetDeSeuilDepuis(mixed $effet): ?EffetDeSeuil
+    {
+        if (null === $effet) {
+            return null;
+        }
+
+        \assert(\is_array($effet));
+        $paliers = [];
+        foreach ($effet as $palier) {
+            $palier = self::sousTableau($palier);
+            $paliers[] = [
+                'classe' => self::texte($palier['classe']),
+                'gain_euros' => self::entier($palier['gain_euros']),
+                'est_seuil' => self::booleen($palier['est_seuil']),
+                'est_cible' => self::booleen($palier['est_cible']),
+            ];
+        }
+
+        return EffetDeSeuil::fromArray($paliers);
     }
 
     private static function chiffrageDepuis(mixed $chiffrage): ?Chiffrage

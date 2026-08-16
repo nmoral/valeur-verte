@@ -30,7 +30,11 @@ final readonly class EstimateurValeurVerte
         $prixBase = $prixBaseOverride ?? $this->prixBaseParDefaut($codeInsee, $saisie);
         $restitution = $maille->estimer($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase, null !== $prixBaseOverride);
 
-        return ResultatEstimation::depuis($restitution, $maille->contexte($saisie->dpeAvant(), $saisie->dpeApres()));
+        return ResultatEstimation::depuis(
+            $restitution,
+            $maille->contexte($saisie->dpeAvant(), $saisie->dpeApres()),
+            $maille->effetDeSeuil($saisie->dpeAvant(), $saisie->dpeApres(), $prixBase),
+        );
     }
 
     private function prixBaseParDefaut(string $codeInsee, SaisieAudit $saisie): int
