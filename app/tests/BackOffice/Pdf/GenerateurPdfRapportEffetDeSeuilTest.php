@@ -6,11 +6,11 @@ namespace App\Tests\BackOffice\Pdf;
 
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Branding\Branding;
+use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Pdf\GenerateurPdfRapport;
 use App\BackOffice\Pdf\ReferenceRapport;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Rapport\InstantaneRapport;
-use App\BackOffice\Estimation\ContexteCalcul;
 use App\BackOffice\Restitution\EffetDeSeuil;
 use App\BackOffice\Restitution\Restitution;
 use App\Tests\BackOffice\Pdf\Double\ConvertisseurPdfEspion;

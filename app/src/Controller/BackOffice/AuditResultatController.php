@@ -176,6 +176,9 @@ final class AuditResultatController extends AbstractController
             'reste_a_charge' => null === $rapport
                 ? null
                 : GenerateurPdfRapport::resteACharge($rapport->instantane(), $declarations),
+            // Effet de seuil (#27) lu sur le même instantané figé que le PDF : les
+            // deux documents montrent la même table, jamais recalculée.
+            'effet_de_seuil' => $rapport?->instantane()->effetDeSeuil(),
         ], $reponse);
     }
 }

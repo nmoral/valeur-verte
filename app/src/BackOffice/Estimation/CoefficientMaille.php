@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\BackOffice\Estimation;
 
 use App\BackOffice\Rapport\Dpe;
+use App\BackOffice\Restitution\EffetDeSeuil;
 use App\BackOffice\Restitution\Restitution;
 
 /**
@@ -71,6 +72,15 @@ final readonly class CoefficientMaille
     public function contexte(Dpe $avant, Dpe $apres): ContexteCalcul
     {
         return ContexteCalcul::depuis($this->coefficient($avant), $this->coefficient($apres), $this->erreurMediane);
+    }
+
+    /**
+     * Effet de seuil C (#27) : la table des gains depuis la classe actuelle vers
+     * chaque classe publiée meilleure. Null quand le contraste manque (§6).
+     */
+    public function effetDeSeuil(Dpe $avant, Dpe $apres, int $prixBaseEuros): ?EffetDeSeuil
+    {
+        return EffetDeSeuil::calculer($avant, $apres, $this->coefDpe, $prixBaseEuros);
     }
 
     private function coefficient(Dpe $classe): float

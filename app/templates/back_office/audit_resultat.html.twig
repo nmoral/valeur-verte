@@ -151,6 +151,26 @@
 
         <p class="resultat-prix">Prix de base&nbsp;: <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong> <span class="origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
 
+        {% if effet_de_seuil %}
+            <section class="effet-seuil" aria-labelledby="effet-seuil-titre">
+                <h2 id="effet-seuil-titre">Le marché paie surtout le passage en classe C</h2>
+                <table class="effet-seuil-table">
+                    <thead>
+                        <tr><th scope="col">Rénovation visée</th><th scope="col">Valeur verte créée</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for palier in effet_de_seuil.paliers %}
+                            <tr class="palier{{ palier.estSeuil ? ' palier-seuil' : '' }}{{ palier.estCible ? ' palier-cible' : '' }}">
+                                <td>{{ saisie.dpeAvant.value }}&nbsp;→&nbsp;{{ palier.classeCible.value }}{% if palier.estCible %} <span class="palier-tag">votre objectif</span>{% endif %}</td>
+                                <td class="montant">+{{ palier.gainEuros|number_format(0, ',', ' ') }}&nbsp;€</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="effet-seuil-message">{{ effet_de_seuil.message }}</p>
+            </section>
+        {% endif %}
+
         <div class="ajustement">
             {% if ajustement %}
                 <table class="ajustement-lignes">
