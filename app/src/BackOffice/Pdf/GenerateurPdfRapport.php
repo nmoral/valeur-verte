@@ -10,6 +10,7 @@ use App\BackOffice\Branding\Branding;
 use App\BackOffice\Rapport\InstantaneRapport;
 use App\BackOffice\Restitution\AjustementProfessionnel;
 use App\BackOffice\Restitution\DeclarationsPro;
+use App\BackOffice\Restitution\EffetDeSeuil;
 use App\BackOffice\Restitution\ResteACharge;
 use App\BackOffice\Restitution\Restitution;
 use Twig\Environment;
@@ -46,6 +47,7 @@ final readonly class GenerateurPdfRapport
             $ajustement,
             $instantane->bouquet(),
             self::resteACharge($instantane, $declarations ?? DeclarationsPro::aucune()),
+            $instantane->effetDeSeuil(),
         );
     }
 
@@ -81,6 +83,7 @@ final readonly class GenerateurPdfRapport
         ?AjustementProfessionnel $ajustement = null,
         ?Bouquet $bouquet = null,
         ?ResteACharge $resteACharge = null,
+        ?EffetDeSeuil $effetDeSeuil = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
@@ -92,6 +95,7 @@ final readonly class GenerateurPdfRapport
             'ajustement' => null !== $restitution ? $ajustement : null,
             'bouquet' => $bouquet,
             'reste_a_charge' => $resteACharge,
+            'effet_de_seuil' => $effetDeSeuil,
         ]);
 
         return $this->convertisseur->depuisHtml($html);

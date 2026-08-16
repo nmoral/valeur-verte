@@ -104,6 +104,44 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertStringContainsString('valeur que vous avez saisie', $html);
     }
 
+    public function testLaRestitutionMetEnAvantLeFranchissementDuSeuilC(): void
+    {
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        // E→C, prix de base 147 150 € : la table décompose E→D puis E→C.
+        $this->soumettre($client);
+
+        self::assertSelectorExists('.effet-seuil');
+        // E→D (+32 579 €) et E→C (+51 482 €) sont tous deux présents.
+        self::assertSelectorTextContains('.effet-seuil', '32 579');
+        self::assertSelectorTextContains('.effet-seuil', '51 482');
+        // La ligne C est mise en avant comme le seuil qui rémunère.
+        self::assertSelectorTextContains('.effet-seuil .palier-seuil', 'C');
+        // Un message pédagogique accompagne la table (ici : le pro vise C).
+        self::assertSelectorTextContains('.effet-seuil-message', 'rémunère le plus');
+    }
+
+    public function testSansContrasteAucuneTableDeSeuilNEstAffichee(): void
+    {
+        $client = $this->client();
+        // Maille ne publiant que D et C : depuis D, un seul palier (D→C) — pas de
+        // contraste à montrer, la table ne s'affiche pas.
+        $this->coefficients($client)->definir(self::CODE_INSEE, CoefficientMaille::depuis(
+            millesime: 2024,
+            rayonKm: 10,
+            n: 134,
+            erreurMediane: 17.22,
+            coefDpe: ['D' => 0.0, 'C' => 0.10],
+        ));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client, dpeAvant: 'D', dpeApres: 'C');
+
+        self::assertSelectorNotExists('.effet-seuil');
+    }
+
     public function testUneCommuneHorsCouvertureResteValideMaisSansChiffre(): void
     {
         $client = $this->client();
@@ -154,7 +192,7 @@ final class AuditRestitutionTest extends WebTestCase
         );
     }
 
-    private function soumettre(KernelBrowser $client, string $valeurBien = ''): void
+    private function soumettre(KernelBrowser $client, string $valeurBien = '', string $dpeAvant = 'E', string $dpeApres = 'C'): void
     {
         $client->followRedirects();
         $crawler = $client->request('GET', self::URL);
@@ -165,8 +203,8 @@ final class AuditRestitutionTest extends WebTestCase
             'adresse' => '12 rue des Lilas, Toulouse',
             'surface_batie' => '90',
             'surface_terrain' => '500',
-            'dpe_avant' => 'E',
-            'dpe_apres' => 'C',
+            'dpe_avant' => $dpeAvant,
+            'dpe_apres' => $dpeApres,
             'code_insee' => self::CODE_INSEE,
             'valeur_bien' => $valeurBien,
             '_csrf_token' => $token,

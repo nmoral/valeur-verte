@@ -101,7 +101,7 @@ final class AuditController extends AbstractController
         // Un audit terminé est archivé immédiatement (#33/#37) : il apparaît dans
         // « Rapports & leads » et son PDF (#32) se régénère depuis l'instantané.
         // La restitution reste en session pour l'affichage de la page dédiée.
-        $rapport = $this->archiveur->archiver($saisie, $resultat?->restitution(), $resultat?->contexte(), $bouquet);
+        $rapport = $this->archiveur->archiver($saisie, $resultat?->restitution(), $resultat?->contexte(), $bouquet, $resultat?->effetDeSeuil());
         $request->getSession()->set(self::SESSION_RESULTAT, [
             'saisie' => $saisie,
             'restitution' => $resultat?->restitution(),
