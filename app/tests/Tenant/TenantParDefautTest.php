@@ -15,8 +15,8 @@ final class TenantParDefautTest extends WebTestCase
         $client = static::createClient();
         $createur = $this->createur();
 
-        $premier = $createur->creer('pro-a@example.com', 'motdepasse-solide');
-        $second = $createur->creer('pro-b@example.com', 'motdepasse-solide');
+        $premier = $createur->creer('pro-a@example.com', 'motdepasse-solide', '2026-08-16');
+        $second = $createur->creer('pro-b@example.com', 'motdepasse-solide', '2026-08-16');
 
         self::assertNotNull($premier->getTenantId(), 'Chaque compte doit être rattaché à un tenant.');
         self::assertNotNull($second->getTenantId());
@@ -26,7 +26,7 @@ final class TenantParDefautTest extends WebTestCase
     public function testUnProConnecteActiveLeCloisonnementSurSonTenant(): void
     {
         $client = static::createClient();
-        $pro = $this->createur()->creer('pro@example.com', 'motdepasse-solide');
+        $pro = $this->createur()->creer('pro@example.com', 'motdepasse-solide', '2026-08-16');
         $client->loginUser($pro);
 
         $client->request('GET', 'http://app.valeurverte.localhost/');

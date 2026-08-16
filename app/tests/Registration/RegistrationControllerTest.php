@@ -7,11 +7,13 @@ namespace App\Tests\Registration;
 use App\BackOffice\Entreprise\Entreprise;
 use App\BackOffice\Entreprise\EntrepriseRepository;
 use App\BackOffice\Entreprise\StatutRge;
+use App\Controller\PagesLegalesController;
 use App\Security\UserRepository;
 use App\Tests\Notification\Double\MailerEnMemoire;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 final class RegistrationControllerTest extends WebTestCase
@@ -41,6 +43,54 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('#entreprise-apercu');
         self::assertSelectorExists('script[src^="/js/inscription-siret.js"]');
+    }
+
+    public function testLeFormulairePorteLAcceptationDesConditionsAvecSesLiens(): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request('GET', 'http://'.self::HOTE.'/inscription');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('input[type="checkbox"][name="cgu"]');
+        // La case doit renvoyer aux deux textes qu'elle fait accepter.
+        $liens = $crawler->filter('label[for="cgu"] a, .field-cgu a')->extract(['href']);
+        self::assertContains('/cgu', $liens);
+        self::assertContains('/cgv', $liens);
+    }
+
+    public function testUneInscriptionSansAccepterLesConditionsEstRefusee(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettreInscription($client, 'refus-cgu@example.com', 'motdepasse-solide', '12345678901234', accepterCgu: false);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('.form-error');
+
+        $repository = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $repository);
+        self::assertNull(
+            $repository->findOneBy(['email' => 'refus-cgu@example.com']),
+            'Sans acceptation des conditions, aucun compte ne doit être créé.',
+        );
+    }
+
+    public function testUneInscriptionValideEnregistreLaVersionDesConditionsAcceptee(): void
+    {
+        $client = static::createClient();
+
+        $this->soumettreInscription($client, 'consent@example.com', 'motdepasse-solide', '12345678901234');
+
+        self::assertResponseRedirects('http://app.'.self::HOTE.'/audit');
+
+        $repository = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $repository);
+        $user = $repository->findOneBy(['email' => 'consent@example.com']);
+        self::assertNotNull($user);
+        self::assertTrue($user->aAccepteLesConditions(), 'L\'acceptation doit être tracée.');
+        self::assertSame(PagesLegalesController::VERSION_CGU, $user->versionConditionsAcceptee());
+        self::assertNotNull($user->conditionsAccepteesLe());
     }
 
     public function testUneInscriptionValideCreeLeCompteEtConnecte(): void
@@ -136,7 +186,7 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertStringContainsString('/verification-email?utilisateur=', $emails[0]->corpsHtml());
     }
 
-    private function soumettreInscription(KernelBrowser $client, string $email, string $motDePasse, string $siret): void
+    private function soumettreInscription(KernelBrowser $client, string $email, string $motDePasse, string $siret, bool $accepterCgu = true): void
     {
         // Ces tests ne portent pas sur le rate limiting : on repart d'une fenêtre
         // vierge pour l'IP par défaut afin de ne pas fuir d'un run à l'autre.
@@ -150,6 +200,11 @@ final class RegistrationControllerTest extends WebTestCase
         $formulaire['email'] = $email;
         $formulaire['password'] = $motDePasse;
         $formulaire['siret'] = $siret;
+        if ($accepterCgu) {
+            $caseCgu = $formulaire['cgu'];
+            self::assertInstanceOf(ChoiceFormField::class, $caseCgu);
+            $caseCgu->tick();
+        }
         $client->submit($formulaire);
     }
 }

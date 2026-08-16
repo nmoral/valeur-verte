@@ -10,6 +10,7 @@ use App\Compte\Compte;
 use App\Compte\CompteRepository;
 use App\Tenant\ProvisionneurCompte;
 use App\Tenant\TenantRepository;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
@@ -26,13 +27,14 @@ final class CreateurDeCompte
         private readonly EnregistreurFicheEntreprise $fichesEntreprise,
         private readonly ProvisionneurCompte $provisionneur,
         private readonly CompteRepository $comptes,
+        private readonly ClockInterface $horloge,
     ) {
     }
 
     /**
      * @throws EmailDejaUtilise
      */
-    public function creer(string $email, string $motDePasse, ?Siret $siret = null): User
+    public function creer(string $email, string $motDePasse, string $versionConditions, ?Siret $siret = null): User
     {
         if (null !== $this->utilisateurs->findOneBy(['email' => $email])) {
             throw new EmailDejaUtilise($email);
@@ -49,6 +51,9 @@ final class CreateurDeCompte
         $user = new User($email, ['ROLE_PRO']);
         $user->rattacherAuTenant($tenantId);
         $user->definirMotDePasse($this->hasher->hashPassword($user, $motDePasse));
+        // Preuve d'acceptation des conditions (#228) : version en vigueur figée à
+        // l'instant de la création, jamais reprise d'une valeur cliente.
+        $user->accepterLesConditions($versionConditions, $this->horloge->now());
         $this->utilisateurs->enregistrer($user);
 
         // Le compte repart d'une configuration par défaut exploitable (ONB-3) :

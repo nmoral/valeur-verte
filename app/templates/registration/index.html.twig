@@ -60,6 +60,15 @@
       </div>
       <p id="entreprise-repli" class="hint" hidden>Entreprise introuvable pour ce SIRET — vous pourrez compléter votre fiche plus tard.</p>
 
+      <div class="field-cgu field-group{{ erreurs.cgu is defined ? ' has-error' : '' }}">
+        <label for="cgu">
+          <input type="checkbox" id="cgu" name="cgu" value="1"{{ erreurs.cgu is not defined and cgu_accepte ? ' checked' : '' }}>
+          <span>J'accepte les <a href="{{ path('cgu') }}" target="_blank" rel="noopener">conditions générales d'utilisation</a>
+          et les <a href="{{ path('cgv') }}" target="_blank" rel="noopener">conditions générales de vente</a>.</span>
+        </label>
+        {% if erreurs.cgu is defined %}<span class="form-error">{{ erreurs.cgu }}</span>{% endif %}
+      </div>
+
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('inscription') }}">
       <button type="submit" class="btn-primary">Créer mon compte</button>
     </form>
