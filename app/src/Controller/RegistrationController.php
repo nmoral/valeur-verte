@@ -37,7 +37,9 @@ final class RegistrationController extends AbstractController
             if ([] === $erreurs) {
                 try {
                     $siretConfirme = '' !== $siret ? Siret::depuis($siret) : null;
-                    $user = $createurDeCompte->creer($email, $motDePasse, $siretConfirme);
+                    // La version acceptée est celle en vigueur au moment de la
+                    // soumission, jamais un champ envoyé par le client (#228).
+                    $user = $createurDeCompte->creer($email, $motDePasse, PagesLegalesController::VERSION_CGU, $siretConfirme);
 
                     // Vérification d'email a posteriori (ONB-1) : envoi du lien de
                     // confirmation, sans jamais bloquer l'accès au premier rapport.
@@ -58,6 +60,7 @@ final class RegistrationController extends AbstractController
                 'erreurs' => $erreurs,
                 'email' => $email,
                 'siret' => $siret,
+                'cgu_accepte' => $request->request->getBoolean('cgu'),
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -65,6 +68,7 @@ final class RegistrationController extends AbstractController
             'erreurs' => [],
             'email' => $email,
             'siret' => $siret,
+            'cgu_accepte' => false,
         ]);
     }
 
@@ -86,6 +90,9 @@ final class RegistrationController extends AbstractController
         }
         if ('' !== $siret && 1 !== preg_match('/^\d{14}$/', $siret)) {
             $erreurs['siret'] = 'Le SIRET doit comporter 14 chiffres.';
+        }
+        if (!$request->request->getBoolean('cgu')) {
+            $erreurs['cgu'] = 'Vous devez accepter les conditions générales pour créer un compte.';
         }
 
         return $erreurs;

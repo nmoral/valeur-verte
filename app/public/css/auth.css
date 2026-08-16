@@ -31,6 +31,13 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
 .field-group.has-error input{border-color:var(--danger)}
 .form-error{font-size:12.5px;color:var(--danger)}
 
+/* Acceptation des conditions (#228) : libellé en prose lisible, pas le style
+   « titre de champ » (monospace/majuscules) des autres labels. */
+.field-cgu label{font:400 13px/1.5 'Public Sans',sans-serif;letter-spacing:normal;
+  text-transform:none;color:var(--slate);display:flex;gap:9px;align-items:flex-start;cursor:pointer}
+.field-cgu input[type="checkbox"]{width:16px;height:16px;margin-top:1px;flex:0 0 auto;accent-color:var(--brand);cursor:pointer}
+.field-cgu a{color:var(--brand);text-decoration:underline}
+
 .alert{background:var(--danger-soft);border:1px solid var(--danger);border-radius:2px;padding:10px 12px;
   font-size:13.5px;color:var(--danger);margin-bottom:18px}
 .alert-ok{background:var(--brand-soft);border:1px solid var(--brand);border-radius:2px;padding:10px 12px;

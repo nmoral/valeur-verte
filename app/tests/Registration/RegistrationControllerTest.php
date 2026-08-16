@@ -13,6 +13,7 @@ use App\Tests\Notification\Double\MailerEnMemoire;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 final class RegistrationControllerTest extends WebTestCase
@@ -200,7 +201,9 @@ final class RegistrationControllerTest extends WebTestCase
         $formulaire['password'] = $motDePasse;
         $formulaire['siret'] = $siret;
         if ($accepterCgu) {
-            $formulaire['cgu']->tick();
+            $caseCgu = $formulaire['cgu'];
+            self::assertInstanceOf(ChoiceFormField::class, $caseCgu);
+            $caseCgu->tick();
         }
         $client->submit($formulaire);
     }

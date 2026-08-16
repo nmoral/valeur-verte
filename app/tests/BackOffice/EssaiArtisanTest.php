@@ -53,7 +53,7 @@ final class EssaiArtisanTest extends WebTestCase
     {
         $createur = self::getContainer()->get(CreateurDeCompte::class);
         self::assertInstanceOf(CreateurDeCompte::class, $createur);
-        $user = $createur->creer($email, 'motdepasse-solide');
+        $user = $createur->creer($email, 'motdepasse-solide', '2026-08-16');
         $client->loginUser($user);
         $tenantId = $user->getTenantId();
         self::assertNotNull($tenantId);
