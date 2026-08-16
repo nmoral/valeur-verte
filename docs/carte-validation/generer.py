@@ -60,15 +60,20 @@ NOMS = {
 LARGEUR, HAUTEUR, MARGE = 760, 720, 10
 
 
-def _gain_ec(coef_json: str) -> float | None:
-    """Gain E→C en % : ``exp(coef_C − coef_E) − 1``, ou None si C/E absentes."""
+def _gain(coef_json: str, de: str, vers: str) -> float | None:
+    """Gain ``de``→``vers`` en % : ``exp(coef_vers − coef_de) − 1``.
+
+    Les coefficients DPE sont des effets **log** de base D (coef 0). Le gain E→C
+    saute deux classes (E→D→C), le gain E→D une seule (D = référence). ``None`` si
+    l'une des deux classes n'est pas publiée.
+    """
     try:
         coefs = json.loads(coef_json)
     except (json.JSONDecodeError, TypeError):
         return None
-    if "C" not in coefs or "E" not in coefs:
+    if de not in coefs or vers not in coefs:
         return None
-    return (math.e ** (coefs["C"] - coefs["E"]) - 1) * 100
+    return (math.e ** (coefs[vers] - coefs[de]) - 1) * 100
 
 
 def charger_metriques(mailles_csv: Path, communes_csv: Path) -> dict[str, dict]:
@@ -85,14 +90,16 @@ def charger_metriques(mailles_csv: Path, communes_csv: Path) -> dict[str, dict]:
     metriques: dict[str, dict] = {}
     for dept, mailles in par_dept.items():
         n = len(mailles)
-        gains = [g for m in mailles if (g := _gain_ec(m[6])) is not None]
+        gains_ec = [g for m in mailles if (g := _gain(m[6], "E", "C")) is not None]
+        gains_ed = [g for m in mailles if (g := _gain(m[6], "E", "D")) is not None]
         metriques[dept] = {
             "n": n,
             "cov": round(100 * n / communes.get(dept, n)),
             "local": round(100 * sum(1 for m in mailles if m[1] == "local") / n),
             "dept": round(100 * sum(1 for m in mailles if m[1] == "departemental") / n),
             "degrade": round(100 * sum(1 for m in mailles if m[4] == "degrade") / n),
-            "gain": round(statistics.median(gains)) if gains else None,
+            "gain": round(statistics.median(gains_ec)) if gains_ec else None,
+            "gainED": round(statistics.median(gains_ed)) if gains_ed else None,
         }
     return metriques
 

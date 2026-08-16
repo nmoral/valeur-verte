@@ -24,6 +24,7 @@
     <button data-m="dept" class="on">Granularité</button>
     <button data-m="degrade">Fiabilité</button>
     <button data-m="gain">Premium E→C</button>
+    <button data-m="gainED">Premium E→D</button>
     <button data-m="cov">Couverture</button>
   </div>
   <div class="legend" id="legend"></div>
@@ -102,6 +103,7 @@ const METRICS={
  dept:{label:"% repli départemental (grossier)",dom:[0,90],bad:true,get:m=>m?m.dept:null,fmt:v=>v+"%",lo:"fin (local)",hi:"grossier"},
  degrade:{label:"% mailles en tier dégradé",dom:[0,80],bad:true,get:m=>m?m.degrade:null,fmt:v=>v+"%",lo:"fiable",hi:"dégradé"},
  gain:{label:"gain E→C médian",dom:[0,35],bad:false,get:m=>m?m.gain:null,fmt:v=>(v>0?"+":"")+v+"%",lo:"faible",hi:"fort"},
+ gainED:{label:"gain E→D médian",dom:[0,20],bad:false,get:m=>m?m.gainED:null,fmt:v=>(v>0?"+":"")+v+"%",lo:"faible",hi:"fort"},
  cov:{label:"couverture communale",dom:[100,39],bad:true,get:m=>m?m.cov:null,fmt:v=>v+"%",lo:"complète",hi:"partielle"}
 };
 let cur="dept";
@@ -125,7 +127,7 @@ function showTip(e,f){const m=f.m;tip.hidden=false;
  const seg=m?`<div class="bar"><i style="width:${m.local}%;background:${TEAL}"></i><i style="width:${100-m.local-m.dept}%;background:${AMBER}"></i><i style="width:${m.dept}%;background:${CLAY}"></i></div>`:"";
  tip.innerHTML=`<h3>${f.nom}<span>${f.dept}</span></h3>`+(m?
   `<div class="row"><span>Mailles</span><b>${m.n}</b></div>
-   <div class="row"><span>Gain E→C</span><b>${m.gain!=null?(m.gain>0?"+":"")+m.gain+"%":"—"}</b></div>
+   <div class="row"><span>Gain E→C / E→D</span><b>${m.gain!=null?(m.gain>0?"+":"")+m.gain+"%":"—"} / ${m.gainED!=null?(m.gainED>0?"+":"")+m.gainED+"%":"—"}</b></div>
    <div class="row"><span>Local / EPCI / Dépt</span><b>${m.local}/${100-m.local-m.dept}/${m.dept}%</b></div>${seg}
    <div class="row" style="margin-top:5px"><span>Tier dégradé</span><b>${m.degrade}%</b></div>
    <div class="row"><span>Couverture</span><b>${m.cov}%</b></div>`
