@@ -40,6 +40,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?int $tenantId = null;
 
+    // Vérification d'email a posteriori (#105, ONB-1) : null tant que l'adresse
+    // n'est pas confirmée. Jamais bloquant — un simple rappel dans l'espace pro.
+    #[ORM\Column(name: 'email_verifie_le', nullable: true)]
+    private ?\DateTimeImmutable $emailVerifieLe = null;
+
+    // Acceptation des conditions à l'inscription (#228) : preuve de ce qui a été
+    // accepté (version) et de quand. Null pour les comptes créés hors self-service
+    // (admin interne) ou antérieurs à la fonctionnalité.
+    #[ORM\Column(name: 'conditions_acceptees_version', nullable: true)]
+    private ?string $conditionsAccepteesVersion = null;
+
+    #[ORM\Column(name: 'conditions_acceptees_le', nullable: true)]
+    private ?\DateTimeImmutable $conditionsAccepteesLe = null;
+
     /**
      * @param list<string> $roles
      */
@@ -49,9 +63,45 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->roles = $roles;
     }
 
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
     public function getEmail(): string
     {
         return $this->email;
+    }
+
+    public function emailEstVerifie(): bool
+    {
+        return null !== $this->emailVerifieLe;
+    }
+
+    public function marquerEmailVerifie(\DateTimeImmutable $le): void
+    {
+        $this->emailVerifieLe = $le;
+    }
+
+    public function aAccepteLesConditions(): bool
+    {
+        return null !== $this->conditionsAccepteesLe;
+    }
+
+    public function versionConditionsAcceptee(): ?string
+    {
+        return $this->conditionsAccepteesVersion;
+    }
+
+    public function conditionsAccepteesLe(): ?\DateTimeImmutable
+    {
+        return $this->conditionsAccepteesLe;
+    }
+
+    public function accepterLesConditions(string $version, \DateTimeImmutable $le): void
+    {
+        $this->conditionsAccepteesVersion = $version;
+        $this->conditionsAccepteesLe = $le;
     }
 
     public function getTenantId(): ?int
@@ -86,6 +136,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_values(array_unique($roles));
     }
 
+    // Le hash participe à l'invalidation des sessions (#199) : le firewall compare
+    // le mot de passe du token à celui rechargé et déconnecte s'ils diffèrent. Ne
+    // pas retirer le mot de passe de la sérialisation du token sans préserver ce
+    // signal (cf. InvalidationSessionTest).
     public function getPassword(): string
     {
         return $this->password;

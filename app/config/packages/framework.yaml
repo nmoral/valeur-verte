@@ -20,12 +20,35 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '1 hour'
+        # Mot de passe oublié (#194) : plafond glissant par IP sur la demande de
+        # réinitialisation, pour limiter l'envoi d'emails et le bruit d'énumération.
+        mot_de_passe_oublie_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
 
     #esi: true
     #fragments: true
+
+when@prod:
+    framework:
+        # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP mais doit
+        # honorer X-Forwarded-Proto/Host pour générer des URLs https et rediriger la
+        # connexion en https. Elle n'est joignable qu'à travers le proxy (127.0.0.1),
+        # donc « REMOTE_ADDR » (le proxy) est le seul émetteur possible — voir compose.
+        trusted_proxies: '%env(TRUSTED_PROXIES)%'
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
 
 when@test:
     framework:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+        # Le client de test se présente en REMOTE_ADDR=127.0.0.1 : lui faire confiance
+        # rend le comportement « derrière proxy » exerçable (aucun autre test n'émet
+        # d'en-tête X-Forwarded-*), sans dépendre de la config prod-only. On épingle
+        # l'IP littérale plutôt que « REMOTE_ADDR » : ce marqueur est résolu au boot du
+        # noyau via $_SERVER['REMOTE_ADDR'], absent en CLI/PHPUnit (il serait alors
+        # écarté, laissant la liste vide). En prod, le serveur web le renseigne.
+        trusted_proxies: '127.0.0.1'
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']

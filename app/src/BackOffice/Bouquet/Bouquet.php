@@ -45,6 +45,31 @@ final readonly class Bouquet
         return new self("Rénovation d'ampleur standard", Poste::cases());
     }
 
+    public static function isolationSeule(): self
+    {
+        return self::creer('Isolation seule', Poste::Murs, Poste::Combles, Poste::PlanchersBas, Poste::Menuiseries);
+    }
+
+    public static function chauffageSeul(): self
+    {
+        return self::creer('Chauffage seul', Poste::Chauffage, Poste::Ecs, Poste::Vmc);
+    }
+
+    /**
+     * Catalogue des bouquets types proposés par défaut (§9.2). Sert de base à la
+     * configuration d'un nouveau compte comme de repli tant que rien n'est configuré.
+     *
+     * @return list<self>
+     */
+    public static function typesParDefaut(): array
+    {
+        return [
+            self::renovationAmpleurStandard(),
+            self::isolationSeule(),
+            self::chauffageSeul(),
+        ];
+    }
+
     public function nom(): string
     {
         return $this->nom;

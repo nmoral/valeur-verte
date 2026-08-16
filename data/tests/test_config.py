@@ -25,6 +25,13 @@ def test_defauts_sans_environnement() -> None:
     assert config.min_class_sample == 20
     assert config.min_classes_publiees == 2
     assert config.inversion_dpe_seuil == 30
+    # Fenêtre glissante d'estimation (#177) : 2 par défaut. La validation 15 depts
+    # (2021-2024) a tranché — la fenêtre est un régulariseur (queue p90 −22 %,
+    # monotonie ↑) mais pooler à poids égaux introduit un biais de retard sur la
+    # dérive du premium DPE (~+15 %/an) : W2 minimise ce compromis biais-variance
+    # (W3 trop stale, W1 trop bruité). La pondération temporelle décroissante (#208)
+    # généralisera ce défaut plat. Surchargeable par VV_MOTEUR_FENETRE_MILLESIMES.
+    assert config.fenetre_millesimes == 2
     # Régression — config gagnante par défaut
     assert config.sigma_km == 10.0
     assert config.departemental_sigma_km == 1000.0
@@ -42,6 +49,9 @@ def test_defauts_sans_environnement() -> None:
     assert config.erreur_mediane_max_pct == 20.0
     # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »
     assert config.erreur_mediane_max_pct_degrade == 30.0
+    # Écarts entre millésimes (REG-1, #129) : alerte à 10 %, blocage à 25 %
+    assert config.ecart_alerte_pct == 10.0
+    assert config.ecart_blocage_pct == 25.0
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -62,6 +72,12 @@ def test_defauts_sans_environnement() -> None:
     assert config.ecretage == "residu"
     assert config.ecretage_seuil_n == 100
     assert config.ecretage_k == 3.0
+    # Pondération temporelle décroissante (#208) : désactivée par défaut (None =
+    # poids égaux, comportement #177 exact). Opt-in par l'environnement.
+    assert config.decroissance_temporelle_tau is None
+    # Ruptures de réforme DPE (#215) : calendrier vide par défaut = aucun filtrage
+    # (non-régression exacte). Opt-in par l'environnement.
+    assert config.dpe_reform_boundaries == ()
 
 
 def test_config_est_immuable() -> None:
@@ -87,8 +103,46 @@ def test_surcharge_seuil_degrade() -> None:
     assert config.erreur_mediane_max_pct_degrade == 25.0
 
 
+def test_surcharge_seuils_ecart_millesime() -> None:
+    config = resolve_config(
+        {"VV_MOTEUR_ECART_ALERTE_PCT": "8", "VV_MOTEUR_ECART_BLOCAGE_PCT": "20"}
+    )
+    assert config.ecart_alerte_pct == 8.0
+    assert config.ecart_blocage_pct == 20.0
+
+
 def test_surcharge_int() -> None:
     assert resolve_config({"VV_MOTEUR_MIN_SAMPLE": "120"}).min_sample == 120
+
+
+def test_surcharge_fenetre_millesimes() -> None:
+    # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans
+    # le pool. La v1 se valide en fenêtre 3 avant d'en faire le défaut.
+    assert resolve_config({"VV_MOTEUR_FENETRE_MILLESIMES": "3"}).fenetre_millesimes == 3
+
+
+def test_surcharge_decroissance_temporelle_tau() -> None:
+    # Pondération temporelle (#208) : τ (constante de temps) lu depuis l'env.
+    config = resolve_config({"VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU": "1.5"})
+    assert config.decroissance_temporelle_tau == 1.5
+
+
+def test_decroissance_temporelle_tau_vide_retombe_sur_none() -> None:
+    # Variable présente mais vide → défaut (désactivé), pas 0.0.
+    assert (
+        resolve_config({"VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU": ""}).decroissance_temporelle_tau
+        is None
+    )
+
+
+def test_surcharge_dpe_reform_boundaries() -> None:
+    # Ruptures de réforme DPE (#215) : calendrier de dates ISO, séparées par virgule.
+    config = resolve_config({"VV_MOTEUR_DPE_REFORM_BOUNDARIES": "2021-07-01,2024-07-01"})
+    assert config.dpe_reform_boundaries == ("2021-07-01", "2024-07-01")
+
+
+def test_dpe_reform_boundaries_vide_retombe_sur_tuple_vide() -> None:
+    assert resolve_config({"VV_MOTEUR_DPE_REFORM_BOUNDARIES": ""}).dpe_reform_boundaries == ()
 
 
 def test_surcharge_rayon_max() -> None:

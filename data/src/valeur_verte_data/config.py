@@ -38,6 +38,32 @@ class CalculConfig:
     min_local_sample: int = 30
     min_class_sample: int = 20  # S21
     min_classes_publiees: int = 2
+    # Fenêtre glissante d'estimation (#177) : nombre de millésimes empilés dans le
+    # pool. Le bénéfice vert est structurel et lent ; l'estimer sur plusieurs
+    # années réduit la variance de rééchantillonnage, les effets fixes année (§4)
+    # captant la tendance de niveau. Défaut = 2 : la validation 15 depts (2021-2024)
+    # a établi que la fenêtre est un régulariseur (queue p90 −22 %, monotonie ↑),
+    # mais que pooler à poids égaux introduit un biais de retard sur la dérive du
+    # premium DPE (~+15 %/an) — W2 minimise ce compromis biais-variance (W3 trop
+    # stale, W1 trop bruité). 1 = comportement historique (mono-millésime). La
+    # pondération temporelle décroissante (#208) généralisera ce défaut plat.
+    fenetre_millesimes: int = 2
+    # Pondération temporelle décroissante (#208) : constante de temps τ (années)
+    # d'un poids ``exp(-(N − millésime)/τ)`` multiplié au poids gaussien spatial
+    # dans la régression. Fait peser moins les millésimes anciens → estime le
+    # premium DPE plus près de l'année de référence N, corrigeant le biais de
+    # retard du pooling à poids égaux (#177) face à la dérive du premium
+    # (~+15 %/an). ``None`` = désactivé (poids égaux, comportement #177 exact).
+    # La fenêtre (`fenetre_millesimes`) décide *quels* millésimes entrent, τ
+    # décide *combien* chacun pèse.
+    decroissance_temporelle_tau: float | None = None
+    # Ruptures de réforme DPE (#215) : calendrier des dates ISO de réforme du DPE
+    # (méthode 3CL 2021-07-01, recalcul petites surfaces 2024-07-01, réforme ~2026).
+    # Une maille sous millésime N écarte du calcul les ventes dont le DPE précède la
+    # dernière réforme ≤ fin N (ne pas pooler à travers une réforme, cf. ruptures.py).
+    # **Vide par défaut** = aucun filtrage (non-régression exacte) ; à activer au VPS
+    # avec les réformes matérielles pour le segment maisons.
+    dpe_reform_boundaries: tuple[str, ...] = ()
     # INV-1 (#119) : une inversion de monotonie entre deux classes DPE adjacentes
     # est tolérée si l'effectif de la moins fournie est sous ce seuil (petit
     # échantillon = faiblesse statistique, pas un bug). Au-delà, anomalie bloquante.
@@ -65,6 +91,12 @@ class CalculConfig:
     # Palier dégradé (#169) : plafond d'erreur du tier « estimation dégradée »,
     # servi avec bandeau au-delà du seuil standard et sous celui-ci.
     erreur_mediane_max_pct_degrade: float = 30.0
+    # Écarts entre millésimes (REG-1, #129) : un coefficient qui bouge de plus de
+    # ecart_alerte_pct au recalcul est signalé pour revue ; au-delà de
+    # ecart_blocage_pct la publication de la maille est bloquée (l'ancienne valeur
+    # reste servie jusqu'à validation manuelle). Écart mesuré sur l'effet exp(coef).
+    ecart_alerte_pct: float = 10.0
+    ecart_blocage_pct: float = 25.0
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -103,6 +135,13 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         min_local_sample=_int(env, "MIN_LOCAL_SAMPLE", defaut.min_local_sample),
         min_class_sample=_int(env, "MIN_CLASS_SAMPLE", defaut.min_class_sample),
         min_classes_publiees=_int(env, "MIN_CLASSES_PUBLIEES", defaut.min_classes_publiees),
+        fenetre_millesimes=_int(env, "FENETRE_MILLESIMES", defaut.fenetre_millesimes),
+        decroissance_temporelle_tau=_float_optionnel(
+            env, "DECROISSANCE_TEMPORELLE_TAU", defaut.decroissance_temporelle_tau
+        ),
+        dpe_reform_boundaries=_str_tuple(
+            env, "DPE_REFORM_BOUNDARIES", defaut.dpe_reform_boundaries
+        ),
         inversion_dpe_seuil=_int(env, "INVERSION_DPE_SEUIL", defaut.inversion_dpe_seuil),
         sigma_km=_float(env, "SIGMA_KM", defaut.sigma_km),
         departemental_sigma_km=_float(env, "DEPARTEMENTAL_SIGMA_KM", defaut.departemental_sigma_km),
@@ -121,6 +160,8 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         erreur_mediane_max_pct_degrade=_float(
             env, "ERREUR_MEDIANE_MAX_PCT_DEGRADE", defaut.erreur_mediane_max_pct_degrade
         ),
+        ecart_alerte_pct=_float(env, "ECART_ALERTE_PCT", defaut.ecart_alerte_pct),
+        ecart_blocage_pct=_float(env, "ECART_BLOCAGE_PCT", defaut.ecart_blocage_pct),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
         elasticite_bati_min=_float(env, "ELASTICITE_BATI_MIN", defaut.elasticite_bati_min),
@@ -160,6 +201,12 @@ def _float(env: Mapping[str, str], name: str, default: float) -> float:
     return default if raw is None else float(raw)
 
 
+def _float_optionnel(env: Mapping[str, str], name: str, default: float | None) -> float | None:
+    """Comme ``_float`` mais accepte un défaut ``None`` (paramètre désactivable)."""
+    raw = _raw(env, name)
+    return default if raw is None else float(raw)
+
+
 def _str(env: Mapping[str, str], name: str, default: str) -> str:
     raw = _raw(env, name)
     return default if raw is None else raw
@@ -177,3 +224,10 @@ def _tuple(env: Mapping[str, str], name: str, default: tuple[int, ...]) -> tuple
     if raw is None:
         return default
     return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
+
+
+def _str_tuple(env: Mapping[str, str], name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw = _raw(env, name)
+    if raw is None:
+        return default
+    return tuple(part.strip() for part in raw.split(",") if part.strip())

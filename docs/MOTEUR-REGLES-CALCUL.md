@@ -43,6 +43,15 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 **Ingestion** (`ingest.ingest_commune`) : DVF → nettoyage → appariement DPE/période → écriture.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
+- **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
+  clé d'adresse BAN)`. Quand une adresse porte plusieurs diagnostics, le **DPE le plus
+  récent** (date d'établissement max) fait foi — étiquette, période, **date
+  d'établissement** et **version de méthode** viennent tous du même diagnostic (#211).
+  Un DPE daté prime sur un DPE sans date. La vente persiste `etiquette_dpe`,
+  `periode_construction`, `date_etablissement_dpe` (`DATE`) et `version_dpe` (migration
+  011). La date/version datent le diagnostic pour la gestion des **ruptures de réforme
+  DPE** en aval (#208 pondération temporelle, #127 DAT-4) ; elles ne sont pas encore
+  lues au calcul.
 - ⚠️ **MAIS la base prod/lab est ré-ingérée SANS bornes (S12)** : ces bornes ont été
   élargies à l'ingestion réelle car le plafond censurait le haut de gamme et
   sous-estimait le gain E→C de +3 à +6 pts. `data.vente` est donc **brute**. Réduire
@@ -56,8 +65,49 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 - `surface_terrain` absente → traitée comme **0** (log1p).
 
 **Pool** (`pool_repository.load_pool`) : ventes du département **+ départements
-limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), millésime donné,
-`type_local='Maison'`, triées par `id_mutation` (ordre canonique INV-5).
+limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), sur la **fenêtre de
+millésimes** demandée, `type_local='Maison'`, triées par `id_mutation` (ordre
+canonique INV-5). Charge aussi `date_etablissement_dpe` (#211) pour le filtre de
+rupture ci-dessous. La carte `LIMITROPHES` couvre **toute la métropole** (96
+départements, Corse 2A/2B comprise, #223) : le débordement joue au bord de tout
+département, plus seulement dans les zones pilotes. Un voisin absent de la base
+ne contribue simplement à rien. L'adjacence a été dérivée des contours
+départementaux (`docs/carte-validation/dept-contours.geojson`, frontière réelle
+partagée, contacts ponctuels aux tripoints écartés) puis figée dans le module.
+
+- **Rupture de réforme DPE** (#215, `ruptures.filtrer_regime_dpe`, calendrier
+  `dpe_reform_boundaries`) : une réforme du DPE (méthode 3CL 2021-07-01, recalcul
+  petites surfaces 2024-07-01, réforme ~2026) casse la comparabilité des étiquettes
+  (un « D » d'avant ≠ un « D » d'après). Pour une maille sous millésime N, on **écarte
+  du pool** les ventes dont le DPE (`date_etablissement_dpe`) précède la **dernière
+  réforme ≤ `{N}-12-31`** — on ne poole pas à travers une réforme. Une vente au DPE
+  **sans date** est **conservée** (on n'exclut que ce qu'on peut positivement dater
+  avant la borne) ; une réforme **future** (> N) n'a aucun effet. La cascade (#169)
+  absorbe la baisse d'effectif. **Calendrier vide par défaut** = aucun filtrage
+  (non-régression exacte) ; à activer au VPS avec les réformes **matérielles pour les
+  maisons** (le recalcul 2024 des < 40 m² ne les touche quasi pas).
+
+- **Fenêtre glissante** (#177, `fenetre_millesimes`) : le pool empile les
+  `fenetre_millesimes` derniers millésimes finissant au millésime de référence N
+  (ex. `fenetre=3` → N, N-1, N-2), en une requête (`millesime = ANY(...)`). Le
+  bénéfice vert est structurel et lent : l'estimer sur plusieurs années réduit la
+  variance de rééchantillonnage (élasticités, classes DPE rares en rural) et rend
+  les écarts REG-1 inter-millésimes faibles par construction (fenêtres
+  recouvrantes). La maille reste **publiée sous le millésime N** ; ce sont les
+  effets fixes année (§4) qui absorbent la tendance de niveau, l'étiquette DPE
+  mesurant l'effet **structurel moyen** de la fenêtre.
+- **Défaut = 2** (W2). La validation multi-départements (15 depts, 2021-2024) a
+  tranché : la fenêtre est un **régulariseur** (queue d'erreur inter-année p90
+  −22 %, monotonie DPE en hausse), mais l'instabilité inter-année ne se prédit pas
+  maille par maille (gating sélectif écarté). Surtout, le **premium DPE dérive**
+  (amplitude mono-année ~+15 %/an) et les effets fixes année corrigent le niveau de
+  prix **pas** cette dérive : pooler à poids égaux introduit donc un biais de retard
+  (W3 ≈ −12 %, W2 ≈ −6 % sur le premium de l'année N). **W2** est le meilleur
+  compromis biais-variance par défaut (W3 trop stale, W1 mono-millésime trop
+  bruité). 1 = comportement historique exact ; surcharge par
+  `VV_MOTEUR_FENETRE_MILLESIMES`. La vraie solution — **pondération temporelle
+  décroissante** (poids ↓ vers le passé, généralise le défaut plat) — est l'objet
+  de #208.
 
 ## 4. Modèle de régression (`regression.fit`)
 
@@ -69,7 +119,11 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
             + indicatrices_commune(désactivé) + indicatrices_année
 ```
 
-- **Poids** : gaussien `exp(-d²/2σ²)`, `d` = distance haversine au centroïde commune.
+- **Poids** : gaussien spatial `exp(-d²/2σ²)`, `d` = distance haversine au centroïde
+  commune, **multiplié** (#208) par un poids **temporel décroissant**
+  `exp(-(N − millésime)/τ)` quand `decroissance_temporelle_tau` (= τ) et l'année de
+  référence N sont fournis (§4bis). `τ = None` (défaut) ⇒ poids gaussien seul
+  (poids égaux entre millésimes, comportement #177 exact).
 - **Référence DPE = D** (`reference_dpe`, coef 0). Les autres classes présentes ont
   un coefficient ; référence des autres catégorielles = 1er niveau trié (implicite).
 - **Sorties** :
@@ -81,8 +135,46 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
   Neutre (log 1 = 0) si l'étendue de l'échantillon < `etendue_minimale_indice` (0,002°).
 - **Effets fixes période** : **gardés** (corrélés au DPE ; sans eux l'étiquette capte
   l'époque de construction — mitigation #115).
+- **Effets fixes année** : indicatrices par millésime présent dans le pool. Sur une
+  fenêtre glissante multi-années (#177, §3), elles **captent la tendance de niveau**
+  entre millésimes, de sorte que l'étiquette DPE mesure l'effet **structurel moyen**
+  de la fenêtre et non la dérive de marché. Sur un pool mono-millésime, aucune
+  indicatrice année n'est générée (un seul niveau).
 - **Effets fixes commune** : **désactivés** (S22, `effets_fixes_commune=false`) — ils
   sur-ajustaient (r² gonflé, erreur CV pire) ; l'indice local + σ portent la localité.
+
+### 4bis. Pondération temporelle décroissante (#208, `poids_temporel`)
+
+Poids multiplicatif `exp(-(N − millésime)/τ)` appliqué **par-dessus** le poids
+gaussien spatial dans `regression._weights` (donc dans `fit` **et** dans les fits
+internes de la validation croisée — l'erreur médiane mesure l'estimateur publié).
+
+- **Motivation** : la fenêtre glissante (#177) poole plusieurs millésimes à **poids
+  égaux** pour réduire la variance. Mais le **premium DPE dérive** (~+15 %/an,
+  validation 15 depts) et les effets fixes année corrigent le **niveau de prix**, pas
+  la dérive du premium lui-même. Pooler à plat estime donc la **moyenne** du premium
+  sur la fenêtre → biais de retard sur l'année N. Le poids temporel fait peser moins
+  les millésimes anciens : l'estimation se rapproche du premium récent.
+- **τ (`decroissance_temporelle_tau`)** = constante de temps en années ; à une
+  ancienneté `N − millésime = τ` le poids vaut `exp(-1)`. **`None` = désactivé**
+  (poids égaux, non-régression #177 exacte) — c'est le **défaut**. τ grand ⇒ quasi
+  poids égaux ; τ petit ⇒ quasi mono-année.
+- **Composition avec la fenêtre** : `fenetre_millesimes` décide *quels* millésimes
+  entrent dans le pool ; τ décide *combien* chacun pèse. Orthogonaux.
+- **Année de référence N** : le millésime publié de la maille (passé explicitement,
+  jamais dérivé par `max()` — sous CV un pli peut perdre l'année N). La ligne reste
+  **ancrée sur N** (§3) ; le poids temporel rapproche l'estimation de N.
+- **Périmètre** : s'applique à l'**estimateur publié** (fit) et à son **erreur** (CV).
+  Les étapes **structurelles** en amont — écrêtage des outliers (§8) et fusion en
+  bandes (§14) — restent sur le **poids spatial seul** : un outlier ancien reste un
+  outlier, et la structure de bandes doit rester stable, indépendante de la récence.
+- **Statut** : opt-in (`VV_MOTEUR_DECROISSANCE_TEMPORELLE_TAU`), désactivé par défaut.
+  **Calibration faite** (#208, 6 depts denses+ruraux, N=2024, gain E→C à périmètre
+  constant) : la dérive du premium est confirmée (~+16 %/an), mais **une fenêtre
+  profonde + τ ajoute plus de retard qu'elle n'en corrige** — le meilleur W4+τ
+  (retard −2,0) reste sous **W2 à poids plats** (retard −1,2, et meilleure erreur CV).
+  **Décision : garder W2 par défaut, τ reste opt-in, pas de bascule du défaut.** Le
+  mécanisme reste disponible pour un territoire à très forte dérive.
 
 ## 5. Sélection par rayon adaptatif (`radius.adaptive_selection`)
 
@@ -167,6 +259,51 @@ Une maille qui viole un invariant **n'est pas publiée** (coefficient antérieur
     (2,0)** → **bandeau d'alerte de bord non masquable**, mais la maille **reste publiée**.
 - **INV-5** — reproductibilité : ordre canonique `id_mutation` partout (pool, plis, sommation).
 
+### REG-1 — écart au millésime précédent (#129, `ecarts.py`)
+
+Dernière porte, **après** les invariants, sur une maille par ailleurs publiable. Chaque
+maille calculée est comparée à son millésime précédent, **puis archivée** dans
+`data.coefficient_maille_historique` (versionnée par `code_insee`+`millesime`) — la
+comparaison précède l'archivage depuis REG-2 (#130), car le verdict part **avec**
+l'archive (`classe_ecart`, `ecart`, `ecart_coefficient`) :
+
+- **métrique** : écart relatif sur l'**effet `exp(coef)`** des classes DPE communes (un
+  effet log peut bouger beaucoup sans que le prix bouge) et sur la valeur brute des
+  élasticités `coef_m2_bati`/`coef_m2_terrain` ; la maille retient le **pire** coefficient.
+  Un changement de l'ensemble des classes publiées (rebanding) vaut au moins une alerte ;
+- **paliers** : `< ecart_alerte_pct` (**10 %**) normal ; jusqu'à `ecart_blocage_pct`
+  (**25 %**) **alerte** (publiée, signalée pour revue) ; au-delà **blocage** — la maille
+  est archivée mais **écartée de la publication** du millésime (l'ancienne valeur vive
+  reste servie jusqu'à déblocage explicite, REG-2). Blocage **par maille**, jamais du
+  batch entier.
+
+Prérequis INV-5 satisfait (CV déterministe → l'écart est de la dérive, pas de l'aléa). Le
+batch renvoie un `RapportEcarts` dédié (une ligne par maille) pour l'écran de supervision (#45).
+
+### REG-2 — publication manuelle d'un millésime (#130, `db/publication_repository.py`)
+
+Un millésime n'est **jamais publié automatiquement**. Le batch **calcule et archive** ;
+il ne touche plus `data.coefficient_maille`, ni pour écrire une maille retenue, ni pour
+effacer une maille refusée. Sans cette seconde moitié, un millésime calculé puis
+abandonné aurait déjà modifié ce que voient les clients.
+
+- **Refus différé** : une commune non calculable est inscrite dans `data.maille_refusee`
+  (`code_insee`+`millesime`+motif). Elle ne sort du service qu'à la publication.
+- **Publier** (`data.publier_millesime(millesime, auteur)`) projette l'historique du
+  millésime vers la table vive, **sauf** les mailles en `classe_ecart = 'blocage'`, puis
+  applique les refus du millésime et inscrit la décision dans `data.publication_millesime`.
+- **Abandonner** (`data.abandonner_millesime`) n'a **aucun effet de bord** : l'archive
+  reste, la table vive n'est pas touchée. Seule la décision est enregistrée, pour que le
+  millésime cesse d'être proposé.
+- **Débloquer une maille** (`data.publier_maille`) est **refusé tant que le millésime
+  n'est pas publié** : une commune seule en N au milieu d'un parc en N-1 serait l'état
+  mixte que REG-2 cherche justement à éviter. C'est une correction *après* publication.
+
+La logique vit dans des fonctions SQL `SECURITY DEFINER` (migration 012), pas dans l'app :
+celle-ci est en **lecture seule** sur le schéma `data` (décision D6) et ne reçoit que le
+droit de les invoquer. Le contrat A/B tient — le pipeline reste réécrivable sans toucher
+à l'app.
+
 ## 12. Sortie — `coefficient_maille` (`batch.MailleCoefficient`)
 
 Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départemental),
@@ -203,6 +340,9 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `min_local_sample` | 30 | seuil mode + n mini INV-4 |
 | `min_class_sample` | 20 | S21, publication classe |
 | `min_classes_publiees` | 2 | dont la référence |
+| `fenetre_millesimes` | 2 | #177 — millésimes empilés (fenêtre glissante) ; W2 = compromis biais-variance validé (15 depts) ; 1 = mono-millésime historique ; #208 pondérera |
+| `decroissance_temporelle_tau` | `None` | #208 — τ du poids temporel `exp(-(N−millésime)/τ)` ; `None` = désactivé (poids égaux #177) ; §4bis |
+| `dpe_reform_boundaries` | `()` | #215 — calendrier de réformes DPE (dates ISO) ; écarte les DPE d'un régime antérieur à la dernière réforme ≤ N ; vide = aucun filtrage ; §3 |
 | `inversion_dpe_seuil` | 30 | tolérance INV-1 |
 | `sigma_mode` / `sigma_diviseur` / `sigma_min` | `densite` / 1,0 / 3,0 | S23 |
 | `departemental_sigma_km` | 1000 | repli quasi-uniforme |
@@ -213,6 +353,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `cv_folds` | 5 | validation croisée |
 | `erreur_mediane_max_pct` | 20 | seuil du tier standard (classe le `palier`) |
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
+| `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |
@@ -232,6 +373,22 @@ se câble par petits pas TDD. État :
 - ✅ **Cran DÉPARTEMENT** : `batch.compute_maille_departement` poole les ventes du seul
   département (voisins exclus) avec bandes monotones ; câblé en dernier cran de la
   cascade dans `orchestration` (§7). Cœur des crans EPCI/DÉPT factorisé (`_maille_par_bandes`).
+- ✅ **Régression partagée & mémoïsée** (#175) : aux crans EPCI/DÉPARTEMENT, la
+  pondération est **uniforme** (σ départemental) — le centre est le **barycentre des
+  ventes du périmètre** (`_centroide_moyen`), pas le centroïde de la commune. La maille
+  est donc **identique pour toutes les communes** de l'EPCI (resp. du département) et
+  ne dépend pas de l'ordre d'itération (INV-5). `orchestration.compute_departement` la
+  calcule **une seule fois** par EPCI / par département puis la réutilise (seul
+  `code_insee` change dans la ligne écrite) — le coût passe de `O(communes × fit+bandes)`
+  à `O(régressions distinctes × fit+bandes)`. `compute_maille_epci` /
+  `compute_maille_departement` ne prennent donc plus de `centroid_lat/lon`. Sortie
+  inchangée : une ligne `coefficient_maille` par commune.
+- ✅ **Mode DÉPARTEMENTAL dégradé mémoïsé** (#200, `_maille_departementale`) : même
+  principe pour le repli départemental **interne** de `compute_maille` (§7, mode #22
+  sans bandes) — centre = barycentre des ventes du département, résultat identique pour
+  toutes les communes du dept, calculé **une seule fois par batch** (`compute_communes`
+  passe un cache `memo_departemental`) et réutilisé (seul `code_insee` change). Le mode
+  LOCAL reste par commune (voisinage propre, régressions légitimement différentes).
 - ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
   à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
 - ✅ **Restitution `app`** : le lecteur (`CoefficientMailleDbal`) projette `mode`,
@@ -252,3 +409,13 @@ Config gagnante et protocole : [`docs/lab/RECAP.md`](lab/RECAP.md). Diagnostics 
 [`lab/diagnostic-inversion-FG-toulouse.md`](lab/diagnostic-inversion-FG-toulouse.md),
 [`lab/diagnostic-115-type-et-rural.md`](lab/diagnostic-115-type-et-rural.md). Glossaire :
 [`docs/GLOSSAIRE-STATISTIQUE.md`](GLOSSAIRE-STATISTIQUE.md).
+
+**Décision #115 (coefficients DPE non monotones)** — tranchée et **en prod** : le biais
+d'inversion (passoires plus chères que la moyenne à Toulouse) venait de trois causes
+cumulées. Les trois corrections retenues sont implémentées : **(1)** modèle en **log-prix**
+(coefficients en %, comparables entre communes, §4), **(2)** **effets fixes période de
+construction** (44 % des `G` sont d'avant 1948 vs 2 % des `A`, §4), **(3)** **indice de
+quartier leave-one-out** (médiane des 20 ventes les plus proches, bien exclu, §4). Restent
+**décidés séparément** (hors #115) : le **pooling partiel** (tirer un coef communal à faible
+effectif vers le départemental) et un **garde-fou de monotonie** à la publication — la
+tolérance INV-1 (§11) couvre aujourd'hui les inversions robustes en attendant.

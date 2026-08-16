@@ -1,0 +1,203 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
+
+/**
+ * Pages légalement obligatoires (#228) : mentions légales (LCEN art. 6-III),
+ * politique de confidentialité (RGPD art. 13), CGU et CGV (C. com. art. L441-1).
+ */
+final class PagesLegalesControllerTest extends WebTestCase
+{
+    private const HOTE = 'valeurverte.localhost';
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function cheminsLegaux(): iterable
+    {
+        yield 'mentions légales' => ['/mentions-legales'];
+        yield 'confidentialité' => ['/confidentialite'];
+        yield 'CGU' => ['/cgu'];
+        yield 'CGV' => ['/cgv'];
+    }
+
+    /**
+     * @dataProvider cheminsLegaux
+     */
+    public function testChaquePageLegaleEstAccessibleSansCompte(string $chemin): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', 'http://'.self::HOTE.$chemin);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('h1');
+    }
+
+    /**
+     * Ces pages ne dépendent d'aucune session et ne changent qu'au déploiement :
+     * elles doivent rester indexables et cachables par un proxy partagé.
+     *
+     * @dataProvider cheminsLegaux
+     */
+    public function testChaquePageLegaleEstIndexableEtCachablePubliquement(string $chemin): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request('GET', 'http://'.self::HOTE.$chemin);
+
+        self::assertStringContainsString('index', (string) $crawler->filter('meta[name="robots"]')->attr('content'));
+        self::assertSame(1, $crawler->filter('link[rel="canonical"]')->count());
+        $cacheControl = (string) $client->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('public', $cacheControl);
+        self::assertStringContainsString('s-maxage=', $cacheControl);
+    }
+
+    /**
+     * La LCEN énumère les informations qui doivent figurer : une page qui
+     * afficherait l'intitulé sans la valeur ne remplit pas l'obligation.
+     *
+     * @dataProvider champsObligatoiresDesMentions
+     */
+    public function testLesMentionsLegalesRenseignentChaqueChampExigeParLaLcen(string $champ): void
+    {
+        $crawler = $this->page('/mentions-legales');
+
+        $valeur = $crawler->filter(\sprintf('[data-mention="%s"]', $champ));
+        self::assertSame(1, $valeur->count(), \sprintf('La mention « %s » est attendue sur la page.', $champ));
+        self::assertNotSame('', trim($valeur->text()), \sprintf('La mention « %s » est vide.', $champ));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function champsObligatoiresDesMentions(): iterable
+    {
+        yield 'raison sociale' => ['editeur.raison_sociale'];
+        yield 'forme juridique' => ['editeur.forme_juridique'];
+        yield 'immatriculation' => ['editeur.immatriculation'];
+        yield 'siège' => ['editeur.siege'];
+        yield 'directeur de publication' => ['editeur.directeur_publication'];
+        yield 'contact' => ['editeur.contact'];
+        yield 'hébergeur' => ['hebergeur.identite'];
+        yield 'adresse de l\'hébergeur' => ['hebergeur.adresse'];
+        yield 'téléphone de l\'hébergeur' => ['hebergeur.telephone'];
+    }
+
+    /**
+     * Ces informations vivent en configuration : elles changent (siège, statut,
+     * hébergeur) sans qu'on ait à toucher au HTML.
+     */
+    public function testLesMentionsLegalesAffichentLIdentiteConfiguree(): void
+    {
+        $crawler = $this->page('/mentions-legales');
+
+        /** @var array<string, string> $editeur */
+        $editeur = static::getContainer()->getParameter('app.editeur');
+        self::assertSame($editeur['raison_sociale'], trim($crawler->filter('[data-mention="editeur.raison_sociale"]')->text()));
+        self::assertSame($editeur['siege'], trim($crawler->filter('[data-mention="editeur.siege"]')->text()));
+
+        /** @var array<string, string> $hebergeur */
+        $hebergeur = static::getContainer()->getParameter('app.hebergeur');
+        self::assertSame($hebergeur['identite'], trim($crawler->filter('[data-mention="hebergeur.identite"]')->text()));
+    }
+
+    /**
+     * RGPD art. 13 : chaque traitement doit annoncer sa finalité, sa base légale
+     * et sa durée de conservation. Un tableau incomplet n'informe personne.
+     */
+    public function testLaConfidentialiteDecritChaqueTraitementDeBoutEnBout(): void
+    {
+        $crawler = $this->page('/confidentialite');
+
+        $traitements = $crawler->filter('[data-traitement]');
+        self::assertGreaterThanOrEqual(3, $traitements->count(), 'Compte pro, prospects du widget et emails sont au minimum attendus.');
+
+        $traitements->each(static function (Crawler $traitement): void {
+            $nom = (string) $traitement->attr('data-traitement');
+            foreach (['finalite', 'base-legale', 'duree'] as $rubrique) {
+                $cellule = $traitement->filter(\sprintf('[data-rubrique="%s"]', $rubrique));
+                self::assertSame(1, $cellule->count(), \sprintf('Traitement « %s » : rubrique « %s » absente.', $nom, $rubrique));
+                self::assertNotSame('', trim($cellule->text()), \sprintf('Traitement « %s » : rubrique « %s » vide.', $nom, $rubrique));
+            }
+        });
+    }
+
+    public function testLaConfidentialiteNommeLesDestinatairesEtLaVoieDeRecours(): void
+    {
+        $crawler = $this->page('/confidentialite');
+
+        $texte = $crawler->filter('main')->text();
+        self::assertStringContainsString('Brevo', $texte, 'Le sous-traitant qui reçoit les emails doit être nommé.');
+        self::assertStringContainsString('CNIL', $texte, 'Le droit d\'introduire une réclamation doit être indiqué.');
+        foreach (['accès', 'rectification', 'effacement', 'opposition'] as $droit) {
+            self::assertStringContainsString($droit, $texte, \sprintf('Le droit d\'%s doit être mentionné.', $droit));
+        }
+    }
+
+    /**
+     * Aucun traceur n'est déposé aujourd'hui : la page doit le dire, faute de quoi
+     * le lecteur ne peut pas savoir qu'il n'a rien à consentir.
+     */
+    public function testLaConfidentialiteTraiteLeSujetDesCookies(): void
+    {
+        $crawler = $this->page('/confidentialite');
+
+        self::assertSame(1, $crawler->filter('#cookies')->count());
+        self::assertStringContainsString('session', $crawler->filter('#cookies')->text());
+    }
+
+    /**
+     * Le cœur du risque du produit : une estimation statistique prise pour une
+     * évaluation immobilière. Les CGU doivent le dire noir sur blanc.
+     */
+    public function testLesCguQualifientLEstimationEtBornentLaResponsabilite(): void
+    {
+        $crawler = $this->page('/cgu');
+
+        $texte = $crawler->filter('main')->text();
+        self::assertStringContainsString('ne constitue pas une évaluation immobilière', $texte);
+        self::assertSame(1, $crawler->filter('#responsabilite')->count());
+        self::assertSame(1, $crawler->filter('#propriete-intellectuelle')->count());
+        self::assertStringContainsString('droit français', $texte);
+    }
+
+    public function testLesCguPortentUneVersionDatee(): void
+    {
+        $crawler = $this->page('/cgu');
+
+        $version = $crawler->filter('[data-version-cgu]');
+        self::assertSame(1, $version->count(), 'Une version datée est nécessaire pour prouver ce qui a été accepté.');
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $version->attr('data-version-cgu'));
+    }
+
+    /**
+     * C. com. art. L441-1 : entre professionnels, les CGV sont le socle unique de
+     * la négociation — prix, échéances, pénalités de retard et indemnité de 40 €.
+     */
+    public function testLesCgvPortentLesMentionsCommercialesObligatoires(): void
+    {
+        $crawler = $this->page('/cgv');
+
+        $texte = $crawler->filter('main')->text();
+        self::assertStringContainsString('40 €', $texte, 'L\'indemnité forfaitaire de recouvrement est obligatoire.');
+        self::assertStringContainsString('pénalités de retard', mb_strtolower($texte));
+        foreach (['#prix', '#duree', '#resiliation', '#paiement'] as $section) {
+            self::assertSame(1, $crawler->filter($section)->count(), \sprintf('Section « %s » attendue.', $section));
+        }
+    }
+
+    private function page(string $chemin): Crawler
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', 'http://'.self::HOTE.$chemin);
+        self::assertResponseIsSuccessful();
+
+        return $crawler;
+    }
+}

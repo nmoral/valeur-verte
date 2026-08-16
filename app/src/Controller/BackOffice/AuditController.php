@@ -6,12 +6,15 @@ namespace App\Controller\BackOffice;
 
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Audit\SaisieInvalide;
+use App\BackOffice\Bouquet\Bouquet;
+use App\BackOffice\Bouquet\BouquetRepository;
 use App\BackOffice\Estimation\ClasseNonPubliee;
 use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Estimation\ResultatEstimation;
 use App\BackOffice\Rapport\ArchiveurRapport;
 use App\BackOffice\Rapport\Dpe;
+use App\Compte\SuiviCompte;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -33,12 +36,20 @@ final class AuditController extends AbstractController
     public function __construct(
         private readonly EstimateurValeurVerte $estimateur,
         private readonly ArchiveurRapport $archiveur,
+        private readonly BouquetRepository $bouquets,
+        private readonly SuiviCompte $suivi,
     ) {
     }
 
     #[Route('/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
+        // Essai terminé (quota consommé OU période écoulée, #108) : la création
+        // d'audit est fermée, on renvoie vers l'écran de bilan (la bascule).
+        if ($this->suivi->essaiCourant()?->termine() ?? false) {
+            return $this->redirectToRoute('back_office_bilan');
+        }
+
         if ($request->isMethod('POST')) {
             return $this->traiter($request);
         }
@@ -57,6 +68,7 @@ final class AuditController extends AbstractController
             'nombre_pieces' => $request->request->getString('nombre_pieces'),
             'code_insee' => $request->request->getString('code_insee'),
             'valeur_bien' => $request->request->getString('valeur_bien'),
+            'bouquet' => $request->request->getString('bouquet'),
         ];
 
         if (!$this->isCsrfTokenValid('audit', $request->request->getString('_csrf_token'))) {
@@ -84,18 +96,27 @@ final class AuditController extends AbstractController
 
         $valeurBien = $valeurs['valeur_bien'];
         $resultat = $this->estimer($valeurs['code_insee'], $saisie, '' === $valeurBien ? null : (int) $valeurBien);
+        $bouquet = $this->bouquetChoisi($valeurs['bouquet']);
 
         // Un audit terminé est archivé immédiatement (#33/#37) : il apparaît dans
         // « Rapports & leads » et son PDF (#32) se régénère depuis l'instantané.
         // La restitution reste en session pour l'affichage de la page dédiée.
-        $rapport = $this->archiveur->archiver($saisie, $resultat?->restitution(), $resultat?->contexte());
+        $rapport = $this->archiveur->archiver($saisie, $resultat?->restitution(), $resultat?->contexte(), $bouquet);
         $request->getSession()->set(self::SESSION_RESULTAT, [
             'saisie' => $saisie,
             'restitution' => $resultat?->restitution(),
             'reference' => $rapport->reference(),
+            'bouquet' => $bouquet,
         ]);
 
         return $this->redirectToRoute('back_office_audit_resultat');
+    }
+
+    private function bouquetChoisi(string $nom): Bouquet
+    {
+        // Sans bouquet explicite (ou nom inconnu), on retient le bouquet complet —
+        // un rapport reste produisible sans choix préalable (§9.2).
+        return $this->bouquets->parNom($nom) ?? Bouquet::renovationAmpleurStandard();
     }
 
     private function estimer(string $codeInsee, SaisieAudit $saisie, ?int $valeurBien): ?ResultatEstimation
@@ -125,6 +146,7 @@ final class AuditController extends AbstractController
             'nombre_pieces' => '',
             'code_insee' => '',
             'valeur_bien' => '',
+            'bouquet' => Bouquet::renovationAmpleurStandard()->nom(),
         ];
     }
 
@@ -140,6 +162,7 @@ final class AuditController extends AbstractController
             'valeurs' => $valeurs,
             'erreurs' => $erreurs,
             'dpe_options' => Dpe::cases(),
+            'bouquets' => $this->bouquets->disponibles(),
         ], new Response('', $statut));
     }
 }

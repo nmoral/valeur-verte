@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pytest
 
+from valeur_verte_data import batch
 from valeur_verte_data.batch import (
     MailleCoefficient,
     _sigma_local,
@@ -62,6 +63,83 @@ def _cluster_commune(
     ]
 
 
+def _cluster_deux_annees(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Pool LOCAL sur 2 millésimes où le premium C dérive (2023 +0,05 → 2024 +0,15).
+
+    Le niveau de prix de base est identique d'une année à l'autre (effets fixes
+    année neutres) ; seul l'écart C→D bouge. Un calcul à poids égaux estime
+    coef_C ≈ moyenne (~+0,10), la pondération temporelle vers 2024 le rapproche
+    de +0,15 (#208). ``id_mutation`` préfixé par l'année pour rester unique.
+    """
+    houses: list[Mutation] = []
+    for annee, premium_c in ((2023, 0.05), (2024, 0.15)):
+        for dpe, effet in {"D": 0.0, "C": premium_c}.items():
+            for i in range(count_per_class):
+                bati = 80 + 5 * i
+                prix = round(3000.0 * bati**0.9 * math.exp(effet))
+                base = _house(dpe, bati, prix, lat=lat, lon=lon)
+                houses.append(
+                    replace(base, millesime=annee, id_mutation=f"{annee}-{base.id_mutation}")
+                )
+    return houses
+
+
+def test_compute_maille_ponderation_temporelle_rapproche_du_premium_recent() -> None:
+    # La décroissance temporelle (#208) rapproche coef_C du premium de l'année N
+    # (2024, +0,15) au lieu de la moyenne inter-année (~+0,10) : biais de retard réduit.
+    pool = _cluster_deux_annees(10, lat=43.6, lon=1.44)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    plat = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    recent = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, decroissance_temporelle_tau=0.5),
+    )
+    assert plat is not None and recent is not None
+    assert recent.coef_dpe["C"] > plat.coef_dpe["C"]
+
+
+def _cluster_deux_annees_bruite(count_per_class: int, *, lat: float, lon: float) -> list[Mutation]:
+    """Comme ``_cluster_deux_annees`` mais avec un bruit ±8 % déterministe : la CV
+    a alors une erreur médiane non nulle, sensible à la pondération temporelle.
+    """
+    houses: list[Mutation] = []
+    for annee, premium_c in ((2023, 0.05), (2024, 0.15)):
+        for dpe, effet in {"D": 0.0, "C": premium_c}.items():
+            for i in range(count_per_class):
+                bati = 80 + 5 * i
+                bruit = 1.08 if i % 2 == 0 else 0.92
+                prix = round(3000.0 * bati**0.9 * math.exp(effet) * bruit)
+                base = _house(dpe, bati, prix, lat=lat, lon=lon)
+                houses.append(
+                    replace(base, millesime=annee, id_mutation=f"{annee}-{base.id_mutation}")
+                )
+    return houses
+
+
+def test_compute_maille_ponderation_temporelle_atteint_l_erreur_mediane() -> None:
+    # La validation croisée (erreur médiane → palier de fiabilité) doit recevoir la
+    # pondération temporelle : sinon elle mesurerait un estimateur à poids égaux
+    # différent de celui publié (#208).
+    pool = _cluster_deux_annees_bruite(12, lat=43.6, lon=1.44)
+    base = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    plat = compute_maille("31555", 43.6, 1.44, 2024, pool, config=base)
+    recent = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(base, decroissance_temporelle_tau=0.5),
+    )
+    assert plat is not None and recent is not None
+    assert plat.erreur_mediane is not None and recent.erreur_mediane is not None
+    assert recent.erreur_mediane != plat.erreur_mediane
+
+
 def _pool_dpe_clairseme(
     *, lat: float = 43.6, lon: float = 1.44
 ) -> tuple[list[Mutation], list[Mutation], list[Mutation]]:
@@ -102,7 +180,7 @@ def test_compute_maille_epci_poole_les_communes_de_l_epci() -> None:
     cfg = replace(CalculConfig(), min_class_sample=1)
 
     maille = compute_maille_epci(
-        "31555", 43.6, 1.44, 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
+        "31555", 2024, ("31555", "31149"), dans_epci + hors_epci, config=cfg
     )
 
     assert maille is not None
@@ -116,7 +194,7 @@ def test_compute_maille_epci_refuse_sans_classe_exploitable() -> None:
     par classe s'applique à tous les crans) — la bascule au département suivra."""
     pool = [_maison_classe("D", i) for i in range(40)]  # une seule classe
 
-    maille = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=CalculConfig())
+    maille = compute_maille_epci("31555", 2024, ("31555",), pool, config=CalculConfig())
 
     assert maille is None
 
@@ -130,7 +208,7 @@ def test_compute_maille_epci_fusionne_les_classes_sous_effectif_en_bandes() -> N
     pool = amples + rares_f + rares_g
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    epci = compute_maille_epci("31555", 43.6, 1.44, 2024, ("31555",), pool, config=cfg)
+    epci = compute_maille_epci("31555", 2024, ("31555",), pool, config=cfg)
 
     assert epci is not None
     assert epci.mode is CoverageMode.EPCI
@@ -147,9 +225,7 @@ def test_compute_maille_epci_expose_le_mapping_des_bandes() -> None:
     amples, rares_f, rares_g = _pool_dpe_clairseme()
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    epci = compute_maille_epci(
-        "31555", 43.6, 1.44, 2024, ("31555",), amples + rares_f + rares_g, config=cfg
-    )
+    epci = compute_maille_epci("31555", 2024, ("31555",), amples + rares_f + rares_g, config=cfg)
 
     assert epci is not None
     assert epci.bandes == {"D": "D", "F": "F", "G": "F"}
@@ -174,13 +250,36 @@ def test_compute_maille_departement_fusionne_en_bandes_et_ignore_les_voisins() -
     pool = amples + rares_f + rares_g + voisin_09
     cfg = replace(CalculConfig(), min_class_sample=10)
 
-    maille = compute_maille_departement("31555", 43.6, 1.44, 2024, pool, config=cfg)
+    maille = compute_maille_departement("31555", 2024, pool, config=cfg)
 
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
     assert maille.rayon_retenu_km is None
     assert set(maille.coef_dpe) == {"D", "F"}  # G fusionnée dans la bande F
     assert maille.n_transactions == len(amples) + len(rares_f) + len(rares_g)  # voisin exclu
+
+
+def test_le_cran_departemental_ne_depend_pas_de_la_commune_representante() -> None:
+    """#175 : la maille départementale est une fonction pure des ventes du
+    département (centroïde interne = moyenne de l'échantillon, pondération uniforme
+    σ départemental). Deux communes du même département donnent des coefficients
+    **identiques** — seul ``code_insee`` change. C'est ce qui rend le partage exact
+    et autorise la mémoïsation (un seul calcul réutilisé pour tout le département).
+    """
+    amples, rares_f, rares_g = _pool_dpe_clairseme()
+    pool = amples + rares_f + rares_g
+    cfg = replace(CalculConfig(), min_class_sample=10)
+
+    a = compute_maille_departement("31555", 2024, pool, config=cfg)
+    b = compute_maille_departement("31149", 2024, pool, config=cfg)
+
+    assert a is not None and b is not None
+    assert a.code_insee == "31555" and b.code_insee == "31149"
+    assert a.coef_dpe == b.coef_dpe
+    assert a.coef_m2_bati == b.coef_m2_bati
+    assert a.coef_m2_terrain == b.coef_m2_terrain
+    assert a.bandes == b.bandes
+    assert a.erreur_mediane == b.erreur_mediane
 
 
 def test_le_bati_recent_entre_dans_le_calcul_si_la_restriction_est_levee() -> None:
@@ -651,6 +750,75 @@ def test_compute_maille_departemental_pondere_tout_le_pool() -> None:
     assert maille is not None
     assert maille.mode is CoverageMode.DEPARTEMENTAL
     assert maille.coef_dpe["F"] > -20000
+
+
+def test_le_mode_departemental_ne_depend_pas_de_la_commune() -> None:
+    """#200 : en mode dégradé (départemental), le résultat est une fonction pure des
+    ventes du département — centre = barycentre de l'échantillon. Deux communes du
+    même département, même si leurs centroïdes diffèrent, obtiennent des coefficients
+    **identiques** (seul code_insee change), ce qui autorise la mémoïsation.
+
+    Deux sous-clusters à ~100 km avec des effets DPE différents : sans barycentre,
+    chaque commune pondérerait « son » cluster plus fort → coefficients différents.
+    """
+    # σ départemental réduit pour rendre la pondération sensible au centre (sinon
+    # à σ=1000 l'écart serait infime) : amplifie l'effet à corriger.
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=20,
+        min_sample=20,
+        min_class_sample=1,
+        departemental_sigma_km=100.0,
+    )
+    pool = _cluster_effet(-40000, lat=43.6, lon=1.44) + _cluster_effet(-10000, lat=44.5, lon=1.44)
+
+    # Communes du 31, chacune sur un cluster (14 ventes < seuil 20 → départemental),
+    # l'autre cluster à ~100 km (> rayon max) reste hors sélection locale.
+    a = compute_maille("31001", 43.6, 1.44, 2024, pool, config=cfg)
+    b = compute_maille("31002", 44.5, 1.44, 2024, pool, config=cfg)
+
+    assert a is not None and b is not None
+    assert a.mode is CoverageMode.DEPARTEMENTAL and b.mode is CoverageMode.DEPARTEMENTAL
+    assert a.code_insee == "31001" and b.code_insee == "31002"
+    assert a.coef_dpe == b.coef_dpe
+    assert a.coef_m2_bati == b.coef_m2_bati
+    assert a.coef_m2_terrain == b.coef_m2_terrain
+    assert a.erreur_mediane == b.erreur_mediane
+
+
+def test_compute_communes_memoise_le_mode_departemental_par_departement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#200 : la régression départementale (mode dégradé) est identique pour toutes
+    les communes du département → calculée **une seule fois** par batch, puis réutilisée
+    (seul code_insee change), au lieu d'être refaite par commune."""
+    cfg = replace(
+        CalculConfig(),
+        min_local_sample=20,
+        min_sample=20,
+        min_class_sample=1,
+        departemental_sigma_km=100.0,
+    )
+    pool = _cluster_effet(-40000, lat=43.6, lon=1.44) + _cluster_effet(-10000, lat=44.5, lon=1.44)
+
+    original = batch._maille_departementale
+    appels: list[str] = []
+
+    def espion(code_insee: str, *args: object, **kwargs: object) -> object:
+        appels.append(code_insee)
+        return original(code_insee, *args, **kwargs)
+
+    monkeypatch.setattr(batch, "_maille_departementale", espion)
+
+    mailles = list(
+        compute_communes([("31001", 43.6, 1.44), ("31002", 44.5, 1.44)], pool, 2024, config=cfg)
+    )
+
+    assert len(mailles) == 2
+    assert all(m.mode is CoverageMode.DEPARTEMENTAL for m in mailles)
+    assert len(appels) == 1, "une seule régression départementale pour tout le département"
+    assert {m.code_insee for m in mailles} == {"31001", "31002"}
+    assert mailles[0].coef_dpe == mailles[1].coef_dpe
 
 
 def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:

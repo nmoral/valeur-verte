@@ -21,13 +21,19 @@ from .batch import (
     compute_maille_epci,
 )
 from .config import DEFAULT_CONFIG, CalculConfig
-from .db.coefficient_repository import delete_coefficient, upsert_coefficient
+from .db.coefficient_repository import (
+    archiver_coefficient,
+    enregistrer_refus,
+    lire_coefficient_precedent,
+)
+from .db.commune_repository import upsert_communes
 from .db.epci_repository import communes_de_meme_epci, upsert_epci
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .degraded import CoverageMode
+from .ecarts import ClasseEcart, MotifRefus, RapportEcarts, ecart_maille
 from .http import Fetcher
 from .ingest import ingest_commune
 from .invariants import (
@@ -40,6 +46,7 @@ from .invariants import (
     evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
+from .ruptures import filtrer_regime_dpe
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -66,6 +73,9 @@ class RapportIngestion:
     mutations_inserees: int = 0
     contours_charges: int = 0
     epci_charges: int = 0
+    # #220 : communes dont le nom a été référencé. L'opérateur doit voir que le
+    # référentiel a bien été rafraîchi, au même titre que contours et EPCI.
+    communes_referencees: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
 
@@ -79,6 +89,7 @@ class RapportIngestion:
             f"Département {self.departement}, millésime {self.millesime} : "
             f"{self.communes_traitees} commune(s), "
             f"{self.mutations_inserees} mutation(s), "
+            f"{self.communes_referencees} commune(s) référencée(s), "
             f"{len(self.sans_donnees)} sans transaction publiée, "
             f"{len(self.echecs)} échec(s)"
         )
@@ -105,6 +116,11 @@ class RapportCalcul:
     # tolérée (classes adjacentes, la moins fournie sous le seuil). Journalisées
     # pour distinguer plus tard une faiblesse chronique d'une dérive nouvelle.
     inversions_dpe: list[str] = field(default_factory=list)
+    # REG-1 (#129) : écarts des mailles au millésime précédent — objet dédié, une
+    # ligne par maille comparée, alimentant l'écran de supervision (#45). Les mailles
+    # en blocage sont archivées comme les autres, mais **écartées de la publication**
+    # du millésime (REG-2, #130) : leur ancienne valeur reste servie jusqu'à déblocage.
+    ecarts: RapportEcarts = field(default_factory=RapportEcarts)
     # INV-5 (#123) : clé d'ordre canonique qui rend le batch déterministe. On la
     # journalise pour qu'un millésime publié soit auditable — REG-1 compare des
     # batches dont on sait qu'ils étaient reproductibles.
@@ -118,11 +134,13 @@ class RapportCalcul:
     def resume(self) -> str:
         return (
             f"Département {self.departement}, millésime {self.millesime} : "
-            f"{self.communes_calculees} coefficient(s), "
+            f"{self.communes_calculees} coefficient(s) archivé(s), "
             f"{len(self.refus)} refus sous seuil, "
             f"{len(self.rejets_invariants)} rejet(s) invariant, "
             f"{len(self.alertes_bord)} alerte(s) de bord, "
             f"{len(self.inversions_dpe)} inversion(s) DPE tolérée(s), "
+            f"{len(self.ecarts.blocages)} maille(s) écartée(s) de la publication (REG-1), "
+            f"{len(self.ecarts.alertes)} alerte(s) d'écart, "
             f"{len(self.echecs)} échec(s) ; "
             f"ordre canonique : {self.ordre_canonique}"
         )
@@ -145,6 +163,12 @@ def ingest_departement(
     rapport = RapportIngestion(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
     total = len(communes)
+
+    # Référentiel des noms (#220) écrit **avant** la boucle : une exécution
+    # interrompue doit quand même laisser les noms en base. Ils ne dépendent pas
+    # des ventes et servent aux écrans dès la première maille calculée.
+    rapport.communes_referencees = upsert_communes(conn, communes)
+    conn.commit()
 
     for rang, commune in enumerate(communes, 1):
         try:
@@ -217,12 +241,25 @@ def compute_departement(
     rapport = RapportCalcul(departement=departement, millesime=millesime)
     communes = fetch_communes_by_departement(fetcher, departement)
     voisins = limitrophes(departement)
-    pool = load_pool(conn, departement, millesime, limitrophes=voisins, type_local=config.segment)
+    pool = load_pool(
+        conn,
+        departement,
+        millesime,
+        fenetre=config.fenetre_millesimes,
+        limitrophes=voisins,
+        type_local=config.segment,
+    )
+    # #215 : ne pas pooler à travers une réforme du DPE — on écarte les ventes dont
+    # le diagnostic précède la dernière réforme ≤ N (calendrier config, vide = no-op).
+    charge = len(pool)
+    pool = filtrer_regime_dpe(pool, millesime, config.dpe_reform_boundaries)
+    ecartes = charge - len(pool)
     logger.info(
-        "Pool du département %s (+ %s) : %d vente(s)",
+        "Pool du département %s (+ %s) : %d vente(s)%s",
         departement,
         ", ".join(voisins) if voisins else "aucun limitrophe",
         len(pool),
+        f" ({ecartes} écartée(s) — régime DPE antérieur, #215)" if ecartes else "",
     )
 
     coordonnees = [
@@ -241,7 +278,16 @@ def compute_departement(
     adjacence = read_adjacence(conn, departement)
     alertes = alertes_de_bord(detecter_ruptures_limitrophes(calculees.values(), adjacence, config))
 
-    for code_insee, latitude, longitude in coordonnees:
+    # #175 : aux crans EPCI/DÉPARTEMENT, la régression est **identique** pour toutes
+    # les communes d'un même périmètre (échantillon partagé, pondération uniforme σ
+    # départemental). On la calcule **une seule fois** puis on la réutilise — seul
+    # ``code_insee`` change — au lieu de refaire fit + ``bandes_monotones`` par commune
+    # (coût O(communes × fit) → O(régressions distinctes × fit)).
+    epci_par_appartenance: dict[tuple[str, ...], MailleCoefficient | None] = {}
+    maille_departementale: MailleCoefficient | None = None
+    departement_calcule = False
+
+    for code_insee, _latitude, _longitude in coordonnees:
         local = calculees.get(code_insee)
         retenue: MailleCoefficient | None = None
         monotonie: ResultatMonotonie | None = None
@@ -255,13 +301,17 @@ def compute_departement(
             # calculé mais hors invariants par-maille) → on descend au cran EPCI
             # (une régression par EPCI avec bandes) avant de refuser.
             membres = communes_de_meme_epci(conn, code_insee)
-            epci = (
-                compute_maille_epci(
-                    code_insee, latitude, longitude, millesime, membres, pool, config=config
-                )
-                if membres
-                else None
-            )
+            epci = None
+            if membres:
+                # Mémoïsation par appartenance EPCI (#175) : une régression par EPCI.
+                cle = tuple(membres)
+                if cle not in epci_par_appartenance:
+                    epci_par_appartenance[cle] = compute_maille_epci(
+                        code_insee, millesime, membres, pool, config=config
+                    )
+                partagee = epci_par_appartenance[cle]
+                if partagee is not None:
+                    epci = replace(partagee, code_insee=code_insee)
             if epci is not None:
                 monotonie_epci = evaluer_monotonie_dpe(epci, config)
                 if not _raisons_de_rejet(epci, monotonie_epci, config):
@@ -270,8 +320,16 @@ def compute_departement(
         if retenue is None:
             # Dernier filet #169 : le cran DÉPARTEMENT (ventes du seul département,
             # avec bandes) garantit une estimation là où le local et l'EPCI ont cédé.
-            dept = compute_maille_departement(
-                code_insee, latitude, longitude, millesime, pool, config=config
+            # Mémoïsé (#175) : une seule régression départementale pour tout le batch.
+            if not departement_calcule:
+                maille_departementale = compute_maille_departement(
+                    code_insee, millesime, pool, config=config
+                )
+                departement_calcule = True
+            dept = (
+                replace(maille_departementale, code_insee=code_insee)
+                if maille_departementale is not None
+                else None
             )
             if dept is not None:
                 monotonie_dept = evaluer_monotonie_dpe(dept, config)
@@ -279,11 +337,13 @@ def compute_departement(
                     retenue, monotonie = dept, monotonie_dept
 
         if retenue is None:
-            # Aucun cran ne publie : on efface une éventuelle valeur antérieure
-            # (sinon un coefficient invalidé continuerait d'être servi, #115). On
+            # REG-2 (#130) : le refus est **enregistré**, pas appliqué. La commune ne
+            # sort du service qu'à la publication du millésime — sinon un millésime
+            # calculé puis abandonné aurait déjà fait disparaître des communes. On
             # distingue le refus sec (rien de calculable) du rejet d'invariant
             # (calculé mais hors seuils) pour garder le rapport lisible.
-            delete_coefficient(conn, code_insee)
+            motif = MotifRefus.REFUS if local is None else MotifRefus.REJET_INVARIANT
+            enregistrer_refus(conn, code_insee, millesime, motif)
             conn.commit()
             if local is None:
                 rapport.refus.append(code_insee)
@@ -307,8 +367,41 @@ def compute_departement(
         if alerte_bord is not None:
             retenue = replace(retenue, alerte=alerte_bord)
             rapport.alertes_bord.append(code_insee)
+
+        # REG-1 (#129) : comparer au précédent **avant** d'archiver, pour que le
+        # verdict parte avec l'archive. C'est lui qui permettra à la publication
+        # (REG-2, #130) d'écarter les mailles aberrantes : sans classe portée, une
+        # projection « toutes les lignes du millésime » les publierait aussi. Sans
+        # précédent, rien à comparer — la classe reste absente, ce qui n'est pas un
+        # verdict favorable mais une absence de verdict.
+        precedent = lire_coefficient_precedent(conn, code_insee, millesime)
+        ecart = None
+        if precedent is not None:
+            ecart = ecart_maille(
+                precedent,
+                retenue,
+                seuil_alerte=config.ecart_alerte_pct / 100,
+                seuil_blocage=config.ecart_blocage_pct / 100,
+            )
+            rapport.ecarts.ajouter(code_insee, ecart)
+            if ecart.classe is ClasseEcart.BLOCAGE:
+                logger.warning(
+                    "%s : écartée de la publication — écart %.0f %% sur %s (REG-1)",
+                    code_insee,
+                    ecart.ecart * 100,
+                    ecart.coefficient,
+                )
+
+        # REG-2 (#130) : le batch archive, il ne publie pas. La table vive n'est
+        # servie qu'après activation explicite depuis l'admin interne.
         try:
-            upsert_coefficient(conn, retenue)
+            archiver_coefficient(
+                conn,
+                retenue,
+                classe_ecart=None if ecart is None else ecart.classe,
+                ecart=None if ecart is None else ecart.ecart,
+                ecart_coefficient=None if ecart is None else ecart.coefficient,
+            )
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
             conn.rollback()
             rapport.echecs.append(code_insee)

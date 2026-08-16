@@ -40,6 +40,17 @@ security:
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/inscription$, roles: PUBLIC_ACCESS }
+        # Mot de passe oublié (#194) : demande et réinitialisation publiques —
+        # l'utilisateur n'est par définition pas connecté ; le jeton signé (lien
+        # d'email) fait la sécurité de la réinitialisation.
+        - { path: ^/mot-de-passe-oublie, roles: PUBLIC_ACCESS }
+        # Confirmation d'email (#105) : lien signé cliqué sans session (public sur
+        # tout host). Le renvoi (/verification-email/renvoyer) reste protégé par le
+        # rôle du sous-domaine (règle plus stricte non matchée par ce chemin exact).
+        - { path: ^/verification-email$, roles: PUBLIC_ACCESS }
+        # Désabonnement par lien signé depuis l'email (#108/#109) : public sur
+        # tout host, la signature du jeton fait la sécurité — avant l'exigence de rôle.
+        - { path: ^/desabonnement, roles: PUBLIC_ACCESS }
         - { host: '^admin\.', roles: ROLE_ADMIN }
         - { host: '^app\.', roles: ROLE_PRO }
 

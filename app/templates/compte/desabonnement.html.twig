@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Désabonnement — Valeur Verte{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .desabo{max-width:520px;margin:64px auto;padding:0 20px;text-align:center;font-family:'Public Sans',sans-serif}
+    .desabo .mono{width:44px;height:44px;margin:0 auto 20px;background:#0E4A5C;border-radius:9px;color:#fff;
+        font:700 18px/44px 'Public Sans',sans-serif;letter-spacing:.5px}
+    .desabo h1{margin:0 0 12px;font:700 26px/1.25 'Public Sans',sans-serif;color:#111820}
+    .desabo p{margin:0 0 8px;font:400 16px/1.6 'Public Sans',sans-serif;color:#3E4954}
+    .desabo .note{margin-top:20px;font-size:14px;color:#7C8896}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="desabo">
+    <div class="mono">VV</div>
+    <h1>Désabonnement confirmé</h1>
+    <p>Vous ne recevrez plus nos emails de rappel et de suivi.</p>
+    <p class="note">Les messages liés à votre compte (sécurité, facturation) et vos rapports déjà produits restent bien entendu accessibles.</p>
+</div>
+{% endblock %}

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Rapport;
 
+use App\BackOffice\Restitution\AjustementProfessionnel;
+use App\BackOffice\Restitution\DeclarationsPro;
 use App\Tenant\TenantAwareInterface;
 use App\Tenant\TenantAwareTrait;
 use Doctrine\DBAL\Types\Types;
@@ -60,6 +62,28 @@ class Rapport implements TenantAwareInterface
      */
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]
     private array $instantane;
+
+    /**
+     * Ligne d'ajustement du professionnel (#30, §4), dans un champ **distinct**
+     * de l'instantané figé : l'ajustement est l'annotation propre au pro, jamais
+     * une surcharge de la mesure. Mutable (le pro pose sa ligne après coup), là où
+     * l'instantané statistique, lui, reste immuable (#33).
+     *
+     * @var array{montant_euros: int, motif: string}|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    private ?array $ajustement = null;
+
+    /**
+     * Déclarations du professionnel (#26) : situation de revenus du ménage et
+     * retouches de chiffrage. Même statut que l'ajustement ci-dessus — annotations
+     * du pro, mutables, distinctes de l'instantané figé dont elles ne touchent rien.
+     * Le reste à charge se recalcule à l'affichage à partir des deux.
+     *
+     * @var array{categorie_revenu: string, chiffrage: array<string, int>}|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    private ?array $declarations = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $contactNom;
@@ -174,5 +198,45 @@ class Rapport implements TenantAwareInterface
     public function estUnLead(): bool
     {
         return null !== $this->contactNom;
+    }
+
+    /**
+     * Pose (ou remplace) la ligne d'ajustement du pro (#30). N'écrit que le champ
+     * dédié : la mesure statistique figée dans l'instantané reste intacte.
+     */
+    public function ajusterPar(AjustementProfessionnel $ajustement): void
+    {
+        $this->ajustement = $ajustement->toArray();
+    }
+
+    public function ajustement(): ?AjustementProfessionnel
+    {
+        if (null === $this->ajustement) {
+            return null;
+        }
+
+        return AjustementProfessionnel::fromArray($this->ajustement);
+    }
+
+    /**
+     * Pose (ou remplace) les déclarations du pro (#26). Le pro affine sa saisie :
+     * c'est une correction, pas un empilement. L'instantané reste intact.
+     */
+    public function declarerPar(DeclarationsPro $declarations): void
+    {
+        $this->declarations = $declarations->toArray();
+    }
+
+    /**
+     * Toujours un objet exploitable, jamais null : le reste à charge se calcule
+     * sans branche de garde, même sur un rapport que le pro n'a pas annoté.
+     */
+    public function declarations(): DeclarationsPro
+    {
+        if (null === $this->declarations) {
+            return DeclarationsPro::aucune();
+        }
+
+        return DeclarationsPro::fromArray($this->declarations);
     }
 }

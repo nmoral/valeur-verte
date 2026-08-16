@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Demande envoyée · Valeur Verte',
+  description: 'Votre demande de réinitialisation de mot de passe a été prise en compte.',
+  canonical: url('mot_de_passe_oublie_demande'),
+  robots: 'noindex,follow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Demande envoyée</h1>
+    <p class="auth-lead">Si un compte existe pour cette adresse, un email contenant un lien de réinitialisation vient d'être envoyé. Pensez à vérifier vos spams.</p>
+    <p class="auth-lead">Le lien est valable une heure et ne peut servir qu'une seule fois.</p>
+  </div>
+
+  <p class="auth-alt"><a href="{{ path('login') }}">Retour à la connexion</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>

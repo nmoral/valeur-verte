@@ -58,14 +58,72 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: prod
-      # DATABASE_URL est ajoutée avec Doctrine (issues back-office à venir). L'app
-      # partage cette base PostGIS : lecture seule sur le schéma « data », écriture
-      # sur le schéma « app » (schema_filter côté Doctrine + rôle applicatif
-      # disposant de SELECT seul sur « data », posé au provisionnement du VPS).
+      # Bascule maintenance (#197) : passe-plat depuis le .env du VPS pour couper
+      # en 503 (page habillée) sans redéployer. Volontairement sans « :? » : une
+      # variable absente laisse le service ouvert (défaut off dans le .env écrit
+      # par ecrire-env.sh), jamais fermé par accident. 1 = maintenance active.
+      APP_MAINTENANCE: ${APP_MAINTENANCE}
+      # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
+      # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
+      # exiger explicitement, jamais de repli.
+      APP_SECRET: ${APP_SECRET:?APP_SECRET est requis}
+      # L'app partage la base PostGIS : écriture sur le schéma « app », lecture
+      # seule sur « data » (schema_filter Doctrine + rôle « app » provisionné au
+      # déploiement). DSN en format URL assemblée ici à partir du mot de passe
+      # atomique du rôle (URL-safe, garanti par ecrire-env.sh).
+      DATABASE_URL: "postgresql://app:${APP_DB_PASSWORD:?APP_DB_PASSWORD est requis}@db:5432/valeur_verte?serverVersion=16&charset=utf8"
+      # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP et doit
+      # honorer X-Forwarded-Proto pour générer des URLs https. N'étant publiée que
+      # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
+      # proxy : « REMOTE_ADDR » le désigne sans dépendre de l'IP du conteneur Caddy.
+      TRUSTED_PROXIES: REMOTE_ADDR
+      # Domaine de production : les zones de l'app vivent sur ses sous-domaines
+      # (app./admin./widget.). Sans cette variable, les routes restent sur le
+      # défaut de l'image (*.valeurverte.localhost) et tout *.valeur-verte.fr
+      # tombe en 404 derrière le proxy. Doit vivre ici (versionné) et non
+      # seulement sur le VPS, sinon chaque redéploiement fait retomber le site.
+      APP_DOMAINE: valeur-verte.fr
+      # URLs générées hors contexte HTTP (commandes CLI, envois asynchrones) : sans
+      # ça, elles retombent sur http://localhost (défaut de l'image).
+      DEFAULT_URI: https://app.valeur-verte.fr
+      # Email transactionnel (Brevo, #105/#108) : clé (secret), adresse expéditrice
+      # et adresse de réponse des emails non transactionnels (#109/#195).
+      BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY est requis}
+      BREVO_EXPEDITEUR: no-reply@valeur-verte.fr
+      CONTACT_REPONSE: contact@valeur-verte.fr
     # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
     # jamais directement sur Internet (même règle que la base).
     ports:
       - "127.0.0.1:8000:80"
 
+  # Reverse proxy (point d'entrée public unique) : termine TLS (certificats
+  # Let's Encrypt automatiques), redirige HTTP→HTTPS, gate le site par basic auth
+  # et bloque l'indexation (X-Robots-Tag + robots.txt) — voir caddy/Caddyfile.
+  # Le site n'est pas encore public : accès en preview protégé le temps du lancement.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    # Seul service exposé à Internet, et uniquement sur 80/443 (cf.
+    # test_compose_production.py). Le reste du compose reste sur le réseau interne.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Configuration téléversée par le workflow de déploiement (infra/caddy).
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/robots.txt:/etc/caddy/robots.txt:ro
+      # Page servie par le proxy quand l'app est injoignable (#197) : autonome,
+      # sans dépendance à l'app (handle_errors dans le Caddyfile).
+      - ./caddy/erreur-indisponible.html:/etc/caddy/erreur-indisponible.html:ro
+      # Certificats et état ACME : persistés pour survivre à une recréation du
+      # conteneur (sinon réémission à chaque déploiement → limites Let's Encrypt).
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   db_data:
+  caddy_data:
+  caddy_config:

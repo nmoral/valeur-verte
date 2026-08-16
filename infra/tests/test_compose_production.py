@@ -29,16 +29,28 @@ def _valeurs_environnement(service: dict[str, Any]) -> list[str]:
     return [str(entree).partition("=")[2] for entree in env]
 
 
-def test_la_base_n_est_jamais_publiee_sur_une_interface_publique(
+PORTS_PUBLICS_AUTORISES = {"80", "443"}
+
+
+def test_seul_le_reverse_proxy_est_publie_sur_une_interface_publique(
     compose_prod: dict[str, Any],
 ) -> None:
-    """Un port publié sans adresse écoute sur 0.0.0.0 : PostGIS exposé à Internet."""
+    """Un port publié sans adresse écoute sur 0.0.0.0. Seul le reverse proxy « caddy »
+    est un point d'entrée public volontaire, et uniquement sur HTTP(80)/HTTPS(443) ;
+    tout autre service (db, app, migrate) ne se publie que sur la boucle locale, d'où
+    il n'est atteignable que par le réseau interne ou un tunnel SSH."""
     for nom, service in services(compose_prod).items():
         for publication in service.get("ports", []):
-            adresse = str(publication).split(":")[0]
-            assert adresse in {"127.0.0.1", "localhost"}, (
+            tete = str(publication).split(":")[0]
+            if tete in {"127.0.0.1", "localhost"}:
+                continue
+            assert nom == "caddy", (
                 f"Le service « {nom} » publie « {publication} » sur une interface publique ; "
-                "les échanges passent par le réseau interne du compose."
+                "seul le reverse proxy « caddy » est un point d'entrée public."
+            )
+            port_publie = tete.split("/")[0]
+            assert port_publie in PORTS_PUBLICS_AUTORISES, (
+                f"Le reverse proxy ne publie que HTTP(80)/HTTPS(443), reçu « {publication} »."
             )
 
 
@@ -145,6 +157,107 @@ def test_l_app_repart_apres_un_redemarrage_du_vps(compose_prod: dict[str, Any]) 
     app = services(compose_prod)["app"]
     assert app.get("restart") in {"unless-stopped", "always"}, (
         "Le service « app » doit redémarrer automatiquement après un reboot."
+    )
+
+
+def test_l_app_fait_confiance_au_proxy_pour_generer_des_urls_https(
+    compose_prod: dict[str, Any],
+) -> None:
+    """TLS terminé par le proxy : sans TRUSTED_PROXIES, Symfony génère des URLs http.
+
+    L'app n'est jamais joignable qu'à travers le proxy (publiée sur 127.0.0.1) ;
+    elle doit honorer X-Forwarded-Proto pour rediriger la connexion en https.
+    """
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    valeur = str(environnement.get("TRUSTED_PROXIES", "")).strip()
+    assert valeur, (
+        "Le service « app » doit définir TRUSTED_PROXIES pour que Symfony fasse confiance "
+        "au reverse proxy et génère des URLs https."
+    )
+
+
+def test_le_reverse_proxy_publie_http_et_https(compose_prod: dict[str, Any]) -> None:
+    """Le reverse proxy (Caddy) est le point d'entrée public : il termine TLS et doit
+    exposer 443, plus 80 pour la redirection HTTP→HTTPS et le challenge ACME."""
+    caddy: object = services(compose_prod).get("caddy")
+    assert isinstance(caddy, dict), (
+        "Le compose de production doit déclarer le reverse proxy « caddy » (point d'entrée public)."
+    )
+    publies = {str(p).split(":")[0].split("/")[0] for p in caddy.get("ports", [])}
+    assert {"80", "443"} <= publies, (
+        f"Le reverse proxy doit publier 80 et 443, reçu : {sorted(publies)}."
+    )
+
+
+def test_le_reverse_proxy_repart_apres_un_redemarrage_du_vps(
+    compose_prod: dict[str, Any],
+) -> None:
+    """Sans politique de redémarrage, un reboot OVH laisserait le site injoignable."""
+    caddy = services(compose_prod)["caddy"]
+    assert caddy.get("restart") in {"unless-stopped", "always"}, (
+        "Le service « caddy » doit redémarrer automatiquement après un reboot."
+    )
+
+
+def test_l_app_connait_son_domaine_de_production(compose_prod: dict[str, Any]) -> None:
+    """Sans APP_DOMAINE, les routes de zone restent sur *.valeurverte.localhost (défaut
+    de l'image) et tout *.valeur-verte.fr tombe en 404 derrière le proxy. La variable
+    doit vivre dans le compose versionné, pas seulement sur le VPS, sinon chaque
+    redéploiement fait retomber le site en 404."""
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    assert str(environnement.get("APP_DOMAINE", "")).strip(), (
+        "Le service « app » doit définir APP_DOMAINE pour router ses zones en production."
+    )
+
+
+def _env_app(compose_prod: dict[str, Any]) -> dict[str, Any]:
+    app = services(compose_prod)["app"]
+    environnement: object = app.get("environment", {})
+    assert isinstance(environnement, dict), "« environment » de app doit être un dictionnaire."
+    return environnement
+
+
+def test_l_app_est_raccordee_a_sa_base(compose_prod: dict[str, Any]) -> None:
+    """Sans DATABASE_URL, l'app retombe sur le défaut de l'image (app@127.0.0.1) et
+    ne joint jamais la base : toute page qui touche la base tombe en 500. La DSN
+    doit être assemblée ici et exigée explicitement, jamais avec un repli."""
+    dsn = str(_env_app(compose_prod).get("DATABASE_URL", ""))
+    assert "@db:" in dsn, (
+        "L'app doit se connecter au service « db » (et non au 127.0.0.1 baké dans l'image)."
+    )
+    assert OBLIGATOIRE.search(dsn), (
+        "Le mot de passe du rôle « app » doit être exigé via ${APP_DB_PASSWORD:?…}."
+    )
+
+
+def test_l_app_porte_un_secret_applicatif(compose_prod: dict[str, Any]) -> None:
+    """APP_SECRET signe les jetons (vérification d'email #105, réinitialisation #194)
+    et protège le CSRF. Vide, l'app tourne sur un secret par défaut : à exiger."""
+    secret = str(_env_app(compose_prod).get("APP_SECRET", ""))
+    assert OBLIGATOIRE.search(secret), (
+        "APP_SECRET doit être exigé via ${APP_SECRET:?…} et rester hors du dépôt."
+    )
+
+
+def test_l_app_configure_les_urls_hors_contexte_http(compose_prod: dict[str, Any]) -> None:
+    """Les URLs générées hors requête HTTP (CLI, envois asynchrones) retombent sur
+    http://localhost sans DEFAULT_URI : elles doivent cibler le domaine de production."""
+    default_uri = str(_env_app(compose_prod).get("DEFAULT_URI", "")).strip()
+    assert default_uri and "localhost" not in default_uri, (
+        "Le service « app » doit définir DEFAULT_URI sur son domaine de production."
+    )
+
+
+def test_l_app_peut_envoyer_des_emails_transactionnels(compose_prod: dict[str, Any]) -> None:
+    """Sans clé Brevo, l'envoi d'email échoue (401). La clé est un secret : exigée
+    explicitement, jamais un littéral ni un repli."""
+    cle = str(_env_app(compose_prod).get("BREVO_API_KEY", ""))
+    assert OBLIGATOIRE.search(cle), (
+        "BREVO_API_KEY doit être exigé via ${BREVO_API_KEY:?…} et rester hors du dépôt."
     )
 
 

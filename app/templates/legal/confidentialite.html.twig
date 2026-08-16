@@ -1,0 +1,111 @@
+{% extends 'legal/_page.html.twig' %}
+
+{% block route %}confidentialite{% endblock %}
+{% block titre_seo %}Politique de confidentialité{% endblock %}
+{% block description_seo %}Quelles données personnelles Valeur Verte traite, pour quelle finalité, sur quelle base légale, combien de temps elles sont conservées, qui y a accès et comment exercer ses droits.{% endblock %}
+
+{% block titre %}Politique de confidentialité{% endblock %}
+
+{% block chapeau %}
+  <p class="section-lead">Information des personnes au titre des articles 13 et 14 du règlement (UE) 2016/679.
+    Elle décrit les traitements dont {{ editeur.raison_sociale }} est responsable.</p>
+  <p class="avis">Premier jet en attente de validation juridique : les durées et bases légales
+    annoncées ici peuvent encore évoluer.</p>
+{% endblock %}
+
+{% block contenu %}
+  <section id="responsable" aria-labelledby="responsable-titre">
+    <h2 id="responsable-titre">Responsable de traitement</h2>
+    <p>{{ editeur.raison_sociale }} — {{ editeur.siege }}.
+      Contact : <a href="mailto:{{ editeur.contact }}">{{ editeur.contact }}</a>.
+      Aucun délégué à la protection des données n'est désigné : les traitements décrits ci-dessous
+      ne relèvent d'aucun des cas de désignation obligatoire de l'article 37.</p>
+    <p>Lorsqu'un professionnel utilisateur du service collecte les coordonnées de ses propres clients
+      (formulaire embarqué sur son site), c'est <strong>lui</strong> qui est responsable de ce traitement ;
+      nous n'intervenons alors qu'en qualité de sous-traitant, pour son compte et sur ses instructions.</p>
+  </section>
+
+  <section id="traitements" aria-labelledby="traitements-titre">
+    <h2 id="traitements-titre">Traitements mis en œuvre</h2>
+    <table class="tableau-traitements">
+      <thead>
+        <tr><th scope="col">Traitement</th><th scope="col">Données</th><th scope="col">Finalité</th><th scope="col">Base légale</th><th scope="col">Conservation</th></tr>
+      </thead>
+      <tbody>
+        <tr data-traitement="compte-pro">
+          <th scope="row">Compte professionnel</th>
+          <td>Email, mot de passe (haché), SIRET, raison sociale</td>
+          <td data-rubrique="finalite">Créer et tenir le compte, authentifier l'utilisateur, facturer l'abonnement</td>
+          <td data-rubrique="base-legale">Exécution du contrat (art. 6-1-b)</td>
+          <td data-rubrique="duree">Durée de l'abonnement, puis 3 ans après le dernier contact ; 10 ans pour les pièces comptables</td>
+        </tr>
+        <tr data-traitement="rapports">
+          <th scope="row">Rapports produits</th>
+          <td>Adresse du bien, surface, classes énergétiques, montants saisis</td>
+          <td data-rubrique="finalite">Produire le rapport demandé et permettre au professionnel de le retrouver</td>
+          <td data-rubrique="base-legale">Exécution du contrat (art. 6-1-b)</td>
+          <td data-rubrique="duree">3 ans à compter de la production du rapport</td>
+        </tr>
+        <tr data-traitement="prospects-widget">
+          <th scope="row">Prospects du formulaire embarqué</th>
+          <td>Nom, email, téléphone, projet déclaré</td>
+          <td data-rubrique="finalite">Transmettre la demande au professionnel qui a installé le formulaire</td>
+          <td data-rubrique="base-legale">Consentement recueilli par le professionnel (art. 6-1-a) — nous agissons comme sous-traitant</td>
+          <td data-rubrique="duree">24 mois après le dernier contact, puis suppression automatique</td>
+        </tr>
+        <tr data-traitement="emails-service">
+          <th scope="row">Emails de service</th>
+          <td>Email, statut du compte, dates d'envoi</td>
+          <td data-rubrique="finalite">Vérifier l'adresse, réinitialiser un mot de passe, signaler la fin d'un essai</td>
+          <td data-rubrique="base-legale">Exécution du contrat, et intérêt légitime pour les relances (art. 6-1-f)</td>
+          <td data-rubrique="duree">Durée du compte ; désabonnement possible à tout moment depuis chaque email</td>
+        </tr>
+        <tr data-traitement="journaux">
+          <th scope="row">Journaux techniques</th>
+          <td>Adresse IP, horodatage, page consultée</td>
+          <td data-rubrique="finalite">Sécuriser le service, prévenir les abus, répondre aux réquisitions</td>
+          <td data-rubrique="base-legale">Obligation légale (art. 6-1-c) et intérêt légitime à la sécurité</td>
+          <td data-rubrique="duree">12 mois</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="destinataires" aria-labelledby="destinataires-titre">
+    <h2 id="destinataires-titre">Destinataires et sous-traitants</h2>
+    <p>Les données ne sont ni vendues ni louées. Elles sont accessibles à l'éditeur et aux prestataires
+      strictement nécessaires au fonctionnement du service :</p>
+    <ul class="liste">
+      <li><strong>{{ hebergeur.identite }}</strong> — hébergement des serveurs et de la base de données, en France.</li>
+      <li><strong>Brevo</strong> (Sendinblue SAS, France) — acheminement des emails de service.</li>
+    </ul>
+    <p>Aucun transfert hors de l'Union européenne n'est réalisé.</p>
+  </section>
+
+  <section id="cookies" aria-labelledby="cookies-titre">
+    <h2 id="cookies-titre">Cookies</h2>
+    <p>Le site ne dépose <strong>aucun traceur de mesure d'audience ni de publicité</strong>.
+      Le seul cookie utilisé est le cookie de session, strictement nécessaire au maintien de la
+      connexion à l'espace professionnel : il est exempté de consentement et disparaît à la fermeture
+      du navigateur. Aucun bandeau n'est donc affiché. Si un outil de mesure d'audience était ajouté,
+      cette page serait mise à jour et le consentement recueilli au préalable.</p>
+  </section>
+
+  <section id="droits" aria-labelledby="droits-titre">
+    <h2 id="droits-titre">Vos droits</h2>
+    <p>Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation du traitement,
+      de portabilité de vos données et d'opposition pour motif légitime. Ces droits s'exercent auprès de
+      <a href="mailto:{{ editeur.contact }}">{{ editeur.contact }}</a> ; une réponse est apportée dans un délai d'un mois.</p>
+    <p>Si vos coordonnées ont été collectées par un professionnel via son formulaire, adressez-lui
+      directement votre demande : nous la relaierons à sa demande.</p>
+    <p>Vous pouvez introduire une réclamation auprès de la <strong>CNIL</strong> —
+      3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07, <a href="https://www.cnil.fr" rel="noopener">www.cnil.fr</a>.</p>
+  </section>
+
+  <section id="securite" aria-labelledby="securite-titre">
+    <h2 id="securite-titre">Sécurité</h2>
+    <p>Les échanges sont chiffrés (HTTPS), les mots de passe stockés sous forme hachée, et les accès
+      aux données cloisonnés par compte professionnel. Les actions sensibles réalisées par
+      l'administration interne sont inscrites à un journal d'audit.</p>
+  </section>
+{% endblock %}

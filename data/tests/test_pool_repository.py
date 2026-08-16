@@ -46,11 +46,14 @@ def _ligne(code_insee: str = "31555", etiquette: str = "F") -> tuple[Any, ...]:
         "1948-1974",
         1.44,
         43.6,
+        "2023-07-10",
     )
 
 
 def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
-    """Mélanger des millésimes fausserait la régression, calibrée par année."""
+    """La régression est calibrée par année (effets fixes) : elle sait empiler
+    plusieurs millésimes. Le pool passe donc la **liste** des millésimes de la
+    fenêtre (ici un seul), toujours en une requête."""
     conn = _FakeConnection([_ligne()])
 
     load_pool(conn, "31", 2024)
@@ -59,7 +62,36 @@ def test_le_pool_est_charge_pour_un_departement_et_un_millesime() -> None:
     requete, params = conn.calls[0]
     assert "data.vente" in requete
     assert params is not None
-    assert list(params) == [["31%"], 2024, "Maison"]
+    assert list(params) == [["31%"], [2024], "Maison"]
+
+
+def test_la_fenetre_glissante_empile_plusieurs_millesimes() -> None:
+    """Fenêtre 3 ans (#177) : le pool couvre N, N-1, N-2 en une seule requête.
+
+    Le bénéfice vert est structurel et lent ; l'estimer sur plusieurs millésimes
+    réduit la variance de rééchantillonnage (et les classes DPE rares en rural).
+    Les effets fixes année du modèle (§4) captent la tendance de niveau, laissant
+    l'étiquette DPE mesurer l'effet structurel moyen de la fenêtre.
+    """
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024, fenetre=3)
+
+    requete, params = conn.calls[0]
+    assert "millesime = ANY(" in requete
+    assert params is not None
+    assert list(params)[1] == [2024, 2023, 2022]
+
+
+def test_la_fenetre_par_defaut_reste_mono_millesime() -> None:
+    """Défaut = 1 (#177) : comportement historique exact, migration sans surprise."""
+    conn = _FakeConnection([_ligne()])
+
+    load_pool(conn, "31", 2024)
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert list(params)[1] == [2024]
 
 
 def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> None:
@@ -77,6 +109,8 @@ def test_les_lignes_deviennent_des_mutations_exploitables_par_le_moteur() -> Non
     assert mutation.periode_construction == "1948-1974"
     assert mutation.latitude == 43.6
     assert mutation.longitude == 1.44
+    # #215 : la date d'établissement du DPE alimente le filtre de rupture de réforme.
+    assert mutation.date_etablissement_dpe == "2023-07-10"
 
 
 def test_un_departement_vide_rend_un_pool_vide() -> None:

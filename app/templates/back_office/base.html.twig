@@ -21,11 +21,36 @@
         </nav>
         {% block sidebar_footer %}{% endblock %}
         <div class="side-footer">
+            <a href="{{ path('mon_compte') }}" class="side-compte"><span aria-hidden="true">⚙</span> Mon compte</a>
             <a href="{{ path('logout') }}" class="side-logout"><span aria-hidden="true">⏻</span> Se déconnecter</a>
         </div>
     </aside>
 
     <main>
+        {% for message in app.flashes('verification') %}
+            <p class="flash-verif-email">{{ message }}</p>
+        {% endfor %}
+
+        {% if app.user and not app.user.emailEstVerifie %}
+            <p class="rappel-verif-email">
+                Confirmez votre adresse email pour sécuriser votre compte.
+                <a href="{{ path('verification_email_renvoyer') }}">Renvoyer l'email</a>
+            </p>
+        {% endif %}
+
+        {% set essai = essai_courant() %}
+        {% if essai %}
+            <a class="essai-bandeau{{ essai.termine ? ' est-termine' : (essai.quotaConsommeAuMoins(80) ? ' est-alerte' : '') }}" href="{{ path('back_office_bilan') }}">
+                {% if essai.termine %}
+                    Essai terminé — voir votre bilan d'usage
+                {% elseif essai.quotaConsommeAuMoins(80) %}
+                    Essai — plus que {{ essai.rapportsRestants }} rapport{{ essai.rapportsRestants > 1 ? 's' }} · voir le bilan
+                {% else %}
+                    Essai — {{ essai.rapportsRestants }} rapports · {{ essai.joursRestants }} jours restants
+                {% endif %}
+            </a>
+        {% endif %}
+
         <div class="top">
             <div>
                 <h1>{{ page_title|default('') }}</h1>

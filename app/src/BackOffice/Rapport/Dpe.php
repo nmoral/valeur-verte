@@ -24,6 +24,19 @@ enum Dpe: string
         return $this->rang() < $autre->rang();
     }
 
+    /**
+     * Nombre de classes franchies pour aller de cette étiquette à `$apres`.
+     * Positif quand le bien s'améliore, négatif s'il se dégrade — la dégradation
+     * reste visible plutôt que confondue avec un gain nul.
+     *
+     * C'est l'entrée du barème d'aides (#26) : la rénovation d'ampleur se dimensionne
+     * sur le gain de classes, pas sur la liste des gestes.
+     */
+    public function classesGagneesVers(self $apres): int
+    {
+        return $this->rang() - $apres->rang();
+    }
+
     private function rang(): int
     {
         return (int) array_search($this, self::cases(), true);

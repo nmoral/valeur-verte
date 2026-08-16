@@ -12,6 +12,9 @@
     .eyebrow{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80}
     .adresse{font-size:17px;font-weight:bold;margin-top:4px}
     .bien{color:#6b7c80;margin-top:3px}
+    .bouquet{margin-top:12px;padding:8px 12px;border:1px solid #dfe6e7;border-radius:3px}
+    .bouquet-k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80;margin-right:6px}
+    .bouquet-postes{display:block;color:#6b7c80;margin-top:2px}
     .hero{margin-top:18px;padding:16px 0;border-top:1px solid #dfe6e7;border-bottom:1px solid #dfe6e7}
     .hero-label{color:#6b7c80}
     .montant{font-size:32px;font-weight:bold;color:{{ couleur }}}
@@ -27,6 +30,13 @@
     .stat-k{color:#6b7c80;font-size:10px;text-transform:uppercase}
     .stat-v{font-size:15px;font-weight:bold}
     .prix{margin-top:14px;color:#41585d}
+    table.ajustement{width:100%;margin-top:16px;border-collapse:collapse}
+    table.ajustement td{padding:7px 0;color:#41585d}
+    table.ajustement td.m{text-align:right;font-weight:bold;color:#1a2b2f;white-space:nowrap}
+    table.ajustement tr.mesure td{border-bottom:1px solid #dfe6e7}
+    table.ajustement tr.retenue td{border-top:2px solid #1a2b2f;font-weight:bold;color:#1a2b2f}
+    table.ajustement .motif{color:#6b7c80}
+    .ajustement-note{margin-top:6px;font-size:10px;color:#6b7c80}
     .marque-bloc{margin-top:22px;padding-top:12px;border-top:1px solid #dfe6e7;color:#41585d}
     .marque-bloc .l{padding:3px 0}
     .pied{font-size:9px;color:#6b7c80;border-top:1px solid #dfe6e7;padding-top:6px}
@@ -53,6 +63,16 @@
     <p class="adresse">{{ saisie.adresse }}</p>
     <p class="bien">{{ saisie.surfaceBatie }} m² bâti · {{ saisie.surfaceTerrain }} m² terrain{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}
         &nbsp;·&nbsp; DPE {{ dpe_badge(saisie.dpeAvant.value) }} → {{ dpe_badge(saisie.dpeApres.value) }}</p>
+
+    {% if bouquet %}
+        <div class="bouquet">
+            <span class="bouquet-k">Travaux retenus</span>
+            <strong>{{ bouquet.nom }}</strong>
+            <span class="bouquet-postes">{% for poste in bouquet.postes %}{{ poste.libelle }}{{ not loop.last ? ' · ' }}{% endfor %}</span>
+        </div>
+    {% endif %}
+
+    {% include 'back_office/_reste_a_charge.html.twig' %}
 
     {% for avertissement in avertissements %}
         <div class="bandeau-info">{{ avertissement }}</div>
@@ -87,6 +107,24 @@
 
         <p class="prix">Prix de base : <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong>
             ({{ restitution.prixSaisiParLePro ? 'valeur saisie par le professionnel' : 'médiane de la commune' }})</p>
+
+        {% if ajustement %}
+            <table class="ajustement" cellpadding="0" cellspacing="0">
+                <tr class="mesure">
+                    <td>Valeur verte mesurée <span class="motif">({{ saisie.dpeAvant.value }}→{{ saisie.dpeApres.value }}, {{ restitution.n|number_format(0, ',', ' ') }} ventes, {{ restitution.rayonKm ? 'rayon ' ~ restitution.rayonKm ~ ' km' : 'départemental' }})</span></td>
+                    <td class="m">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</td>
+                </tr>
+                <tr class="ajust">
+                    <td>Ajustement du professionnel <span class="motif">— {{ ajustement.motif }}</span></td>
+                    <td class="m">{{ ajustement.montantEuros < 0 ? '−' : '+' }}{{ ajustement.montantEuros|abs|number_format(0, ',', ' ') }} €</td>
+                </tr>
+                <tr class="retenue">
+                    <td>Estimation retenue</td>
+                    <td class="m">+{{ ajustement.estimationRetenue(restitution.montantEuros)|number_format(0, ',', ' ') }} €</td>
+                </tr>
+            </table>
+            <p class="ajustement-note">Ligne d'ajustement établie sous la responsabilité du professionnel. La valeur verte mesurée reste inchangée.</p>
+        {% endif %}
     {% else %}
         <div class="bandeau-alerte">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes).</div>
     {% endif %}

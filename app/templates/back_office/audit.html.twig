@@ -54,6 +54,14 @@
     .dpe-choice .d-c,.dpe-choice .d-d{color:#2A2A18}
     .dpe-choice input:checked + span{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
     .dpe-choice input:focus-visible + span{outline:2px solid var(--brand);outline-offset:2px}
+    .bouquet-group{display:flex;flex-direction:column;gap:8px}
+    .bouquet-choice{cursor:pointer}
+    .bouquet-choice input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+    .bouquet-card{display:block;border:2px solid var(--rule);border-radius:8px;padding:10px 12px}
+    .bouquet-choice input:checked + .bouquet-card{border-color:var(--brand);background:var(--brand-soft,#f4f8f6)}
+    .bouquet-choice input:focus-visible + .bouquet-card{outline:2px solid var(--brand);outline-offset:2px}
+    .bouquet-nom{display:block;font:600 14px/1.3 'Public Sans',sans-serif;color:var(--ink)}
+    .bouquet-postes{display:block;font:12px/1.4 'Public Sans',sans-serif;color:var(--mute);margin-top:3px}
 
     /* Bandeaux */
     .banner{margin:0 0 14px;padding:12px 14px;border-radius:3px;font-size:13.5px;line-height:1.5}
@@ -163,6 +171,24 @@
                 <div class="audit-control">
                     <span class="audit-inline"><input type="number" id="valeur_bien" name="valeur_bien" value="{{ valeurs.valeur_bien|default('') }}" min="0" inputmode="numeric"><span class="unit">€ · optionnel</span></span>
                     <span class="field-hint">par défaut : prix médian de la commune × surface bâtie</span>
+                </div>
+            </div>
+
+            <div class="audit-field">
+                <label>Bouquet de travaux</label>
+                <div class="audit-control">
+                    <div class="bouquet-group" role="radiogroup" aria-label="Bouquet de travaux">
+                        {% for bouquet in bouquets %}
+                            <label class="bouquet-choice">
+                                <input type="radio" name="bouquet" value="{{ bouquet.nom }}"{{ bouquet.nom == valeurs.bouquet ? ' checked' : '' }}>
+                                <span class="bouquet-card">
+                                    <span class="bouquet-nom">{{ bouquet.nom }}</span>
+                                    <span class="bouquet-postes">{% for poste in bouquet.postes %}{{ poste.libelle }}{{ not loop.last ? ' · ' }}{% endfor %}</span>
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <span class="field-hint">un bouquet pré-configuré, pas des postes un par un</span>
                 </div>
             </div>
 

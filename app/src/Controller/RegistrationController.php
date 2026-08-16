@@ -8,6 +8,7 @@ use App\BackOffice\Entreprise\Siret;
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
 use App\Security\LimiteurInscription;
+use App\Security\VerificationEmail\EnvoiVerificationEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +24,7 @@ final class RegistrationController extends AbstractController
         CreateurDeCompte $createurDeCompte,
         Security $security,
         LimiteurInscription $limiteurInscription,
+        EnvoiVerificationEmail $envoiVerificationEmail,
     ): Response {
         $email = trim((string) $request->request->get('email', ''));
         $siret = trim((string) $request->request->get('siret', ''));
@@ -35,12 +37,20 @@ final class RegistrationController extends AbstractController
             if ([] === $erreurs) {
                 try {
                     $siretConfirme = '' !== $siret ? Siret::depuis($siret) : null;
-                    $user = $createurDeCompte->creer($email, $motDePasse, $siretConfirme);
+                    // La version acceptée est celle en vigueur au moment de la
+                    // soumission, jamais un champ envoyé par le client (#228).
+                    $user = $createurDeCompte->creer($email, $motDePasse, PagesLegalesController::VERSION_CGU, $siretConfirme);
+
+                    // Vérification d'email a posteriori (ONB-1) : envoi du lien de
+                    // confirmation, sans jamais bloquer l'accès au premier rapport.
+                    $envoiVerificationEmail->envoyerPour($user);
                     $security->login($user);
 
-                    return $this->redirect(
-                        $this->generateUrl('espace_pro', [], UrlGeneratorInterface::ABSOLUTE_URL),
-                    );
+                    // ONB-4 : droit à la saisie, aucun écran de bienvenue ni de
+                    // configuration. La saisie vit sur le sous-domaine de l'espace
+                    // pro ; on compose l'URL absolue sur ce host (scheme + host de
+                    // l'espace pro, chemin de la saisie).
+                    return $this->redirect($this->urlSaisie());
                 } catch (EmailDejaUtilise $exception) {
                     $erreurs['email'] = $exception->getMessage();
                 }
@@ -50,6 +60,7 @@ final class RegistrationController extends AbstractController
                 'erreurs' => $erreurs,
                 'email' => $email,
                 'siret' => $siret,
+                'cgu_accepte' => $request->request->getBoolean('cgu'),
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -57,6 +68,7 @@ final class RegistrationController extends AbstractController
             'erreurs' => [],
             'email' => $email,
             'siret' => $siret,
+            'cgu_accepte' => false,
         ]);
     }
 
@@ -79,7 +91,22 @@ final class RegistrationController extends AbstractController
         if ('' !== $siret && 1 !== preg_match('/^\d{14}$/', $siret)) {
             $erreurs['siret'] = 'Le SIRET doit comporter 14 chiffres.';
         }
+        if (!$request->request->getBoolean('cgu')) {
+            $erreurs['cgu'] = 'Vous devez accepter les conditions générales pour créer un compte.';
+        }
 
         return $erreurs;
+    }
+
+    /**
+     * URL absolue de la saisie sur le sous-domaine de l'espace pro : scheme et
+     * host viennent de la route `espace_pro` (portée par ce host), le chemin de la
+     * route de saisie (sans host propre). Robuste en dev comme en prod (https).
+     */
+    private function urlSaisie(): string
+    {
+        $racineEspacePro = $this->generateUrl('espace_pro', [], UrlGeneratorInterface::ABSOLUTE_URL);
+
+        return rtrim($racineEspacePro, '/').$this->generateUrl('back_office_audit');
     }
 }

@@ -11,6 +11,24 @@ parameters:
     # (app., admin., widget.). Surchargé par l'environnement en production.
     app.domaine: '%env(APP_DOMAINE)%'
 
+    # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
+    # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
+    # siège ou de statut ne doit pas passer par une modification de HTML.
+    # ⚠ VALEURS DE TEST tant que l'identité réelle n'est pas arrêtée : la page
+    # les affiche telles quelles, elles doivent être remplacées avant l'ouverture
+    # au public.
+    app.editeur:
+        raison_sociale: 'Valeur Verte'
+        forme_juridique: 'Entreprise individuelle (forme à confirmer)'
+        immatriculation: 'SIREN 000 000 000 — RCS à compléter'
+        siege: 'Adresse du siège à compléter, France'
+        directeur_publication: 'Nicolas Moral'
+        contact: '%env(CONTACT_REPONSE)%'
+    app.hebergeur:
+        identite: 'OVH SAS'
+        adresse: '2 rue Kellermann, 59100 Roubaix, France'
+        telephone: '+33 9 72 10 10 07'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -22,17 +40,32 @@ services:
     App\:
         resource: '../src/'
 
-    # Traçabilité de la levée du cloisonnement (#54) : impl d'attente par log,
-    # remplacée par le journal d'audit persistant (#50).
-    App\Tenant\TraceDesactivationTenant: '@App\Tenant\TraceDesactivationViaLog'
+    # Mentions légales (#228) : identité de l'éditeur et de l'hébergeur.
+    App\Controller\PagesLegalesController:
+        arguments:
+            $editeur: '%app.editeur%'
+            $hebergeur: '%app.hebergeur%'
+        tags: ['controller.service_arguments']
 
-    # Notification admin d'un usage anormal (#44) : impl d'attente par log (#50).
-    App\Notification\NotificationAdmin: '@App\Notification\NotificationAdminViaLog'
+    # Traçabilité de la levée du cloisonnement (#54) : inscrite au journal d'audit (#50).
+    App\Tenant\TraceDesactivationTenant: '@App\AdminInterne\JournalAudit\TraceDesactivationViaJournal'
+
+    # Journal d'audit de l'admin interne (#50) : registre append-only persisté.
+    App\AdminInterne\JournalAudit\JournalAudit: '@App\AdminInterne\JournalAudit\JournalAuditDoctrine'
+
+    # Notification admin d'un usage anormal (#44) : inscrite au journal d'audit (#50).
+    App\Notification\NotificationAdmin: '@App\AdminInterne\JournalAudit\NotificationAdminViaJournal'
 
     # Cache-busting des assets : versionne par hash du fichier servi.
     App\Asset\VersionParContenu:
         arguments:
             $repertoirePublic: '%kernel.project_dir%/public'
+
+    # Bascule maintenance (#197) : APP_MAINTENANCE=1 coupe les zones publique/pro
+    # en 503 (page habillée), l'admin restant accessible pour l'exploitation.
+    App\Erreur\Maintenance\ModeMaintenanceListener:
+        arguments:
+            $maintenanceActive: '%env(bool:APP_MAINTENANCE)%'
 
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
@@ -48,6 +81,58 @@ services:
     # d'identifiants de rapport aléatoires (§9.6).
     App\BackOffice\Pdf\ConvertisseurPdf: '@App\BackOffice\Pdf\MpdfConvertisseur'
     App\BackOffice\Pdf\GenerateurReferenceRapport: '@App\BackOffice\Pdf\ReferenceRapportAleatoire'
+
+    # Relance de fin d'essai (#108) : le lien de l'espace pro dans l'email de
+    # relance est construit sur le domaine applicatif (sous-domaine app.).
+    App\Compte\RelanceEssais:
+        arguments:
+            $appDomaine: '%app.domaine%'
+
+    # Relance conversationnelle après le premier rapport (#109) : lien de
+    # désabonnement sur le domaine applicatif, réponses vers une vraie boîte.
+    App\Compte\NotificationPremierRapport:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $contactReponse: '%env(CONTACT_REPONSE)%'
+
+    # Jeton de désabonnement (#108/#109) : signe le tenant avec le secret
+    # applicatif pour rendre le lien de désabonnement infalsifiable sans stockage.
+    App\Compte\JetonDesabonnement:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    # Jeton de vérification d'email (#105, ONB-1) : signe l'utilisateur avec le
+    # secret applicatif pour un lien de confirmation infalsifiable, sans stockage.
+    App\Security\VerificationEmail\JetonVerificationEmail:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
+    App\Security\VerificationEmail\EnvoiVerificationEmail:
+        arguments:
+            $appDomaine: '%app.domaine%'
+
+    # Mot de passe oublié (#194, AUTH-1) : le lien de réinitialisation est construit
+    # sur le sous-domaine app. et le jeton expire après cette durée (usage unique).
+    App\Security\MotDePasseOublie\DemandeReinitialisation:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $dureeValiditeMinutes: 60
+
+    # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
+    # adresse expéditrice depuis l'environnement, jamais versionnées.
+    App\Notification\Mailer: '@App\Notification\MailerBrevo'
+    App\Notification\MailerBrevo:
+        arguments:
+            $apiKey: '%env(BREVO_API_KEY)%'
+            $expediteur: '%env(BREVO_EXPEDITEUR)%'
+
+    # Page publique de publication (#48, #224) : lecture du millésime publié dans
+    # le schéma « data » (lecture seule) et contours départementaux figés.
+    App\Publication\LectureModelePublie: '@App\Publication\LectureModelePublieDbal'
+    App\Publication\ContoursDepartements:
+        arguments:
+            $fichier: '%kernel.project_dir%/resources/publication/contours-departements.json'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -75,3 +160,8 @@ when@test:
             public: true
         App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire'
         App\BackOffice\Estimation\FournisseurPrixMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire'
+
+        # Envoi d'email (#108) : double en mémoire, aucun envoi réel sous test.
+        App\Tests\Notification\Double\MailerEnMemoire:
+            public: true
+        App\Notification\Mailer: '@App\Tests\Notification\Double\MailerEnMemoire'

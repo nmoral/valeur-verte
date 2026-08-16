@@ -1,0 +1,44 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Comptes · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Comptes pro{% endblock %}
+
+{% block admin_subtitle %}<p>Pilotage des comptes : formule, rapports consommés et état d'essai.</p>{% endblock %}
+
+{% block admin_actions %}<a class="btn" href="{{ path('admin_candidatures') }}">Candidatures fondateur</a>{% endblock %}
+
+{% block admin_content %}
+    <table>
+        <thead>
+            <tr>
+                <th>Compte</th>
+                <th>Créé le</th>
+                <th>Formule</th>
+                <th>Rapports consommés</th>
+                <th>État d'essai</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for compte in comptes %}
+            <tr>
+                <td>{{ compte.identite }}</td>
+                <td>{{ compte.creeLe|date('d/m/Y') }}</td>
+                <td>{{ compte.formule.libelle }}</td>
+                <td>{{ compte.essai.rapportsConsommes }}</td>
+                <td>
+                    {% if compte.essai.termine %}
+                        Essai terminé
+                    {% else %}
+                        En essai — reste {{ compte.essai.rapportsRestants }} rapports · {{ compte.essai.joursRestants }} jours
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5">Aucun compte pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

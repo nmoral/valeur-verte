@@ -222,3 +222,33 @@ footer .foot-links{list-style:none;display:flex;flex-wrap:wrap;gap:10px;justify-
   section{padding:40px 0}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* Renvoi vers l'étude publique (#224), depuis « D'où vient le chiffre ». */
+.methode-etude{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:22px 0 0}
+.methode-etude span{font-size:14px;color:var(--mute)}
+
+/* Pages légales (#228) : contenu en prose, une colonne lisible. */
+.legal .wrap{padding-top:56px;padding-bottom:64px;max-width:760px}
+.legal h1{font-size:38px;margin-bottom:14px}
+.legal section{padding:0;margin-top:34px}
+.legal h2{font-size:21px;margin-bottom:10px}
+.legal p{font-size:15px;color:var(--slate);margin-bottom:12px;max-width:70ch}
+.legal .avis{font:500 13px/1.6 'JetBrains Mono',monospace;color:var(--slate-2);
+  background:var(--chip);border-left:3px solid var(--brand);padding:10px 14px;margin-bottom:0}
+.legal .liste{margin:0 0 12px 20px;font-size:15px;color:var(--slate)}
+.legal .liste li{margin-bottom:6px}
+.legal .mentions div{display:grid;grid-template-columns:220px 1fr;gap:14px;
+  padding:11px 0;border-bottom:1px solid var(--rule)}
+.legal .mentions dt{font-weight:600;font-size:14px;color:var(--ink)}
+.legal .mentions dd{font-size:14px;color:var(--slate)}
+.legal .tableau-traitements{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:12px}
+.legal .tableau-traitements th,.legal .tableau-traitements td{
+  text-align:left;vertical-align:top;padding:10px 12px 10px 0;border-bottom:1px solid var(--rule);color:var(--slate)}
+.legal .tableau-traitements thead th{font:600 12px/1.4 'Archivo',sans-serif;color:var(--ink);
+  text-transform:uppercase;letter-spacing:.06em}
+.legal .tableau-traitements tbody th{font-weight:600;color:var(--ink)}
+.legal a{text-decoration:underline}
+@media(max-width:760px){
+  .legal .mentions div{grid-template-columns:1fr;gap:2px}
+  .legal .tableau-traitements{display:block;overflow-x:auto}
+}

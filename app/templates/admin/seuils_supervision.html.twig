@@ -1,0 +1,23 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Seuils d'alerte · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Seuils d'alerte des coefficients{% endblock %}
+
+{% block admin_subtitle %}<p>Au-delà de ces seuils, une maille est signalée en supervision. Le gain E→C est un effet log. Toute modification est tracée au journal d'audit.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if erreur is defined %}
+        <p class="erreur" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('admin_seuils_supervision') }}">
+        <label for="erreur_mediane_max">Erreur médiane maximale (%)</label>
+        <input type="number" id="erreur_mediane_max" name="erreur_mediane_max" min="1" step="0.5" value="{{ seuils.erreurMedianeMaxPct }}" required>
+
+        <label for="gain_ec_max">Gain E→C maximal (log)</label>
+        <input type="number" id="gain_ec_max" name="gain_ec_max" min="0.01" step="0.01" value="{{ seuils.gainEcMaxLog }}" required>
+
+        <button type="submit">Enregistrer les seuils</button>
+    </form>
+{% endblock %}

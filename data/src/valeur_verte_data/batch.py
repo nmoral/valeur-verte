@@ -80,6 +80,28 @@ def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutatio
     return [mutation for mutation in pool if mutation.code_insee[:2] == departement]
 
 
+def _centroide_moyen(sample: Sequence[Mutation]) -> tuple[float, float]:
+    """Barycentre de l'échantillon (moyenne lat/lon des ventes géolocalisées) — #175.
+
+    Aux crans EPCI/DÉPARTEMENT la pondération est **uniforme** (σ départemental) :
+    le résultat est indépendant du centre choisi. On prend donc le barycentre des
+    **données** plutôt que le centroïde de la commune. C'est ce qui rend le calcul
+    identique pour toutes les communes du périmètre — déterministe (INV-5, sans
+    dépendre de l'ordre d'itération) et donc mémoïsable (un seul calcul réutilisé).
+    """
+    points = [
+        (mutation.latitude, mutation.longitude)
+        for mutation in sample
+        if mutation.latitude is not None and mutation.longitude is not None
+    ]
+    if not points:
+        return 0.0, 0.0
+    return (
+        sum(lat for lat, _ in points) / len(points),
+        sum(lon for _, lon in points) / len(points),
+    )
+
+
 def _effectifs_dpe(
     sample: Sequence[Mutation], *, restreindre_bati_ancien: bool = True
 ) -> Counter[str]:
@@ -177,6 +199,10 @@ def _compute_from_sample(
     Renvoie ``None`` si moins de ``min_classes_publiees`` classes tiennent le seuil.
     L'appelant fournit un ``sample`` déjà en ordre canonique (INV-5).
     """
+    # #208 : la pondération temporelle décroissante s'applique à l'estimateur
+    # publié (fit) et à son erreur mesurée (CV), pas à l'écrêtage — un outlier
+    # ancien reste un outlier ; la détection de points aberrants est un pré-filtre
+    # géométrique/robuste indépendant de l'emphase de récence.
     if config.ecretage == "residu":
         sample = ecreter_residu(
             sample,
@@ -209,6 +235,8 @@ def _compute_from_sample(
         restreindre_bati_ancien=config.restreindre_bati_ancien,
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
+        decroissance_temporelle_tau=config.decroissance_temporelle_tau,
+        annee_reference=millesime,
     )
     erreur = median_relative_error(
         sample,
@@ -222,6 +250,8 @@ def _compute_from_sample(
         restreindre_bati_ancien=config.restreindre_bati_ancien,
         effets_fixes_commune=config.effets_fixes_commune,
         indice_local=config.indice_local,
+        decroissance_temporelle_tau=config.decroissance_temporelle_tau,
+        annee_reference=millesime,
     )
     palier = palier_erreur(
         erreur,
@@ -242,6 +272,36 @@ def _compute_from_sample(
     )
 
 
+def _maille_departementale(
+    code_insee: str,
+    millesime: int,
+    echantillon: Sequence[Mutation],
+    alerte: str | None,
+    config: CalculConfig,
+) -> MailleCoefficient | None:
+    """Maille du mode **DÉPARTEMENTAL dégradé** (#22) — fonction pure des ventes du dept.
+
+    Pondération uniforme (σ départemental) centrée sur le **barycentre** de l'échantillon
+    (#200, `_centroide_moyen`) : le résultat ne dépend ni de la commune ni de l'ordre
+    d'itération (INV-5). Il est donc **identique pour toutes les communes du département**
+    et peut être calculé une seule fois puis réutilisé (mémoïsation côté `compute_maille`
+    / `compute_communes`), seul `code_insee` variant d'une ligne à l'autre.
+    """
+    centroid_lat, centroid_lon = _centroide_moyen(echantillon)
+    return _compute_from_sample(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        echantillon,
+        mode=CoverageMode.DEPARTEMENTAL,
+        rayon_km=None,
+        fit_sigma=config.departemental_sigma_km,
+        alerte=alerte,
+        config=config,
+    )
+
+
 def compute_maille(
     code_insee: str,
     centroid_lat: float,
@@ -250,8 +310,15 @@ def compute_maille(
     pool: Sequence[Mutation],
     *,
     config: CalculConfig = DEFAULT_CONFIG,
+    memo_departemental: dict[str, MailleCoefficient | None] | None = None,
 ) -> MailleCoefficient | None:
-    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus)."""
+    """Calcule la ligne ``coefficient_maille`` d'une commune, ou ``None`` (refus).
+
+    ``memo_departemental`` (#200) mémoïse la régression du mode DÉPARTEMENTAL par
+    département sur la durée d'un batch : identique pour toutes les communes du dept,
+    elle n'est calculée qu'une fois puis réutilisée (seul ``code_insee`` change). Le
+    mode LOCAL reste par commune (voisinage propre).
+    """
     # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
     # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
     # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
@@ -272,26 +339,28 @@ def compute_maille(
         return None
 
     if decision.mode is CoverageMode.LOCAL:
-        sample: Sequence[Mutation] = selection.sample
-        rayon_km: int | None = selection.rayon_km
-        fit_sigma = _sigma_local(config, selection)
-    else:
-        sample = departemental
-        rayon_km = None
-        fit_sigma = config.departemental_sigma_km
+        return _compute_from_sample(
+            code_insee,
+            centroid_lat,
+            centroid_lon,
+            millesime,
+            selection.sample,
+            mode=CoverageMode.LOCAL,
+            rayon_km=selection.rayon_km,
+            fit_sigma=_sigma_local(config, selection),
+            alerte=decision.alerte,
+            config=config,
+        )
 
-    return _compute_from_sample(
-        code_insee,
-        centroid_lat,
-        centroid_lon,
-        millesime,
-        sample,
-        mode=decision.mode,
-        rayon_km=rayon_km,
-        fit_sigma=fit_sigma,
-        alerte=decision.alerte,
-        config=config,
-    )
+    # Mode DÉPARTEMENTAL dégradé (#22) : mémoïsé par département (#200).
+    departement = code_insee[:2]
+    if memo_departemental is not None and departement in memo_departemental:
+        base = memo_departemental[departement]
+    else:
+        base = _maille_departementale(code_insee, millesime, departemental, decision.alerte, config)
+        if memo_departemental is not None:
+            memo_departemental[departement] = base
+    return None if base is None else replace(base, code_insee=code_insee)
 
 
 def _maille_par_bandes(
@@ -341,8 +410,6 @@ def _maille_par_bandes(
 
 def compute_maille_epci(
     code_insee: str,
-    centroid_lat: float,
-    centroid_lon: float,
     millesime: int,
     communes_epci: Sequence[str],
     pool: Sequence[Mutation],
@@ -357,6 +424,11 @@ def compute_maille_epci(
     départemental) — tous les biens de l'EPCI comptent également, la géographie
     fine cède la place à un échantillon plus fourni. ``mode=EPCI``, sans rayon.
 
+    Le centre de pondération est le **barycentre des ventes de l'EPCI** (#175) : à
+    σ départemental la pondération est uniforme, donc le résultat ne dépend pas de
+    la commune — il est **identique pour toutes les communes de l'EPCI** et peut
+    être calculé une seule fois puis réutilisé (mémoïsation côté orchestration).
+
     Les classes DPE adjacentes sous-effectif sont fusionnées en bandes adaptatives
     (le pool plus large garde un DPE plus fin que le département, sans exiger deux
     classes pleines). ``None`` si moins de deux bandes (le département prend le relais).
@@ -366,6 +438,7 @@ def compute_maille_epci(
         (mutation for mutation in pool if mutation.code_insee in membres),
         key=lambda mutation: mutation.id_mutation,
     )
+    centroid_lat, centroid_lon = _centroide_moyen(sample)
     return _maille_par_bandes(
         code_insee,
         centroid_lat,
@@ -380,8 +453,6 @@ def compute_maille_epci(
 
 def compute_maille_departement(
     code_insee: str,
-    centroid_lat: float,
-    centroid_lon: float,
     millesime: int,
     pool: Sequence[Mutation],
     *,
@@ -394,11 +465,17 @@ def compute_maille_departement(
     pondération uniforme (σ départemental), avec bandes DPE adaptatives +
     anti-inversion. ``mode=DEPARTEMENTAL``, sans rayon. Renvoie ``None`` si moins de
     deux bandes subsistent (la commune sort alors hors zone).
+
+    Le centre de pondération est le **barycentre des ventes du département** (#175) :
+    à σ départemental la maille est identique pour toutes les communes du département,
+    donc calculable une seule fois puis réutilisée (mémoïsation côté orchestration),
+    seul ``code_insee`` variant d'une ligne à l'autre.
     """
     sample = sorted(
         _meme_departement(code_insee, pool),
         key=lambda mutation: mutation.id_mutation,
     )
+    centroid_lat, centroid_lon = _centroide_moyen(sample)
     return _maille_par_bandes(
         code_insee,
         centroid_lat,
@@ -422,8 +499,20 @@ def compute_communes(
 
     Motif §10.6 : on charge les ventes du département (+ limitrophes) une fois en
     mémoire, puis on itère les communes. Les communes en refus sont omises.
+
+    La régression du mode DÉPARTEMENTAL est **mémoïsée par département** (#200) : elle
+    est identique pour toutes les communes du dept, donc calculée une seule fois.
     """
+    memo_departemental: dict[str, MailleCoefficient | None] = {}
     for code_insee, lat, lon in communes:
-        maille = compute_maille(code_insee, lat, lon, millesime, pool, config=config)
+        maille = compute_maille(
+            code_insee,
+            lat,
+            lon,
+            millesime,
+            pool,
+            config=config,
+            memo_departemental=memo_departemental,
+        )
         if maille is not None:
             yield maille

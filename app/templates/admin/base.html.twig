@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ page_title|default('Admin interne') }} · Valeur Verte{% endblock %}
+
+{% block body %}
+{% set route = app.request.attributes.get('_route') %}
+<div class="app">
+    <aside>
+        <div class="brand"><i>VV</i> Admin interne</div>
+        <nav class="side">
+            <a href="{{ path('admin') }}"{{ route == 'admin' ? ' class="on"' : '' }}>Accueil</a>
+            <a href="{{ path('admin_journal') }}"{{ route == 'admin_journal' ? ' class="on"' : '' }}>Journal d'audit</a>
+            <a href="{{ path('admin_signalements') }}"{{ route == 'admin_signalements' ? ' class="on"' : '' }}>Signalements</a>
+            <p class="sect">Modèle</p>
+            <a href="{{ path('admin_coefficients') }}"{{ route == 'admin_coefficients' ? ' class="on"' : '' }}>Coefficients</a>
+            <a href="{{ path('admin_millesimes') }}"{{ route starts with 'admin_millesime' ? ' class="on"' : '' }}>Millésimes</a>
+            <p class="sect">Comptes</p>
+            <a href="{{ path('admin_comptes') }}"{{ route == 'admin_comptes' ? ' class="on"' : '' }}>Comptes pro</a>
+            <a href="{{ path('admin_candidatures') }}"{{ route == 'admin_candidatures' ? ' class="on"' : '' }}>Candidatures fondateur</a>
+            <p class="sect">Réglages</p>
+            <a href="{{ path('admin_configuration') }}"{{ route == 'admin_configuration' ? ' class="on"' : '' }}>Configuration</a>
+            <a href="{{ path('admin_bareme_aides') }}"{{ route == 'admin_bareme_aides' ? ' class="on"' : '' }}>Barème d'aides</a>
+        </nav>
+        <div class="side-footer">
+            <a href="{{ path('mon_compte') }}" class="side-compte"><span aria-hidden="true">⚙</span> Mon compte</a>
+            <a href="{{ path('logout') }}" class="side-logout"><span aria-hidden="true">⏻</span> Se déconnecter</a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="top">
+            <div>
+                <h1>{% block admin_title %}{% endblock %}</h1>
+                {% block admin_subtitle %}{% endblock %}
+            </div>
+            <div style="display:flex;gap:8px">{% block admin_actions %}{% endblock %}</div>
+        </div>
+
+        {% block admin_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}
