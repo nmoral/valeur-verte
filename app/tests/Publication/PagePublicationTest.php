@@ -74,6 +74,7 @@ final class PagePublicationTest extends WebTestCase
 
         self::assertIsArray($donnees);
         self::assertSame(760, $donnees['w']);
+        self::assertIsArray($donnees['feats']);
         $parDepartement = array_column($donnees['feats'], 'm', 'dept');
         self::assertSame(['n' => 2, 'gain' => 35, 'gainED' => 21, 'dept' => 0], $parDepartement['31']);
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');

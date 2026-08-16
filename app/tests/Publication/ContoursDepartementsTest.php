@@ -40,9 +40,11 @@ final class ContoursDepartementsTest extends TestCase
         $chemins = self::contours()->chemins();
         preg_match_all('/-?\d+(?:\.\d+)?/', implode('', $chemins), $coordonnees);
         $valeurs = array_map('floatval', $coordonnees[0]);
+        $plusPetite = array_reduce($valeurs, static fn (float $borne, float $valeur) => min($borne, $valeur), 760.0);
+        $plusGrande = array_reduce($valeurs, static fn (float $borne, float $valeur) => max($borne, $valeur), 0.0);
 
-        self::assertGreaterThanOrEqual(0.0, min($valeurs));
-        self::assertLessThanOrEqual(760.0, max($valeurs), 'Projection alignée sur le viewBox 760×720.');
+        self::assertGreaterThanOrEqual(0.0, $plusPetite);
+        self::assertLessThanOrEqual(760.0, $plusGrande, 'Projection alignée sur le viewBox 760×720.');
     }
 
     private static function contours(): ContoursDepartements

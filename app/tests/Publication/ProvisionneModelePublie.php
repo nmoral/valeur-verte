@@ -23,9 +23,10 @@ trait ProvisionneModelePublie
 
     protected function tearDown(): void
     {
-        if (null !== $this->connexionPrivilegiee) {
+        $prive = $this->connexionPrivilegiee;
+        if (null !== $prive) {
             $this->nettoyer();
-            $this->connexionPrivilegiee->close();
+            $prive->close();
             $this->connexionPrivilegiee = null;
         }
 
@@ -55,7 +56,7 @@ trait ProvisionneModelePublie
         $port = is_numeric($params['port'] ?? null) ? (int) $params['port'] : 5432;
         $base = $this->app()->getDatabase() ?? 'valeur_verte_test';
 
-        $this->connexionPrivilegiee = DriverManager::getConnection(
+        $prive = DriverManager::getConnection(
             (new DsnParser(['postgresql' => 'pdo_pgsql']))->parse(\sprintf(
                 'postgresql://valeur_verte:valeur_verte@%s:%d/%s?serverVersion=16&charset=utf8',
                 $hote,
@@ -63,9 +64,10 @@ trait ProvisionneModelePublie
                 $base,
             )),
         );
+        $this->connexionPrivilegiee = $prive;
         $this->provisionner();
 
-        return $this->connexionPrivilegiee;
+        return $prive;
     }
 
     protected function semerMaille(

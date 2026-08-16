@@ -102,6 +102,13 @@ services:
             $apiKey: '%env(BREVO_API_KEY)%'
             $expediteur: '%env(BREVO_EXPEDITEUR)%'
 
+    # Page publique de publication (#48, #224) : lecture du millésime publié dans
+    # le schéma « data » (lecture seule) et contours départementaux figés.
+    App\Publication\LectureModelePublie: '@App\Publication\LectureModelePublieDbal'
+    App\Publication\ContoursDepartements:
+        arguments:
+            $fichier: '%kernel.project_dir%/resources/publication/contours-departements.json'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

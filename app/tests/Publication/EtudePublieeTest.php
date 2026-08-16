@@ -6,9 +6,9 @@ namespace App\Tests\Publication;
 
 use App\Publication\ContoursDepartements;
 use App\Publication\EtudePubliee;
-use App\Publication\LectureModelePublieEnMemoire;
 use App\Publication\Maille;
 use App\Publication\Publication;
+use App\Tests\Publication\Double\LectureModelePublieEnMemoire;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -35,6 +35,7 @@ final class EtudePublieeTest extends TestCase
         self::assertNotNull($etude);
         self::assertSame(2025, $etude->millesime);
         self::assertSame('2026-02-10', $etude->publieLe->format('Y-m-d'));
+        self::assertNotNull($etude->calculeLe);
         self::assertSame('2026-02-08', $etude->calculeLe->format('Y-m-d'));
     }
 

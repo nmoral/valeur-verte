@@ -43,6 +43,7 @@ final class LectureModelePublieDbalTest extends KernelTestCase
         self::assertNotNull($publication);
         self::assertSame(2025, $publication->millesime);
         self::assertSame('2026-02-10 09:30', $publication->publieLe->format('Y-m-d H:i'));
+        self::assertNotNull($publication->calculeLe);
         self::assertSame('2026-02-08 05:40', $publication->calculeLe->format('Y-m-d H:i'), 'Le calcul le plus récent du millésime.');
     }
 

@@ -6,7 +6,7 @@ namespace App\Tests\Publication;
 
 use App\Publication\Carte;
 use App\Publication\Maille;
-use App\Publication\MetriqueDepartement;
+use App\Publication\MetriquesDepartementales;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -55,7 +55,7 @@ final class CarteTest extends TestCase
 
         return new Carte(
             ['31' => 'M0,0 L1,1Z', '57' => 'M2,2 L3,3Z'],
-            MetriqueDepartement::parDepartement($mailles),
+            MetriquesDepartementales::depuisMailles($mailles),
         );
     }
 }
