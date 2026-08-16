@@ -15,6 +15,10 @@
 <body>
 <div id="app">
 
+  <nav class="topbar">
+    <a class="brand" href="{{ url('home') }}" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+  </nav>
+
   <header class="hero">
     <p class="eyebrow">Étude · Valeur verte des maisons · France, millésime <span data-etat="millesime">{{ etude.millesime }}</span></p>
     <h1>S'arrêter à la classe D, c'est laisser <em>la moitié du gain</em> sur la table.</h1>
@@ -84,15 +88,19 @@
       </div>
 
       <aside class="panel">
-        <label class="srch">
-          <span>Votre département</span>
-          <input id="q" type="search" placeholder="Nom ou numéro…" autocomplete="off">
-        </label>
-        <div id="qres" class="qres" hidden></div>
-        <h2 id="ptitle"></h2>
-        <p class="pnote" id="pnote"></p>
-        <ol class="rank" id="rank"></ol>
-        <button class="flip" id="flip"></button>
+        {# Contenu en flux détaché : le panneau se cale sur la hauteur de la carte
+           et défile en interne, au lieu de la dépasser quand la fiche s'ouvre. #}
+        <div class="panel-flux">
+          <label class="srch">
+            <span>Votre département</span>
+            <input id="q" type="search" placeholder="Nom ou numéro…" autocomplete="off">
+          </label>
+          <div id="qres" class="qres" hidden></div>
+          <h2 id="ptitle"></h2>
+          <p class="pnote" id="pnote"></p>
+          <ol class="rank" id="rank"></ol>
+          <button class="flip" id="flip"></button>
+        </div>
       </aside>
     </div>
   </section>
@@ -171,6 +179,20 @@
       <li><b>Six départements sont absents.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
       <li><b>Une corrélation, pas une garantie.</b> Ces écarts décrivent un marché observé. Ils n'engagent aucune valeur pour un bien particulier.</li>
     </ul>
+  </section>
+
+  <section class="block compte">
+    <div>
+      <h2>Vous mesurez ces gains pour vos clients ?</h2>
+      <p>
+        Valeur Verte produit le même calcul à l'adresse près, avec le rapport à remettre au
+        propriétaire. Deux mois d'essai, sans engagement.
+      </p>
+    </div>
+    <p class="compte-liens">
+      <a href="{{ url('inscription') }}" data-lien="inscription">Créer un compte</a>
+      <a href="{{ url('login') }}" class="secondaire">J'ai déjà un compte</a>
+    </p>
   </section>
 
   <footer class="ft">

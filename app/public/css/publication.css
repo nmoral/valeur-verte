@@ -10,12 +10,19 @@ html, body { margin: 0; background: #eef1f2; }
  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
 #app *{box-sizing:border-box}
 
-.hero{border-bottom:2px solid var(--ink);padding-bottom:26px}
-.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.13em;color:var(--mut);font-weight:600;margin:0 0 14px}
-.hero h1{font-size:42px;line-height:1.1;font-weight:680;letter-spacing:-.028em;margin:0;max-width:19ch;text-wrap:balance}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px}
+.brand{display:inline-flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:660;font-size:14.5px;letter-spacing:-.01em}
+.brand i{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--ink);color:#fff;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.02em}
+.brand:hover{color:var(--teal)}
+.brand:hover i{background:var(--teal)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);column-gap:48px;align-items:end;
+ border-bottom:2px solid var(--ink);padding-bottom:26px}
+.eyebrow{grid-column:1/-1;font-size:11.5px;text-transform:uppercase;letter-spacing:.13em;color:var(--mut);font-weight:600;margin:0 0 14px}
+.hero h1{font-size:44px;line-height:1.08;font-weight:680;letter-spacing:-.028em;margin:0;text-wrap:balance}
 .hero h1 em{font-style:normal;color:var(--clay)}
-.chapo{font-size:17px;color:#38474d;max-width:64ch;margin:18px 0 0;text-wrap:pretty}
-.proof{display:flex;gap:38px;margin-top:26px;flex-wrap:wrap}
+.chapo{font-size:16.5px;color:#38474d;margin:0;text-wrap:pretty}
+.proof{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:30px}
 .pf{display:flex;flex-direction:column}
 .pf b{font-size:27px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1}
 .pf span{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.07em;margin-top:6px}
@@ -31,7 +38,7 @@ html, body { margin: 0; background: #eef1f2; }
 .legend{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
 .legbar{width:150px;height:11px;border-radius:6px;border:1px solid var(--line)}
 
-.main{display:grid;grid-template-columns:1fr 306px;gap:20px;align-items:start}
+.main{display:grid;grid-template-columns:1fr 306px;gap:20px;align-items:stretch}
 .mapwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
 #map{width:100%;height:auto;display:block}
 #map path{stroke:var(--card);stroke-width:.6;cursor:pointer;transition:opacity .12s}
@@ -49,7 +56,8 @@ html, body { margin: 0; background: #eef1f2; }
 .tip .row{display:flex;justify-content:space-between;gap:14px;padding:2px 0;font-variant-numeric:tabular-nums;color:#c6d6d6;border-top:1px solid #2e3c41;margin-top:5px;padding-top:6px}
 .tip .row b{font-weight:600;color:#fff}
 
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.panel{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.panel-flux{position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;overflow:hidden}
 .srch{display:block;margin-bottom:14px}
 .srch span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600;margin-bottom:6px}
 .srch input{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
@@ -63,7 +71,8 @@ html, body { margin: 0; background: #eef1f2; }
 .qres .qm{font-size:12px;color:#a8c2c2;font-variant-numeric:tabular-nums;border-top:1px solid #2e3c41;padding-top:7px;margin-top:3px}
 .panel h2{font-size:14px;margin:0 0 3px;font-weight:640}
 .pnote{font-size:12px;color:var(--mut);margin:0 0 12px}
-.rank{list-style:none;margin:0;padding:0}
+.rank{list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+ scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .rank li{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
 .rank li:first-child{border-top:0}
 .rank .rc{width:24px;height:24px;border-radius:6px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
@@ -98,7 +107,13 @@ html, body { margin: 0; background: #eef1f2; }
 .ft a{color:var(--teal)}
 
 @media(max-width:900px){
+ .hero{grid-template-columns:1fr;row-gap:18px}
  .hero h1{font-size:29px}
+ .proof{grid-template-columns:repeat(2,1fr)}
+ .panel{overflow:visible}
+ .panel-flux{position:static;inset:auto;display:block;overflow:visible}
+ .rank{overflow:visible}
+ .compte{flex-direction:column;align-items:flex-start}
  .chapo{font-size:15.5px}
  .main{grid-template-columns:1fr}
  .findings{grid-template-columns:1fr}
@@ -116,3 +131,15 @@ html, body { margin: 0; background: #eef1f2; }
 .etat dd{margin:0;font-size:19px;font-weight:660;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .statut .note{margin-top:16px}
 @media(max-width:900px){.etat{grid-template-columns:repeat(2,1fr)}}
+
+/* Invitation à créer un compte : sobre, en fin de lecture. */
+.compte{display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap;
+ background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px}
+.compte h2{font-size:16px;font-weight:640;margin:0 0 4px;letter-spacing:-.01em}
+.compte p{margin:0;font-size:13.5px;color:var(--mut);max-width:62ch}
+.compte-liens{display:flex;align-items:center;gap:18px;flex:none}
+.compte-liens a{font-size:13.5px;font-weight:600;text-decoration:none;color:#fff;background:var(--ink);
+ padding:9px 16px;border-radius:8px;white-space:nowrap}
+.compte-liens a:hover{background:var(--teal)}
+.compte-liens a.secondaire{background:transparent;color:var(--mut);padding:9px 0;font-weight:500}
+.compte-liens a.secondaire:hover{color:var(--ink);text-decoration:underline}
