@@ -80,6 +80,26 @@ final class PagePublicationTest extends WebTestCase
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');
     }
 
+    public function testLaPageRamèneALAccueil(): void
+    {
+        $crawler = $this->page();
+
+        self::assertSame(
+            'http://valeurverte.localhost/',
+            $crawler->filter('.topbar a[data-lien="accueil"]')->attr('href'),
+        );
+    }
+
+    public function testLaPageInviteACreerUnCompte(): void
+    {
+        $crawler = $this->page();
+
+        self::assertSame(
+            'http://valeurverte.localhost/inscription',
+            $crawler->filter('a[data-lien="inscription"]')->attr('href'),
+        );
+    }
+
     public function testLaPageEstIndexableEtPorteSesMetaDeReferencement(): void
     {
         $crawler = $this->page();
