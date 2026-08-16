@@ -53,6 +53,29 @@ python generer.py --millesime 2025 --data-dir .
 # -> validation-france-2025.html
 ```
 
+### 3. Rafraîchir les contours servis par le site (#224)
+
+La page publique `/valeur-verte-par-departement` **ne rejoue pas ce générateur** : elle lit les
+métriques du millésime publié en base et n'a besoin que de la **géométrie**, servie depuis
+`app/resources/publication/contours-departements.json`. Cet asset ne se régénère que si
+`data.commune_contour` change (fusion de communes, nouveau découpage) :
+
+```sh
+python - <<'PY'
+import json
+from pathlib import Path
+from generer import projeter_contours
+
+feats = projeter_contours(Path("dept-contours.geojson"))
+Path("../../app/resources/publication/contours-departements.json").write_text(
+    json.dumps({f["dept"]: f["path"] for f in feats}, ensure_ascii=False, separators=(",", ":"))
+)
+PY
+```
+
+Les tests `app/tests/Publication/ContoursDepartementsTest.php` vérifient l'asset (96 départements,
+chemins fermés, boîte 760×720) : un export tronqué ou reprojeté fait rougir la suite.
+
 ## Notes
 
 - **Colonnes du CSV `mailles`** (ordre attendu par `generer.py`) : `code_insee, mode,
