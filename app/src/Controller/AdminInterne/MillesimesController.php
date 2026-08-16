@@ -116,6 +116,7 @@ final class MillesimesController extends AbstractController
         return $this->render('admin/millesime_bloquees.html.twig', [
             'millesime' => $millesime,
             'bloquees' => $lecture->maillesBloquees($millesime),
+            'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
         ]);
     }
 
@@ -133,6 +134,7 @@ final class MillesimesController extends AbstractController
             return $this->render('admin/millesime_bloquees.html.twig', [
                 'millesime' => $millesime,
                 'bloquees' => $lecture->maillesBloquees($millesime),
+                'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
                 'erreur' => $erreur->getMessage(),
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
