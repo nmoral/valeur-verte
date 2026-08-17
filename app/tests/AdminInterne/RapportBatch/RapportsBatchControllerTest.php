@@ -64,7 +64,8 @@ final class RapportsBatchControllerTest extends WebTestCase
         $client = static::createClient();
         $this->connecterAdmin($client);
         $this->semer($client);
-        $id = $this->prive?->fetchOne("SELECT id FROM data.rapport_batch WHERE phase = 'ingestion'");
+        $idBrut = $this->prive?->fetchOne("SELECT id FROM data.rapport_batch WHERE phase = 'ingestion'");
+        $id = is_numeric($idBrut) ? (int) $idBrut : 0;
 
         $client->request('GET', 'http://'.self::HOTE_ADMIN.'/rapports-batch/'.$id);
 
