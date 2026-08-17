@@ -100,6 +100,22 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString('17/08/2026', $convertisseur->dernierHtml);
     }
 
+    public function testLaSituationDuMenageDeclareeFigureDansLeDocument(): void
+    {
+        // #26/#110 : quand le pro a précisé la situation du ménage, le PDF doit la
+        // porter — c'est ce qui explique le montant d'aides retenu.
+        $convertisseur = $this->convertisseurEspion();
+        $this->generateur($convertisseur)->generer(
+            $this->saisie(),
+            $this->restitutionSolide(),
+            $this->branding(),
+            ReferenceRapport::depuis(self::REFERENCE),
+            situationMenage: 'Revenus modestes',
+        );
+
+        self::assertStringContainsString('Revenus modestes', $convertisseur->dernierHtml);
+    }
+
     public function testUneEstimationFragileAfficheLeBandeauDAlerte(): void
     {
         $html = $this->htmlGenere($this->restitutionFragile());
