@@ -5,34 +5,34 @@
 <style>
     body{font-family:sans-serif;color:#1a2b2f;font-size:12px;line-height:1.5}
     h1,h2,h3,p{margin:0}
-    .bandeau{background:{{ couleur }};color:#ffffff;padding:13px 20px}
-    .bandeau .logo{width:40px;height:40px}
+    .bandeau{background:{{ couleur }};color:#ffffff;padding:11px 20px}
+    .bandeau .logo{width:38px;height:38px}
     .bandeau .marque{font-size:17px;font-weight:bold;vertical-align:middle}
     .bandeau .meta{color:#ffffff;font-size:10px;text-align:right;line-height:1.6}
-    .corps{padding:18px 20px}
+    .corps{padding:12px 20px}
     .eyebrow{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80}
     .adresse{font-size:18px;font-weight:bold;margin-top:3px}
-    .bien{color:#6b7c80;margin-top:4px}
-    .section-titre{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80;font-weight:bold;margin-top:20px;border-top:1px solid #dfe6e7;padding-top:12px}
-    .bouquet{margin-top:11px;padding:9px 12px;border:1px solid #dfe6e7;border-radius:3px;background:#f7faf9}
+    .bien{color:#6b7c80;margin-top:3px}
+    .section-titre{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80;font-weight:bold;margin-top:10px;border-top:1px solid #dfe6e7;padding-top:7px}
+    .bouquet{margin-top:10px;padding:8px 12px;border:1px solid #dfe6e7;border-radius:3px;background:#f7faf9}
     .bouquet-k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b7c80}
     .bouquet-nom{font-weight:bold;margin-top:2px}
     .bouquet-postes{color:#6b7c80;margin-top:3px}
-    .hero{margin-top:10px}
+    .hero{margin-top:8px}
     .hero-label{color:#6b7c80}
-    .montant{font-size:30px;font-weight:bold;color:{{ couleur }};margin-top:2px}
+    .montant{font-size:27px;font-weight:bold;color:{{ couleur }};margin-top:2px}
     .fourchette{color:#41585d;margin-top:3px}
-    .fiabilite{margin-top:6px;font-weight:bold}
+    .fiabilite{margin-top:5px;font-weight:bold}
     .fiabilite-solide{color:#1a7a43}
     .fiabilite-correct{color:#8a5712}
     .fiabilite-fragile{color:#b4271f}
     .bandeau-alerte{margin-top:12px;padding:10px 12px;border:1px solid #f0c9c3;background:#fbecea;color:#b4271f;border-radius:3px}
     .bandeau-info{margin-top:12px;padding:10px 12px;border:1px solid #f0dbae;background:#fcf2df;color:#8a5712;border-radius:3px}
-    table.stats{width:100%;margin-top:14px;border-collapse:collapse}
-    table.stats td{width:33%;padding:9px 12px;border:1px solid #dfe6e7}
+    table.stats{width:100%;margin-top:10px;border-collapse:collapse}
+    table.stats td{width:33%;padding:7px 12px;border:1px solid #dfe6e7}
     .stat-k{color:#6b7c80;font-size:10px;text-transform:uppercase}
     .stat-v{font-size:15px;font-weight:bold}
-    .prix{margin-top:12px;color:#41585d}
+    .prix{margin-top:10px;color:#41585d}
     /* Lignes coût / aides (include partagé, classes .ajustement-lignes / .montant). */
     table.ajustement-lignes{width:100%;margin-top:8px;border-collapse:collapse}
     table.ajustement-lignes td{padding:6px 0;color:#41585d;font-size:12px}
@@ -41,9 +41,9 @@
     table.ajustement-lignes tr.ajust td{color:#6b7c80}
     table.ajustement-lignes tr.retenue td{border-top:2px solid #1a2b2f;font-weight:bold;color:#1a2b2f;font-size:14px}
     .ajustement-motif{color:#6b7c80;font-weight:normal}
-    .rac-note,.menage{margin-top:8px;color:#41585d;font-size:11px}
-    table.effet-seuil{width:100%;margin-top:12px;border-collapse:collapse}
-    table.effet-seuil td{padding:7px 10px;color:#41585d;border-bottom:1px solid #dfe6e7}
+    .rac-note,.menage{margin-top:7px;color:#41585d;font-size:11px}
+    table.effet-seuil{width:100%;margin-top:10px;border-collapse:collapse}
+    table.effet-seuil td{padding:6px 10px;color:#41585d;border-bottom:1px solid #dfe6e7}
     table.effet-seuil td.m{text-align:right;font-weight:bold;color:#1a2b2f;white-space:nowrap}
     table.effet-seuil tr.titre td{font-weight:bold;color:#1a2b2f;border-bottom:2px solid #1a2b2f;padding-left:0}
     table.effet-seuil tr.palier-seuil td{background:#eef6f4;color:#0e4a5c;font-weight:bold}
@@ -55,9 +55,9 @@
     table.ajustement tr.retenue td{border-top:2px solid #1a2b2f;font-weight:bold;color:#1a2b2f}
     table.ajustement .motif{color:#6b7c80}
     .ajustement-note{margin-top:6px;font-size:10px;color:#6b7c80}
-    .methode{margin-top:8px;color:#41585d;font-size:11px;line-height:1.6}
-    .mention{margin-top:10px;padding:9px 11px;border:1px solid #dfe6e7;border-radius:3px;background:#f7faf9;color:#41585d;font-size:10px;line-height:1.55}
-    .identite{margin-top:6px}
+    .methode{margin-top:6px;color:#41585d;font-size:11px;line-height:1.45}
+    .mention{margin-top:7px;padding:7px 11px;border:1px solid #dfe6e7;border-radius:3px;background:#f7faf9;color:#41585d;font-size:10px;line-height:1.45}
+    .identite{margin-top:4px}
     .identite .l{padding:2px 0;color:#41585d}
     .pied{font-size:9px;color:#6b7c80;border-top:1px solid #dfe6e7;padding-top:6px}
 </style>
