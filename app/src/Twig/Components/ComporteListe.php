@@ -93,14 +93,14 @@ trait ComporteListe
     }
 
     #[LiveAction]
-    public function executerGroupe(#[LiveArg] string $action): void
+    public function executerGroupe(#[LiveArg] string $cle): void
     {
         $autorisees = array_column($this->actionsGroupees(), 'cle');
-        if (!\in_array($action, $autorisees, true)) {
-            throw new \InvalidArgumentException(\sprintf('Action de groupe non autorisée : « %s ».', $action));
+        if (!\in_array($cle, $autorisees, true)) {
+            throw new \InvalidArgumentException(\sprintf('Action de groupe non autorisée : « %s ».', $cle));
         }
 
-        $this->message = $this->registreActions->action($action)->executer($this->selection);
+        $this->message = $this->registreActions->action($cle)->executer($this->selection);
         $this->selection = [];
         $this->page = 1;
     }

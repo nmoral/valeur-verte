@@ -24,11 +24,16 @@
     <div class="liste-actions" role="group" aria-label="Actions de groupe">
         <span>{{ selection|length }} sélectionné(s) :</span>
         {% for action in actions %}
-            <button type="button" class="btn"
-                    data-action="live#action"
+            <button type="button" class="btn btn-sm"
+                    {% if action.confirmation is defined %}
+                        data-controller="confirm"
+                        data-confirm-message-value="{{ action.confirmation }}"
+                        data-action="confirm#ask live#action"
+                    {% else %}
+                        data-action="live#action"
+                    {% endif %}
                     data-live-action-param="executerGroupe"
-                    data-live-action-name-param="{{ action.cle }}"
-                    {% if action.confirmation is defined %}data-liste-confirmation="{{ action.confirmation }}"{% endif %}>
+                    data-live-cle-param="{{ action.cle }}">
                 {{ action.libelle }}
             </button>
         {% endfor %}

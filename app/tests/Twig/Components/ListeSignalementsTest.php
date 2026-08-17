@@ -84,7 +84,7 @@ final class ListeSignalementsTest extends KernelTestCase
         $composant = $this->createLiveComponent('ListeSignalements');
         $composant->set('selection', [(string) $this->toulouse->id(), (string) $this->foix->id()]);
 
-        $html = (string) $composant->call('executerGroupe', ['action' => 'signalements.traiter'])->render();
+        $html = (string) $composant->call('executerGroupe', ['cle' => 'signalements.traiter'])->render();
 
         self::assertStringContainsString('2 signalement(s) marqué(s) comme traité(s).', $html);
 
@@ -107,6 +107,6 @@ final class ListeSignalementsTest extends KernelTestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        $composant->call('executerGroupe', ['action' => 'signalements.supprimer_tout']);
+        $composant->call('executerGroupe', ['cle' => 'signalements.supprimer_tout']);
     }
 }
