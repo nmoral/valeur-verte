@@ -391,11 +391,17 @@ se câble par petits pas TDD. État :
   LOCAL reste par commune (voisinage propre, régressions légitimement différentes).
 - ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
   à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
-- ⏳ **Restitution `app`** : bandeau dégradé, rendu par bande, amplitude affichée.
+- ✅ **Restitution `app`** : le lecteur (`CoefficientMailleDbal`) projette `mode`,
+  `palier`, `bandes` ; `CoefficientMaille` résout une classe DPE fusionnée via sa
+  bande (G servie par F) au lieu de refuser l'estimation. La restitution formule
+  le cran retenu (`local` → rayon, `epci` → « intercommunal », `departemental` →
+  « départemental »), affiche un **bandeau dégradé** propre au palier (20-30 %),
+  et signale à l'usager les classes servies par bande. Ces trois signaux sont
+  **figés dans l'instantané** (#33) pour un PDF régénéré à l'identique.
 
 Ce référentiel décrit le moteur **tel qu'il tourne** : la cascade géographique
-complète LOCAL → EPCI → DÉPARTEMENT est branchée **et persistée** ; reste la
-**restitution** côté `app` (dernier maillon, lecture de la table).
+complète LOCAL → EPCI → DÉPARTEMENT est branchée, **persistée** et **restituée**
+côté `app` (contrat data→app bouclé de bout en bout).
 
 ## 15. Décisions & réglages (traçabilité)
 

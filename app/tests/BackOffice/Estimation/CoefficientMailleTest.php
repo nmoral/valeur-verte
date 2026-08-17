@@ -7,6 +7,8 @@ namespace App\Tests\BackOffice\Estimation;
 use App\BackOffice\Estimation\ClasseNonPubliee;
 use App\BackOffice\Estimation\CoefficientMaille;
 use App\BackOffice\Rapport\Dpe;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
 use App\BackOffice\Restitution\Restitution;
 use PHPUnit\Framework\TestCase;
 
@@ -58,7 +60,12 @@ final class CoefficientMailleTest extends TestCase
 
     public function testLeRepliDepartementalSePropageALaRestitution(): void
     {
-        $maille = self::maille(['D' => 0.0, 'C' => 0.10], erreurMediane: 20.0, rayonKm: null);
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10],
+            erreurMediane: 20.0,
+            rayonKm: null,
+            portee: PorteeEstimation::Departemental,
+        );
 
         $restitution = $maille->estimer(Dpe::D, Dpe::C, 100000, false);
 
@@ -75,7 +82,73 @@ final class CoefficientMailleTest extends TestCase
     }
 
     /**
-     * @param array<string, float> $coefDpe
+     * Rendu par bande (#169) : aux crans EPCI/DÉPT, une classe sous-effectif est
+     * fusionnée dans sa bande. La maison classée G n'a pas de coefficient propre,
+     * mais `bandes` la rattache à F : on chiffre via le représentant, au lieu de
+     * refuser l'estimation.
+     */
+    public function testUneClasseFusionneeEstServieViaSaBande(): void
+    {
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10, 'F' => -0.30],
+            erreurMediane: 25.0,
+            portee: PorteeEstimation::Epci,
+            bandes: ['F' => 'F', 'G' => 'F'],
+        );
+
+        $viaBande = $maille->estimer(Dpe::G, Dpe::C, 100000, false);
+        $direct = $maille->estimer(Dpe::F, Dpe::C, 100000, false);
+
+        self::assertSame($direct->montantEuros(), $viaBande->montantEuros());
+    }
+
+    /**
+     * La substitution de bande est signalée à l'usager : « classe G estimée via
+     * la bande F ». Seules les classes réellement fusionnées (représentant ≠
+     * classe) sont mentionnées ; une bande identité (F→F) ne l'est pas.
+     */
+    public function testLaBandeAppliqueeEstSignaleeDansLaRestitution(): void
+    {
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10, 'F' => -0.30],
+            erreurMediane: 25.0,
+            portee: PorteeEstimation::Epci,
+            bandes: ['F' => 'F', 'G' => 'F'],
+        );
+
+        $restitution = $maille->estimer(Dpe::G, Dpe::C, 100000, false);
+
+        self::assertSame(['G' => 'F'], $restitution->bandesAppliquees());
+    }
+
+    public function testSansBandeAppliqueeLaRestitutionNeSignaleRien(): void
+    {
+        $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0);
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
+
+        self::assertSame([], $restitution->bandesAppliquees());
+    }
+
+    public function testLaMailleTransmetSaPorteeEtSonPalierALaRestitution(): void
+    {
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10, 'E' => -0.20],
+            erreurMediane: 25.0,
+            rayonKm: null,
+            portee: PorteeEstimation::Epci,
+            palier: PalierFiabilite::Degrade,
+        );
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
+
+        self::assertTrue($restitution->estDegradee());
+        self::assertSame('intercommunal (EPCI)', $restitution->intitulePortee());
+    }
+
+    /**
+     * @param array<string, float>  $coefDpe
+     * @param array<string, string> $bandes
      */
     private static function maille(
         array $coefDpe,
@@ -83,6 +156,9 @@ final class CoefficientMailleTest extends TestCase
         int $n = 100,
         ?int $rayonKm = 10,
         int $millesime = 2024,
+        PorteeEstimation $portee = PorteeEstimation::Local,
+        PalierFiabilite $palier = PalierFiabilite::Standard,
+        array $bandes = [],
     ): CoefficientMaille {
         return CoefficientMaille::depuis(
             millesime: $millesime,
@@ -90,6 +166,9 @@ final class CoefficientMailleTest extends TestCase
             n: $n,
             erreurMediane: $erreurMediane,
             coefDpe: $coefDpe,
+            portee: $portee,
+            palier: $palier,
+            bandes: $bandes,
         );
     }
 }
