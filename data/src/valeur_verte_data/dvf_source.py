@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from .dvf import Mutation, mutations_from_csv
 from .http import Fetcher
+from .schema_source import verifier_schema_dvf
 
 _BASE_URL = "https://files.data.gouv.fr/geo-dvf/latest/csv"
 
@@ -27,4 +28,7 @@ def dvf_url(millesime: int, code_insee: str) -> str:
 def fetch_mutations(fetcher: Fetcher, code_insee: str, millesime: int) -> list[Mutation]:
     """Récupère et agrège les mutations DVF d'une commune (§7)."""
     csv_text = fetcher.get_text(dvf_url(millesime, code_insee))
+    # DAT-1 (#124) : au bord, avant tout parsing — une colonne renommée échoue ici
+    # en la nommant, plutôt que de se propager en None jusqu'à un chiffre faux.
+    verifier_schema_dvf(csv_text)
     return mutations_from_csv(csv_text, millesime)

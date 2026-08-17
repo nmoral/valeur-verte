@@ -6,12 +6,33 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from valeur_verte_data.ingest import ingest_commune
+from valeur_verte_data.schema_source import COLONNES_DVF
 
-_CSV = (
-    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
-    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
-    "2024-1,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
-)
+# geo-dvf porte toujours l'en-tête complet (DAT-1, #124) : on construit des CSV
+# valides à partir des seules colonnes utiles au test, les autres restant vides.
+_COLONNES_DVF = sorted(COLONNES_DVF)
+
+
+def _dvf(*lignes: dict[str, str]) -> str:
+    entete = ",".join(_COLONNES_DVF)
+    corps = "".join(
+        ",".join(ligne.get(colonne, "") for colonne in _COLONNES_DVF) + "\n" for ligne in lignes
+    )
+    return entete + "\n" + corps
+
+
+_LIGNE = {
+    "id_mutation": "2024-1",
+    "valeur_fonciere": "200000",
+    "code_commune": "31555",
+    "code_postal": "31000",
+    "surface_reelle_bati": "80",
+    "adresse_numero": "12",
+    "adresse_nom_voie": "RUE DES FLEURS",
+    "longitude": "1.44",
+    "latitude": "43.6",
+}
+_CSV = _dvf(_LIGNE)
 
 
 class _FakeFetcher:
@@ -63,7 +84,7 @@ def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
 def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
     conn = _FakeConnection()
 
-    resultat = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher(_dvf()), conn, "31555", 2024)
 
     assert resultat.inserees == 0
     assert conn.inserts() == []
@@ -71,11 +92,9 @@ def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
     assert len(conn.deletes()) == 1
 
 
-_CSV_MIXTE = (
-    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
-    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
-    "propre,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
-    "aberrante,10,31555,31000,80,14,RUE DES FLEURS,1.44,43.6\n"
+_CSV_MIXTE = _dvf(
+    {**_LIGNE, "id_mutation": "propre"},
+    {**_LIGNE, "id_mutation": "aberrante", "valeur_fonciere": "10", "adresse_numero": "14"},
 )
 
 
@@ -95,6 +114,8 @@ _DPE_ADEME = {
             "adresse_ban": "12 RUE DES FLEURS 31000 TOULOUSE",
             "etiquette_dpe": "F",
             "periode_construction": "avant 1948",
+            "date_etablissement_dpe": "2022-05-01",
+            "version_dpe": "2.2",
         }
     ]
 }
@@ -113,11 +134,16 @@ class _FetcherAvecDpe:
         return _DPE_ADEME
 
 
-_CSV_DPE_PARTIEL = (
-    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
-    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
-    "avec-dpe,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
-    "sans-dpe,200000,31555,31000,80,5,AVENUE DU PARC,1.45,43.61\n"
+_CSV_DPE_PARTIEL = _dvf(
+    {**_LIGNE, "id_mutation": "avec-dpe"},
+    {
+        **_LIGNE,
+        "id_mutation": "sans-dpe",
+        "adresse_numero": "5",
+        "adresse_nom_voie": "AVENUE DU PARC",
+        "longitude": "1.45",
+        "latitude": "43.61",
+    },
 )
 
 

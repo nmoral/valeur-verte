@@ -16,6 +16,7 @@ import psycopg
 import pytest
 
 from valeur_verte_data.ingest import ingest_commune
+from valeur_verte_data.schema_source import COLONNES_DVF
 
 DSN = os.environ.get("DATABASE_URL", "")
 
@@ -24,11 +25,40 @@ pytestmark = [
     pytest.mark.skipif(not DSN, reason="DATABASE_URL non défini"),
 ]
 
+# geo-dvf porte toujours l'en-tête complet (DAT-1, #124) : on construit un CSV
+# valide à partir des seules colonnes utiles au test, les autres restant vides.
+_COLONNES_DVF = sorted(COLONNES_DVF)
+_LIGNES_DVF = (
+    {
+        "id_mutation": "2024-1",
+        "valeur_fonciere": "200000",
+        "code_commune": "31555",
+        "code_postal": "31000",
+        "surface_reelle_bati": "80",
+        "adresse_numero": "12",
+        "adresse_nom_voie": "RUE DES FLEURS",
+        "longitude": "1.44",
+        "latitude": "43.6",
+    },
+    {
+        "id_mutation": "2024-2",
+        "valeur_fonciere": "250000",
+        "code_commune": "31555",
+        "code_postal": "31000",
+        "surface_reelle_bati": "90",
+        "adresse_numero": "14",
+        "adresse_nom_voie": "RUE DES FLEURS",
+        "longitude": "1.45",
+        "latitude": "43.61",
+    },
+)
 _CSV = (
-    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
-    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
-    "2024-1,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
-    "2024-2,250000,31555,31000,90,14,RUE DES FLEURS,1.45,43.61\n"
+    ",".join(_COLONNES_DVF)
+    + "\n"
+    + "".join(
+        ",".join(ligne.get(colonne, "") for colonne in _COLONNES_DVF) + "\n"
+        for ligne in _LIGNES_DVF
+    )
 )
 
 

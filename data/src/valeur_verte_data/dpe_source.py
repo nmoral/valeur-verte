@@ -11,10 +11,17 @@ corrigés en un seul point après vérification sur l'API réelle (schéma disco
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 
 from .dpe import DpeInfo, build_dpe_lookup
 from .http import Fetcher
+from .schema_source import COLONNES_DPE, periodes_inconnues, verifier_colonnes
+
+logger = logging.getLogger("valeur_verte_data")
+
+# Champ ADEME portant la tranche de construction, contrôlé par DAT-1 (#124).
+_CHAMP_PERIODE = "periode_construction"
 
 # Jeu « DPE Logements existants (depuis juillet 2021) ». L'identifiant est un
 # slug opaque : le nom lisible « dpe-v2-logements-existants » n'existe plus.
@@ -54,16 +61,48 @@ def fetch_dpe_records(
     }
     url = ADEME_LINES_URL
     records: list[dict[str, str]] = []
+    # DAT-1 (#124) : on n'accumule que ce qu'il faut pour juger le schéma — l'union
+    # des noms de champs vus et les tranches de période distinctes —, jamais tous les
+    # enregistrements bruts (Toulouse : 186 000 DPE ; retenir les doublerait en RAM).
+    cles_vues: set[str] = set()
+    periodes_vues: set[str] = set()
     while True:
         payload = fetcher.get_json(url, query)
         results = payload.get("results", []) if isinstance(payload, Mapping) else []
         rows = results if isinstance(results, list) else []
-        records.extend(_normalize(row) for row in rows if isinstance(row, Mapping))
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            cles_vues.update(row.keys())
+            periodes_vues.add(str(row.get(_CHAMP_PERIODE, "")))
+            records.append(_normalize(row))
         next_url = payload.get("next") if isinstance(payload, Mapping) else None
         if not rows or not next_url:
-            return records
+            break
         url = str(next_url)
         query = None
+
+    # Le schéma est jugé sur les **noms de champs bruts** observés (avant la
+    # normalisation qui masquerait un renommage). Rien vu → rien à juger.
+    if cles_vues:
+        verifier_colonnes("DPE", COLONNES_DPE, cles_vues)
+    _signaler_periodes_inconnues(periodes_vues, code_insee)
+    return records
+
+
+def _signaler_periodes_inconnues(periodes: set[str], code_insee: str) -> None:
+    """Journalise toute tranche ``periode_construction`` hors vocabulaire (DAT-1).
+
+    Signalé, non bloquant : une tranche nouvelle est un simple niveau catégoriel de
+    plus dans la régression, pas une corruption du schéma.
+    """
+    inconnues = periodes_inconnues(periodes)
+    if inconnues:
+        logger.warning(
+            "Commune %s : periode_construction hors vocabulaire connu : %s",
+            code_insee,
+            ", ".join(sorted(inconnues)),
+        )
 
 
 def dpe_lookup(fetcher: Fetcher, code_insee: str) -> dict[tuple[str, str], DpeInfo]:

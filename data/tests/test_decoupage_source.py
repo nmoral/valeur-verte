@@ -5,11 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
+
 from valeur_verte_data.decoupage_source import (
     fetch_commune,
     fetch_communes_by_departement,
     fetch_contours_by_departement,
 )
+from valeur_verte_data.schema_source import SchemaSourceError
 
 _COMMUNE: dict[str, Any] = {
     "nom": "Amiens",
@@ -96,3 +99,31 @@ def test_fetch_contours_reponse_invalide_donne_liste_vide() -> None:
     fetcher = _FakeFetcher({"erreur": "boom"})
 
     assert fetch_contours_by_departement(fetcher, "31") == []
+
+
+def test_fetch_communes_rejette_un_champ_decoupage_disparu() -> None:
+    # DAT-1 (#124) : `codeEpci` absent de TOUTES les communes = champ renommé →
+    # le repli EPCI casserait en silence. La porte échoue en le nommant.
+    sans_epci = {k: v for k, v in _COMMUNE.items() if k != "codeEpci"}
+    fetcher = _FakeFetcher([sans_epci, {**sans_epci, "code": "80001"}])
+
+    with pytest.raises(SchemaSourceError) as info:
+        fetch_communes_by_departement(fetcher, "80")
+
+    assert info.value.source == "Découpage"
+    assert "codeEpci" in info.value.colonnes_manquantes
+
+
+def test_fetch_communes_tolere_un_champ_optionnel_absent_de_certaines() -> None:
+    # `codeEpci` présent sur au moins une commune = champ toujours connu ; une
+    # commune sans EPCI (rare mais légitime) ne déclenche pas la porte.
+    sans_epci = {k: v for k, v in _COMMUNE.items() if k != "codeEpci"}
+    fetcher = _FakeFetcher([_COMMUNE, {**sans_epci, "code": "80001"}])
+
+    communes = fetch_communes_by_departement(fetcher, "80")
+
+    assert [c.code_insee for c in communes] == ["80021", "80001"]
+
+
+def test_fetch_communes_departement_vide_ne_juge_pas_le_schema() -> None:
+    assert fetch_communes_by_departement(_FakeFetcher([]), "80") == []

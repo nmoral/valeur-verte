@@ -21,7 +21,16 @@ from valeur_verte_data.ecarts import ClasseEcart
 
 class _FauxFetcher:
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
-        return [{"code": "31555", "centre": {"coordinates": [1.44, 43.60]}}]
+        return [
+            {
+                "code": "31555",
+                "nom": "Toulouse",
+                "codeDepartement": "31",
+                "codeEpci": "243100518",
+                "codesPostaux": ["31000"],
+                "centre": {"coordinates": [1.44, 43.60]},
+            }
+        ]
 
     def get_text(self, url: str, params: Mapping[str, str] | None = None) -> str:
         raise AssertionError("le calcul ne récupère aucun fichier")

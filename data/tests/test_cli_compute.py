@@ -32,12 +32,16 @@ _COMMUNES = [
         "code": "31555",
         "nom": "Toulouse",
         "codeDepartement": "31",
+        "codeEpci": "243100518",
+        "codesPostaux": ["31000"],
         "centre": {"type": "Point", "coordinates": [1.44, 43.6]},
     },
     {
         "code": "31149",
         "nom": "Colomiers",
         "codeDepartement": "31",
+        "codeEpci": "243100518",
+        "codesPostaux": ["31770"],
         "centre": {"type": "Point", "coordinates": [1.33, 43.61]},
     },
 ]

@@ -20,11 +20,23 @@ import pytest
 
 from valeur_verte_data import cli, orchestration
 from valeur_verte_data.decoupage import Commune, CommuneContour
+from valeur_verte_data.schema_source import COLONNES_DVF
 
-_COMMUNES = [
-    {"code": "31555", "nom": "Toulouse", "codeDepartement": "31"},
-    {"code": "31149", "nom": "Colomiers", "codeDepartement": "31"},
-]
+
+def _commune(code: str, nom: str) -> dict[str, Any]:
+    # Référentiel Découpage au schéma complet (DAT-1, #124) : la porte de schéma
+    # rejette une commune amputée d'un champ (codeEpci, centre) comme un renommage.
+    return {
+        "code": code,
+        "nom": nom,
+        "codeDepartement": "31",
+        "codeEpci": "243100518",
+        "codesPostaux": ["31000"],
+        "centre": {"type": "Point", "coordinates": [1.44, 43.6]},
+    }
+
+
+_COMMUNES = [_commune("31555", "Toulouse"), _commune("31149", "Colomiers")]
 
 _CONTOURS = [
     CommuneContour(
@@ -35,10 +47,24 @@ _CONTOURS = [
     ),
 ]
 
+_COLONNES_DVF = sorted(COLONNES_DVF)
+_LIGNE_DVF = {
+    "id_mutation": "m1",
+    "valeur_fonciere": "200000",
+    "code_commune": "31555",
+    "code_postal": "31000",
+    "surface_reelle_bati": "80",
+    "adresse_numero": "12",
+    "adresse_nom_voie": "RUE DES FLEURS",
+    "longitude": "1.44",
+    "latitude": "43.6",
+}
+# geo-dvf porte toujours l'en-tête complet (DAT-1, #124).
 _CSV = (
-    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
-    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
-    "m1,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
+    ",".join(_COLONNES_DVF)
+    + "\n"
+    + ",".join(_LIGNE_DVF.get(colonne, "") for colonne in _COLONNES_DVF)
+    + "\n"
 )
 
 
@@ -122,7 +148,9 @@ def test_chaque_commune_est_validee_separement(connexion: _FausseConnexion) -> N
     """
     orchestration.ingest_departement(_FauxFetcher(), connexion, "31", 2024)
 
-    assert connexion.commits == 1 + 2
+    # Référentiel des noms (#220) + 2 communes + chargement EPCI (#169, le
+    # référentiel porte désormais un codeEpci, cf. `_commune`).
+    assert connexion.commits == 1 + 2 + 1
 
 
 def test_une_commune_en_echec_est_annulee_sans_toucher_aux_autres(
@@ -132,8 +160,8 @@ def test_une_commune_en_echec_est_annulee_sans_toucher_aux_autres(
     orchestration.ingest_departement(_FauxFetcher(echecs=["31555"]), connexion, "31", 2024)
 
     assert connexion.rollbacks == 1
-    # Une seule commune aboutit, plus le référentiel des noms (#220).
-    assert connexion.commits == 1 + 1
+    # Une seule commune aboutit, plus le référentiel des noms (#220) et l'EPCI (#169).
+    assert connexion.commits == 1 + 1 + 1
 
 
 def test_la_commande_ingest_exige_departement_et_millesime() -> None:

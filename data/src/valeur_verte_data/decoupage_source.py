@@ -11,6 +11,7 @@ from collections.abc import Mapping
 
 from .decoupage import Commune, CommuneContour, parse_commune, parse_communes, parse_contour
 from .http import Fetcher
+from .schema_source import COLONNES_COMMUNE, verifier_schema_json
 
 GEO_API_URL = "https://geo.api.gouv.fr"
 _FIELDS = "nom,code,codeDepartement,codeEpci,codesPostaux,centre"
@@ -31,7 +32,14 @@ def fetch_commune(fetcher: Fetcher, code_insee: str) -> Commune | None:
 def fetch_communes_by_departement(fetcher: Fetcher, departement: str) -> list[Commune]:
     """Récupère toutes les communes d'un département (référentiel batch, §10.6)."""
     payload = fetcher.get_json(f"{GEO_API_URL}/departements/{departement}/communes", dict(_QUERY))
-    return parse_communes(payload) if isinstance(payload, list) else []
+    if not isinstance(payload, list):
+        return []
+    # DAT-1 (#124) : un champ du référentiel renommé (codeEpci, centre) casserait
+    # le repli EPCI ou le centroïde en silence — on le nomme, sur l'union des clés.
+    verifier_schema_json(
+        "Découpage", COLONNES_COMMUNE, [c for c in payload if isinstance(c, Mapping)]
+    )
+    return parse_communes(payload)
 
 
 def fetch_contours_by_departement(fetcher: Fetcher, departement: str) -> list[CommuneContour]:
@@ -41,5 +49,9 @@ def fetch_contours_by_departement(fetcher: Fetcher, departement: str) -> list[Co
     )
     if not isinstance(payload, list):
         return []
+    # Pas de porte de schéma DAT-1 ici : les contours sont **auxiliaires** (INV-3,
+    # #121) et chargés en mode résilient. Un champ `contour` renommé dégrade la
+    # contiguïté, ne corrompt pas les coefficients — le référentiel communes (même
+    # API) porte déjà la porte sur les champs du modèle (`code`, `centre`, `codeEpci`).
     contours = (parse_contour(item) for item in payload if isinstance(item, Mapping))
     return [contour for contour in contours if contour is not None]

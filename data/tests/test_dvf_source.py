@@ -5,12 +5,27 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from valeur_verte_data.dvf_source import departement, dvf_url, fetch_mutations
+import pytest
 
+from valeur_verte_data.dvf_source import departement, dvf_url, fetch_mutations
+from valeur_verte_data.schema_source import COLONNES_DVF, SchemaSourceError
+
+# En-tête geo-dvf complet (DAT-1) : toutes les colonnes lues par le pipeline. Le
+# corps ne renseigne que le strict nécessaire à l'agrégation d'une mutation.
+_COLONNES = sorted(COLONNES_DVF)
+_LIGNE = {
+    "id_mutation": "2024-1",
+    "date_mutation": "2024-03-01",
+    "valeur_fonciere": "200000",
+    "code_commune": "31555",
+    "code_postal": "31000",
+    "type_local": "Maison",
+    "surface_reelle_bati": "80",
+    "longitude": "1.44",
+    "latitude": "43.60",
+}
 _CSV = (
-    "id_mutation,date_mutation,valeur_fonciere,code_commune,code_postal,"
-    "type_local,surface_reelle_bati,longitude,latitude\n"
-    "2024-1,2024-03-01,200000,31555,31000,Maison,80,1.44,43.60\n"
+    ",".join(_COLONNES) + "\n" + ",".join(_LIGNE.get(colonne, "") for colonne in _COLONNES) + "\n"
 )
 
 
@@ -52,3 +67,21 @@ def test_fetch_mutations_recupere_et_parse() -> None:
     assert fetcher.urls == [
         "https://files.data.gouv.fr/geo-dvf/latest/csv/2024/communes/31/31555.csv"
     ]
+
+
+def test_fetch_mutations_rejette_une_colonne_dvf_renommee() -> None:
+    # DAT-1 (#124) : geo-dvf renomme `valeur_fonciere` → `valeur`. Sans garde-fou,
+    # `.get()` renverrait None en silence ; la porte échoue en nommant la colonne.
+    entete = ",".join(sorted((COLONNES_DVF - {"valeur_fonciere"}) | {"valeur"}))
+    fetcher = _FakeFetcher(entete + "\n")
+
+    with pytest.raises(SchemaSourceError) as info:
+        fetch_mutations(fetcher, "31555", 2024)
+
+    assert info.value.source == "DVF"
+    assert "valeur_fonciere" in info.value.colonnes_manquantes
+
+
+def test_fetch_mutations_tolere_une_commune_sans_fichier() -> None:
+    # Corps vide (aucun en-tête) : rien d'observé, aucune colonne à juger.
+    assert fetch_mutations(_FakeFetcher(""), "31555", 2024) == []
