@@ -67,6 +67,7 @@ h1{font:800 25px/1.15 'Archivo',sans-serif;letter-spacing:-.025em}
 /* ---------- panneaux ---------- */
 .panel{background:var(--card);border:1px solid var(--rule);border-radius:3px;margin-bottom:22px}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--rule)}
+.panel-corps{padding:14px 16px 16px}
 .panel-head h2{font:600 15px/1 'Archivo',sans-serif}
 .panel-head .hint{font:400 11px/1 'JetBrains Mono',monospace;color:var(--mute)}
 
