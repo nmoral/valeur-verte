@@ -62,11 +62,19 @@ final readonly class LectureMillesimes
      */
     public function maillesBloquees(int $millesime): array
     {
+        // Une maille débloquée (REG-2) est projetée vers la table vive sous son
+        // millésime sans que son `classe_ecart` d'archive change : on l'exclut donc
+        // dès qu'elle y figure, sinon elle resterait éternellement « candidate au
+        // déblocage » alors qu'elle est déjà servie.
         $lignes = $this->connexion->fetchAllAssociative(
-            "SELECT code_insee, ecart, ecart_coefficient
-             FROM data.coefficient_maille_historique
-             WHERE millesime = :millesime AND classe_ecart = 'blocage'
-             ORDER BY ecart DESC",
+            "SELECT h.code_insee, h.ecart, h.ecart_coefficient
+             FROM data.coefficient_maille_historique h
+             WHERE h.millesime = :millesime AND h.classe_ecart = 'blocage'
+               AND NOT EXISTS (
+                   SELECT 1 FROM data.coefficient_maille v
+                   WHERE v.code_insee = h.code_insee AND v.millesime = h.millesime
+               )
+             ORDER BY h.ecart DESC",
             ['millesime' => $millesime],
         );
 
