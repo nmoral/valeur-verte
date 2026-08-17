@@ -175,7 +175,7 @@
             <div class="stat"><span class="stat-k">Millésime <twig:Infobulle texte="L'année de référence des ventes utilisées pour l'estimation." /></span><span class="stat-v">{{ restitution.millesime }}</span></div>
         </div>
 
-        <p class="resultat-prix">Prix de base&nbsp;: <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong> <span class="origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span></p>
+        <p class="resultat-prix">Prix de base&nbsp;: <strong>{{ restitution.prixBaseEuros|number_format(0, ',', ' ') }} €</strong> <span class="origine">({{ restitution.prixSaisiParLePro ? 'valeur que vous avez saisie' : 'médiane de la commune' }})</span>{% if not restitution.prixSaisiParLePro %} <twig:Infobulle texte="Le prix médian des ventes de la commune : la moitié des ventes sont au-dessus, la moitié en dessous. Moins sensible aux valeurs extrêmes qu'une moyenne." />{% endif %}</p>
 
         {% if effet_de_seuil %}
             <section class="effet-seuil" aria-labelledby="effet-seuil-titre">
