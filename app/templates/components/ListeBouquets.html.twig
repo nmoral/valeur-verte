@@ -1,0 +1,28 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun bouquet.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.nom }}</td>
+            <td>
+                {% for poste in element.postes %}
+                    <span class="tag">{{ poste.libelle }}</span>
+                {% endfor %}
+            </td>
+            <td class="bouquet-suppr">
+                <form method="post" action="{{ path('back_office_bouquets_supprimer') }}">
+                    <input type="hidden" name="nom" value="{{ element.nom }}">
+                    <button type="submit">Supprimer</button>
+                </form>
+            </td>
+        {% endblock %}
+    {% endembed %}
+</div>
