@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig\Components;
 
+use App\AdminInterne\Compte\BilanCompte;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -35,6 +36,23 @@ final class ListeComptes
             ['cle' => 'rapports', 'libelle' => 'Rapports consommés', 'triable' => false],
             ['cle' => 'essai', 'libelle' => 'État d\'essai', 'triable' => false],
         ];
+    }
+
+    /**
+     * @return list<array{cle: string, libelle: string, confirmation?: string}>
+     */
+    public function actionsGroupees(): array
+    {
+        return [
+            ['cle' => 'comptes.suspendre', 'libelle' => 'Suspendre', 'confirmation' => 'Suspendre les comptes sélectionnés ?'],
+            ['cle' => 'comptes.reactiver', 'libelle' => 'Réactiver'],
+            ['cle' => 'comptes.prolonger', 'libelle' => 'Prolonger l\'essai (+14 j)'],
+        ];
+    }
+
+    public function identifiant(mixed $element): string
+    {
+        return $element instanceof BilanCompte ? (string) $element->tenantId() : '';
     }
 
     protected function cleSource(): string
