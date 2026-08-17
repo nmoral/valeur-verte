@@ -67,7 +67,7 @@
     .ajustement-motif{color:var(--mute)}
     .ajustement-form{margin-top:6px}
     .ajustement-form summary{cursor:pointer;font:500 14px/1.4 'Public Sans',sans-serif;color:var(--slate)}
-    .ajustement-form .champs{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+    .ajustement-form .champs{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin:14px 0 6px}
     .ajustement-form label{display:block;font:12px/1.3 'Public Sans',sans-serif;color:var(--mute);margin-bottom:4px}
     .ajustement-form input,.ajustement-form textarea,.ajustement-form select{font:14px/1.4 'Public Sans',sans-serif;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;background:#fff;color:var(--ink)}
     .rac-menage{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 2px}
@@ -90,11 +90,25 @@
     .empty-valeur{margin:12px 24px 20px;padding:18px 20px;border:1px dashed var(--rule-strong,#c9c9c9);border-radius:10px;background:#fff}
     .empty-valeur-titre{margin:0 0 6px;font:600 16px/1.3 'Public Sans',sans-serif;color:var(--ink)}
     .empty-valeur-note{margin:0;font:13.5px/1.55 'Public Sans',sans-serif;color:var(--slate);max-width:62ch}
-    .override-couts{margin:6px 0 2px}
+    .override-couts{margin:16px 0 4px}
     .override-couts>summary{cursor:pointer;font:500 13px/1.4 'Public Sans',sans-serif;color:var(--brand);list-style:none;padding:6px 0}
     .override-couts>summary::-webkit-details-marker{display:none}
     .override-couts>summary::before{content:'▸ ';color:var(--mute)}
     .override-couts[open]>summary::before{content:'▾ '}
+    /* Section coût / reste à charge : aligner sur les 24px du reste et aérer. */
+    .declarations{padding:6px 24px 16px}
+    .declarations button[type=submit]{margin-top:18px}
+    /* « Signaler ce chiffre » : une pastille discrète plutôt qu'un lien nu. */
+    .signalement{margin:6px 24px 24px}
+    .signalement>summary{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font:500 13px/1 'Public Sans',sans-serif;color:var(--slate);list-style:none;padding:9px 14px;border:1px solid var(--rule);border-radius:999px;background:#fff;transition:border-color .12s ease,color .12s ease}
+    .signalement>summary:hover{border-color:var(--rule-strong,#c9c9c9);color:var(--ink)}
+    .signalement>summary::-webkit-details-marker{display:none}
+    .signalement>summary::before{content:'⚑';color:var(--mute);font-size:12px}
+    .signalement[open]>summary{margin-bottom:14px}
+    .signalement form{display:flex;flex-direction:column;gap:9px;max-width:520px}
+    .signalement label{font:12px/1.4 'Public Sans',sans-serif;color:var(--mute)}
+    .signalement textarea{font:14px/1.5 'Public Sans',sans-serif;border:1px solid var(--rule);border-radius:6px;padding:9px 11px}
+    .signalement button{align-self:flex-start}
 </style>
 {% endblock %}
 
@@ -283,7 +297,7 @@
         <form data-async method="post" action="{{ path('back_office_audit_signalement') }}">
             <label for="signalement_message">Ce chiffre vous semble faux ? Dites-nous ce qui cloche (optionnel).</label>
             <textarea id="signalement_message" name="message" rows="3"></textarea>
-            <button type="submit">Envoyer le signalement</button>
+            <button type="submit" class="btn btn-sm">Envoyer le signalement</button>
             <span class="feedback" role="status" aria-live="polite"></span>
         </form>
     </details>
