@@ -73,6 +73,33 @@ Ces assertions tournent en fin d'ingestion, **avant** le calcul des coefficients
 - Échec explicite avec le nom de la colonne manquante, pas un `KeyError` à 200 lignes de là
 - Les valeurs du champ `periode_construction` appartiennent au vocabulaire connu ; toute valeur nouvelle est signalée
 
+**Livré.** Le schéma attendu de chaque source est déclaré **versionné en un seul
+endroit** — `schema_source.py` : `COLONNES_DVF`, `COLONNES_DPE`, `COLONNES_COMMUNE`
+(les colonnes que les parseurs lisent par `.get()`, autrement dispersées et
+silencieuses) et `VOCABULAIRE_PERIODE_CONSTRUCTION` (les tranches ADEME connues,
+plutôt qu'inférées du jeu courant). La porte s'exécute **au bord de l'ingestion**,
+au moment où la source est lue :
+
+- **DVF** (`dvf_source.fetch_mutations`) : l'en-tête du CSV geo-dvf fait foi ;
+- **DPE ADEME** (`dpe_source.fetch_dpe_records`) : les noms de champs bruts, jugés
+  **avant** la normalisation qui masquerait un renommage ;
+- **Référentiel communes** (`decoupage_source.fetch_communes_by_departement`) : jugé
+  sur l'**union des clés** de toutes les communes — l'API omet les champs nuls (une
+  commune sans EPCI), un champ n'est « manquant » que s'il l'est de **toutes**.
+
+Une colonne renommée lève une `SchemaSourceError` **nommant la source et la colonne**,
+au point de lecture. L'erreur est **systémique** (le format a changé pour tout le
+département) : `orchestration.ingest_departement` ne l'avale **pas** dans son
+`try/except` par-commune — elle interrompt l'ingestion, donc le calcul ne tourne pas
+sur des données muettes (l'ancien millésime reste servi). Le vocabulaire
+`periode_construction` est **signalé** (log, non bloquant) : une tranche nouvelle est
+un simple niveau catégoriel de plus dans la régression (§4 du référentiel moteur), pas
+une corruption du schéma. Les **contours** communaux (auxiliaires, INV-3, chargés en
+mode résilient) n'ont pas de porte propre : le référentiel communes — même API — porte
+déjà celle sur les champs du modèle.
+
+Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3 (ingestion).
+
 ### DAT-2 — Volumétrie — [#125](../../../issues/125)
 
 - Nombre de lignes par département dans une fourchette attendue (± 30 % par rapport au millésime précédent)

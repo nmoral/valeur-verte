@@ -41,6 +41,15 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 ## 3. Données et filtres
 
 **Ingestion** (`ingest.ingest_commune`) : DVF → nettoyage → appariement DPE/période → écriture.
+- **Porte de schéma DAT-1** (#124, `schema_source.py`) : **au bord**, quand chaque
+  source est lue (`dvf_source`, `dpe_source`, `decoupage_source`), les colonnes lues
+  par le pipeline doivent être présentes. Une colonne renommée lève une
+  `SchemaSourceError` **nommant la source et la colonne** (pas un `.get()`→`None`
+  silencieux) ; l'erreur, systémique, **interrompt tout le département**
+  (`ingest_departement` ne l'avale pas dans son `try/except` par-commune) — le calcul
+  ne tourne pas sur des données muettes. Le schéma attendu et le vocabulaire
+  `periode_construction` (signalé, non bloquant) sont **versionnés** dans
+  `schema_source.py`. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-1.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
 - **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
