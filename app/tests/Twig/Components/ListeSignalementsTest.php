@@ -17,15 +17,21 @@ final class ListeSignalementsTest extends KernelTestCase
 {
     use InteractsWithLiveComponents;
 
+    private Signalement $toulouse;
+    private Signalement $foix;
+
     protected function setUp(): void
     {
         self::bootKernel();
         $repository = self::getContainer()->get(SignalementRepository::class);
         self::assertInstanceOf(SignalementRepository::class, $repository);
 
-        $repository->enregistrer(Signalement::creer('Toulouse rue A', ['dpe_avant' => 'E', 'dpe_apres' => 'C'], null, new \DateTimeImmutable('2026-01-01')));
-        $repository->enregistrer(Signalement::creer('Auch place B', ['dpe_avant' => 'F', 'dpe_apres' => 'D'], null, new \DateTimeImmutable('2026-01-02')));
-        $repository->enregistrer(Signalement::creer('Foix chemin C', ['dpe_avant' => 'G', 'dpe_apres' => 'E'], 'douteux', new \DateTimeImmutable('2026-01-03')));
+        $this->toulouse = Signalement::creer('Toulouse rue A', ['dpe_avant' => 'E', 'dpe_apres' => 'C'], null, new \DateTimeImmutable('2026-01-01'));
+        $auch = Signalement::creer('Auch place B', ['dpe_avant' => 'F', 'dpe_apres' => 'D'], null, new \DateTimeImmutable('2026-01-02'));
+        $this->foix = Signalement::creer('Foix chemin C', ['dpe_avant' => 'G', 'dpe_apres' => 'E'], 'douteux', new \DateTimeImmutable('2026-01-03'));
+        $repository->enregistrer($this->toulouse);
+        $repository->enregistrer($auch);
+        $repository->enregistrer($this->foix);
     }
 
     public function testRenduInitialLesPlusRecentsDAbord(): void
@@ -71,5 +77,36 @@ final class ListeSignalementsTest extends KernelTestCase
         $html = (string) $composant->set('recherche', 'chemin')->render();
 
         self::assertStringContainsString('Page 1 / 1 — 1', $html);
+    }
+
+    public function testActionDeGroupeMarqueLaSelectionCommeTraitee(): void
+    {
+        $composant = $this->createLiveComponent('ListeSignalements');
+        $composant->set('selection', [(string) $this->toulouse->id(), (string) $this->foix->id()]);
+
+        $html = (string) $composant->call('executerGroupe', ['action' => 'signalements.traiter'])->render();
+
+        self::assertStringContainsString('2 signalement(s) marqué(s) comme traité(s).', $html);
+
+        // Rechargé depuis la base : Toulouse et Foix traités, Auch encore à traiter.
+        $repository = self::getContainer()->get(SignalementRepository::class);
+        self::assertInstanceOf(SignalementRepository::class, $repository);
+        $etats = [];
+        foreach ($repository->recents() as $signalement) {
+            $etats[$signalement->adresse()] = $signalement->estTraite();
+        }
+        self::assertTrue($etats['Toulouse rue A']);
+        self::assertTrue($etats['Foix chemin C']);
+        self::assertFalse($etats['Auch place B']);
+    }
+
+    public function testUneActionDeGroupeNonAutoriseeEstRejetee(): void
+    {
+        $composant = $this->createLiveComponent('ListeSignalements');
+        $composant->set('selection', [(string) $this->toulouse->id()]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $composant->call('executerGroupe', ['action' => 'signalements.supprimer_tout']);
     }
 }

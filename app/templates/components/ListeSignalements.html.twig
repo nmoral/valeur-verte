@@ -21,6 +21,13 @@
                 {%- if c.montant_estime is defined %} · {{ c.montant_estime }} €{% endif %}
             </td>
             <td>{{ element.message ?? '—' }}</td>
+            <td>
+                {% if element.estTraite %}
+                    <span class="badge-traite" title="Traité le {{ element.traiteLe|date('d/m/Y') }}">Traité</span>
+                {% else %}
+                    <span class="badge-attente">À traiter</span>
+                {% endif %}
+            </td>
         {% endblock %}
     {% endembed %}
 </div>

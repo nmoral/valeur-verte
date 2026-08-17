@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig\Components;
 
+use App\AdminInterne\Signalement\Signalement;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -34,7 +35,23 @@ final class ListeSignalements
             ['cle' => 'adresse', 'libelle' => 'Adresse', 'triable' => true],
             ['cle' => 'contexte', 'libelle' => 'Contexte', 'triable' => false],
             ['cle' => 'message', 'libelle' => 'Message', 'triable' => false],
+            ['cle' => 'etat', 'libelle' => 'État', 'triable' => false],
         ];
+    }
+
+    /**
+     * @return list<array{cle: string, libelle: string, confirmation?: string}>
+     */
+    public function actionsGroupees(): array
+    {
+        return [
+            ['cle' => 'signalements.traiter', 'libelle' => 'Marquer comme traité'],
+        ];
+    }
+
+    public function identifiant(mixed $element): string
+    {
+        return $element instanceof Signalement ? (string) $element->id() : '';
     }
 
     protected function cleSource(): string

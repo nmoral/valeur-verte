@@ -10,7 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Retour « ce chiffre me semble faux » (#49) : un pro signale une estimation
  * douteuse avec son contexte complet (adresse, saisies, n, rayon…). Meilleure
- * source de calibration sur les premiers mois. Entité append-only.
+ * source de calibration sur les premiers mois. Le contenu du signalement est
+ * append-only ; seul l'état de traitement (traité / non-traité) est annotable,
+ * pour que l'admin puisse écarter en masse les retours déjà instruits (#49).
  */
 #[ORM\Entity(repositoryClass: SignalementRepository::class)]
 #[ORM\Table(name: 'signalement')]
@@ -36,6 +38,9 @@ class Signalement
 
     #[ORM\Column(name: 'signale_le', type: Types::DATETIME_IMMUTABLE)]
     private readonly \DateTimeImmutable $signaleLe;
+
+    #[ORM\Column(name: 'traite_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $traiteLe = null;
 
     /**
      * @param array<string, mixed> $contexte
@@ -83,5 +88,26 @@ class Signalement
     public function signaleLe(): \DateTimeImmutable
     {
         return $this->signaleLe;
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function estTraite(): bool
+    {
+        return null !== $this->traiteLe;
+    }
+
+    public function traiteLe(): ?\DateTimeImmutable
+    {
+        return $this->traiteLe;
+    }
+
+    public function marquerTraite(\DateTimeImmutable $quand): void
+    {
+        // Annotation append-only : le premier traitement fait foi.
+        $this->traiteLe ??= $quand;
     }
 }
