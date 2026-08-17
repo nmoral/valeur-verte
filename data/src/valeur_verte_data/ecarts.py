@@ -41,6 +41,12 @@ class MotifRefus(Enum):
 # Gravité croissante : la maille retient le pire écart de ses coefficients.
 _GRAVITE = (ClasseEcart.NORMAL, ClasseEcart.ALERTE, ClasseEcart.BLOCAGE)
 
+# Rang du signal, à classe égale (REG-1, #176, option B) : le signal **produit** — les
+# effets DPE et le rebanding des classes publiées — l'emporte sur une **élasticité**
+# dans le libellé du coefficient en cause. Ce que voit l'utilisateur prime dans le nommage.
+_SIGNAL_PRODUIT = 1
+_SIGNAL_ELASTICITE = 0
+
 
 @dataclass(frozen=True)
 class EcartMaille:
@@ -137,6 +143,11 @@ def _classer(ecart: float, seuil_alerte: float, seuil_blocage: float) -> ClasseE
     return ClasseEcart.BLOCAGE
 
 
+def _plafonner(classe: ClasseEcart, plafond: ClasseEcart) -> ClasseEcart:
+    """Ramène une classe à son ``plafond`` de gravité (au plus ``plafond``, REG-1 #176)."""
+    return classe if _GRAVITE.index(classe) <= _GRAVITE.index(plafond) else plafond
+
+
 def ecart_maille(
     ancien: MailleCoefficient,
     nouveau: MailleCoefficient,
@@ -146,30 +157,42 @@ def ecart_maille(
 ) -> EcartMaille:
     """Classe l'écart d'une maille à son millésime précédent, au **pire** coefficient.
 
-    Chaque coefficient est comparé (§REG-1) :
+    Le palier ``normal / alerte / blocage`` porte sur le **signal produit — les effets
+    DPE** (REG-1, #176). Les **élasticités** sont **informatives** : elles ne servent
+    que la surveillance de dérive modèle, jamais le blocage de publication.
 
-    - **DPE** : sur le facteur de prix ``exp(coef)`` — un effet log peut bouger
-      beaucoup sans que le prix bouge, seul l'effet exponentié est parlant produit.
-      Seules les classes présentes **des deux côtés** sont comparées (la référence D,
-      ``coef=0`` → ``exp=1``, reste stable par construction).
-    - **Élasticités** ``coef_m2_bati`` / ``coef_m2_terrain`` : sur la valeur brute.
+    - **DPE** (bloquant) : sur le facteur de prix ``exp(coef)`` — un effet log peut
+      bouger beaucoup sans que le prix bouge, seul l'effet exponentié est parlant
+      produit. Seules les classes présentes **des deux côtés** sont comparées (la
+      référence D, ``coef=0`` → ``exp=1``, reste stable par construction).
+    - **Élasticités** ``coef_m2_bati`` / ``coef_m2_terrain`` (informatives) : sur la
+      valeur brute, mais **plafonnées à ``ALERTE``** — jamais ``BLOCAGE`` (#176). Ce
+      sont des régresseurs internes, invisibles de l'utilisateur, et instables par
+      rééchantillonnage annuel (le terrain surtout) : un BLOCAGE dessus n'a bloqué que
+      des rouages, pas ce que voit le client.
 
     Un **changement de l'ensemble des classes publiées** (rebanding entre millésimes,
     une classe qui apparaît ou disparaît) est un changement structurel à revoir → au
     moins ``ALERTE``, même si les coefficients partagés sont stables.
+
+    À classe égale, le **signal produit** (DPE, rebanding) l'emporte sur une élasticité
+    dans le libellé du coefficient en cause (option B, #176) ; à rang égal, le plus
+    grand écart est retenu.
     """
-    # (libellé, valeur ancienne, valeur nouvelle) — DPE sur exp(coef), élasticités brutes.
-    candidats: list[tuple[str, float, float]] = [
-        (f"DPE {dpe}", math.exp(ancien.coef_dpe[dpe]), math.exp(nouveau.coef_dpe[dpe]))
-        for dpe in ancien.coef_dpe.keys() & nouveau.coef_dpe.keys()
-    ]
-    candidats.append(("élasticité bâti", ancien.coef_m2_bati, nouveau.coef_m2_bati))
-    candidats.append(("élasticité terrain", ancien.coef_m2_terrain, nouveau.coef_m2_terrain))
-    evalues = [
-        EcartMaille(_classer(ecart, seuil_alerte, seuil_blocage), ecart, libelle)
-        for libelle, avant, apres in candidats
-        for ecart in (_ecart_relatif(avant, apres),)
-    ]
+    # (rang de signal, EcartMaille) — DPE bloquant sur exp(coef), élasticités plafonnées.
+    evalues: list[tuple[int, EcartMaille]] = []
+    for dpe in ancien.coef_dpe.keys() & nouveau.coef_dpe.keys():
+        ecart = _ecart_relatif(math.exp(ancien.coef_dpe[dpe]), math.exp(nouveau.coef_dpe[dpe]))
+        classe = _classer(ecart, seuil_alerte, seuil_blocage)
+        evalues.append((_SIGNAL_PRODUIT, EcartMaille(classe, ecart, f"DPE {dpe}")))
+    for libelle, avant, apres in (
+        ("élasticité bâti", ancien.coef_m2_bati, nouveau.coef_m2_bati),
+        ("élasticité terrain", ancien.coef_m2_terrain, nouveau.coef_m2_terrain),
+    ):
+        ecart = _ecart_relatif(avant, apres)
+        classe = _plafonner(_classer(ecart, seuil_alerte, seuil_blocage), ClasseEcart.ALERTE)
+        evalues.append((_SIGNAL_ELASTICITE, EcartMaille(classe, ecart, libelle)))
     if ancien.coef_dpe.keys() != nouveau.coef_dpe.keys():
-        evalues.append(EcartMaille(ClasseEcart.ALERTE, 0.0, "classes publiées"))
-    return max(evalues, key=lambda r: (_GRAVITE.index(r.classe), r.ecart))
+        evalues.append((_SIGNAL_PRODUIT, EcartMaille(ClasseEcart.ALERTE, 0.0, "classes publiées")))
+    _, pire = max(evalues, key=lambda t: (_GRAVITE.index(t[1].classe), t[0], t[1].ecart))
+    return pire
