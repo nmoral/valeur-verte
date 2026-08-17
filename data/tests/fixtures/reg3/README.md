@@ -8,16 +8,17 @@ attrape la **régression de code/modèle** — celle qui déplace un coefficient
 données constantes. D'où l'exigence d'une entrée **figée** : à jeu identique,
 seule une évolution du moteur peut bouger un chiffre.
 
-## `reg3_prod_subset.dump`
+## `*.copy.gz` — les tables d'entrée
 
-Dump `pg_dump -Fc` **`--data-only`**, schéma `data`. Il ne contient **que les
-tables lues au calcul** — le test recalcule tout le reste :
+Trois fichiers `COPY … TO STDOUT` **gzippés** (format texte), rechargés en **pur
+psycopg** (`cursor.copy`) — pas de dépendance à `pg_restore` en CI. Ils ne
+contiennent **que les tables lues au calcul** ; le test recalcule tout le reste :
 
-| Table | Lignes | Rôle |
-|---|---|---|
-| `data.vente` | 62 630 | ventes brutes du pool (entrée de la régression) |
-| `data.commune_limitrophe` | 8 569 | adjacence communale (INV-3, débordement) |
-| `data.commune_epci` | 2 780 | appartenance EPCI (cran EPCI de la cascade #169) |
+| Fichier | Table | Lignes | Rôle |
+|---|---|---|---|
+| `vente.copy.gz` | `data.vente` | 62 630 | ventes brutes du pool (entrée de la régression) |
+| `commune_limitrophe.copy.gz` | `data.commune_limitrophe` | 8 569 | adjacence communale (INV-3, débordement) |
+| `commune_epci.copy.gz` | `data.commune_epci` | 2 780 | appartenance EPCI (cran EPCI de la cascade #169) |
 
 **Périmètre gelé** : département **31 (Haute-Garonne) + ses 6 limitrophes**
 `09, 11, 32, 65, 81, 82`, millésimes **2024 + 2025**. Ces 6 limitrophes sont
@@ -82,10 +83,12 @@ les départements et millésimes du périmètre :
 --   commune_limitrophe  WHERE left(code_insee_a,2) IN (…) OR left(code_insee_b,2) IN (…)
 ```
 
+Puis exporter chaque table en COPY texte gzippé (format rechargé par le test) :
+
 ```bash
-pg_dump -d <base_fixture> --data-only --schema=data \
-  -t data.vente -t data.commune_epci -t data.commune_limitrophe -Fc \
-  > reg3_prod_subset.dump
+for t in vente commune_epci commune_limitrophe; do
+  psql -d <base_fixture> -tc "\copy data.$t TO STDOUT" | gzip -c > "$t.copy.gz"
+done
 ```
 
 Le calendrier de réforme DPE (#215) et la pondération temporelle (#208) restent à
