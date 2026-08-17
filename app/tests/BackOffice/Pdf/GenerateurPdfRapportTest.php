@@ -66,6 +66,16 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString('https://cdn.example.com/logo.png', $html);
     }
 
+    public function testLeHtmlPorteLeNomDuProDansLEntete(): void
+    {
+        // #110 : le rapport est à l'en-tête du pro — son nom d'entreprise habille
+        // le bandeau, à la place du nom de l'outil (« Valeur Verte »).
+        $html = $this->htmlGenere($this->restitutionSolide());
+
+        self::assertStringContainsString('class="marque">Rénov Toulouse', $html);
+        self::assertStringNotContainsString('class="marque">Valeur Verte', $html);
+    }
+
     public function testLesBadgesDpeSontDesEtiquettesSvg(): void
     {
         $html = $this->htmlGenere($this->restitutionSolide());
@@ -223,6 +233,7 @@ final class GenerateurPdfRapportTest extends KernelTestCase
             '05 61 00 00 00',
             'SARL Rénov Toulouse — RCS 812 345 678',
             'https://cdn.example.com/logo.png',
+            'Rénov Toulouse',
         );
     }
 
