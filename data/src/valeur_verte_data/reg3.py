@@ -133,6 +133,56 @@ def profils_manquants(cas: Iterable[CasReference]) -> frozenset[Profil]:
     return PROFILS_REQUIS - {reference.profil for reference in cas}
 
 
+def calibrer_cas(profil: Profil, maille: MailleCoefficient, *, tolerance: float) -> CasReference:
+    """Transforme une maille recalculée (baseline) en ``CasReference`` (§REG-3).
+
+    ``mode``/``palier``/``code_insee`` viennent de la maille (la réalité) ; les
+    grandeurs deviennent des fourchettes **baseline ± tolérance** (arrondies à
+    0,1). La baseline est donc toujours dans sa propre fourchette : seule une
+    dérive du moteur, à données figées, peut faire échouer le cas ensuite. Refuse
+    une maille dont le profil contredit le cran, sans erreur médiane, ou dont la
+    classe C ou E n'est pas publiée (gain E→C incalculable).
+    """
+    attendu = _CRAN_ATTENDU_PAR_PROFIL[profil]
+    if maille.mode is not attendu:
+        raise CasReferenceInvalide(
+            f"cas {maille.code_insee} : profil {profil.value} incohérent avec mode "
+            f"{maille.mode.value} (attendu {attendu.value})"
+        )
+    if maille.erreur_mediane is None:
+        raise CasReferenceInvalide(
+            f"cas {maille.code_insee} : erreur médiane absente, calibration impossible"
+        )
+    if "C" not in maille.coef_dpe or "E" not in maille.coef_dpe:
+        manquante = "C" if "C" not in maille.coef_dpe else "E"
+        raise CasReferenceInvalide(
+            f"cas {maille.code_insee} : classe {manquante} non publiée, gain E→C incalculable"
+        )
+    gain = (math.exp(maille.coef_dpe["C"] - maille.coef_dpe["E"]) - 1) * 100
+    return CasReference(
+        code_insee=maille.code_insee,
+        profil=profil,
+        mode_attendu=maille.mode,
+        palier_attendu=maille.palier,
+        n_min=math.floor(maille.n_transactions * (1 - tolerance)),
+        erreur_max_pct=round(maille.erreur_mediane * (1 + tolerance), 1),
+        gain_ec_pct=(round(gain * (1 - tolerance), 1), round(gain * (1 + tolerance), 1)),
+    )
+
+
+def serialiser_cas(cas: CasReference) -> dict[str, object]:
+    """Sérialise un cas en dict JSON-able — inverse exact de ``charger_cas_reference``."""
+    return {
+        "code_insee": cas.code_insee,
+        "profil": cas.profil.value,
+        "mode": cas.mode_attendu.value,
+        "palier": cas.palier_attendu.value,
+        "n_min": cas.n_min,
+        "erreur_max_pct": cas.erreur_max_pct,
+        "gain_ec_pct": [cas.gain_ec_pct[0], cas.gain_ec_pct[1]],
+    }
+
+
 def _ecart_erreur(cas: CasReference, maille: MailleCoefficient) -> str | None:
     """Erreur médiane sous son plafond ; une maille sans erreur est invérifiable."""
     if maille.erreur_mediane is None:
