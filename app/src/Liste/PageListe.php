@@ -10,7 +10,7 @@ namespace App\Liste;
  * déjà la tranche renvoyée par un LIMIT/OFFSET SQL, le total vient d'un COUNT),
  * tandis que `decouperEnMemoire()` reproduit le découpage sur une liste complète.
  *
- * @template T
+ * @template-covariant T
  */
 final readonly class PageListe
 {
