@@ -14,13 +14,32 @@ via ``dpe.matching_rate``) et le taux précédent entrent, un verdict sort.
 
 from __future__ import annotations
 
-from valeur_verte_data.appariement import VerdictAppariement, evaluer_appariement
+from valeur_verte_data.appariement import (
+    VerdictAppariement,
+    evaluer_appariement,
+    taux_depuis_comptes,
+)
 
 _SEUILS = {"seuil_min": 0.60, "chute_max": 0.10}
 
 
 def _ev(taux: float, precedent: float | None, *, departement: str = "31") -> VerdictAppariement:
     return evaluer_appariement(departement, taux, precedent, **_SEUILS)
+
+
+# --- taux_depuis_comptes : dérivation du taux depuis (appariées, mutations) ---
+
+
+def test_taux_depuis_comptes_divise_appariees_par_mutations() -> None:
+    assert taux_depuis_comptes(72, 100) == 0.72
+
+
+def test_taux_depuis_comptes_sans_mutation_rend_none() -> None:
+    # 0/0 : taux indéfini → None, pas une division par zéro ni un faux 0 %.
+    assert taux_depuis_comptes(0, 0) is None
+
+
+# --- evaluer_appariement ---
 
 
 def test_taux_au_dessus_du_seuil_sans_chute_est_ok() -> None:
