@@ -113,18 +113,45 @@ def test_ecart_dpe_en_alerte_sur_l_effet() -> None:
     assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.ALERTE
 
 
-def test_ecart_elasticite_bati_bloque() -> None:
-    # Élasticité brute : 0,90 → 1,20 = 33 % → blocage.
+def test_ecart_dpe_bloque_toujours() -> None:
+    # Le DPE est le **seul** coefficient bloquant (REG-1, #176) : il porte le signal
+    # produit. exp(-0,20)=0,819 → exp(-0,55)=0,577 : ~30 % d'écart sur le facteur de prix.
+    ancien = _maille({"D": 0.0, "F": -0.20})
+    nouveau = _maille({"D": 0.0, "F": -0.55})
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.BLOCAGE
+
+
+def test_ecart_elasticite_bati_ne_bloque_jamais_alerte_au_max() -> None:
+    # Élasticité brute : 0,90 → 1,20 = 33 % — au-delà du seuil de blocage, mais une
+    # élasticité est **informative** (REG-1, #176) : elle plafonne à ALERTE, jamais BLOCAGE.
     ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
     nouveau = _maille({"D": 0.0, "F": -0.20}, bati=1.20)
-    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.BLOCAGE
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.ALERTE
 
 
-def test_la_maille_prend_le_pire_ecart_de_ses_coefficients() -> None:
-    # DPE quasi stable (normal) mais élasticité bâti explosée (blocage) → blocage.
+def test_ecart_elasticite_terrain_enorme_ne_bloque_pas() -> None:
+    # Le terrain est une nuisance instable (écart p90 jusqu'à 221 % sur le VPS, #176) :
+    # 0,30 → 1,00 = +233 %, mais il ne peut au plus qu'ALERTER — jamais bloquer la maille.
+    ancien = _maille({"D": 0.0, "F": -0.20}, terrain=0.30)
+    nouveau = _maille({"D": 0.0, "F": -0.20}, terrain=1.00)
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.ALERTE
+
+
+def test_elasticite_stable_reste_normale() -> None:
+    # Le plafonnement ne touche que le blocage : une élasticité stable reste NORMAL.
     ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
-    nouveau = _maille({"D": 0.0, "F": -0.21}, bati=1.20)
-    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.BLOCAGE
+    nouveau = _maille({"D": 0.0, "F": -0.20}, bati=0.93)  # ~3 %
+    assert ecart_maille(ancien, nouveau, **_SEUILS).classe is ClasseEcart.NORMAL
+
+
+def test_dpe_bloque_meme_quand_une_elasticite_derive() -> None:
+    # DPE au-delà du seuil (blocage) ET terrain explosé (plafonné alerte) : la maille
+    # bloque **par le DPE**, et c'est le DPE qui est nommé — le signal produit prime.
+    ancien = _maille({"D": 0.0, "F": -0.20}, terrain=0.30)
+    nouveau = _maille({"D": 0.0, "F": -0.55}, terrain=1.00)
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.BLOCAGE
+    assert resultat.coefficient == "DPE F"
 
 
 def test_changement_de_l_ensemble_des_classes_publiees_alerte() -> None:
@@ -146,11 +173,12 @@ def test_ecart_maille_retourne_un_ecart_detaille() -> None:
 
 
 def test_ecart_maille_nomme_l_elasticite_en_cause() -> None:
-    # Bâti explosé (0,90 → 1,20 = 33 %), DPE stable : le coefficient en cause est le bâti.
+    # Bâti explosé (0,90 → 1,20 = 33 %), DPE stable : le coefficient en cause est le bâti,
+    # mais l'élasticité **plafonne à ALERTE** (informative, jamais bloquante ; #176).
     ancien = _maille({"D": 0.0, "F": -0.20}, bati=0.90)
     nouveau = _maille({"D": 0.0, "F": -0.21}, bati=1.20)
     resultat = ecart_maille(ancien, nouveau, **_SEUILS)
-    assert resultat.classe is ClasseEcart.BLOCAGE
+    assert resultat.classe is ClasseEcart.ALERTE
     assert resultat.coefficient == "élasticité bâti"
     assert round(resultat.ecart, 2) == 0.33
 
@@ -165,12 +193,25 @@ def test_ecart_maille_nomme_la_classe_dpe_en_cause() -> None:
 
 
 def test_ecart_maille_nomme_l_elasticite_terrain_en_cause() -> None:
-    # Terrain 0,30 → 0,50 = +67 %, le reste stable : le coefficient en cause est le terrain.
+    # Terrain 0,30 → 0,50 = +67 %, le reste stable : le coefficient en cause est le terrain,
+    # plafonné à ALERTE (informative, jamais bloquante ; #176).
     ancien = _maille({"D": 0.0, "F": -0.20}, terrain=0.30)
     nouveau = _maille({"D": 0.0, "F": -0.20}, terrain=0.50)
     resultat = ecart_maille(ancien, nouveau, **_SEUILS)
-    assert resultat.classe is ClasseEcart.BLOCAGE
+    assert resultat.classe is ClasseEcart.ALERTE
     assert resultat.coefficient == "élasticité terrain"
+
+
+def test_a_classe_egale_le_dpe_prime_dans_le_libelle() -> None:
+    # Option B (#176) : à classe égale, le signal produit (DPE) est nommé avant une
+    # élasticité, même quand l'élasticité porte l'écart le plus grand.
+    # DPE F : exp(-0,20)=0,819 → exp(-0,3625)=0,696 (~15 %, ALERTE).
+    # Terrain 0,30 → 1,00 (+233 %) plafonné ALERTE : écart plus grand, mais informatif.
+    ancien = _maille({"D": 0.0, "F": -0.20}, terrain=0.30)
+    nouveau = _maille({"D": 0.0, "F": -0.3625}, terrain=1.00)
+    resultat = ecart_maille(ancien, nouveau, **_SEUILS)
+    assert resultat.classe is ClasseEcart.ALERTE
+    assert resultat.coefficient == "DPE F"
 
 
 def test_ecart_maille_structurel_nomme_les_classes_publiees() -> None:
