@@ -136,6 +136,7 @@ final class InstantaneRapportTest extends TestCase
             '05 61 00 00 00',
             'SARL Rénov Toulouse',
             'https://cdn.example.com/logo.png',
+            'Rénov Toulouse',
         );
     }
 }
