@@ -14,7 +14,6 @@
     .resultat-dpe{display:flex;align-items:center;gap:8px;flex-shrink:0}
     .resultat-dpe .arrow{color:var(--mute)}
     .resultat-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;padding:24px}
-    .hero-label{font:13px/1.4 'Public Sans',sans-serif;color:var(--mute);margin:0 0 6px}
     .hero-montant{font:600 44px/1 'Public Sans',sans-serif;color:var(--brand);letter-spacing:-.01em;margin:0}
     .hero-contexte{font:14px/1.5 'Public Sans',sans-serif;color:var(--slate);margin:12px 0 0;max-width:44ch}
     .fiabilite{display:inline-flex;align-items:center;gap:9px;border-radius:999px;padding:8px 15px;font:500 14px/1 'Public Sans',sans-serif;border:1px solid transparent;white-space:nowrap}
@@ -81,6 +80,18 @@
     .personnaliser a{color:var(--brand);font-weight:500}
     .btn[disabled]{opacity:.55;cursor:not-allowed}
     .btn .soon{margin-left:8px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
+    .bloc{border-top:1px solid var(--rule)}
+    .bloc-titre{font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:0;padding:16px 24px 0}
+    .bloc-valeur{background:linear-gradient(180deg,var(--brand-soft,#f4f8f6),transparent 140px)}
+    .bloc-valeur .resultat-hero{padding-top:14px}
+    .empty-valeur{margin:12px 24px 20px;padding:18px 20px;border:1px dashed var(--rule-strong,#c9c9c9);border-radius:10px;background:#fff}
+    .empty-valeur-titre{margin:0 0 6px;font:600 16px/1.3 'Public Sans',sans-serif;color:var(--ink)}
+    .empty-valeur-note{margin:0;font:13.5px/1.55 'Public Sans',sans-serif;color:var(--slate);max-width:62ch}
+    .override-couts{margin:6px 0 2px}
+    .override-couts>summary{cursor:pointer;font:500 13px/1.4 'Public Sans',sans-serif;color:var(--brand);list-style:none;padding:6px 0}
+    .override-couts>summary::-webkit-details-marker{display:none}
+    .override-couts>summary::before{content:'▸ ';color:var(--mute)}
+    .override-couts[open]>summary::before{content:'▾ '}
 </style>
 {% endblock %}
 
@@ -107,48 +118,16 @@
         </div>
     {% endif %}
 
-    <div class="declarations">
-        {% include 'back_office/_reste_a_charge.html.twig' %}
-
-        {% if erreur_declarations %}
-            <p class="ajustement-erreur" role="alert">{{ erreur_declarations }}</p>
-        {% endif %}
-
-        <form method="post" action="{{ path('back_office_audit_resultat_declarations') }}" class="ajustement-form">
-            <label for="categorie_revenu">Situation du ménage</label>
-            <select id="categorie_revenu" name="categorie_revenu">
-                <option value="NonPrecisee">Non précisée</option>
-                {% for categorie in categories_revenu %}
-                    <option value="{{ categorie.name }}"{{ declarations.categorieRevenu == categorie ? ' selected' : '' }}>{{ categorie.libelle }}</option>
-                {% endfor %}
-            </select>
-            <p class="ajustement-note">Sert à estimer MaPrimeRénov'. Les plafonds portent sur le <strong>revenu fiscal de référence</strong> du foyer et dépendent du nombre de personnes et de la région — hors Île-de-France, un foyer de 2 personnes est « très modeste » jusqu'à 25 393 €, « modeste » jusqu'à 32 553 €, « intermédiaire » jusqu'à 45 842 €. Estimation indicative, sous réserve d'instruction par l'Anah.</p>
-
-            {% if bouquet %}
-                <p class="ajustement-note">Vous pouvez remplacer le coût issu de votre grille par vos devis, poste par poste.</p>
-                <div class="champs">
-                    {% for poste in bouquet.postes %}
-                        <div>
-                            <label for="chiffrage_{{ poste.name }}">{{ poste.libelle }} (€ HT)</label>
-                            <input type="number" id="chiffrage_{{ poste.name }}" name="chiffrage[{{ poste.name }}]" min="0" step="100">
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            <button type="submit">Mettre à jour</button>
-        </form>
-    </div>
-
     {% for avertissement in avertissements %}
         <p class="banner banner-warn resultat-indispo" role="alert">{{ avertissement }}</p>
     {% endfor %}
 
+    <section class="bloc bloc-valeur" aria-labelledby="bloc-valeur-titre">
+        <h2 class="bloc-titre" id="bloc-valeur-titre">Valeur verte créée par la rénovation</h2>
     {% if restitution %}
         {% set fiabilite = restitution.fiabilite %}
         <div class="resultat-hero">
             <div>
-                <p class="hero-label">Valeur verte créée par la rénovation</p>
                 <p class="hero-montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
                 <p class="hero-contexte">fourchette {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} € – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} € <twig:Infobulle texte="La fourchette exprime la marge d'incertitude de l'estimation : la valeur réelle se situe très probablement à l'intérieur." /></p>
             </div>
@@ -236,8 +215,51 @@
             </details>
         </div>
     {% else %}
-        <p class="banner banner-warn banner-indisponible resultat-indispo" role="alert">Estimation indisponible pour cette commune (hors couverture ou données insuffisantes). La saisie reste enregistrée.</p>
+        <div class="empty-valeur banner-indisponible" role="note">
+            <p class="empty-valeur-titre">Estimation indisponible pour cette commune</p>
+            <p class="empty-valeur-note">La commune est hors couverture, ou les ventes comparables sont trop peu nombreuses pour un chiffre fiable. Votre saisie reste enregistrée&nbsp;: le rapport PDF et le reste à charge ci-dessous restent disponibles.</p>
+        </div>
     {% endif %}
+    </section>
+
+    <section class="bloc bloc-cout" aria-labelledby="bloc-cout-titre">
+        <h2 class="bloc-titre" id="bloc-cout-titre">Coût de la rénovation &amp; reste à charge</h2>
+        <div class="declarations">
+            {% include 'back_office/_reste_a_charge.html.twig' %}
+
+            {% if erreur_declarations %}
+                <p class="ajustement-erreur" role="alert">{{ erreur_declarations }}</p>
+            {% endif %}
+
+            <form method="post" action="{{ path('back_office_audit_resultat_declarations') }}" class="ajustement-form">
+                <label for="categorie_revenu">Situation du ménage</label>
+                <select id="categorie_revenu" name="categorie_revenu">
+                    <option value="NonPrecisee">Non précisée</option>
+                    {% for categorie in categories_revenu %}
+                        <option value="{{ categorie.name }}"{{ declarations.categorieRevenu == categorie ? ' selected' : '' }}>{{ categorie.libelle }}</option>
+                    {% endfor %}
+                </select>
+                <p class="ajustement-note">Sert à estimer MaPrimeRénov'. Les plafonds portent sur le <strong>revenu fiscal de référence</strong> du foyer et dépendent du nombre de personnes et de la région — hors Île-de-France, un foyer de 2 personnes est « très modeste » jusqu'à 25 393 €, « modeste » jusqu'à 32 553 €, « intermédiaire » jusqu'à 45 842 €. Estimation indicative, sous réserve d'instruction par l'Anah.</p>
+
+                {% if bouquet %}
+                    <details class="override-couts">
+                        <summary>Ajuster les coûts poste par poste</summary>
+                        <p class="ajustement-note">Remplacez le coût issu de votre grille par vos devis, poste par poste.</p>
+                        <div class="champs">
+                            {% for poste in bouquet.postes %}
+                                <div>
+                                    <label for="chiffrage_{{ poste.name }}">{{ poste.libelle }} (€ HT)</label>
+                                    <input type="number" id="chiffrage_{{ poste.name }}" name="chiffrage[{{ poste.name }}]" min="0" step="100">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+
+                <button type="submit" class="btn btn-sm">Mettre à jour</button>
+            </form>
+        </div>
+    </section>
 
     <div class="resultat-actions">
         <a class="btn" href="{{ path('back_office_audit_pdf') }}">Télécharger le PDF</a>
