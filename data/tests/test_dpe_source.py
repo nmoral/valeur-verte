@@ -155,3 +155,4 @@ def test_fetch_dpe_records_signale_une_periode_inconnue_sans_bloquer(
 
     assert len(records) == 1  # non bloquant : l'enregistrement est bien retourné
     assert "1600-1700" in caplog.text
+    assert "31555" in caplog.text  # le log nomme la commune concernée

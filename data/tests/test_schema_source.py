@@ -116,7 +116,9 @@ def test_periodes_inconnues_signale_une_valeur_hors_vocabulaire() -> None:
 
 def test_periodes_inconnues_ignore_les_valeurs_vides() -> None:
     # Une période absente n'est pas une période « nouvelle » : on ne la signale pas.
+    # La valeur inconnue *après* le None doit rester détectée (None saute, n'arrête pas).
     assert periodes_inconnues(["", "   ", None, "1948-1974"]) == set()
+    assert periodes_inconnues([None, "1600-1700"]) == {"1600-1700"}
 
 
 def test_periodes_inconnues_normalise_les_espaces() -> None:

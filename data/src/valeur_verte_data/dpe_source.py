@@ -16,7 +16,7 @@ from collections.abc import Mapping
 
 from .dpe import DpeInfo, build_dpe_lookup
 from .http import Fetcher
-from .schema_source import COLONNES_DPE, periodes_inconnues, verifier_schema_json
+from .schema_source import COLONNES_DPE, periodes_inconnues, verifier_colonnes
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -61,35 +61,42 @@ def fetch_dpe_records(
     }
     url = ADEME_LINES_URL
     records: list[dict[str, str]] = []
-    bruts: list[Mapping[str, object]] = []
+    # DAT-1 (#124) : on n'accumule que ce qu'il faut pour juger le schéma — l'union
+    # des noms de champs vus et les tranches de période distinctes —, jamais tous les
+    # enregistrements bruts (Toulouse : 186 000 DPE ; retenir les doublerait en RAM).
+    cles_vues: set[str] = set()
+    periodes_vues: set[str] = set()
     while True:
         payload = fetcher.get_json(url, query)
         results = payload.get("results", []) if isinstance(payload, Mapping) else []
         rows = results if isinstance(results, list) else []
-        lignes = [row for row in rows if isinstance(row, Mapping)]
-        bruts.extend(lignes)
-        records.extend(_normalize(row) for row in lignes)
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            cles_vues.update(row.keys())
+            periodes_vues.add(str(row.get(_CHAMP_PERIODE, "")))
+            records.append(_normalize(row))
         next_url = payload.get("next") if isinstance(payload, Mapping) else None
         if not rows or not next_url:
             break
         url = str(next_url)
         query = None
 
-    # DAT-1 (#124), au bord : le schéma est jugé sur les enregistrements bruts (les
-    # noms de champs ADEME), avant la normalisation qui masquerait un renommage.
-    verifier_schema_json("DPE", COLONNES_DPE, bruts)
-    _signaler_periodes_inconnues(bruts, code_insee)
+    # Le schéma est jugé sur les **noms de champs bruts** observés (avant la
+    # normalisation qui masquerait un renommage). Rien vu → rien à juger.
+    if cles_vues:
+        verifier_colonnes("DPE", COLONNES_DPE, cles_vues)
+    _signaler_periodes_inconnues(periodes_vues, code_insee)
     return records
 
 
-def _signaler_periodes_inconnues(bruts: list[Mapping[str, object]], code_insee: str) -> None:
+def _signaler_periodes_inconnues(periodes: set[str], code_insee: str) -> None:
     """Journalise toute tranche ``periode_construction`` hors vocabulaire (DAT-1).
 
     Signalé, non bloquant : une tranche nouvelle est un simple niveau catégoriel de
     plus dans la régression, pas une corruption du schéma.
     """
-    valeurs = [str(brut.get(_CHAMP_PERIODE, "")) for brut in bruts]
-    inconnues = periodes_inconnues(valeurs)
+    inconnues = periodes_inconnues(periodes)
     if inconnues:
         logger.warning(
             "Commune %s : periode_construction hors vocabulaire connu : %s",
