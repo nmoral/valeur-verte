@@ -80,6 +80,8 @@
 
     {% include 'back_office/_reste_a_charge.html.twig' %}
 
+    {% if situation_menage %}<p class="menage">Situation du ménage retenue : <strong>{{ situation_menage }}</strong></p>{% endif %}
+
     {% for avertissement in avertissements %}
         <div class="bandeau-info">{{ avertissement }}</div>
     {% endfor %}

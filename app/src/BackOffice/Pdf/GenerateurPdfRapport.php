@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\BackOffice\Pdf;
 
+use App\BackOffice\Aide\CategorieRevenu;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Branding\Branding;
@@ -39,6 +40,9 @@ final readonly class GenerateurPdfRapport
         ?AjustementProfessionnel $ajustement = null,
         ?DeclarationsPro $declarations = null,
     ): string {
+        $declarations ??= DeclarationsPro::aucune();
+        $categorie = $declarations->categorieRevenu();
+
         return $this->generer(
             $instantane->saisie(),
             $instantane->restitution(),
@@ -46,9 +50,10 @@ final readonly class GenerateurPdfRapport
             $instantane->reference(),
             $ajustement,
             $instantane->bouquet(),
-            self::resteACharge($instantane, $declarations ?? DeclarationsPro::aucune()),
+            self::resteACharge($instantane, $declarations),
             $instantane->effetDeSeuil(),
             $instantane->genereLe(),
+            CategorieRevenu::NonPrecisee === $categorie ? null : $categorie->libelle(),
         );
     }
 
@@ -86,6 +91,7 @@ final readonly class GenerateurPdfRapport
         ?ResteACharge $resteACharge = null,
         ?EffetDeSeuil $effetDeSeuil = null,
         ?\DateTimeImmutable $date = null,
+        ?string $situationMenage = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
@@ -93,6 +99,7 @@ final readonly class GenerateurPdfRapport
             'branding' => $branding,
             'reference' => $reference->valeur(),
             'date' => $date,
+            'situation_menage' => $situationMenage,
             'avertissements' => $saisie->avertissements(),
             // L'ajustement du pro (#30) n'a de sens qu'adossé à une mesure.
             'ajustement' => null !== $restitution ? $ajustement : null,
