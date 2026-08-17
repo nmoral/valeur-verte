@@ -84,6 +84,22 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString(self::REFERENCE, $html);
     }
 
+    public function testLaDateDuRapportFigureDansLeDocument(): void
+    {
+        // #110 : un rapport remis au client doit être daté. La date vient de
+        // l'instantané (genereLe), pour rester reproductible à la régénération.
+        $convertisseur = $this->convertisseurEspion();
+        $this->generateur($convertisseur)->generer(
+            $this->saisie(),
+            $this->restitutionSolide(),
+            $this->branding(),
+            ReferenceRapport::depuis(self::REFERENCE),
+            date: new \DateTimeImmutable('2026-08-17 10:00:00'),
+        );
+
+        self::assertStringContainsString('17/08/2026', $convertisseur->dernierHtml);
+    }
+
     public function testUneEstimationFragileAfficheLeBandeauDAlerte(): void
     {
         $html = $this->htmlGenere($this->restitutionFragile());
