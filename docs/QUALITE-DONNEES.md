@@ -32,11 +32,16 @@ coef(A) > coef(B) > coef(C) > coef(D) > coef(E) > coef(F) > coef(G)
 
 ### INV-2 — Signe et ordre de grandeur — [#120](../../../issues/120)
 
-- Le gain E→C est strictement positif
-- Le gain E→C reste dans une plage plausible : **10 000 € à 120 000 €**
+> Le modèle est **log-prix** depuis [#115](../../../issues/115) : les coefficients sont
+> des **effets en log** (gain % = `exp(coef) − 1`), pas des montants €. Les bornes
+> ci-dessous sont exprimées en log, comme dans le code (`config.gain_dpe_ec_max`,
+> `invariants.evaluer_signe_ordre_grandeur`) et le référentiel moteur §11.
+
+- Le gain E→C (`coef_C − coef_E`) est strictement positif
+- Le gain E→C reste dans une plage plausible : **> 0 et ≤ `gain_dpe_ec_max` (défaut 0,70 en log)**
 - Le gain E→D est **inférieur** au gain E→C (effet de seuil)
-- Le m² bâti marginal est positif et compris entre **300 € et 3 000 €**
-- Le m² de terrain marginal est positif et **inférieur au m² bâti**
+- L'élasticité du bâti (`coef_m2_bati`, log-log) est comprise entre **0,30 et 1,50**
+- L'élasticité du terrain (`coef_m2_terrain`) est positive et **inférieure à celle du bâti**
 
 ### INV-3 — Cohérence géographique — [#121](../../../issues/121)
 
@@ -182,5 +187,5 @@ Ce rapport est la première chose à regarder six mois plus tard, quand le conte
 
 ## Points ouverts
 
-- **Borne haute du gain E→C** : [#45](../../../issues/45) fixe le flag d'aberration à `> 100 000 €`, INV-2 retient `120 000 €`. Une seule constante à retenir, configurable — elle dépend du marché couvert.
+- ~~**Borne haute du gain E→C** : #45 fixe le flag d'aberration à `> 100 000 €`, INV-2 retient `120 000 €`.~~ **Résolu ([#235](../../../issues/235))** : la borne € n'existe plus depuis la migration log ([#115](../../../issues/115)). Une **seule valeur, `0,70` en log**, fait foi, déclarée à sa juste place de part et d'autre du contrat `data`/`app` (lecture seule) : côté moteur `config.gain_dpe_ec_max` (**garde-fou dur** de publication, INV-2, surchargeable par `GAIN_DPE_EC_MAX`) ; côté admin `SeuilsSupervision::GAIN_EC_MAX_LOG_DEFAUT` (**seuil d'alerte éditable** de la supervision #45, même défaut par construction). Les deux ne sont volontairement pas la même constante — un invariant dur ne se règle pas depuis l'admin — mais partent de la même valeur.
 - **Seuil `n = 30`** : défini par [#22](../../../issues/22) (bascule en mode dégradé) et repris par INV-4 (critère de publication). Même constante, une seule source.
