@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from datetime import datetime
 from typing import Any
 
 import pytest
@@ -380,6 +381,47 @@ def test_un_departement_sans_aucun_coefficient_sort_en_erreur(
 def test_la_commande_compute_exige_departement_et_millesime() -> None:
     with pytest.raises(SystemExit):
         cli.main(["compute", "--departement", "31"])
+
+
+class _ConnexionContexte:
+    """Fausse connexion psycopg : gestionnaire de contexte et connexion à la fois."""
+
+    def __enter__(self) -> _ConnexionContexte:
+        return self
+
+    def __exit__(self, *_: Any) -> bool:
+        return False
+
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+
+def test_le_compute_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#131 : chaque exécution de calcul archive son rapport (durée mesurée par la CLI)."""
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
+    rapport.communes_calculees = 5
+    monkeypatch.setattr(cli, "compute_departement", lambda *a, **k: rapport)
+
+    captures: dict[str, Any] = {}
+    monkeypatch.setattr(
+        cli,
+        "enregistrer_rapport_calcul",
+        lambda conn, r, *, debut, fin: captures.update(rapport=r, debut=debut, fin=fin),
+        raising=False,
+    )
+
+    cli.main(["compute", "--departement", "31", "--millesime", "2024"])
+
+    assert captures["rapport"] is rapport
+    assert isinstance(captures["debut"], datetime)
+    assert captures["debut"] <= captures["fin"]
 
 
 def test_une_commune_devenue_non_calculable_perd_son_coefficient(

@@ -12,6 +12,7 @@ sur un service public. Deux exigences dominent l'orchestration :
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -139,6 +140,51 @@ def test_la_commande_ingest_exige_departement_et_millesime() -> None:
     """Des arguments implicites conduiraient à écrire le mauvais millésime."""
     with pytest.raises(SystemExit):
         cli.main(["ingest", "--departement", "31"])
+
+
+class _ConnexionContexte:
+    """Fausse connexion psycopg : sert de gestionnaire de contexte et de connexion."""
+
+    def __enter__(self) -> _ConnexionContexte:
+        return self
+
+    def __exit__(self, *_: Any) -> bool:
+        return False
+
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+
+def test_l_ingest_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#131 : chaque exécution d'ingestion archive son rapport (avec durée mesurée).
+
+    La CLI possède l'horloge : elle borne l'exécution (debut/fin) autour de
+    ``ingest_departement`` et confie l'archivage au repository.
+    """
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    rapport = orchestration.RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+    monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
+
+    captures: dict[str, Any] = {}
+    monkeypatch.setattr(
+        cli,
+        "enregistrer_rapport_ingestion",
+        lambda conn, r, *, debut, fin: captures.update(rapport=r, debut=debut, fin=fin),
+        raising=False,
+    )
+
+    cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    assert captures["rapport"] is rapport
+    assert isinstance(captures["debut"], datetime)
+    assert captures["debut"] <= captures["fin"]
 
 
 def test_un_departement_entierement_en_echec_sort_en_erreur(
