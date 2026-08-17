@@ -1,0 +1,23 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun coefficient publié pour le moment.'
+    } %}
+        {% block ligne %}
+            <td><a href="{{ path('admin_millesime_maille', {millesime: element.millesime, codeInsee: element.codeInsee}) }}" title="Tous les critères d'évaluation, expliqués">{{ element.codeInsee }}</a></td>
+            <td>{{ element.millesime }}</td>
+            <td>{{ element.n }}</td>
+            <td>{{ element.rayonKm is null ? 'départemental' : element.rayonKm ~ ' km' }}</td>
+            <td>{{ element.erreurMediane|number_format(1) }} %</td>
+            <td>{{ element.gainEcLog is null ? '—' : element.gainEcLog|number_format(2) }}</td>
+            <td>{{ element.estAberrante ? element.raisons|join(', ') : '—' }}</td>
+        {% endblock %}
+    {% endembed %}
+</div>

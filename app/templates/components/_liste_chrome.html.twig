@@ -67,7 +67,8 @@
     </thead>
     <tbody>
     {% for element in resultat.elements %}
-        <tr>
+        {% set classe_ligne = this.classeLigne(element) %}
+        <tr{{ classe_ligne ? ' class="' ~ classe_ligne ~ '"' : '' }}>
             {% if actions is not empty %}
                 <td class="liste-coche">
                     <input type="checkbox" data-model="selection" value="{{ this.identifiant(element) }}"

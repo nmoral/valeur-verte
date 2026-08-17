@@ -130,6 +130,11 @@ trait ComporteListe
         return '';
     }
 
+    public function classeLigne(mixed $element): string
+    {
+        return '';
+    }
+
     protected function parPage(): int
     {
         return 25;
