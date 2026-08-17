@@ -10,7 +10,11 @@
 
 {% block admin_content %}
     {% if erreur is defined %}
-        <p class="erreur" role="alert">{{ erreur }}</p>
+        <p class="banner banner-bad" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    {% if not millesime_publie %}
+        <p class="banner banner-warn" role="status">Il faut d'abord <a href="{{ path('admin_millesimes') }}">publier le millésime {{ millesime }}</a> : débloquer une maille isolée créerait une commune en {{ millesime }} au milieu d'un parc resté au millésime précédent.</p>
     {% endif %}
 
     {% for message in app.flashes('succes') %}
@@ -28,9 +32,13 @@
                 <td>{{ maille.ecartPourCent }} %</td>
                 <td>{{ maille.coefficient }}</td>
                 <td>
-                    <form method="post" action="{{ path('admin_millesime_debloquer', {millesime: millesime, codeInsee: maille.codeInsee}) }}">
-                        <button type="submit">Débloquer</button>
-                    </form>
+                    {% if millesime_publie %}
+                        <form method="post" action="{{ path('admin_millesime_debloquer', {millesime: millesime, codeInsee: maille.codeInsee}) }}">
+                            <button type="submit">Débloquer</button>
+                        </form>
+                    {% else %}
+                        <span class="mute">millésime non publié</span>
+                    {% endif %}
                 </td>
             </tr>
         {% else %}

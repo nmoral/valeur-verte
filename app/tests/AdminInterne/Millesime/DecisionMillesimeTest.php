@@ -117,6 +117,17 @@ final class DecisionMillesimeTest extends KernelTestCase
         self::assertSame('élasticité bâti', $bloquees[0]->coefficient());
     }
 
+    public function testUneMailleDebloqueeQuitteLaListeDesBloquees(): void
+    {
+        $this->decision()->publier(2024, 'admin@vv.test');
+
+        $this->decision()->debloquer('31003', 2024, 'admin@vv.test');
+
+        // Une fois mise en service, la maille ne doit plus figurer parmi les
+        // candidates au déblocage — sinon l'admin la « débloque » sans effet visible.
+        self::assertSame([], $this->lecture()->maillesBloquees(2024));
+    }
+
     /**
      * Codes INSEE nettoyés du remplissage CHAR(5).
      *
