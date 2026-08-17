@@ -48,6 +48,7 @@ final readonly class GenerateurPdfRapport
             $instantane->bouquet(),
             self::resteACharge($instantane, $declarations ?? DeclarationsPro::aucune()),
             $instantane->effetDeSeuil(),
+            $instantane->genereLe(),
         );
     }
 
@@ -84,12 +85,14 @@ final readonly class GenerateurPdfRapport
         ?Bouquet $bouquet = null,
         ?ResteACharge $resteACharge = null,
         ?EffetDeSeuil $effetDeSeuil = null,
+        ?\DateTimeImmutable $date = null,
     ): string {
         $html = $this->twig->render('back_office/pdf/rapport.html.twig', [
             'saisie' => $saisie,
             'restitution' => $restitution,
             'branding' => $branding,
             'reference' => $reference->valeur(),
+            'date' => $date,
             'avertissements' => $saisie->avertissements(),
             // L'ajustement du pro (#30) n'a de sens qu'adossé à une mesure.
             'ajustement' => null !== $restitution ? $ajustement : null,

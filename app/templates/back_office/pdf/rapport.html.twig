@@ -65,7 +65,7 @@
 </tr></table>
 
 <div class="corps">
-    <p class="eyebrow">Rapport de valeur verte · mode audit</p>
+    <p class="eyebrow">Rapport de valeur verte · mode audit{% if date %} · {{ date|date('d/m/Y') }}{% endif %}</p>
     <p class="adresse">{{ saisie.adresse }}</p>
     <p class="bien">{{ saisie.surfaceBatie }} m² bâti · {{ saisie.surfaceTerrain }} m² terrain{% if saisie.nombrePieces %} · {{ saisie.nombrePieces }} pièces{% endif %}
         &nbsp;·&nbsp; DPE {{ dpe_badge(saisie.dpeAvant.value) }} → {{ dpe_badge(saisie.dpeApres.value) }}</p>
