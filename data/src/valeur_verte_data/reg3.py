@@ -16,12 +16,25 @@ médiane, effectif) sont bornées. Ce module est **pur** : ``(cas, maille) → v
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, TextIO, TypeVar
 
 from .batch import MailleCoefficient
 from .degraded import CoverageMode, PalierFiabilite
+
+_EnumT = TypeVar("_EnumT", bound=Enum)
+
+
+class CasReferenceInvalide(ValueError):
+    """Un cas du fichier de recette REG-3 est mal formé (#56).
+
+    Levée **au chargement** (frontière du système) : un jeu de recette invalide
+    doit échouer tôt, avec un message nommant le cas et le problème, plutôt que de
+    planter obscurément au milieu d'un batch de déploiement.
+    """
 
 
 class Profil(Enum):
@@ -92,6 +105,16 @@ def verifier_cas(cas: CasReference, maille: MailleCoefficient) -> Verdict:
     return Verdict(cas.code_insee, not ecarts, tuple(ecarts))
 
 
+def charger_cas_reference(fichier: TextIO) -> list[CasReference]:
+    """Lit un tableau JSON de cas de référence en ``CasReference`` typés (§REG-3).
+
+    Valide chaque cas aux frontières : champs présents, enums connus, fourchette
+    de gain ordonnée à deux bornes, cohérence profil ↔ cran. Toute anomalie lève
+    ``CasReferenceInvalide`` en nommant le cas et le problème.
+    """
+    return [_cas_depuis_dict(brut) for brut in json.load(fichier)]
+
+
 def _ecart_erreur(cas: CasReference, maille: MailleCoefficient) -> str | None:
     """Erreur médiane sous son plafond ; une maille sans erreur est invérifiable."""
     if maille.erreur_mediane is None:
@@ -115,3 +138,70 @@ def _ecart_gain(cas: CasReference, maille: MailleCoefficient) -> str | None:
     if gain < bas or gain > haut:
         return f"gain E→C : {gain:.1f} % hors [{bas:.1f} ; {haut:.1f}]"
     return None
+
+
+# Cran de couverture attendu par profil : garantit que l'étiquette du cas colle au
+# mode réellement calculé, sinon la garde de couverture (lot 3) devient mensongère.
+_CHAMPS_REQUIS = (
+    "code_insee",
+    "profil",
+    "mode",
+    "palier",
+    "n_min",
+    "erreur_max_pct",
+    "gain_ec_pct",
+)
+_CRAN_ATTENDU_PAR_PROFIL: dict[Profil, CoverageMode] = {
+    Profil.SOLIDE: CoverageMode.LOCAL,
+    Profil.CORRECTE: CoverageMode.LOCAL,
+    Profil.FRAGILE: CoverageMode.LOCAL,
+    Profil.REPLI_EPCI: CoverageMode.EPCI,
+    Profil.REPLI_DEPARTEMENTAL: CoverageMode.DEPARTEMENTAL,
+}
+
+
+def _cas_depuis_dict(brut: Any) -> CasReference:
+    """Construit un ``CasReference`` depuis un dict JSON, en validant aux frontières."""
+    manquants = [champ for champ in _CHAMPS_REQUIS if champ not in brut]
+    if manquants:
+        raise CasReferenceInvalide(
+            f"cas {brut.get('code_insee', '?')} : champ(s) manquant(s) : {', '.join(manquants)}"
+        )
+    code_insee = str(brut["code_insee"])
+    profil = _enum(Profil, brut["profil"], "profil", code_insee)
+    mode = _enum(CoverageMode, brut["mode"], "mode", code_insee)
+    palier = _enum(PalierFiabilite, brut["palier"], "palier", code_insee)
+    gain = _fourchette(brut["gain_ec_pct"], code_insee)
+    attendu = _CRAN_ATTENDU_PAR_PROFIL[profil]
+    if mode is not attendu:
+        raise CasReferenceInvalide(
+            f"cas {code_insee} : profil {profil.value} incohérent avec mode {mode.value} "
+            f"(attendu {attendu.value})"
+        )
+    return CasReference(
+        code_insee, profil, mode, palier, int(brut["n_min"]), float(brut["erreur_max_pct"]), gain
+    )
+
+
+def _enum(cls: type[_EnumT], valeur: Any, champ: str, code_insee: str) -> _EnumT:
+    """Résout une valeur d'enum, ou lève une erreur nommant le champ et la valeur."""
+    try:
+        return cls(valeur)
+    except ValueError:
+        raise CasReferenceInvalide(f"cas {code_insee} : {champ} « {valeur} » inconnu") from None
+
+
+def _fourchette(valeur: Any, code_insee: str) -> tuple[float, float]:
+    """Une fourchette ``[bas, haut]`` ordonnée ; sinon erreur nommant le cas."""
+    try:
+        bas, haut = valeur
+    except (TypeError, ValueError):
+        raise CasReferenceInvalide(
+            f"cas {code_insee} : « gain_ec_pct » doit être une paire [bas, haut]"
+        ) from None
+    bas, haut = float(bas), float(haut)
+    if bas > haut:
+        raise CasReferenceInvalide(
+            f"cas {code_insee} : « gain_ec_pct » désordonné : {bas} > {haut}"
+        )
+    return bas, haut
