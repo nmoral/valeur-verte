@@ -10,6 +10,7 @@
         "doctrine/orm": "^3.6",
         "mpdf/mpdf": "^8.2.5",
         "symfony/asset": "^8.1",
+        "symfony/asset-mapper": "^8.1",
         "symfony/console": "^8.1",
         "symfony/dotenv": "^8.1",
         "symfony/flex": "^2.11",
@@ -18,7 +19,10 @@
         "symfony/rate-limiter": "^8.1",
         "symfony/runtime": "^8.1",
         "symfony/security-bundle": "^8.1",
+        "symfony/stimulus-bundle": "^3.4",
         "symfony/twig-bundle": "^8.1",
+        "symfony/ux-live-component": "^3.4",
+        "symfony/ux-twig-component": "^3.4",
         "symfony/yaml": "^8.1",
         "twig/twig": "^3.28"
     },
@@ -61,7 +65,8 @@
         "mutation": "infection --min-covered-msi=80 --threads=max",
         "auto-scripts": {
             "cache:clear": "symfony-cmd",
-            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+            "assets:install %PUBLIC_DIR%": "symfony-cmd",
+            "importmap:install": "symfony-cmd"
         }
     },
     "extra": {

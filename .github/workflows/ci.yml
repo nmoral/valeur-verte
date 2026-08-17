@@ -23,6 +23,8 @@ jobs:
       infra: ${{ steps.filter.outputs.infra }}
       # Liste des sources data/ modifiées vs base, pour scoper le mutation testing (#151).
       data_src_files: ${{ steps.filter.outputs.data_src_files }}
+      # Idem côté app/ : Infection ne mute que les fichiers src/ changés (pas tout src/).
+      app_src_files: ${{ steps.filter.outputs.app_src_files }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -37,6 +39,8 @@ jobs:
               - 'data/src/**/*.py'
             app:
               - 'app/**'
+            app_src:
+              - 'app/src/**/*.php'
             # Ce qui compose réellement l'image déployée, plus le déploiement
             # lui-même : les tests de data/ n'entrent pas dans l'image.
             infra:
@@ -214,17 +218,26 @@ jobs:
       # Infection échoue s'il n'a aucune source à muter : au stade de l'amorçage,
       # src/ ne contient que la glue Symfony (Kernel.php, exclu). On ne lance donc
       # la mutation que lorsqu'il existe du code métier.
-      - name: Mutation testing (Infection, MSI >= 80 %)
+      - name: Mutation testing (Infection, MSI >= 80 %, scopé aux fichiers changés)
+        env:
+          # Fichiers app/src/*.php modifiés vs base (paths-filter, list-files: shell).
+          APP_SRC_FILES: ${{ needs.changes.outputs.app_src_files }}
         run: |
-          if find src -name '*.php' ! -name 'Kernel.php' | grep -q .; then
+          # Chemins rendus relatifs à app/ (Infection tourne ici) et joints par des
+          # virgules pour --filter. On ne mute que ces fichiers, pas tout src/
+          # (CLAUDE.md §3 « MSI par maille de code touchée ») : d'une PR de quelques
+          # fichiers, la mutation passe de plusieurs minutes à quelques secondes.
+          CHANGED=$(printf '%s\n' $APP_SRC_FILES | sed 's#^app/##' | grep -E '\.php$' | paste -sd, - || true)
+          if [ -n "$CHANGED" ]; then
             # Couverture générée par un run PHPUnit dédié, puis Infection SANS sa
             # passe initiale : cette passe (phpunit sous pcov + le flot de logs du
             # kernel en test) se fait tuer par SIGTERM (exit 143) dans ce contexte.
             # Le seuil MSI reste intégralement appliqué.
             vendor/bin/phpunit --coverage-xml=var/cov/coverage-xml --log-junit=var/cov/junit.xml
-            vendor/bin/infection --coverage=var/cov --skip-initial-tests --min-covered-msi=80 --threads=max
+            vendor/bin/infection --coverage=var/cov --skip-initial-tests --threads=max \
+              --filter="$CHANGED" --min-covered-msi=80
           else
-            echo "Aucune source métier à muter (amorçage) — étape ignorée."
+            echo "Aucun fichier src/ modifié — mutation ignorée."
           fi
 
   # Seul check requis en protection de branche. Vert si les vérifications

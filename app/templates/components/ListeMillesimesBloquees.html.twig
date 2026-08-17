@@ -1,0 +1,28 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucune maille écartée sur ce millésime.'
+    } %}
+        {% block ligne %}
+            <td><a href="{{ path('admin_millesime_maille', {millesime: this.millesime, codeInsee: element.codeInsee}) }}"><strong>{{ element.codeInsee }}</strong></a></td>
+            <td>{{ element.ecartPourCent }} %</td>
+            <td>{{ element.coefficient }}</td>
+            <td>
+                {% if this.millesimePublie %}
+                    <form method="post" action="{{ path('admin_millesime_debloquer', {millesime: this.millesime, codeInsee: element.codeInsee}) }}">
+                        <button type="submit">Débloquer</button>
+                    </form>
+                {% else %}
+                    <span class="mute">millésime non publié</span>
+                {% endif %}
+            </td>
+        {% endblock %}
+    {% endembed %}
+</div>

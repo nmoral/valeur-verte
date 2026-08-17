@@ -8,34 +8,5 @@
 
 {% block admin_content %}
     {% if erreur %}<p class="banner banner-bad" role="alert">{{ erreur }}</p>{% endif %}
-    <table>
-        <thead>
-            <tr>
-                <th>Contact</th>
-                <th>Tenant</th>
-                <th>Candidat depuis</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for candidature in candidatures %}
-            <tr>
-                <td>{{ candidature.email ?? '—' }}</td>
-                <td>#{{ candidature.tenantId }}</td>
-                <td>{{ candidature.creeLe|date('d/m/Y') }}</td>
-                <td class="candidature-actions">
-                    <form method="post" action="{{ path('admin_candidatures') }}">
-                        <input type="hidden" name="tenant" value="{{ candidature.tenantId }}">
-                        <button type="submit" name="action" value="valider" class="btn btn-sm">Valider fondateur</button>
-                        <button type="submit" name="action" value="refuser" class="btn btn-ghost btn-sm">Refuser</button>
-                    </form>
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="4">Aucune candidature en attente.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <twig:ListeCandidatures />
 {% endblock %}

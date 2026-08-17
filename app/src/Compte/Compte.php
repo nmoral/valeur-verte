@@ -57,6 +57,20 @@ class Compte
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $emailPremierRapportEnvoyeLe = null;
 
+    /**
+     * Date de suspension du compte par l'admin (#47). Nulle = actif ; renseignée,
+     * le compte est suspendu (accès coupé). Réversible via reactiver().
+     */
+    #[ORM\Column(name: 'suspendu_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $suspenduLe = null;
+
+    /**
+     * Prolongation d'essai accordée par l'admin (#47) : la fin d'essai est repoussée
+     * au moins jusqu'à cette date. Nulle = pas de prolongation.
+     */
+    #[ORM\Column(name: 'essai_prolonge_jusquau', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $essaiProlongeJusquau = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -135,5 +149,40 @@ class Compte
     public function marquerEmailPremierRapportEnvoye(\DateTimeImmutable $quand): void
     {
         $this->emailPremierRapportEnvoyeLe = $quand;
+    }
+
+    public function estSuspendu(): bool
+    {
+        return null !== $this->suspenduLe;
+    }
+
+    public function suspenduLe(): ?\DateTimeImmutable
+    {
+        return $this->suspenduLe;
+    }
+
+    public function suspendre(\DateTimeImmutable $quand): void
+    {
+        $this->suspenduLe ??= $quand;
+    }
+
+    public function reactiver(): void
+    {
+        $this->suspenduLe = null;
+    }
+
+    public function essaiProlongeJusquau(): ?\DateTimeImmutable
+    {
+        return $this->essaiProlongeJusquau;
+    }
+
+    /**
+     * Repousse la fin d'essai : ne recule jamais une prolongation déjà accordée.
+     */
+    public function prolongerEssaiJusqua(\DateTimeImmutable $date): void
+    {
+        if (null === $this->essaiProlongeJusquau || $date > $this->essaiProlongeJusquau) {
+            $this->essaiProlongeJusquau = $date;
+        }
     }
 }

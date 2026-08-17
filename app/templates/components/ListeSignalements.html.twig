@@ -1,0 +1,33 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun signalement pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.signaleLe|date('d/m/Y H:i') }}</td>
+            <td>{{ element.adresse }}</td>
+            <td>
+                {% set c = element.contexte %}
+                {{ c.dpe_avant|default('?') }} → {{ c.dpe_apres|default('?') }}
+                {%- if c.n is defined %} · n={{ c.n }}{% endif %}
+                {%- if c.rayon_km is defined and c.rayon_km is not null %} · {{ c.rayon_km }} km{% endif %}
+                {%- if c.montant_estime is defined %} · {{ c.montant_estime }} €{% endif %}
+            </td>
+            <td>{{ element.message ?? '—' }}</td>
+            <td>
+                {% if element.estTraite %}
+                    <span class="badge-traite" title="Traité le {{ element.traiteLe|date('d/m/Y') }}">Traité</span>
+                {% else %}
+                    <span class="badge-attente">À traiter</span>
+                {% endif %}
+            </td>
+        {% endblock %}
+    {% endembed %}
+</div>

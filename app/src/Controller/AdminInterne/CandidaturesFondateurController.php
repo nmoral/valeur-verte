@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller\AdminInterne;
 
-use App\Compte\CandidaturesEnAttente;
 use App\Compte\PlafondFondateursAtteint;
 use App\Compte\ValidationCandidatureFondateur;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,7 +21,6 @@ final class CandidaturesFondateurController extends AbstractController
     #[Route('/comptes/candidatures', name: 'admin_candidatures', host: 'admin.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(
         Request $request,
-        CandidaturesEnAttente $candidatures,
         ValidationCandidatureFondateur $validation,
     ): Response {
         if ($request->isMethod('POST')) {
@@ -34,21 +32,20 @@ final class CandidaturesFondateurController extends AbstractController
                     $validation->valider($tenantId);
                 }
             } catch (PlafondFondateursAtteint $erreur) {
-                return $this->rendre($candidatures, $erreur->getMessage());
+                return $this->rendre($erreur->getMessage());
             }
 
             return $this->redirectToRoute('admin_candidatures');
         }
 
-        return $this->rendre($candidatures);
+        return $this->rendre();
     }
 
-    private function rendre(CandidaturesEnAttente $candidatures, ?string $erreur = null): Response
+    private function rendre(?string $erreur = null): Response
     {
         $reponse = new Response('', null === $erreur ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY);
 
         return $this->render('admin/candidatures.html.twig', [
-            'candidatures' => $candidatures->liste(),
             'erreur' => $erreur,
         ], $reponse);
     }
