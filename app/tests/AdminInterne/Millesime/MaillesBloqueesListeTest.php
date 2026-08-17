@@ -63,7 +63,7 @@ final class MaillesBloqueesListeTest extends WebTestCase
         $client->followRedirect();
 
         // La seule maille bloquée ayant été mise en service, la liste est vide.
-        self::assertSelectorTextContains('.tableau', 'Aucune maille écartée');
+        self::assertSelectorTextContains('.liste-table', 'Aucune maille écartée');
         self::assertSelectorNotExists('form[action="/millesimes/2024/bloquees/31003/debloquer"]');
     }
 

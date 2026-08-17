@@ -9,6 +9,7 @@ use App\Liste\Direction;
 use App\Liste\PageListe;
 use App\Liste\ParametresListe;
 use App\Liste\RegistreSources;
+use App\Liste\SourceListe;
 use Symfony\Contracts\Service\Attribute\Required;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveArg;
@@ -60,7 +61,7 @@ trait ComporteListe
      */
     public function resultat(): PageListe
     {
-        $source = $this->registreSources->source($this->cleSource());
+        $source = $this->source();
         $parametres = ParametresListe::depuis(
             $this->page,
             $this->parPage(),
@@ -138,6 +139,15 @@ trait ComporteListe
     protected function parPage(): int
     {
         return 25;
+    }
+
+    /**
+     * Source interrogée. Par défaut résolue par clé via le registre ; une liste
+     * paramétrée (ex. par un millésime) peut surcharger pour la construire elle-même.
+     */
+    protected function source(): SourceListe
+    {
+        return $this->registreSources->source($this->cleSource());
     }
 
     abstract protected function cleSource(): string;
