@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Liste\ActionGroupee\AsActionGroupee;
 use App\Liste\AsListeSource;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\ChildDefinition;
@@ -22,6 +23,14 @@ class Kernel extends BaseKernel
             AsListeSource::class,
             static function (ChildDefinition $definition, AsListeSource $attribut): void {
                 $definition->addTag('app.source_liste', ['cle' => $attribut->cle]);
+            },
+        );
+
+        // #[AsActionGroupee('cle')] → tag « app.action_groupee » indexé par clé.
+        $container->registerAttributeForAutoconfiguration(
+            AsActionGroupee::class,
+            static function (ChildDefinition $definition, AsActionGroupee $attribut): void {
+                $definition->addTag('app.action_groupee', ['cle' => $attribut->cle]);
             },
         );
     }

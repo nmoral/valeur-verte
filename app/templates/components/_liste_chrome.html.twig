@@ -1,0 +1,86 @@
+{#
+  Frontière partagée d'une liste interactive (recherche, en-têtes triables,
+  sélection, actions de groupe, pagination). Embarquée par chaque LiveComponent
+  de liste via {% embed %} : le bloc « ligne » y rend les cellules métier de
+  chaque élément (variable `element`), le reste est mutualisé ici.
+
+  Attendus (passés par l'embed) :
+    resultat      PageListe (this.resultat)
+    colonnes      list<{cle, libelle, triable}>
+    actions       list<{cle, libelle, confirmation?}>
+    tri, direction, recherche, selection   (props du composant)
+    vide_message  texte affiché quand la liste est vide
+#}
+{% set nb_colonnes = colonnes|length + (actions is not empty ? 1 : 0) %}
+
+<div class="liste-barre">
+    <input type="search" class="liste-recherche" placeholder="Rechercher…"
+           data-model="debounce(400)|recherche" value="{{ recherche }}"
+           aria-label="Rechercher dans la liste">
+    {% if message %}<p class="liste-message" role="status">{{ message }}</p>{% endif %}
+</div>
+
+{% if actions is not empty and selection|length > 0 %}
+    <div class="liste-actions" role="group" aria-label="Actions de groupe">
+        <span>{{ selection|length }} sélectionné(s) :</span>
+        {% for action in actions %}
+            <button type="button" class="btn"
+                    data-action="live#action"
+                    data-live-action-param="executerGroupe"
+                    data-live-action-name-param="{{ action.cle }}"
+                    {% if action.confirmation is defined %}data-liste-confirmation="{{ action.confirmation }}"{% endif %}>
+                {{ action.libelle }}
+            </button>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<table class="liste-table">
+    <thead>
+        <tr>
+            {% if actions is not empty %}<th class="liste-coche" aria-label="Sélection"></th>{% endif %}
+            {% for colonne in colonnes %}
+                <th>
+                    {% if colonne.triable %}
+                        <button type="button" class="liste-tri{{ tri == colonne.cle ? ' est-actif' : '' }}"
+                                data-action="live#action"
+                                data-live-action-param="trier"
+                                data-live-colonne-param="{{ colonne.cle }}">
+                            {{ colonne.libelle }}
+                            <span aria-hidden="true">{{ tri == colonne.cle ? (direction == 'desc' ? '▾' : '▴') : '↕' }}</span>
+                        </button>
+                    {% else %}
+                        {{ colonne.libelle }}
+                    {% endif %}
+                </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for element in resultat.elements %}
+        <tr>
+            {% if actions is not empty %}
+                <td class="liste-coche">
+                    <input type="checkbox" data-model="selection" value="{{ this.identifiant(element) }}"
+                           aria-label="Sélectionner cette ligne">
+                </td>
+            {% endif %}
+            {{ block('ligne') }}
+        </tr>
+    {% else %}
+        <tr><td colspan="{{ nb_colonnes }}">{{ vide_message|default('Aucun élément.') }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<nav class="pager" aria-label="Pagination">
+    <span class="pager-info">Page {{ resultat.page }} / {{ resultat.pages }} — {{ resultat.total }} élément(s)</span>
+    {% if resultat.pagePrecedente is not null %}
+        <button type="button" data-action="live#action" data-live-action-param="allerPage"
+                data-live-page-param="{{ resultat.pagePrecedente }}">← Précédent</button>
+    {% endif %}
+    {% if resultat.pageSuivante is not null %}
+        <button type="button" data-action="live#action" data-live-action-param="allerPage"
+                data-live-page-param="{{ resultat.pageSuivante }}">Suivant →</button>
+    {% endif %}
+</nav>
