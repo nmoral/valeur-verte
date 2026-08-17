@@ -10,7 +10,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
+
 from valeur_verte_data.dpe_source import ADEME_LINES_URL, dpe_lookup, fetch_dpe_records
+from valeur_verte_data.schema_source import SchemaSourceError
 
 
 def _ademe(
@@ -106,3 +109,47 @@ def test_dpe_lookup_construit_l_index() -> None:
 
     assert lookup[("31000", "12 rue fleurs")].etiquette_dpe == "D"
     assert "31555" in fetcher.calls[0][1]["qs"]
+
+
+def test_fetch_dpe_records_rejette_un_champ_ademe_disparu() -> None:
+    # DAT-1 (#124) : l'ADEME renomme `etiquette_dpe`. Absent de TOUS les
+    # enregistrements = schéma cassé ; la porte échoue en nommant le champ.
+    ademe_casse = {
+        "classe_dpe": "D",  # ex-`etiquette_dpe`
+        "adresse_ban": "1 Rue X 31000 T",
+        "code_postal_ban": "31000",
+        "periode_construction": "1948-1974",
+        "date_etablissement_dpe": "2022-01-01",
+        "version_dpe": "2.2",
+    }
+    fetcher = _FakeFetcher([{"total": 1, "results": [ademe_casse]}])
+
+    with pytest.raises(SchemaSourceError) as info:
+        fetch_dpe_records(fetcher, "31555")
+
+    assert info.value.source == "DPE"
+    assert "etiquette_dpe" in info.value.colonnes_manquantes
+
+
+def test_fetch_dpe_records_commune_sans_dpe_ne_juge_pas_le_schema() -> None:
+    # Aucun enregistrement : on ne peut pas distinguer un champ absent d'un champ
+    # renommé — on ne barre pas (une commune sans DPE publié est normale).
+    fetcher = _FakeFetcher([{"total": 0, "results": []}])
+
+    assert fetch_dpe_records(fetcher, "31555") == []
+
+
+def test_fetch_dpe_records_signale_une_periode_inconnue_sans_bloquer(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # DAT-1 : une tranche de période hors vocabulaire connu est **signalée** (log),
+    # pas bloquante — un nouveau niveau catégoriel ne corrompt pas le modèle.
+    fetcher = _FakeFetcher(
+        [{"total": 1, "results": [_ademe("D", "1 Rue X 31000 T", "1600-1700")]}]
+    )
+
+    with caplog.at_level("WARNING"):
+        records = fetch_dpe_records(fetcher, "31555")
+
+    assert len(records) == 1  # non bloquant : l'enregistrement est bien retourné
+    assert "1600-1700" in caplog.text

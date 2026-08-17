@@ -14,6 +14,7 @@ import pytest
 from valeur_verte_data import orchestration
 from valeur_verte_data.decoupage import Commune
 from valeur_verte_data.ingest import ResultatIngestionCommune
+from valeur_verte_data.schema_source import SchemaSourceError
 
 _COMMUNES = [
     Commune(
@@ -106,6 +107,26 @@ def test_le_referentiel_est_ecrit_avant_la_boucle_d_ingestion(
     orchestration.ingest_departement(_FauxFetcher(), _FausseConnexion(), "31", 2024)
 
     assert ordre[0] == "referentiel"
+
+
+def test_une_erreur_de_schema_interrompt_tout_le_departement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DAT-1 (#124) : une colonne source renommée est **systémique** (tout le
+    département), pas une panne d'une commune. L'erreur de schéma ne doit pas être
+    avalée par le try/except par-commune ni comptée comme un simple échec : elle
+    interrompt l'ingestion pour que le calcul ne tourne pas sur des données muettes.
+    """
+    _brancher(monkeypatch)
+    monkeypatch.setattr(orchestration, "upsert_communes", lambda conn, communes: 0)
+
+    def _casse(*a: Any, **k: Any) -> ResultatIngestionCommune:
+        raise SchemaSourceError("DVF", frozenset({"valeur_fonciere"}))
+
+    monkeypatch.setattr(orchestration, "ingest_commune", _casse)
+
+    with pytest.raises(SchemaSourceError):
+        orchestration.ingest_departement(_FauxFetcher(), _FausseConnexion(), "31", 2024)
 
 
 def _brancher(monkeypatch: pytest.MonkeyPatch) -> None:
