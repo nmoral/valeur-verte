@@ -59,6 +59,27 @@ final class AuditResultatControllerTest extends WebTestCase
         self::assertSelectorExists('a[href="/audit/resultat/pdf"]');
     }
 
+    public function testLesIndicateursPortentDesInfobullesExplicatives(): void
+    {
+        // ONB-8 (#110) : « tout ce qui aurait été expliqué de vive voix doit exister
+        // dans le produit ». n, rayon et la fourchette (forme visible de l'erreur
+        // médiane) portent une infobulle qui en explique le sens, sans jargon.
+        $client = static::createClient();
+        $this->poserResultatEnSession($client);
+
+        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+
+        self::assertResponseIsSuccessful();
+        // Chaque indicateur du bloc stats porte un marqueur d'infobulle.
+        self::assertSelectorExists('.stat .infobulle');
+        // Le sens de chaque valeur est explicité en clair.
+        self::assertSelectorTextContains('body', 'ventes comparables');
+        self::assertSelectorTextContains('body', 'autour du bien');
+        self::assertSelectorTextContains('body', 'année de référence des ventes');
+        // La fourchette explique l'incertitude (l'erreur médiane, jamais nommée).
+        self::assertSelectorTextContains('body', "marge d'incertitude");
+    }
+
     private function poserResultatEnSession(KernelBrowser $client): void
     {
         $factory = self::getContainer()->get('session.factory');
