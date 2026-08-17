@@ -116,6 +116,16 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString('Revenus modestes', $convertisseur->dernierHtml);
     }
 
+    public function testLeRapportPorteLaMethodeEtLaMentionLegale(): void
+    {
+        // #110 : le rapport s'explique de lui-même (méthode + sources) et pose le
+        // cadre — une estimation statistique n'est pas une évaluation immobilière.
+        $html = $this->htmlGenere($this->restitutionSolide());
+
+        self::assertStringContainsStringIgnoringCase('ventes comparables', $html);
+        self::assertStringContainsString('ne constitue pas une évaluation immobilière', $html);
+    }
+
     public function testUneEstimationFragileAfficheLeBandeauDAlerte(): void
     {
         $html = $this->htmlGenere($this->restitutionFragile());
