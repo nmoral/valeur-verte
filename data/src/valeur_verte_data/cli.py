@@ -16,8 +16,13 @@ import logging
 import os
 import sys
 from collections.abc import Sequence
+from datetime import datetime
 
 from .config import resolve_config
+from .db.rapport_batch_repository import (
+    enregistrer_rapport_calcul,
+    enregistrer_rapport_ingestion,
+)
 from .db.runner import resolve_dsn
 from .ecarts import ecrire_ecarts_csv
 from .http import HttpFetcher
@@ -77,21 +82,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             charges = charger_epci_departement(HttpFetcher(), conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} EPCI enregistré(s)")
             return 0
+        rapport: RapportIngestion | RapportCalcul
         if arguments.commande == "compute":
-            rapport: RapportIngestion | RapportCalcul = compute_departement(
+            # La CLI possède l'horloge : elle borne l'exécution (durée du rapport #131).
+            debut = datetime.now()
+            calcul = compute_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
             )
-            if arguments.rapport_ecarts and isinstance(rapport, RapportCalcul):
+            enregistrer_rapport_calcul(conn, calcul, debut=debut, fin=datetime.now())
+            conn.commit()
+            rapport = calcul
+            if arguments.rapport_ecarts:
                 with open(arguments.rapport_ecarts, "w", encoding="utf-8", newline="") as fichier:
-                    ecrire_ecarts_csv(rapport.ecarts, fichier)
+                    ecrire_ecarts_csv(calcul.ecarts, fichier)
                 print(
                     f"Rapport d'écarts REG-1 : {arguments.rapport_ecarts} "
-                    f"({len(rapport.ecarts.lignes)} maille(s) comparée(s))"
+                    f"({len(calcul.ecarts.lignes)} maille(s) comparée(s))"
                 )
         else:
-            rapport = ingest_departement(
+            debut = datetime.now()
+            ingestion = ingest_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
             )
+            enregistrer_rapport_ingestion(conn, ingestion, debut=debut, fin=datetime.now())
+            conn.commit()
+            rapport = ingestion
 
     print(rapport.resume())
     if rapport.echecs:
