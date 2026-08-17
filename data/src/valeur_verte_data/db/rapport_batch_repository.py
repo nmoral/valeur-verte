@@ -13,8 +13,22 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+from ..appariement import taux_depuis_comptes
 from ..orchestration import RapportCalcul, RapportIngestion
 from .runner import Connection
+
+# DAT-3 (#126) : le taux d'appariement d'un (dept, millésime) est déjà archivé ici.
+# La dernière exécution fait foi (jamais d'UPDATE) — d'où le tri décroissant + LIMIT 1.
+_SELECT_TAUX = (
+    "SELECT ventes_appariees, mutations_inserees FROM data.rapport_batch "
+    "WHERE phase = 'ingestion' AND departement = %s AND millesime = %s "
+    "ORDER BY debut DESC, id DESC LIMIT 1"
+)
+_SELECT_TAUX_PRECEDENT = (
+    "SELECT ventes_appariees, mutations_inserees FROM data.rapport_batch "
+    "WHERE phase = 'ingestion' AND departement = %s AND millesime < %s "
+    "ORDER BY millesime DESC, debut DESC, id DESC LIMIT 1"
+)
 
 _INSERT_INGESTION = (
     "INSERT INTO data.rapport_batch ("
@@ -88,3 +102,30 @@ def enregistrer_rapport_calcul(
             json.dumps(rapport.echecs),
         ),
     )
+
+
+def lire_taux_appariement(conn: Connection, departement: str, millesime: int) -> float | None:
+    """Taux d'appariement DVF ↔ DPE d'un (dept, millésime), dernière exécution (DAT-3).
+
+    ``None`` si aucune ingestion archivée pour ce millésime, ou si elle n'a inséré
+    aucune vente (taux indéfini plutôt qu'un faux 0 %).
+    """
+    lignes = conn.execute(_SELECT_TAUX, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    appariees, mutations = lignes[0]
+    return taux_depuis_comptes(appariees, mutations)
+
+
+def lire_taux_appariement_precedent(
+    conn: Connection, departement: str, millesime: int
+) -> float | None:
+    """Taux d'appariement du millésime le plus récent **strictement antérieur** à N.
+
+    Sert à mesurer la chute (DAT-3) ; ``None`` s'il n'existe aucun millésime antérieur.
+    """
+    lignes = conn.execute(_SELECT_TAUX_PRECEDENT, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    appariees, mutations = lignes[0]
+    return taux_depuis_comptes(appariees, mutations)

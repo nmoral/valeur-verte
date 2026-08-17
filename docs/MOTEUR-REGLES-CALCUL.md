@@ -290,6 +290,26 @@ l'archive (`classe_ecart`, `ecart`, `ecart_coefficient`) :
 Prérequis INV-5 satisfait (CV déterministe → l'écart est de la dérive, pas de l'aléa). Le
 batch renvoie un `RapportEcarts` dédié (une ligne par maille) pour l'écran de supervision (#45).
 
+### DAT-3 — taux d'appariement DVF ↔ DPE (#126, `appariement.py`, `dat3.py`)
+
+Porte **en amont du calcul**, par département : l'appariement DVF ↔ DPE est la charnière du
+modèle (sans étiquette DPE rattachée, `regression._eligible` écarte la vente). Un appariement
+qui s'effondre ne lève aucune erreur — il produit des coefficients sur un échantillon biaisé.
+
+- **métrique** : le taux `ventes_appariées / mutations_insérées` du département, déjà **compté
+  à l'ingestion** et **archivé par millésime** dans `data.rapport_batch` (#131). DAT-3 le relit
+  (`db.rapport_batch_repository.lire_taux_appariement` / `…_precedent`, dernière exécution du
+  millésime).
+- **garde-fous** (`appariement.evaluer_appariement`) : blocage si le taux passe **sous**
+  `taux_appariement_min_pct` (**60 %**, critère de sortie de J1 rendu opposable), ou s'il
+  **chute de plus de** `chute_appariement_max_pct` (**10 points**) vs le millésime précédent.
+  Sans précédent (premier millésime), seul le plancher s'applique.
+- **effet** (`dat3.porte_dat3`, câblé dans la commande CLI `compute`) : un département bloqué
+  **n'est pas calculé** — aucun `coefficient_maille_historique` écrit, l'ancien millésime reste
+  servi ; la CLI journalise le motif et sort en erreur. Ingestion et calcul étant deux commandes
+  séparées (§5), la porte s'évalue **au calcul** en relisant le taux archivé. Sans taux mesuré
+  (aucune ingestion, ou 0 mutation), rien à barrer.
+
 ### REG-2 — publication manuelle d'un millésime (#130, `db/publication_repository.py`)
 
 Un millésime n'est **jamais publié automatiquement**. Le batch **calcule et archive** ;
@@ -364,6 +384,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `erreur_mediane_max_pct` | 20 | seuil du tier standard (classe le `palier`) |
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
 | `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
+| `taux_appariement_min_pct` / `chute_appariement_max_pct` | 60 / 10 | porte DAT-3 (#126) : plancher d'appariement DVF↔DPE et chute bloquante vs millésime précédent |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |
