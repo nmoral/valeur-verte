@@ -179,6 +179,21 @@ Chaque batch produit un rapport archivé, consultable dans l'admin :
 
 Ce rapport est la première chose à regarder six mois plus tard, quand le contexte est oublié.
 
+**Implémentation (journalisation seule).** Une ligne par **exécution** de commande
+est archivée dans `data.rapport_batch` (jamais écrasée : la comparaison entre
+millésimes suppose de garder le précédent). Le batch tournant par département et en
+deux temps (`ingest` puis `compute`, [CLAUDE.md §5](../CLAUDE.md)), la colonne `phase`
+(`ingestion` | `calcul`) discrimine les deux jeux de métriques ; celles de l'autre
+phase restent `NULL`. La **CLI possède l'horloge** : elle borne l'exécution
+(`debut`/`fin`) autour de l'orchestration puis confie l'archivage au repository
+(`db/rapport_batch_repository.py`). Le **taux d'appariement** (DAT-3) est dérivé des
+ventes réellement insérées (`RapportIngestion.taux_appariement`). Les **mailles
+publiées** ne sont pas ici : elles relèvent de la publication manuelle
+(REG-2, `publication_millesime`), jointe à l'affichage. Ce rapport archive les
+**métriques observées** ; les portes d'assertion **DAT-1 à DAT-5** — non encore
+implémentées — l'**enrichiront** de leurs verdicts (seuils, blocages) sans que #131
+en dépende. L'app lit `data.rapport_batch` en **SELECT seul** (contrat A/B).
+
 ---
 
 ## Ordre de traitement

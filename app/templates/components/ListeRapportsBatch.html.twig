@@ -1,0 +1,29 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun rapport de batch archivé pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.debut|date('d/m/Y H:i') }}</td>
+            <td>{{ element.estCalcul ? 'Calcul' : 'Ingestion' }}</td>
+            <td>{{ element.departement }}</td>
+            <td>{{ element.millesime }}</td>
+            <td>
+                {% if element.estIngestion %}
+                    {{ element.mutationsInserees|number_format(0, ',', ' ') }} vente(s)
+                    {% if element.tauxAppariement is not null %}· appariement {{ (element.tauxAppariement * 100)|round }} %{% endif %}
+                {% else %}
+                    {{ element.communesCalculees }} maille(s) · {{ element.ecartsBlocages }} blocage(s) REG-1
+                {% endif %}
+            </td>
+            <td><a href="{{ path('admin_rapport_batch', {id: element.id}) }}">Détail</a></td>
+        {% endblock %}
+    {% endembed %}
+</div>

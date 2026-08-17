@@ -1,0 +1,45 @@
+{% extends 'admin/base.html.twig' %}
+
+{% set phase = rapport.estCalcul ? 'Calcul' : 'Ingestion' %}
+
+{% block title %}Rapport de batch {{ rapport.departement }} · millésime {{ rapport.millesime }} · Admin interne{% endblock %}
+
+{% block admin_title %}Rapport de batch — {{ phase }} · dépt {{ rapport.departement }} · millésime {{ rapport.millesime }}{% endblock %}
+
+{% block admin_subtitle %}<p>Exécuté le {{ rapport.debut|date('d/m/Y à H:i') }}, durée {{ (rapport.dureeSecondes / 60)|round }} min.</p>{% endblock %}
+
+{% block admin_actions %}<a href="{{ path('admin_rapports_batch') }}">← Tous les rapports</a>{% endblock %}
+
+{% block admin_content %}
+    <section class="fiche-bloc">
+        <table class="tableau fiche">
+            <tbody>
+            {% if rapport.estIngestion %}
+                <tr><th scope="row">Communes traitées</th><td>{{ rapport.communesTraitees|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">Communes référencées</th><td>{{ rapport.communesReferencees|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">Ventes insérées</th><td>{{ rapport.mutationsInserees|number_format(0, ',', ' ') }}</td></tr>
+                <tr>
+                    <th scope="row">Ventes appariées à un DPE</th>
+                    <td>
+                        {{ rapport.ventesAppariees|number_format(0, ',', ' ') }}
+                        {%- if rapport.tauxAppariement is not null %} — appariement {{ (rapport.tauxAppariement * 100)|round }} %{% endif -%}
+                    </td>
+                </tr>
+                <tr><th scope="row">Contours chargés</th><td>{{ rapport.contoursCharges|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">EPCI enregistrés</th><td>{{ rapport.epciCharges|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">Communes sans transaction publiée</th><td>{{ rapport.sansDonnees|number_format(0, ',', ' ') }}</td></tr>
+            {% else %}
+                <tr><th scope="row">Mailles calculées (archivées)</th><td>{{ rapport.communesCalculees|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">Refus sous seuil</th><td>{{ rapport.refus|number_format(0, ',', ' ') }}</td></tr>
+                <tr><th scope="row">Rejets d'invariant (INV-1 à 4)</th><td>{{ rapport.rejetsInvariants }}</td></tr>
+                <tr><th scope="row">Alertes de bord (INV-3)</th><td>{{ rapport.alertesBord }}</td></tr>
+                <tr><th scope="row">Inversions DPE tolérées (INV-1)</th><td>{{ rapport.inversionsDpe }}</td></tr>
+                <tr><th scope="row">Écarts bloquants (REG-1)</th><td>{{ rapport.ecartsBlocages }}</td></tr>
+                <tr><th scope="row">Écarts en alerte (REG-1)</th><td>{{ rapport.ecartsAlertes }}</td></tr>
+                <tr><th scope="row">Ordre canonique (INV-5)</th><td>{{ rapport.ordreCanonique }}</td></tr>
+            {% endif %}
+                <tr><th scope="row">Communes en échec</th><td>{{ rapport.echecs is empty ? 'aucune' : rapport.echecs|join(', ') }}</td></tr>
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

@@ -49,9 +49,9 @@ class _FakeConnection:
 def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher(_CSV), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher(_CSV), conn, "31555", 2024)
 
-    assert inserted == 1
+    assert resultat.inserees == 1
     assert len(conn.deletes()) == 1  # la commune est vidée avant d'être réécrite
     ecritures = conn.inserts()
     assert len(ecritures) == 1
@@ -63,9 +63,9 @@ def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
 def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
 
-    assert inserted == 0
+    assert resultat.inserees == 0
     assert conn.inserts() == []
     # La suppression a bien lieu : un millésime redevenu vide doit vider la commune.
     assert len(conn.deletes()) == 1
@@ -82,9 +82,9 @@ _CSV_MIXTE = (
 def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
 
-    assert inserted == 1
+    assert resultat.inserees == 1
     assert len(conn.inserts()) == 1
 
 
@@ -111,6 +111,29 @@ class _FetcherAvecDpe:
 
     def get_json(self, url: str, params: Mapping[str, str] | None = None) -> Any:
         return _DPE_ADEME
+
+
+_CSV_DPE_PARTIEL = (
+    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
+    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
+    "avec-dpe,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
+    "sans-dpe,200000,31555,31000,80,5,AVENUE DU PARC,1.45,43.61\n"
+)
+
+
+def test_ingest_commune_compte_les_ventes_inserees_et_appariees() -> None:
+    """DAT-3 (#131) : le rapport doit distinguer ventes insérées et ventes appariées.
+
+    Le fichier ADEME ne couvre que « 12 RUE DES FLEURS » : la seconde vente est
+    insérée mais sans étiquette DPE. Le taux d'appariement se lit sur ces deux
+    comptes.
+    """
+    conn = _FakeConnection()
+
+    resultat = ingest_commune(_FetcherAvecDpe(_CSV_DPE_PARTIEL), conn, "31555", 2024)
+
+    assert resultat.inserees == 2
+    assert resultat.appariees == 1
 
 
 def test_ingest_commune_apparie_les_dpe() -> None:

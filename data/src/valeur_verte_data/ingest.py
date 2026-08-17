@@ -7,6 +7,8 @@ est committée à la sortie du ``with psycopg.connect(...)``).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from .cleaning import clean_mutations
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.runner import Connection
@@ -17,6 +19,19 @@ from .dvf_source import fetch_mutations
 from .http import Fetcher
 
 
+@dataclass(frozen=True)
+class ResultatIngestionCommune:
+    """Ce qu'une commune a réellement chargé : ventes insérées et part appariée.
+
+    L'appariement DPE (DAT-3, #131) est compté ici, où les mutations sont connues :
+    sans étiquette, le moteur écarte la vente (`regression._eligible`), et le taux
+    d'appariement du rapport de batch se lit sur ces deux nombres.
+    """
+
+    inserees: int
+    appariees: int
+
+
 def ingest_commune(
     fetcher: Fetcher,
     conn: Connection,
@@ -24,7 +39,7 @@ def ingest_commune(
     millesime: int,
     *,
     config: CalculConfig = DEFAULT_CONFIG,
-) -> int:
+) -> ResultatIngestionCommune:
     """Récupère les mutations DVF d'une commune, les apparie aux DPE et les écrit.
 
     Le contenu existant de la commune pour ce millésime est remplacé : sans
@@ -44,4 +59,6 @@ def ingest_commune(
     # (`regression._eligible`) : une base chargée sans appariement est stérile.
     mutations = attach_dpe(mutations, dpe_lookup(fetcher, code_insee))
     delete_mutations(conn, code_insee, millesime)
-    return insert_mutations(conn, mutations)
+    inserees = insert_mutations(conn, mutations)
+    appariees = sum(1 for mutation in mutations if mutation.etiquette_dpe)
+    return ResultatIngestionCommune(inserees=inserees, appariees=appariees)

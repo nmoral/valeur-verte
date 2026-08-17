@@ -76,6 +76,10 @@ class RapportIngestion:
     # #220 : communes dont le nom a été référencé. L'opérateur doit voir que le
     # référentiel a bien été rafraîchi, au même titre que contours et EPCI.
     communes_referencees: int = 0
+    # DAT-3 (#131) : ventes insérées portant une étiquette DPE. Le moteur écarte les
+    # ventes sans DPE (`regression._eligible`) — le taux d'appariement mesure la part
+    # réellement exploitable, et sa chute est le premier symptôme à repérer plus tard.
+    ventes_appariees: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
 
@@ -83,6 +87,18 @@ class RapportIngestion:
     def est_en_echec(self) -> bool:
         """Un import qui n'a rien chargé ne doit pas passer pour un succès."""
         return self.communes_traitees == 0
+
+    @property
+    def taux_appariement(self) -> float:
+        """Part des ventes insérées appariées à un DPE (DAT-3, #131).
+
+        Rapportée aux ventes réellement en base, pas à un compteur parallèle. Une
+        ingestion vide donne 0.0 plutôt qu'une division par zéro : l'absence
+        d'appariement est un taux nul, pas une erreur.
+        """
+        if self.mutations_inserees == 0:
+            return 0.0
+        return self.ventes_appariees / self.mutations_inserees
 
     def resume(self) -> str:
         return (
@@ -172,7 +188,7 @@ def ingest_departement(
 
     for rang, commune in enumerate(communes, 1):
         try:
-            inserees = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
+            resultat = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
         except httpx.HTTPStatusError as erreur:
             conn.rollback()
             if erreur.response.status_code == 404:
@@ -193,8 +209,11 @@ def ingest_departement(
 
         conn.commit()
         rapport.communes_traitees += 1
-        rapport.mutations_inserees += inserees
-        logger.info("[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, inserees)
+        rapport.mutations_inserees += resultat.inserees
+        rapport.ventes_appariees += resultat.appariees
+        logger.info(
+            "[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, resultat.inserees
+        )
 
     _charger_contours(fetcher, conn, departement, rapport)
     _charger_epci(fetcher, conn, departement, rapport)
