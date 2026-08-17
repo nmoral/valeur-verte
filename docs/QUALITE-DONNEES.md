@@ -12,7 +12,7 @@ Epic de suivi : [#118](../../../issues/118).
 
 ## 1. Tester des propriétés, pas des valeurs
 
-**À proscrire** : `assert coefficient_C_vs_E == 40729`
+**À proscrire** : `assert coefficient_C_vs_E == 0.1543`
 
 La valeur bouge à chaque ingestion. Un test comme celui-là est rouge à chaque millésime, on finit par le mettre à jour mécaniquement — et il ne garantit plus rien.
 
