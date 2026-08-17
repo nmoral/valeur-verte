@@ -67,6 +67,33 @@ final class RapportRepositoryTest extends KernelTestCase
         self::assertNull($relu->contact());
     }
 
+    public function testSupprimeUniquementLesRapportsDuTenantCourant(): void
+    {
+        $mien = $this->rapport('2026-0100', '2026-08-01 09:00:00');
+        $mien->setTenantId(1);
+        $autre = $this->rapport('2026-0200', '2026-08-02 09:00:00');
+        $autre->setTenantId(2);
+        $this->repository->enregistrer($mien);
+        $this->repository->enregistrer($autre);
+
+        $nombre = $this->repository->supprimerParIds([(int) $mien->id(), (int) $autre->id()], 1);
+
+        self::assertSame(1, $nombre);
+
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $manager->clear();
+
+        $restants = array_map(static fn (Rapport $r): string => $r->reference(), $this->repository->recents());
+        self::assertContains('2026-0200', $restants);
+        self::assertNotContains('2026-0100', $restants);
+    }
+
+    public function testSupprimerParIdsSansIdsNeFaitRien(): void
+    {
+        self::assertSame(0, $this->repository->supprimerParIds([], 1));
+    }
+
     private function rapport(string $reference, string $creeLe, ?Contact $contact = null): Rapport
     {
         return Rapport::creer(

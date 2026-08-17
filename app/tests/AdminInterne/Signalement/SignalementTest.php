@@ -49,4 +49,35 @@ final class SignalementTest extends TestCase
             signaleLe: new \DateTimeImmutable('2026-08-13 14:00:00'),
         );
     }
+
+    public function testUnSignalementEstNonTraiteParDefaut(): void
+    {
+        $signalement = Signalement::creer('12 rue des Lilas', [], null, new \DateTimeImmutable('2026-08-13'));
+
+        self::assertFalse($signalement->estTraite());
+        self::assertNull($signalement->traiteLe());
+    }
+
+    public function testMarquerCommeTraiteFixeLaDate(): void
+    {
+        $signalement = Signalement::creer('12 rue des Lilas', [], null, new \DateTimeImmutable('2026-08-13'));
+        $quand = new \DateTimeImmutable('2026-08-14 09:00:00');
+
+        $signalement->marquerTraite($quand);
+
+        self::assertTrue($signalement->estTraite());
+        self::assertEquals($quand, $signalement->traiteLe());
+    }
+
+    public function testMarquerTraiteEstIdempotentSurLaPremiereDate(): void
+    {
+        $signalement = Signalement::creer('12 rue des Lilas', [], null, new \DateTimeImmutable('2026-08-13'));
+        $premier = new \DateTimeImmutable('2026-08-14 09:00:00');
+
+        $signalement->marquerTraite($premier);
+        $signalement->marquerTraite(new \DateTimeImmutable('2026-08-20 10:00:00'));
+
+        // Le traitement garde sa date d'origine (append-only sur l'état).
+        self::assertEquals($premier, $signalement->traiteLe());
+    }
 }

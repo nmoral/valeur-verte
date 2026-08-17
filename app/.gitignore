@@ -25,3 +25,10 @@ phpstan.neon
 
 # Référence de config générée (dépend de l'env)
 /config/reference.php
+
+###> symfony/asset-mapper ###
+/public/assets/
+# assets/vendor/ est VERSIONNÉ (et non ignoré) : le rendu de base.html.twig par
+# importmap() exige les assets front dès les tests (CI) et le build Docker, sans
+# dépendre d'un « importmap:install » en réseau. 64 Ko, reproductible et offline.
+###< symfony/asset-mapper ###

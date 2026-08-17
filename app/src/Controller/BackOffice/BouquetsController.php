@@ -62,7 +62,6 @@ final class BouquetsController extends AbstractController
         return $this->render('back_office/bouquets.html.twig', [
             'page_title' => 'Bouquets types',
             'nav_active' => 'bouquets',
-            'bouquets' => $bouquets->disponibles(),
             'postes' => Poste::cases(),
             'erreur' => $erreur,
         ], $reponse);

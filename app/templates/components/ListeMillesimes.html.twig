@@ -1,0 +1,42 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun millésime calculé.'
+    } %}
+        {% block ligne %}
+            <td><strong>{{ element.millesime }}</strong></td>
+            <td>{{ element.maillesCalculees|number_format(0, ',', ' ') }}</td>
+            <td>
+                {% if element.maillesBloquees > 0 %}
+                    <a href="{{ path('admin_millesime_bloquees', {millesime: element.millesime}) }}">{{ element.maillesBloquees }} à examiner</a>
+                {% else %}—{% endif %}
+            </td>
+            <td>{{ element.maillesEnAlerte > 0 ? element.maillesEnAlerte : '—' }}</td>
+            <td>
+                {% if element.estEnAttenteDeDecision %}
+                    <span class="statut statut-attente">En attente de décision</span>
+                {% else %}
+                    <span class="statut">{{ element.estPublie ? 'Publié' : 'Abandonné' }}</span>
+                    <span class="mute">{{ element.decidePar }}{% if element.decideLe %}, le {{ element.decideLe|date('d/m/Y') }}{% endif %}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if element.estEnAttenteDeDecision %}
+                    <form method="post" action="{{ path('admin_millesime_publier', {millesime: element.millesime}) }}" style="display:inline">
+                        <button type="submit">Publier ce millésime</button>
+                    </form>
+                    <form method="post" action="{{ path('admin_millesime_abandonner', {millesime: element.millesime}) }}" style="display:inline">
+                        <button type="submit" class="secondaire">Abandonner</button>
+                    </form>
+                {% endif %}
+            </td>
+        {% endblock %}
+    {% endembed %}
+</div>

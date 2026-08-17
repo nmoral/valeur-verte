@@ -21,29 +21,5 @@
         <p class="banner banner-ok" role="status">{{ message }}</p>
     {% endfor %}
 
-    <table class="tableau">
-        <thead>
-            <tr><th>Commune</th><th>Écart</th><th>Coefficient</th><th></th></tr>
-        </thead>
-        <tbody>
-        {% for maille in bloquees %}
-            <tr>
-                <td><a href="{{ path('admin_millesime_maille', {millesime: millesime, codeInsee: maille.codeInsee}) }}"><strong>{{ maille.codeInsee }}</strong></a></td>
-                <td>{{ maille.ecartPourCent }} %</td>
-                <td>{{ maille.coefficient }}</td>
-                <td>
-                    {% if millesime_publie %}
-                        <form method="post" action="{{ path('admin_millesime_debloquer', {millesime: millesime, codeInsee: maille.codeInsee}) }}">
-                            <button type="submit">Débloquer</button>
-                        </form>
-                    {% else %}
-                        <span class="mute">millésime non publié</span>
-                    {% endif %}
-                </td>
-            </tr>
-        {% else %}
-            <tr><td colspan="4" class="mute">Aucune maille écartée sur ce millésime.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <twig:ListeMillesimesBloquees :millesime="millesime" :millesimePublie="millesime_publie" />
 {% endblock %}

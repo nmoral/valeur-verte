@@ -1,0 +1,40 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun rapport pour l\'instant.'
+    } %}
+        {% block ligne %}
+            <td class="mono">{{ element.reference }}<div class="mono muted">{{ element.creeLe|date('d/m/Y') }}</div></td>
+            <td>{{ element.adresse }}</td>
+            <td>
+                <span class="dpe d-{{ element.dpeAvant.value|lower }}">{{ element.dpeAvant.value }}</span>
+                <span class="arrow">→</span>
+                <span class="dpe d-{{ element.dpeApres.value|lower }}">{{ element.dpeApres.value }}</span>
+            </td>
+            <td class="num">+{{ element.valeurVerteEstimee|number_format(0, ',', ' ') }} €</td>
+            <td>
+                {% if element.contact %}
+                    {{ element.contact.nom }}
+                    <div class="mono muted">{{ element.contact.email ?? element.contact.telephone }}</div>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if element.source.value == 'widget' %}
+                    <span class="tag widget">page publique</span>
+                {% else %}
+                    <span class="tag audit">audit</span>
+                {% endif %}
+            </td>
+            <td><a href="{{ element.pdfUrl }}" class="btn btn-ghost btn-sm">PDF</a></td>
+        {% endblock %}
+    {% endembed %}
+</div>

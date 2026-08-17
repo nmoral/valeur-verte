@@ -1,0 +1,20 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun événement pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.survenuLe|date('d/m/Y H:i') }}</td>
+            <td>{{ element.acteur }}</td>
+            <td>{{ element.action }}</td>
+            <td>{{ element.cible }}</td>
+        {% endblock %}
+    {% endembed %}
+</div>

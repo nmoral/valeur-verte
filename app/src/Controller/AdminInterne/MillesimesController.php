@@ -21,11 +21,9 @@ use Symfony\Component\Routing\Attribute\Route;
 final class MillesimesController extends AbstractController
 {
     #[Route('/millesimes', name: 'admin_millesimes', host: 'admin.%app.domaine%', methods: ['GET'])]
-    public function liste(LectureMillesimes $lecture): Response
+    public function liste(): Response
     {
-        return $this->render('admin/millesimes.html.twig', [
-            'millesimes' => $lecture->tous(),
-        ]);
+        return $this->render('admin/millesimes.html.twig');
     }
 
     #[Route('/millesimes/{millesime}/publier', name: 'admin_millesime_publier', host: 'admin.%app.domaine%', requirements: ['millesime' => '\d{4}'], methods: ['POST'])]
@@ -115,7 +113,6 @@ final class MillesimesController extends AbstractController
     {
         return $this->render('admin/millesime_bloquees.html.twig', [
             'millesime' => $millesime,
-            'bloquees' => $lecture->maillesBloquees($millesime),
             'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
         ]);
     }
@@ -133,7 +130,6 @@ final class MillesimesController extends AbstractController
         } catch (\RuntimeException $erreur) {
             return $this->render('admin/millesime_bloquees.html.twig', [
                 'millesime' => $millesime,
-                'bloquees' => $lecture->maillesBloquees($millesime),
                 'millesime_publie' => MillesimeEnRevue::PUBLIE === $lecture->etat($millesime),
                 'erreur' => $erreur->getMessage(),
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
@@ -147,7 +143,6 @@ final class MillesimesController extends AbstractController
     private function erreur(LectureMillesimes $lecture, \RuntimeException $erreur): Response
     {
         return $this->render('admin/millesimes.html.twig', [
-            'millesimes' => $lecture->tous(),
             'erreur' => $erreur->getMessage(),
         ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
     }

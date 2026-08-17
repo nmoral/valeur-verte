@@ -52,7 +52,7 @@ final class CoefficientsControllerTest extends WebTestCase
         self::assertSelectorTextContains('tbody tr:first-child', '32002');
         self::assertSelectorTextContains('tbody tr:first-child', 'erreur_mediane_elevee');
         // La liste est paginée : le compteur total est affiché.
-        self::assertSelectorTextContains('.pager', '2 mailles');
+        self::assertSelectorTextContains('.pager', '2 élément(s)');
     }
 
     private function connecterAdmin(KernelBrowser $client): void
