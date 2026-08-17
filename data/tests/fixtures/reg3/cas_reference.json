@@ -1,0 +1,158 @@
+[
+  {
+    "code_insee": "31555",
+    "profil": "solide",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 2298,
+    "erreur_max_pct": 14.3,
+    "gain_ec_pct": [
+      14.0,
+      23.4
+    ]
+  },
+  {
+    "code_insee": "31557",
+    "profil": "solide",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 1903,
+    "erreur_max_pct": 14.1,
+    "gain_ec_pct": [
+      13.6,
+      22.6
+    ]
+  },
+  {
+    "code_insee": "31044",
+    "profil": "solide",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 1850,
+    "erreur_max_pct": 15.9,
+    "gain_ec_pct": [
+      13.7,
+      22.9
+    ]
+  },
+  {
+    "code_insee": "31163",
+    "profil": "correcte",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 562,
+    "erreur_max_pct": 17.8,
+    "gain_ec_pct": [
+      15.3,
+      25.4
+    ]
+  },
+  {
+    "code_insee": "31572",
+    "profil": "correcte",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 451,
+    "erreur_max_pct": 18.0,
+    "gain_ec_pct": [
+      13.5,
+      22.4
+    ]
+  },
+  {
+    "code_insee": "31358",
+    "profil": "correcte",
+    "mode": "local",
+    "palier": "standard",
+    "n_min": 403,
+    "erreur_max_pct": 18.1,
+    "gain_ec_pct": [
+      16.3,
+      27.1
+    ]
+  },
+  {
+    "code_insee": "31585",
+    "profil": "fragile",
+    "mode": "local",
+    "palier": "degrade",
+    "n_min": 216,
+    "erreur_max_pct": 27.3,
+    "gain_ec_pct": [
+      20.4,
+      34.0
+    ]
+  },
+  {
+    "code_insee": "31021",
+    "profil": "fragile",
+    "mode": "local",
+    "palier": "degrade",
+    "n_min": 193,
+    "erreur_max_pct": 25.1,
+    "gain_ec_pct": [
+      16.1,
+      26.8
+    ]
+  },
+  {
+    "code_insee": "31247",
+    "profil": "fragile",
+    "mode": "local",
+    "palier": "degrade",
+    "n_min": 234,
+    "erreur_max_pct": 25.0,
+    "gain_ec_pct": [
+      11.5,
+      19.2
+    ]
+  },
+  {
+    "code_insee": "31011",
+    "profil": "repli_departemental",
+    "mode": "departemental",
+    "palier": "standard",
+    "n_min": 7019,
+    "erreur_max_pct": 17.7,
+    "gain_ec_pct": [
+      13.5,
+      22.5
+    ]
+  },
+  {
+    "code_insee": "31059",
+    "profil": "repli_departemental",
+    "mode": "departemental",
+    "palier": "standard",
+    "n_min": 7019,
+    "erreur_max_pct": 17.7,
+    "gain_ec_pct": [
+      13.5,
+      22.5
+    ]
+  },
+  {
+    "code_insee": "31069",
+    "profil": "repli_epci",
+    "mode": "epci",
+    "palier": "standard",
+    "n_min": 3108,
+    "erreur_max_pct": 15.6,
+    "gain_ec_pct": [
+      13.5,
+      22.6
+    ]
+  },
+  {
+    "code_insee": "31150",
+    "profil": "repli_epci",
+    "mode": "epci",
+    "palier": "standard",
+    "n_min": 3108,
+    "erreur_max_pct": 15.6,
+    "gain_ec_pct": [
+      13.5,
+      22.6
+    ]
+  }
+]
