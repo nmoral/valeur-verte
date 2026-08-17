@@ -35,10 +35,14 @@
     </div>
 {% endif %}
 
-<table class="liste-table">
+<table class="liste-table"{% if actions is not empty %} data-controller="select-all"{% endif %}>
     <thead>
         <tr>
-            {% if actions is not empty %}<th class="liste-coche" aria-label="Sélection"></th>{% endif %}
+            {% if actions is not empty %}
+                <th class="liste-coche">
+                    <input type="checkbox" data-action="select-all#toggle" aria-label="Tout sélectionner">
+                </th>
+            {% endif %}
             {% for colonne in colonnes %}
                 <th>
                     {% if colonne.triable %}
@@ -62,7 +66,7 @@
             {% if actions is not empty %}
                 <td class="liste-coche">
                     <input type="checkbox" data-model="selection" value="{{ this.identifiant(element) }}"
-                           aria-label="Sélectionner cette ligne">
+                           data-select-all-target="case" aria-label="Sélectionner cette ligne">
                 </td>
             {% endif %}
             {{ block('ligne') }}
