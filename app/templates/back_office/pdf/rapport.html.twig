@@ -57,16 +57,22 @@
     .ajustement-note{margin-top:6px;font-size:10px;color:#6b7c80}
     .methode{margin-top:6px;color:#41585d;font-size:11px;line-height:1.45}
     .mention{margin-top:7px;padding:7px 11px;border:1px solid #dfe6e7;border-radius:3px;background:#f7faf9;color:#41585d;font-size:10px;line-height:1.45}
-    .identite{margin-top:4px}
-    .identite .l{padding:2px 0;color:#41585d}
     .pied{font-size:9px;color:#6b7c80;border-top:1px solid #dfe6e7;padding-top:6px}
+    .pied-pro{font-weight:bold;color:#41585d;margin-bottom:2px}
+    .pied-mentions{color:#6b7c80;margin-bottom:2px}
 </style>
 </head>
 <body>
 
 <htmlpagefooter name="pied">
+    {% set pro = [] %}
+    {% if branding.nom %}{% set pro = pro|merge([branding.nom]) %}{% endif %}
+    {% if branding.numeroRge %}{% set pro = pro|merge(['RGE ' ~ branding.numeroRge]) %}{% endif %}
+    {% if branding.telephone %}{% set pro = pro|merge(['Tél. ' ~ branding.telephone]) %}{% endif %}
     <div class="pied">
-        Rapport {{ reference }} · valeur-verte · établi à partir de données publiques (DVF, ADEME)
+        {% if pro %}<div class="pied-pro">{{ pro|join('   ·   ') }}</div>{% endif %}
+        {% if branding.mentionsLegales %}<div class="pied-mentions">{{ branding.mentionsLegales }}</div>{% endif %}
+        <div>Rapport {{ reference }} · établi à partir de données publiques (DVF, ADEME)</div>
     </div>
 </htmlpagefooter>
 <sethtmlpagefooter name="pied" value="on" />
@@ -172,16 +178,6 @@
     <p class="section-titre">Méthode &amp; sources</p>
     <p class="methode">La valeur verte est estimée par comparaison avec des <strong>ventes comparables</strong> (base DVF) appariées à leur diagnostic de performance énergétique (ADEME), dans un rayon adaptatif autour du bien. Le nombre de transactions retenues (n), le rayon et le millésime des ventes situent la robustesse de l'estimation ; l'indicateur de fiabilité — Solide, Correct ou Fragile — en synthétise l'effectif et l'étendue géographique.</p>
     <p class="mention">Estimation statistique établie à partir de données publiques (DVF, ADEME). Elle <strong>ne constitue pas une évaluation immobilière</strong> au sens réglementaire, ni un engagement sur le prix de vente ou sur le montant des aides, soumis à instruction par l'Anah.</p>
-
-    {% if branding.nom or branding.numeroRge or branding.telephone or branding.mentionsLegales %}
-        <p class="section-titre">Le professionnel</p>
-        <div class="identite">
-            {% if branding.nom %}<div class="l"><strong>{{ branding.nom }}</strong></div>{% endif %}
-            {% if branding.numeroRge %}<div class="l">Numéro RGE : {{ branding.numeroRge }}</div>{% endif %}
-            {% if branding.telephone %}<div class="l">Téléphone : {{ branding.telephone }}</div>{% endif %}
-            {% if branding.mentionsLegales %}<div class="l">{{ branding.mentionsLegales }}</div>{% endif %}
-        </div>
-    {% endif %}
 </div>
 
 </body>
