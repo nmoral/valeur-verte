@@ -52,6 +52,9 @@ def test_defauts_sans_environnement() -> None:
     # Écarts entre millésimes (REG-1, #129) : alerte à 10 %, blocage à 25 %
     assert config.ecart_alerte_pct == 10.0
     assert config.ecart_blocage_pct == 25.0
+    # Appariement DVF ↔ DPE (DAT-3, #126) : plancher 60 %, chute bloquante > 10 pts
+    assert config.taux_appariement_min_pct == 60.0
+    assert config.chute_appariement_max_pct == 10.0
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -109,6 +112,14 @@ def test_surcharge_seuils_ecart_millesime() -> None:
     )
     assert config.ecart_alerte_pct == 8.0
     assert config.ecart_blocage_pct == 20.0
+
+
+def test_surcharge_seuils_appariement() -> None:
+    config = resolve_config(
+        {"VV_MOTEUR_TAUX_APPARIEMENT_MIN_PCT": "55", "VV_MOTEUR_CHUTE_APPARIEMENT_MAX_PCT": "8"}
+    )
+    assert config.taux_appariement_min_pct == 55.0
+    assert config.chute_appariement_max_pct == 8.0
 
 
 def test_surcharge_int() -> None:

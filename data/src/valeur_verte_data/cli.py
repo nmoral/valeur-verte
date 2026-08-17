@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from .config import resolve_config
+from .dat3 import porte_dat3
 from .db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
     enregistrer_rapport_ingestion,
@@ -84,6 +85,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         rapport: RapportIngestion | RapportCalcul
         if arguments.commande == "compute":
+            # DAT-3 (#126) : un appariement DVF↔DPE effondré produirait des coefficients
+            # sur un échantillon biaisé, sans lever d'erreur. On barre le calcul du
+            # département — l'ancien millésime reste servi (aucun calcul archivé).
+            verdict = porte_dat3(
+                conn,
+                arguments.departement,
+                arguments.millesime,
+                seuil_min=config.taux_appariement_min_pct / 100,
+                chute_max=config.chute_appariement_max_pct / 100,
+            )
+            if verdict is not None and verdict.bloque:
+                motifs = " ; ".join(verdict.motifs)
+                logging.getLogger(__name__).warning(
+                    "Département %s : calcul bloqué (DAT-3) — %s", arguments.departement, motifs
+                )
+                print(
+                    f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                    f"calcul BLOQUÉ (DAT-3) — {motifs}"
+                )
+                return 1
             # La CLI possède l'horloge : elle borne l'exécution (durée du rapport #131).
             debut = datetime.now()
             calcul = compute_departement(

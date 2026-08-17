@@ -405,6 +405,7 @@ def test_le_compute_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)  # DAT-3 ne barre pas ici
     rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
     rapport.communes_calculees = 5
     monkeypatch.setattr(cli, "compute_departement", lambda *a, **k: rapport)
@@ -422,6 +423,51 @@ def test_le_compute_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch)
     assert captures["rapport"] is rapport
     assert isinstance(captures["debut"], datetime)
     assert captures["debut"] <= captures["fin"]
+
+
+def test_compute_bloque_par_dat3_ne_calcule_pas(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DAT-3 (#126) : un appariement en échec bloque le calcul du département."""
+    import psycopg
+
+    from valeur_verte_data.appariement import VerdictAppariement
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    monkeypatch.setattr(
+        cli,
+        "porte_dat3",
+        lambda *a, **k: VerdictAppariement("31", 0.55, True, ("taux 55 % sous le seuil 60 %",)),
+    )
+    appels: list[int] = []
+    monkeypatch.setattr(cli, "compute_departement", lambda *a, **k: appels.append(1))
+
+    code = cli.main(["compute", "--departement", "31", "--millesime", "2025"])
+
+    assert appels == []  # le calcul n'a pas tourné
+    assert code == 1  # l'exécution est signalée en échec
+
+
+def test_compute_non_bloque_par_dat3_calcule_normalement(monkeypatch: pytest.MonkeyPatch) -> None:
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)  # rien à barrer
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2025)
+    rapport.communes_calculees = 5
+    appels: list[int] = []
+
+    def _compute(*a: Any, **k: Any) -> orchestration.RapportCalcul:
+        appels.append(1)
+        return rapport
+
+    monkeypatch.setattr(cli, "compute_departement", _compute)
+    monkeypatch.setattr(cli, "enregistrer_rapport_calcul", lambda *a, **k: None, raising=False)
+
+    code = cli.main(["compute", "--departement", "31", "--millesime", "2025"])
+
+    assert appels == [1]  # le calcul a bien tourné
+    assert code == 0
 
 
 def test_une_commune_devenue_non_calculable_perd_son_coefficient(
