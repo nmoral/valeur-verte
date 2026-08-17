@@ -18,6 +18,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def taux_depuis_comptes(appariees: int, mutations: int) -> float | None:
+    """Taux d'appariement ``appariees / mutations``, ``None`` si aucune mutation.
+
+    Un département sans mutation insérée n'a pas de taux mesurable (0/0) : on rend
+    ``None`` plutôt qu'un faux 0 % qui déclencherait le plancher à tort.
+    """
+    if not mutations:
+        return None
+    return appariees / mutations
+
+
 @dataclass(frozen=True)
 class VerdictAppariement:
     """Verdict DAT-3 d'un département : le taux, s'il bloque, et pourquoi.
