@@ -1,0 +1,27 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun compte pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.identite }}</td>
+            <td>{{ element.creeLe|date('d/m/Y') }}</td>
+            <td>{{ element.formule.libelle }}</td>
+            <td>{{ element.essai.rapportsConsommes }}</td>
+            <td>
+                {% if element.essai.termine %}
+                    Essai terminé
+                {% else %}
+                    En essai — reste {{ element.essai.rapportsRestants }} rapports · {{ element.essai.joursRestants }} jours
+                {% endif %}
+            </td>
+        {% endblock %}
+    {% endembed %}
+</div>
