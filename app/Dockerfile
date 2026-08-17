@@ -42,6 +42,12 @@ RUN composer dump-autoload --classmap-authoritative --no-dev --no-interaction \
     && php bin/console cache:clear --no-warmup \
     && php bin/console cache:warmup
 
+# Assets front (AssetMapper, sans Node) : importmap:install télécharge les
+# dépendances JS front (assets/vendor, gitignoré donc absent du checkout), puis
+# asset-map:compile fige public/assets/ (dist versionné + manifest) pour le runtime.
+RUN php bin/console importmap:install \
+    && php bin/console asset-map:compile
+
 # Exécution sans privilège. Outre var/ (cache/logs Symfony), FrankenPHP écrit son
 # état Caddy dans /data et /config : ces dossiers doivent appartenir à l'utilisateur.
 # Le binaire FrankenPHP porte déjà CAP_NET_BIND_SERVICE, d'où le bind sur :80 en rootless.

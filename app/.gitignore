@@ -25,3 +25,8 @@ phpstan.neon
 
 # Référence de config générée (dépend de l'env)
 /config/reference.php
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
