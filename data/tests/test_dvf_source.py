@@ -12,10 +12,20 @@ from valeur_verte_data.schema_source import COLONNES_DVF, SchemaSourceError
 
 # En-tête geo-dvf complet (DAT-1) : toutes les colonnes lues par le pipeline. Le
 # corps ne renseigne que le strict nécessaire à l'agrégation d'une mutation.
-_ENTETE = ",".join(sorted(COLONNES_DVF))
+_COLONNES = sorted(COLONNES_DVF)
+_LIGNE = {
+    "id_mutation": "2024-1",
+    "date_mutation": "2024-03-01",
+    "valeur_fonciere": "200000",
+    "code_commune": "31555",
+    "code_postal": "31000",
+    "type_local": "Maison",
+    "surface_reelle_bati": "80",
+    "longitude": "1.44",
+    "latitude": "43.60",
+}
 _CSV = (
-    _ENTETE + "\n"
-    "RUE DES FLEURS,12,,31555,S,31000,2024-03-01,2024-1,P1,43.60,1.44,3,Toulouse,80,,Maison,200000\n"
+    ",".join(_COLONNES) + "\n" + ",".join(_LIGNE.get(colonne, "") for colonne in _COLONNES) + "\n"
 )
 
 

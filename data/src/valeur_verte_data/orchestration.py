@@ -47,6 +47,7 @@ from .invariants import (
 )
 from .limitrophes import limitrophes
 from .ruptures import filtrer_regime_dpe
+from .schema_source import SchemaSourceError
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -189,6 +190,13 @@ def ingest_departement(
     for rang, commune in enumerate(communes, 1):
         try:
             resultat = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
+        except SchemaSourceError:
+            # DAT-1 (#124) : une colonne source renommée est systémique (tout le
+            # département), pas une panne d'une commune. On ne l'avale pas comme un
+            # échec de plus : elle interrompt l'ingestion (le calcul ne tournera pas
+            # sur des données muettes). L'ancien millésime reste servi.
+            conn.rollback()
+            raise
         except httpx.HTTPStatusError as erreur:
             conn.rollback()
             if erreur.response.status_code == 404:

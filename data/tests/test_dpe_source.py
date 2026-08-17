@@ -94,12 +94,16 @@ def test_fetch_dpe_records_page_unique() -> None:
 
 
 def test_fetch_dpe_records_champ_absent_donne_chaine_vide() -> None:
-    fetcher = _FakeFetcher([{"total": 1, "results": [{"etiquette_dpe": "C"}]}])
+    # Un champ optionnel omis sur UN enregistrement (présent sur l'union, donc le
+    # schéma reste valide) est normalisé en chaîne vide par `_normalize`.
+    complet = _ademe("D", "12 Rue X 31000 T", "1948-1974")
+    partiel = {"etiquette_dpe": "C"}
+    fetcher = _FakeFetcher([{"total": 2, "results": [complet, partiel]}])
 
     records = fetch_dpe_records(fetcher, "31555")
 
-    assert records[0]["periode_construction"] == ""
-    assert records[0]["adresse_ban"] == ""
+    assert records[1]["periode_construction"] == ""
+    assert records[1]["adresse_ban"] == ""
 
 
 def test_dpe_lookup_construit_l_index() -> None:
@@ -144,9 +148,7 @@ def test_fetch_dpe_records_signale_une_periode_inconnue_sans_bloquer(
 ) -> None:
     # DAT-1 : une tranche de période hors vocabulaire connu est **signalée** (log),
     # pas bloquante — un nouveau niveau catégoriel ne corrompt pas le modèle.
-    fetcher = _FakeFetcher(
-        [{"total": 1, "results": [_ademe("D", "1 Rue X 31000 T", "1600-1700")]}]
-    )
+    fetcher = _FakeFetcher([{"total": 1, "results": [_ademe("D", "1 Rue X 31000 T", "1600-1700")]}])
 
     with caplog.at_level("WARNING"):
         records = fetch_dpe_records(fetcher, "31555")

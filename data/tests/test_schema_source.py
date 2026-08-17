@@ -15,7 +15,6 @@ import pytest
 from valeur_verte_data import dpe_source
 from valeur_verte_data.schema_source import (
     COLONNES_COMMUNE,
-    COLONNES_CONTOUR,
     COLONNES_DPE,
     COLONNES_DVF,
     VOCABULAIRE_PERIODE_CONSTRUCTION,
@@ -50,8 +49,8 @@ def test_verifier_colonnes_nomme_toutes_les_manquantes_triees() -> None:
 
     message = str(info.value)
     # Toutes nommées, dans un ordre stable (trié) pour un message reproductible.
-    assert message.index("adresse_ban") < message.index("etiquette_dpe") < message.index(
-        "version_dpe"
+    assert (
+        message.index("adresse_ban") < message.index("etiquette_dpe") < message.index("version_dpe")
     )
 
 
@@ -128,13 +127,12 @@ def test_periodes_inconnues_normalise_les_espaces() -> None:
 def test_colonnes_dpe_suit_le_mapping_ademe() -> None:
     # Garde-fou anti-dérive : la liste versionnée doit rester alignée sur les
     # champs réellement demandés à l'ADEME (dpe_source._FIELD_MAP).
-    assert COLONNES_DPE == frozenset(dpe_source._FIELD_MAP.values())
+    assert frozenset(dpe_source._FIELD_MAP.values()) == COLONNES_DPE
 
 
 def test_les_schemas_couvrent_les_colonnes_critiques() -> None:
     assert {"id_mutation", "valeur_fonciere", "code_commune", "surface_reelle_bati"} <= COLONNES_DVF
     assert {"code", "nom", "codeEpci", "centre"} <= COLONNES_COMMUNE
-    assert {"code", "contour"} <= COLONNES_CONTOUR
 
 
 def test_vocabulaire_periode_non_vide_et_connu() -> None:

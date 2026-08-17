@@ -11,10 +11,17 @@ corrigés en un seul point après vérification sur l'API réelle (schéma disco
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 
 from .dpe import DpeInfo, build_dpe_lookup
 from .http import Fetcher
+from .schema_source import COLONNES_DPE, periodes_inconnues, verifier_schema_json
+
+logger = logging.getLogger("valeur_verte_data")
+
+# Champ ADEME portant la tranche de construction, contrôlé par DAT-1 (#124).
+_CHAMP_PERIODE = "periode_construction"
 
 # Jeu « DPE Logements existants (depuis juillet 2021) ». L'identifiant est un
 # slug opaque : le nom lisible « dpe-v2-logements-existants » n'existe plus.
@@ -54,16 +61,41 @@ def fetch_dpe_records(
     }
     url = ADEME_LINES_URL
     records: list[dict[str, str]] = []
+    bruts: list[Mapping[str, object]] = []
     while True:
         payload = fetcher.get_json(url, query)
         results = payload.get("results", []) if isinstance(payload, Mapping) else []
         rows = results if isinstance(results, list) else []
-        records.extend(_normalize(row) for row in rows if isinstance(row, Mapping))
+        lignes = [row for row in rows if isinstance(row, Mapping)]
+        bruts.extend(lignes)
+        records.extend(_normalize(row) for row in lignes)
         next_url = payload.get("next") if isinstance(payload, Mapping) else None
         if not rows or not next_url:
-            return records
+            break
         url = str(next_url)
         query = None
+
+    # DAT-1 (#124), au bord : le schéma est jugé sur les enregistrements bruts (les
+    # noms de champs ADEME), avant la normalisation qui masquerait un renommage.
+    verifier_schema_json("DPE", COLONNES_DPE, bruts)
+    _signaler_periodes_inconnues(bruts, code_insee)
+    return records
+
+
+def _signaler_periodes_inconnues(bruts: list[Mapping[str, object]], code_insee: str) -> None:
+    """Journalise toute tranche ``periode_construction`` hors vocabulaire (DAT-1).
+
+    Signalé, non bloquant : une tranche nouvelle est un simple niveau catégoriel de
+    plus dans la régression, pas une corruption du schéma.
+    """
+    valeurs = [str(brut.get(_CHAMP_PERIODE, "")) for brut in bruts]
+    inconnues = periodes_inconnues(valeurs)
+    if inconnues:
+        logger.warning(
+            "Commune %s : periode_construction hors vocabulaire connu : %s",
+            code_insee,
+            ", ".join(sorted(inconnues)),
+        )
 
 
 def dpe_lookup(fetcher: Fetcher, code_insee: str) -> dict[tuple[str, str], DpeInfo]:
