@@ -188,7 +188,7 @@ def ingest_departement(
 
     for rang, commune in enumerate(communes, 1):
         try:
-            inserees = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
+            resultat = ingest_commune(fetcher, conn, commune.code_insee, millesime, config=config)
         except httpx.HTTPStatusError as erreur:
             conn.rollback()
             if erreur.response.status_code == 404:
@@ -209,8 +209,11 @@ def ingest_departement(
 
         conn.commit()
         rapport.communes_traitees += 1
-        rapport.mutations_inserees += inserees
-        logger.info("[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, inserees)
+        rapport.mutations_inserees += resultat.inserees
+        rapport.ventes_appariees += resultat.appariees
+        logger.info(
+            "[%d/%d] %s : %d mutation(s)", rang, total, commune.code_insee, resultat.inserees
+        )
 
     _charger_contours(fetcher, conn, departement, rapport)
     _charger_epci(fetcher, conn, departement, rapport)

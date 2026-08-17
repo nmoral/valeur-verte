@@ -49,9 +49,9 @@ class _FakeConnection:
 def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher(_CSV), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher(_CSV), conn, "31555", 2024)
 
-    assert inserted == 1
+    assert resultat.inserees == 1
     assert len(conn.deletes()) == 1  # la commune est vidée avant d'être réécrite
     ecritures = conn.inserts()
     assert len(ecritures) == 1
@@ -63,9 +63,9 @@ def test_ingest_commune_enchaine_fetch_et_ecriture() -> None:
 def test_ingest_commune_csv_vide_n_ecrit_rien() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher("id_mutation,valeur_fonciere\n"), conn, "31555", 2024)
 
-    assert inserted == 0
+    assert resultat.inserees == 0
     assert conn.inserts() == []
     # La suppression a bien lieu : un millésime redevenu vide doit vider la commune.
     assert len(conn.deletes()) == 1
@@ -82,9 +82,9 @@ _CSV_MIXTE = (
 def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
     conn = _FakeConnection()
 
-    inserted = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
+    resultat = ingest_commune(_FakeFetcher(_CSV_MIXTE), conn, "31555", 2024)
 
-    assert inserted == 1
+    assert resultat.inserees == 1
     assert len(conn.inserts()) == 1
 
 

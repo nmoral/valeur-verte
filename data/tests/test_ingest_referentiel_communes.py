@@ -13,6 +13,7 @@ import pytest
 
 from valeur_verte_data import orchestration
 from valeur_verte_data.decoupage import Commune
+from valeur_verte_data.ingest import ResultatIngestionCommune
 
 _COMMUNES = [
     Commune(
@@ -99,7 +100,7 @@ def test_le_referentiel_est_ecrit_avant_la_boucle_d_ingestion(
     monkeypatch.setattr(
         orchestration,
         "ingest_commune",
-        lambda *a, **k: (ordre.append("vente"), 0)[1],
+        lambda *a, **k: (ordre.append("vente"), ResultatIngestionCommune(0, 0))[1],
     )
 
     orchestration.ingest_departement(_FauxFetcher(), _FausseConnexion(), "31", 2024)
@@ -112,5 +113,7 @@ def _brancher(monkeypatch: pytest.MonkeyPatch) -> None:
         orchestration, "fetch_communes_by_departement", lambda fetcher, dep: list(_COMMUNES)
     )
     monkeypatch.setattr(orchestration, "fetch_contours_by_departement", lambda fetcher, dep: [])
-    monkeypatch.setattr(orchestration, "ingest_commune", lambda *a, **k: 0)
+    monkeypatch.setattr(
+        orchestration, "ingest_commune", lambda *a, **k: ResultatIngestionCommune(0, 0)
+    )
     monkeypatch.setattr(orchestration, "upsert_epci", lambda conn, entries: 0)
