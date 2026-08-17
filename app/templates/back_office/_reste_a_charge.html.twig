@@ -12,7 +12,7 @@
                 {%- if not reste_a_charge.ouvreDroit -%}
                     —
                 {%- elseif reste_a_charge.estUneFourchette -%}
-                    {{ reste_a_charge.aideMinimum.euros|number_format(0, ',', ' ') }} – {{ reste_a_charge.aideMaximum.euros|number_format(0, ',', ' ') }} €
+                    −{{ reste_a_charge.aideMaximum.euros|number_format(0, ',', ' ') }} – −{{ reste_a_charge.aideMinimum.euros|number_format(0, ',', ' ') }} €
                 {%- else -%}
                     −{{ reste_a_charge.aideMaximum.euros|number_format(0, ',', ' ') }} €
                 {%- endif -%}

@@ -79,6 +79,28 @@ final class ListeSignalementsTest extends KernelTestCase
         self::assertStringContainsString('Page 1 / 1 — 1', $html);
     }
 
+    public function testChoisirUneTailleDePageLimiteLesLignesEtRevientEnPremierePage(): void
+    {
+        // #239/#110 : le pro choisit combien de lignes afficher. En changer remet en
+        // première page (la page courante n'a plus de sens à la nouvelle taille).
+        $repository = self::getContainer()->get(SignalementRepository::class);
+        self::assertInstanceOf(SignalementRepository::class, $repository);
+        for ($i = 0; $i < 9; ++$i) {
+            $repository->enregistrer(Signalement::creer("Ville {$i}", ['dpe_avant' => 'E', 'dpe_apres' => 'C'], null, new \DateTimeImmutable('2026-02-0'.($i + 1))));
+        }
+
+        $composant = $this->createLiveComponent('ListeSignalements');
+        // 12 signalements, 25 par page par défaut : une seule page.
+        self::assertStringContainsString('Page 1 / 1 — 12', (string) $composant->render());
+
+        // 10 par page → 2 pages, remis en page 1.
+        self::assertStringContainsString('Page 1 / 2 — 12', (string) $composant->set('parPageChoisi', 10)->render());
+
+        // Aller en page 2 puis rechoisir 25 : on revient en page 1 (une seule page).
+        $composant->call('allerPage', ['page' => 2]);
+        self::assertStringContainsString('Page 1 / 1 — 12', (string) $composant->set('parPageChoisi', 25)->render());
+    }
+
     public function testActionDeGroupeMarqueLaSelectionCommeTraitee(): void
     {
         $composant = $this->createLiveComponent('ListeSignalements');

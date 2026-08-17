@@ -198,6 +198,7 @@ final readonly class InstantaneRapport
                 'telephone' => $this->branding->telephone(),
                 'mentions_legales' => $this->branding->mentionsLegales(),
                 'logo_url' => $this->branding->logoUrl(),
+                'nom' => $this->branding->nom(),
             ],
             'bouquet' => null === $this->bouquet ? null : [
                 'nom' => $this->bouquet->nom(),
@@ -308,6 +309,8 @@ final readonly class InstantaneRapport
             self::texteOuNull($marque['telephone']),
             self::texteOuNull($marque['mentions_legales']),
             self::texteOuNull($marque['logo_url']),
+            // Rétrocompat : les anciens instantanés n'ont pas de nom d'entreprise.
+            self::texteOuNull($marque['nom'] ?? null),
         );
     }
 

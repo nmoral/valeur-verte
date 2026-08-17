@@ -1,8 +1,8 @@
 {#
-  Frontière partagée d'une liste interactive (recherche, en-têtes triables,
-  sélection, actions de groupe, pagination). Embarquée par chaque LiveComponent
-  de liste via {% embed %} : le bloc « ligne » y rend les cellules métier de
-  chaque élément (variable `element`), le reste est mutualisé ici.
+  Frontière partagée d'une liste interactive (recherche, taille de page, en-têtes
+  triables, sélection, actions de groupe, pagination haut + bas). Embarquée par
+  chaque LiveComponent de liste via {% embed %} : le bloc « ligne » y rend les
+  cellules métier de chaque élément (variable `element`), le reste est mutualisé ici.
 
   Attendus (passés par l'embed) :
     resultat      PageListe (this.resultat)
@@ -11,14 +11,25 @@
     tri, direction, recherche, selection   (props du composant)
     vide_message  texte affiché quand la liste est vide
 #}
+{% import _self as ui %}
 {% set nb_colonnes = colonnes|length + (actions is not empty ? 1 : 0) %}
 
 <div class="liste-barre">
     <input type="search" class="liste-recherche" placeholder="Rechercher…"
            data-model="debounce(400)|recherche" value="{{ recherche }}"
            aria-label="Rechercher dans la liste">
+    <label class="liste-taille">
+        <span>Lignes par page</span>
+        <select data-model="parPageChoisi" aria-label="Nombre de lignes par page">
+            {% for taille in this.taillesDisponibles %}
+                <option value="{{ taille }}"{{ taille == this.tailleActuelle ? ' selected' : '' }}>{{ taille }}</option>
+            {% endfor %}
+        </select>
+    </label>
     {% if message %}<p class="liste-message" role="status">{{ message }}</p>{% endif %}
 </div>
+
+{{ ui.pager(resultat, 'haut') }}
 
 {% if actions is not empty and selection|length > 0 %}
     <div class="liste-actions" role="group" aria-label="Actions de groupe">
@@ -83,14 +94,37 @@
     </tbody>
 </table>
 
-<nav class="pager" aria-label="Pagination">
-    <span class="pager-info">Page {{ resultat.page }} / {{ resultat.pages }} — {{ resultat.total }} élément(s)</span>
-    {% if resultat.pagePrecedente is not null %}
-        <button type="button" data-action="live#action" data-live-action-param="allerPage"
-                data-live-page-param="{{ resultat.pagePrecedente }}">← Précédent</button>
-    {% endif %}
-    {% if resultat.pageSuivante is not null %}
-        <button type="button" data-action="live#action" data-live-action-param="allerPage"
-                data-live-page-param="{{ resultat.pageSuivante }}">Suivant →</button>
-    {% endif %}
-</nav>
+{{ ui.pager(resultat, 'bas') }}
+
+{% macro pager(resultat, position) %}
+    <nav class="pager pager-{{ position }}" aria-label="Pagination">
+        <span class="pager-info">Page {{ resultat.page }} / {{ resultat.pages }} — {{ resultat.total }} élément(s)</span>
+        {% if resultat.pages > 1 %}
+            <div class="pager-boutons">
+                {% if resultat.pagePrecedente is not null %}
+                    <button type="button" class="pager-fleche" data-action="live#action" data-live-action-param="allerPage" data-live-page-param="{{ resultat.pagePrecedente }}" aria-label="Page précédente">‹</button>
+                {% else %}
+                    <button type="button" class="pager-fleche" disabled aria-label="Page précédente">‹</button>
+                {% endif %}
+                {% set debut = max(1, resultat.page - 2) %}
+                {% set fin = min(resultat.pages, resultat.page + 2) %}
+                {% if debut > 1 %}
+                    <button type="button" class="pager-page" data-action="live#action" data-live-action-param="allerPage" data-live-page-param="1">1</button>
+                    {% if debut > 2 %}<span class="pager-ellipse">…</span>{% endif %}
+                {% endif %}
+                {% for p in debut..fin %}
+                    <button type="button" class="pager-page{{ p == resultat.page ? ' est-actif' : '' }}"{{ p == resultat.page ? ' aria-current="page"' : '' }} data-action="live#action" data-live-action-param="allerPage" data-live-page-param="{{ p }}">{{ p }}</button>
+                {% endfor %}
+                {% if fin < resultat.pages %}
+                    {% if fin < resultat.pages - 1 %}<span class="pager-ellipse">…</span>{% endif %}
+                    <button type="button" class="pager-page" data-action="live#action" data-live-action-param="allerPage" data-live-page-param="{{ resultat.pages }}">{{ resultat.pages }}</button>
+                {% endif %}
+                {% if resultat.pageSuivante is not null %}
+                    <button type="button" class="pager-fleche" data-action="live#action" data-live-action-param="allerPage" data-live-page-param="{{ resultat.pageSuivante }}" aria-label="Page suivante">›</button>
+                {% else %}
+                    <button type="button" class="pager-fleche" disabled aria-label="Page suivante">›</button>
+                {% endif %}
+            </div>
+        {% endif %}
+    </nav>
+{% endmacro %}

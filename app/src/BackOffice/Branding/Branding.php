@@ -42,23 +42,28 @@ class Branding implements TenantAwareInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $logoUrl;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $nom;
+
     private function __construct(
         Couleur $couleurPrincipale,
         ?string $numeroRge,
         ?string $telephone,
         ?string $mentionsLegales,
         ?string $logoUrl,
+        ?string $nom,
     ) {
         $this->couleurHex = $couleurPrincipale->hex();
         $this->numeroRge = self::normaliser($numeroRge);
         $this->telephone = self::normaliser($telephone);
         $this->mentionsLegales = self::normaliser($mentionsLegales);
         $this->logoUrl = self::normaliser($logoUrl);
+        $this->nom = self::normaliser($nom);
     }
 
     public static function parDefaut(): self
     {
-        return new self(Couleur::depuisHex('#0E4A5C'), null, null, null, null);
+        return new self(Couleur::depuisHex('#0E4A5C'), null, null, null, null, null);
     }
 
     public static function creer(
@@ -67,8 +72,9 @@ class Branding implements TenantAwareInterface
         ?string $telephone,
         ?string $mentionsLegales,
         ?string $logoUrl,
+        ?string $nom = null,
     ): self {
-        return new self($couleurPrincipale, $numeroRge, $telephone, $mentionsLegales, $logoUrl);
+        return new self($couleurPrincipale, $numeroRge, $telephone, $mentionsLegales, $logoUrl, $nom);
     }
 
     public function couleurPrincipale(): Couleur
@@ -94,6 +100,11 @@ class Branding implements TenantAwareInterface
     public function logoUrl(): ?string
     {
         return $this->logoUrl;
+    }
+
+    public function nom(): ?string
+    {
+        return $this->nom;
     }
 
     private static function normaliser(?string $valeur): ?string

@@ -1,0 +1,11 @@
+{#
+  Infobulle explicative (ONB-8, #110) : un marqueur « ? » qui révèle une explication
+  au survol et au focus clavier. Le marqueur est un vrai bouton porteur de l'explication
+  en `aria-label` (annoncée aux lecteurs d'écran) ; la bulle visuelle est masquée aux
+  lecteurs d'écran pour ne pas doubler l'annonce. Usage : <twig:Infobulle texte="…" />
+#}
+{% props texte %}
+<span class="infobulle">
+    <button type="button" class="infobulle-marque" aria-label="{{ texte }}">?</button>
+    <span class="infobulle-bulle" role="tooltip" aria-hidden="true">{{ texte }}</span>
+</span>

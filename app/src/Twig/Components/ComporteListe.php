@@ -14,6 +14,7 @@ use Symfony\Contracts\Service\Attribute\Required;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
+use Symfony\UX\TwigComponent\Attribute\PostMount;
 
 /**
  * Socle d'un LiveComponent de liste : porte l'état d'affichage (page, tri, sens,
@@ -24,6 +25,9 @@ use Symfony\UX\LiveComponent\Attribute\LiveProp;
  */
 trait ComporteListe
 {
+    /** Tailles de page proposées à l'utilisateur (liste blanche). */
+    private const TAILLES_PAGE = [10, 25, 50, 100];
+
     #[LiveProp(writable: true)]
     public int $page = 1;
 
@@ -41,6 +45,13 @@ trait ComporteListe
      */
     #[LiveProp(writable: true)]
     public array $selection = [];
+
+    /**
+     * Taille de page choisie par l'utilisateur ; ``null`` = le défaut de la liste.
+     * En changer remet en première page (la page courante n'a plus de sens).
+     */
+    #[LiveProp(writable: true, onUpdated: 'reinitialiserPagination')]
+    public ?int $parPageChoisi = null;
 
     #[LiveProp]
     public ?string $message = null;
@@ -64,7 +75,7 @@ trait ComporteListe
         $source = $this->source();
         $parametres = ParametresListe::depuis(
             $this->page,
-            $this->parPage(),
+            $this->tailleActuelle(),
             $this->tri,
             $this->direction,
             $this->recherche,
@@ -139,6 +150,43 @@ trait ComporteListe
     protected function parPage(): int
     {
         return 25;
+    }
+
+    /**
+     * Taille de page effective : le choix de l'utilisateur s'il est valide, sinon
+     * le défaut de la liste (surchargeable par ``parPage()``).
+     */
+    public function tailleActuelle(): int
+    {
+        if (null !== $this->parPageChoisi && \in_array($this->parPageChoisi, self::TAILLES_PAGE, true)) {
+            return $this->parPageChoisi;
+        }
+
+        return $this->parPage();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function taillesDisponibles(): array
+    {
+        return self::TAILLES_PAGE;
+    }
+
+    public function reinitialiserPagination(): void
+    {
+        $this->page = 1;
+    }
+
+    /**
+     * Amorce la taille sur le défaut de la liste, pour que le sélecteur (lié en
+     * ``data-model``) affiche la bonne valeur dès le premier rendu — sans quoi un
+     * ``null`` retomberait sur la première option.
+     */
+    #[PostMount]
+    public function initialiserTaillePage(): void
+    {
+        $this->parPageChoisi ??= $this->parPage();
     }
 
     /**

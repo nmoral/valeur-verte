@@ -41,6 +41,24 @@ final class AuditRestitutionTest extends WebTestCase
         self::assertStringContainsString('€', $html);
     }
 
+    public function testLaValeurVerteEstPresenteeAvantLeCalculEconomique(): void
+    {
+        // Remise au propre (#110) : le livrable — la valeur verte créée — mène la
+        // page ; le coût et le reste à charge viennent en section secondaire, dessous.
+        $client = $this->client();
+        $this->coefficients($client)->definir(self::CODE_INSEE, self::maille(n: 134, rayonKm: 10));
+        $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
+
+        $this->soumettre($client);
+
+        $html = (string) $client->getResponse()->getContent();
+        $posValeur = strpos($html, 'Valeur verte créée par la rénovation');
+        $posCout = strpos($html, 'Coût de la rénovation');
+        self::assertIsInt($posValeur, 'La section valeur verte doit être présente.');
+        self::assertIsInt($posCout, 'La section coût / reste à charge doit être présente.');
+        self::assertLessThan($posCout, $posValeur, 'La valeur verte doit précéder le calcul économique.');
+    }
+
     public function testUneMailleSolideAfficheLIndicateurVert(): void
     {
         $client = $this->client();

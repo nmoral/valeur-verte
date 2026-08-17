@@ -66,6 +66,16 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString('https://cdn.example.com/logo.png', $html);
     }
 
+    public function testLeHtmlPorteLeNomDuProDansLEntete(): void
+    {
+        // #110 : le rapport est à l'en-tête du pro — son nom d'entreprise habille
+        // le bandeau, à la place du nom de l'outil (« Valeur Verte »).
+        $html = $this->htmlGenere($this->restitutionSolide());
+
+        self::assertStringContainsString('class="marque">Rénov Toulouse', $html);
+        self::assertStringNotContainsString('class="marque">Valeur Verte', $html);
+    }
+
     public function testLesBadgesDpeSontDesEtiquettesSvg(): void
     {
         $html = $this->htmlGenere($this->restitutionSolide());
@@ -82,6 +92,48 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         $html = $this->htmlGenere($this->restitutionSolide());
 
         self::assertStringContainsString(self::REFERENCE, $html);
+    }
+
+    public function testLaDateDuRapportFigureDansLeDocument(): void
+    {
+        // #110 : un rapport remis au client doit être daté. La date vient de
+        // l'instantané (genereLe), pour rester reproductible à la régénération.
+        $convertisseur = $this->convertisseurEspion();
+        $this->generateur($convertisseur)->generer(
+            $this->saisie(),
+            $this->restitutionSolide(),
+            $this->branding(),
+            ReferenceRapport::depuis(self::REFERENCE),
+            date: new \DateTimeImmutable('2026-08-17 10:00:00'),
+        );
+
+        self::assertStringContainsString('17/08/2026', $convertisseur->dernierHtml);
+    }
+
+    public function testLaSituationDuMenageDeclareeFigureDansLeDocument(): void
+    {
+        // #26/#110 : quand le pro a précisé la situation du ménage, le PDF doit la
+        // porter — c'est ce qui explique le montant d'aides retenu.
+        $convertisseur = $this->convertisseurEspion();
+        $this->generateur($convertisseur)->generer(
+            $this->saisie(),
+            $this->restitutionSolide(),
+            $this->branding(),
+            ReferenceRapport::depuis(self::REFERENCE),
+            situationMenage: 'Revenus modestes',
+        );
+
+        self::assertStringContainsString('Revenus modestes', $convertisseur->dernierHtml);
+    }
+
+    public function testLeRapportPorteLaMethodeEtLaMentionLegale(): void
+    {
+        // #110 : le rapport s'explique de lui-même (méthode + sources) et pose le
+        // cadre — une estimation statistique n'est pas une évaluation immobilière.
+        $html = $this->htmlGenere($this->restitutionSolide());
+
+        self::assertStringContainsStringIgnoringCase('ventes comparables', $html);
+        self::assertStringContainsString('ne constitue pas une évaluation immobilière', $html);
     }
 
     public function testUneEstimationFragileAfficheLeBandeauDAlerte(): void
@@ -181,6 +233,7 @@ final class GenerateurPdfRapportTest extends KernelTestCase
             '05 61 00 00 00',
             'SARL Rénov Toulouse — RCS 812 345 678',
             'https://cdn.example.com/logo.png',
+            'Rénov Toulouse',
         );
     }
 
