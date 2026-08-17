@@ -80,6 +80,20 @@ final class AuditResultatControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', "marge d'incertitude");
     }
 
+    public function testLePrixDeBaseExpliqueLeMotMedianeSansJargon(): void
+    {
+        // ONB-8 (#110) : chasse au jargon. « médiane de la commune » est le seul terme
+        // technique exposé au pro ; une infobulle l'explique en clair.
+        $client = static::createClient();
+        $this->poserResultatEnSession($client);
+
+        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.resultat-prix .infobulle');
+        self::assertSelectorTextContains('body', 'moitié des ventes');
+    }
+
     private function poserResultatEnSession(KernelBrowser $client): void
     {
         $factory = self::getContainer()->get('session.factory');
