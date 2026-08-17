@@ -41,6 +41,22 @@ final class BrandingControllerTest extends WebTestCase
         self::assertSame('QB/54321', $courant->numeroRge());
     }
 
+    public function testEnregistrerPersisteLeNomDeLEntreprise(): void
+    {
+        // #110 : le nom du pro habille le rapport — il doit être saisi et persisté.
+        $client = static::createClient();
+        $client->request('POST', '/marque', [
+            'couleur' => '#0E4A5C',
+            'nom' => 'Rénov Toulouse',
+        ]);
+
+        self::assertResponseRedirects('/marque');
+
+        $branding = self::getContainer()->get(BrandingRepository::class);
+        self::assertInstanceOf(BrandingRepository::class, $branding);
+        self::assertSame('Rénov Toulouse', $branding->courant()->nom());
+    }
+
     public function testUneCouleurInvalideEstRefuseeSansRienEnregistrer(): void
     {
         $client = static::createClient();

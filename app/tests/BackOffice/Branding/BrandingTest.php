@@ -39,6 +39,23 @@ final class BrandingTest extends TestCase
         self::assertSame('/uploads/logo.png', $branding->logoUrl());
     }
 
+    public function testUnBrandingPorteLeNomDeLEntreprise(): void
+    {
+        // #110 : le rapport est à l'en-tête du pro — son nom d'entreprise remplace
+        // le nom de l'outil. Optionnel (null par défaut), débarrassé des espaces.
+        $branding = Branding::creer(
+            Couleur::depuisHex('#0E4A5C'),
+            null,
+            null,
+            null,
+            null,
+            nom: '  Rénov Toulouse  ',
+        );
+
+        self::assertSame('Rénov Toulouse', $branding->nom());
+        self::assertNull(Branding::parDefaut()->nom());
+    }
+
     public function testLesChampsTexteVidesSontRamenesANull(): void
     {
         $branding = Branding::creer(Couleur::depuisHex('#0E4A5C'), '  ', '', '   ', null);

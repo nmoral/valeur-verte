@@ -152,14 +152,16 @@ Le chiffre d'usage fait la vente à la place du commercial.
 
 Tout ce qui aurait été expliqué de vive voix doit exister dans le produit.
 
-- Libellés explicites plutôt que jargon (pas de « coefficient hédonique »)
-- Indicateur de fiabilité vert/orange/rouge sur chaque estimation
-- Mode dégradé départemental avec bandeau explicite
-- Messages d'erreur qui disent quoi faire, pas ce qui a échoué
-- Infobulles sur n, rayon et erreur médiane
-- Bouton « ce chiffre me semble faux » sur chaque résultat
+- ✅ Libellés explicites plutôt que jargon (pas de « coefficient hédonique ») — aucun jargon dur n'était exposé ; « médiane » est explicité par une infobulle sur le prix de base
+- ✅ Indicateur de fiabilité vert/orange/rouge sur chaque estimation — livré #31, réutilisé
+- ✅ Mode dégradé départemental avec bandeau explicite — livré #22, réutilisé
+- ✅ Messages d'erreur qui disent quoi faire, pas ce qui a échoué — ajustement nul reformulé (« Saisissez un montant différent de zéro… ») ; les autres messages de saisie étaient déjà actionnables
+- ✅ Infobulles sur n, rayon et erreur médiane — composant réutilisable `<twig:Infobulle>` (accessible clavier/lecteur d'écran) sur `n`, `rayon`, `millésime` et la **fourchette** (forme visible de l'erreur médiane, non affichée telle quelle : l'app est en lecture seule sur `data`)
+- ✅ Bouton « ce chiffre me semble faux » sur chaque résultat — livré #49, réutilisé
 
 **Critère d'acceptation** : un testeur externe produit un rapport et sait interpréter la fiabilité sans poser de question.
+
+> ⚠️ Ce critère exige une **session de test utilisateur** (validation humaine, hors code) : à planifier avant de clore ONB-8. Le code (infobulles, libellés, messages actionnables) est livré ; reste à le confronter à un testeur externe.
 
 ---
 

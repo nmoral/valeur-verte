@@ -53,9 +53,12 @@ final class AjustementProfessionnelTest extends TestCase
         self::assertSame('État général', $ajustement->motif());
     }
 
-    public function testUnAjustementNulNEstPasUnAjustement(): void
+    public function testUnAjustementNulEstRefuseAvecUnMessageActionnable(): void
     {
+        // ONB-8 (#110) : le message doit dire quoi faire, pas seulement constater
+        // l'échec — le pro voit comment corriger sa saisie.
         $this->expectException(AjustementInvalide::class);
+        $this->expectExceptionMessage('Saisissez un montant différent de zéro');
 
         AjustementProfessionnel::depuis(0, 'Sans effet');
     }

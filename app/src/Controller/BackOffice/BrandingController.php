@@ -25,6 +25,7 @@ final class BrandingController extends AbstractController
                     $request->request->getString('telephone'),
                     $request->request->getString('mentions_legales'),
                     $request->request->getString('logo_url'),
+                    $request->request->getString('nom'),
                 );
             } catch (\InvalidArgumentException $erreur) {
                 return $this->render('back_office/marque.html.twig', [

@@ -24,7 +24,7 @@ final readonly class AjustementProfessionnel
     public static function depuis(int $montantEuros, string $motif): self
     {
         if (0 === $montantEuros) {
-            throw new AjustementInvalide('Un ajustement nul n\'est pas un ajustement.');
+            throw new AjustementInvalide('Saisissez un montant différent de zéro : positif pour majorer l\'estimation, négatif pour la minorer.');
         }
 
         $motif = trim($motif);
