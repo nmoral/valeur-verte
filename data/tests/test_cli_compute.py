@@ -587,9 +587,14 @@ def test_un_echec_d_ecriture_est_trace_et_annule(
     assert connexion.rollbacks >= 1
 
 
-def _maille_publiable(code_insee: str, coef_m2_bati: float = 0.90) -> MailleCoefficient:
+def _maille_publiable(
+    code_insee: str,
+    coef_m2_bati: float = 0.90,
+    coef_dpe: dict[str, float] | None = None,
+) -> MailleCoefficient:
     """Maille saine (passe INV-2/INV-3 #1/INV-4). ``coef_m2_bati`` est une
-    élasticité (log-prix), pilotée pour tester la rupture INV-3 #3."""
+    élasticité (log-prix), pilotée pour tester la rupture INV-3 #3 ; ``coef_dpe``
+    pilote l'effet DPE, seul coefficient bloquant de REG-1 (#176)."""
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=2024,
@@ -600,7 +605,7 @@ def _maille_publiable(code_insee: str, coef_m2_bati: float = 0.90) -> MailleCoef
         erreur_mediane=15.0,
         coef_m2_bati=coef_m2_bati,
         coef_m2_terrain=0.30,
-        coef_dpe={"D": 0.0, "F": -0.20},
+        coef_dpe=coef_dpe if coef_dpe is not None else {"D": 0.0, "F": -0.20},
         ic_dpe={},
         alerte=None,
     )
@@ -743,11 +748,14 @@ def test_maille_dont_l_ecart_depasse_le_seuil_est_archivee_en_blocage(
     monkeypatch.setattr(
         orchestration, "compute_communes", lambda *a, **k: iter([_maille_publiable("31555")])
     )
-    # Précédent à élasticité bâti 0,30 → 0,90 = +200 % : au-delà du blocage (25 %).
+    # Seul le DPE bloque (REG-1, #176) : précédent F=-0,55 (exp 0,577) vs courant
+    # F=-0,20 (exp 0,819) = ~42 % sur l'effet — au-delà du blocage (25 %).
     monkeypatch.setattr(
         orchestration,
         "lire_coefficient_precedent",
-        lambda conn, code, mil: _maille_publiable(code, 0.30) if code == "31555" else None,
+        lambda conn, code, mil: (
+            _maille_publiable(code, coef_dpe={"D": 0.0, "F": -0.55}) if code == "31555" else None
+        ),
     )
     archivees = _capturer_archives(monkeypatch)
 

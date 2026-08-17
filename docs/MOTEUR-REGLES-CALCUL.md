@@ -267,15 +267,25 @@ maille calculée est comparée à son millésime précédent, **puis archivée**
 comparaison précède l'archivage depuis REG-2 (#130), car le verdict part **avec**
 l'archive (`classe_ecart`, `ecart`, `ecart_coefficient`) :
 
-- **métrique** : écart relatif sur l'**effet `exp(coef)`** des classes DPE communes (un
-  effet log peut bouger beaucoup sans que le prix bouge) et sur la valeur brute des
-  élasticités `coef_m2_bati`/`coef_m2_terrain` ; la maille retient le **pire** coefficient.
+- **métrique** : le palier porte sur le **signal produit — les effets DPE** (#176).
+  Écart relatif sur l'**effet `exp(coef)`** des classes DPE communes (un effet log peut
+  bouger beaucoup sans que le prix bouge) ; la maille retient le **pire** coefficient.
   Un changement de l'ensemble des classes publiées (rebanding) vaut au moins une alerte ;
+- **élasticités informatives** (#176) : `coef_m2_bati`/`coef_m2_terrain` sont comparées
+  sur la valeur brute mais **plafonnées à `alerte`** — jamais un **blocage**. Ce sont des
+  régresseurs internes invisibles de l'utilisateur et instables par rééchantillonnage
+  annuel (surtout le terrain : écart p90 jusqu'à 221 % sur le VPS, quasi toujours proche
+  des bornes). Le test réel de REG-1 (VPS, 2023→2024, #129) montrait qu'elles bloquaient
+  **57 à 94 %** des mailles, presque toujours à cause du terrain ; en **DPE-seul** la part
+  bloquée retombe à **1-12 %**, et surtout **différenciée par territoire** (muette là où le
+  bénéfice vert est stable, active là où il a réellement bougé). À classe égale, le signal
+  produit (DPE, rebanding) l'emporte sur une élasticité dans le **libellé** du coefficient
+  en cause (option B) ; à rang égal, le plus grand écart est retenu ;
 - **paliers** : `< ecart_alerte_pct` (**10 %**) normal ; jusqu'à `ecart_blocage_pct`
-  (**25 %**) **alerte** (publiée, signalée pour revue) ; au-delà **blocage** — la maille
-  est archivée mais **écartée de la publication** du millésime (l'ancienne valeur vive
-  reste servie jusqu'à déblocage explicite, REG-2). Blocage **par maille**, jamais du
-  batch entier.
+  (**25 %**) **alerte** (publiée, signalée pour revue) ; au-delà **blocage** (DPE
+  uniquement) — la maille est archivée mais **écartée de la publication** du millésime
+  (l'ancienne valeur vive reste servie jusqu'à déblocage explicite, REG-2). Blocage
+  **par maille**, jamais du batch entier.
 
 Prérequis INV-5 satisfait (CV déterministe → l'écart est de la dérive, pas de l'aléa). Le
 batch renvoie un `RapportEcarts` dédié (une ligne par maille) pour l'écran de supervision (#45).

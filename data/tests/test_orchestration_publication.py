@@ -52,7 +52,11 @@ def connexion() -> _FausseConnexion:
     return _FausseConnexion()
 
 
-def _maille(code_insee: str, coef_m2_bati: float = 0.5) -> MailleCoefficient:
+def _maille(
+    code_insee: str,
+    coef_m2_bati: float = 0.5,
+    coef_dpe: dict[str, float] | None = None,
+) -> MailleCoefficient:
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=2024,
@@ -64,7 +68,7 @@ def _maille(code_insee: str, coef_m2_bati: float = 0.5) -> MailleCoefficient:
         erreur_mediane=15.0,
         coef_m2_bati=coef_m2_bati,
         coef_m2_terrain=0.30,
-        coef_dpe={"D": 0.0, "F": -0.20},
+        coef_dpe=coef_dpe if coef_dpe is not None else {"D": 0.0, "F": -0.20},
         ic_dpe={},
         alerte=None,
     )
@@ -150,11 +154,12 @@ def test_l_archive_porte_la_classe_d_ecart(connexion: Any, monkeypatch: pytest.M
     l'archive, projeter « toutes les lignes du millésime » les publierait.
     """
     archivees: list[tuple[MailleCoefficient, ClasseEcart | None]] = []
-    # Les deux élasticités restent dans les bornes INV-2 ([0,30 ; 1,50]) — sinon la
-    # maille serait rejetée avant d'être archivée — mais l'écart entre millésimes
-    # dépasse largement le seuil de blocage REG-1 (25 %).
-    precedent = _maille("31555", coef_m2_bati=0.5)
-    _brancher(monkeypatch, [_maille("31555", coef_m2_bati=1.4)])
+    # Seul le DPE bloque (REG-1, #176) : l'effet F passe de exp(-0,20)=0,819 à
+    # exp(-0,55)=0,577, soit ~30 % — au-delà du seuil de blocage (25 %). Les
+    # coefficients restent dans les bornes INV-2, sinon la maille serait rejetée
+    # avant d'être archivée.
+    precedent = _maille("31555", coef_dpe={"D": 0.0, "F": -0.20})
+    _brancher(monkeypatch, [_maille("31555", coef_dpe={"D": 0.0, "F": -0.55})])
     monkeypatch.setattr(
         orchestration, "lire_coefficient_precedent", lambda conn, code, mil: precedent
     )
