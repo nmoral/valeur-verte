@@ -1,3 +1,4 @@
-body {
-    background-color: skyblue;
-}
+/*
+ * Feuille de style de l'entrypoint AssetMapper. Les styles du produit vivent dans
+ * public/css/*.css (servis via asset()) ; ce fichier reste volontairement vide.
+ */
