@@ -47,7 +47,29 @@ Profils couverts sur le recalcul du fixture (N=2025, classes C et E présentes) 
 | repli départemental | `departemental` | 66 |
 | (bonus) repli EPCI | `epci` | 160 |
 
-## Régénérer le fixture
+## `cas_reference.json`
+
+Les **13 cas de référence** (département 31, N=2025), calibrés par
+`tools/calibrer_reg3.py` : `mode`/`palier` catégoriels + fourchettes
+`n_min` / `erreur_max_pct` / `gain_ec_pct` = **baseline ± 25 %** (arrondi 0,1).
+Couvre les quatre profils requis (solide, correcte, fragile, repli départemental)
+plus un bonus repli EPCI. La maille de référence est, par construction, toujours
+conforme à sa propre fourchette : seule une dérive du moteur l'en fait sortir.
+
+**Régénérer** (après une évolution *volontaire* du moteur, jamais pour « faire
+vert ») : charger le dump dans une base au schéma courant, calculer, puis calibrer :
+
+```bash
+DATABASE_URL=postgresql://…/<base> python -m valeur_verte_data.cli \
+  compute --departement 31 --millesime 2025
+DATABASE_URL=postgresql://…/<base> python tools/calibrer_reg3.py
+```
+
+Le driver réécrit `cas_reference.json` et échoue si les quatre profils ne sont plus
+couverts. La tolérance (`_TOLERANCE = 0.25`) et la sélection des communes (`_COMMUNES`)
+sont en tête du driver.
+
+## Régénérer le jeu de données figé
 
 Depuis un PostGIS chargé du dump France de prod (`SOURCE_DB`), en ne gardant que
 les départements et millésimes du périmètre :
