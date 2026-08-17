@@ -113,6 +113,29 @@ class _FetcherAvecDpe:
         return _DPE_ADEME
 
 
+_CSV_DPE_PARTIEL = (
+    "id_mutation,valeur_fonciere,code_commune,code_postal,surface_reelle_bati,"
+    "adresse_numero,adresse_nom_voie,longitude,latitude\n"
+    "avec-dpe,200000,31555,31000,80,12,RUE DES FLEURS,1.44,43.6\n"
+    "sans-dpe,200000,31555,31000,80,5,AVENUE DU PARC,1.45,43.61\n"
+)
+
+
+def test_ingest_commune_compte_les_ventes_inserees_et_appariees() -> None:
+    """DAT-3 (#131) : le rapport doit distinguer ventes insérées et ventes appariées.
+
+    Le fichier ADEME ne couvre que « 12 RUE DES FLEURS » : la seconde vente est
+    insérée mais sans étiquette DPE. Le taux d'appariement se lit sur ces deux
+    comptes.
+    """
+    conn = _FakeConnection()
+
+    resultat = ingest_commune(_FetcherAvecDpe(_CSV_DPE_PARTIEL), conn, "31555", 2024)
+
+    assert resultat.inserees == 2
+    assert resultat.appariees == 1
+
+
 def test_ingest_commune_apparie_les_dpe() -> None:
     """Sans étiquette DPE, le moteur écarte la vente : l'ingestion serait stérile.
 
