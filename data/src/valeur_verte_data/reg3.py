@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TextIO, TypeVar
@@ -113,6 +114,23 @@ def charger_cas_reference(fichier: TextIO) -> list[CasReference]:
     ``CasReferenceInvalide`` en nommant le cas et le problème.
     """
     return [_cas_depuis_dict(brut) for brut in json.load(fichier)]
+
+
+# Régimes de publication que le jeu de recette **doit** éprouver (#56). Le repli
+# EPCI en est volontairement exclu : c'est un bonus, pas une exigence de couverture.
+PROFILS_REQUIS: frozenset[Profil] = frozenset(
+    {Profil.SOLIDE, Profil.CORRECTE, Profil.FRAGILE, Profil.REPLI_DEPARTEMENTAL}
+)
+
+
+def profils_manquants(cas: Iterable[CasReference]) -> frozenset[Profil]:
+    """Profils requis (§REG-3) absents du jeu de cas ; vide = couverture complète.
+
+    Un jeu qui ne couvre pas les quatre régimes ne prouve rien sur ceux qu'il omet
+    (un « fragile » absent laisse INV-4 non éprouvé, #122). Les doublons ne comptent
+    qu'une fois : c'est la **présence** de chaque profil qui fait la couverture.
+    """
+    return PROFILS_REQUIS - {reference.profil for reference in cas}
 
 
 def _ecart_erreur(cas: CasReference, maille: MailleCoefficient) -> str | None:
