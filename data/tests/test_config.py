@@ -43,6 +43,8 @@ def test_defauts_sans_environnement() -> None:
     assert config.etendue_minimale_indice == 0.002
     assert config.effets_fixes_commune is False
     assert config.indice_local is True
+    # Pooling hiérarchique (#249) : désactivé par défaut (non-régression exacte)
+    assert config.pooling_hierarchique is False
     # Validation croisée
     assert config.cv_folds == 5
     # Seuils de publication (INV-4)
@@ -258,3 +260,7 @@ def test_surcharge_bool_true() -> None:
         resolve_config({"VV_MOTEUR_RESTREINDRE_BATI_ANCIEN": "true"}).restreindre_bati_ancien
         is True
     )
+
+
+def test_surcharge_pooling_hierarchique() -> None:
+    assert resolve_config({"VV_MOTEUR_POOLING_HIERARCHIQUE": "true"}).pooling_hierarchique is True

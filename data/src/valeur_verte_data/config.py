@@ -84,6 +84,11 @@ class CalculConfig:
     effets_fixes_commune: bool = False  # S22
     # Indice local de quartier comme régresseur (S24) : gardé (signal réel).
     indice_local: bool = True  # S24
+    # Pooling partiel hiérarchique (#249) : tire les effets DPE d'une maille LOCAL vers
+    # le fit poolé départemental, proportionnellement à sa précision (poids
+    # w = τ²/(τ²+SE²), empirical Bayes). Régulariseur en amont de la cascade #169.
+    # `False` = désactivé (non-régression exacte), comme decroissance_temporelle_tau #208.
+    pooling_hierarchique: bool = False
     cv_folds: int = 5
     # INV-4 (#122) : seuils de publication d'une maille. n minimal = min_local_sample
     # (seuil #22, source unique). Ces bornes sont configurables, pas codées en dur.
@@ -186,6 +191,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         ),
         effets_fixes_commune=_bool(env, "EFFETS_FIXES_COMMUNE", defaut.effets_fixes_commune),
         indice_local=_bool(env, "INDICE_LOCAL", defaut.indice_local),
+        pooling_hierarchique=_bool(env, "POOLING_HIERARCHIQUE", defaut.pooling_hierarchique),
         cv_folds=_int(env, "CV_FOLDS", defaut.cv_folds),
         erreur_mediane_max_pct=_float(env, "ERREUR_MEDIANE_MAX_PCT", defaut.erreur_mediane_max_pct),
         erreur_mediane_max_pct_degrade=_float(

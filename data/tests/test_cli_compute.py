@@ -327,6 +327,74 @@ def test_les_communes_calculees_sont_ecrites(
     assert connexion.commits >= 1
 
 
+def _maille_f(code_insee: str, coef_f: float) -> MailleCoefficient:
+    """Maille LOCAL publiable portant une classe F, pour tester le shrinkage (#249)."""
+    return MailleCoefficient(
+        code_insee=code_insee,
+        millesime=2024,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=15,
+        n_transactions=50,
+        r2=0.5,
+        erreur_mediane=15.0,
+        coef_m2_bati=0.9,
+        coef_m2_terrain=0.05,
+        coef_dpe={"D": 0.0, "F": coef_f},
+        ic_dpe={},
+        alerte=None,
+        se_dpe={"D": 0.0, "F": 0.5},
+    )
+
+
+def _prepare_shrinkage(monkeypatch: pytest.MonkeyPatch) -> list[tuple[MailleCoefficient, Any]]:
+    """Câble deux mailles LOCAL hétérogènes (F=±1) et une cible départementale μ_F=0."""
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: _POOL)
+    monkeypatch.setattr(
+        orchestration,
+        "compute_communes",
+        lambda *_, **__: [_maille_f("31555", 1.0), _maille_f("31149", -1.0)],
+    )
+    monkeypatch.setattr(
+        orchestration,
+        "compute_maille_departement",
+        lambda *_, **__: replace(_maille_f("00000", 0.0), mode=CoverageMode.DEPARTEMENTAL),
+    )
+    _neutraliser_monotonie(monkeypatch)
+    _neutraliser_signe_ordre(monkeypatch)
+    return _capturer_archives(monkeypatch)
+
+
+def _coef_f_archive(archivees: list[tuple[MailleCoefficient, Any]], code_insee: str) -> float:
+    (maille,) = [m for m, _ in archivees if m.code_insee == code_insee]
+    return maille.coef_dpe["F"]
+
+
+def test_compute_departement_pooling_tire_les_effets_vers_le_departemental(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#249 : pooling activé — l'effet F d'une maille (τ̂²=0,75, SE=0,5) est tiré de
+    1,0 vers μ_F=0 : 0 + 0,75·1 = 0,75. Le régulariseur agit avant l'archivage."""
+    archivees = _prepare_shrinkage(monkeypatch)
+    config = replace(_CONFIG_PUBLIANTE, pooling_hierarchique=True)
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024, config=config)
+
+    assert _coef_f_archive(archivees, "31555") == pytest.approx(0.75)
+
+
+def test_compute_departement_sans_pooling_garde_l_effet_local(
+    connexion: _FausseConnexion, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pooling désactivé (défaut) : non-régression exacte, l'effet local est archivé tel quel."""
+    archivees = _prepare_shrinkage(monkeypatch)
+
+    orchestration.compute_departement(
+        _FauxFetcher(), connexion, "31", 2024, config=_CONFIG_PUBLIANTE
+    )
+
+    assert _coef_f_archive(archivees, "31555") == 1.0
+
+
 def test_le_rapport_journalise_l_ordre_canonique_deterministe() -> None:
     """INV-5 (#123) : le rapport de batch trace la garantie de reproductibilité —
     la clé d'ordre canonique qui rend le calcul déterministe. Sans ce marqueur,

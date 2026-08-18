@@ -11,6 +11,7 @@ import pytest
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 from valeur_verte_data.regression import (
     InsufficientSampleError,
+    _erreurs_types,
     _indice_local,
     _Row,
     fit,
@@ -543,3 +544,136 @@ def test_fit_isole_le_dpe_de_l_emplacement_fin() -> None:
 
     # Sans indice de quartier, F remonte vers 0 ; avec, il retrouve son effet propre.
     assert result.coef_dpe["F"] < -0.12
+
+
+# --- DAT/#249 lot 1 : écarts-types des coefficients (se_dpe) ---
+#
+# Le shrinkage hiérarchique (#249) pondère par la précision de chaque effet DPE :
+# poids w = τ²/(τ²+SE²). Il faut donc exposer SE = √diag(σ̂²·(XᵀWX)⁻¹) depuis le fit.
+# `_erreurs_types` est la brique pure (covariance MCO pondérés) ; on la teste à valeur
+# connue, puis on vérifie que `fit` la remonte par classe dans `se_dpe`.
+
+
+def _wls_beta(design: np.ndarray, y: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    """Solution MCO pondérés (design blanchi) — mêmes β̂ que `_fit_model`."""
+    racine = np.sqrt(weights)
+    beta, _, _, _ = np.linalg.lstsq(design * racine[:, None], y * racine, rcond=None)
+    return beta
+
+
+def test_erreurs_types_ols_simple_valeurs_connues() -> None:
+    # Régression simple y = a + b·x, poids unitaires, résidus non nuls.
+    # Calcul à la main : β̂=[0,8 ; 1,3], σ̂²=RSS/(n−p)=0,30/2=0,15,
+    # (XᵀX)⁻¹ diag = [0,7 ; 0,2] ⇒ SE = √(0,15·[0,7 ; 0,2]) = [0,324037 ; 0,173205].
+    design = np.array([[1.0, 0.0], [1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
+    y = np.array([1.0, 2.0, 3.0, 5.0])
+    weights = np.ones(4)
+    beta = np.array([0.8, 1.3])
+
+    se = _erreurs_types(design, y, weights, beta)
+
+    assert se[0] == pytest.approx(math.sqrt(0.105))
+    assert se[1] == pytest.approx(math.sqrt(0.03))
+
+
+def test_erreurs_types_depend_des_poids() -> None:
+    # Repondérer les observations change la covariance : l'estimateur pondéré et son
+    # SE diffèrent du cas non pondéré (sinon le poids serait ignoré).
+    design = np.array([[1.0, 0.0], [1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
+    y = np.array([1.0, 2.0, 3.0, 5.0])
+    plats = np.ones(4)
+    pesants = np.array([1.0, 1.0, 1.0, 5.0])
+
+    se_plats = _erreurs_types(design, y, plats, _wls_beta(design, y, plats))
+    se_pesants = _erreurs_types(design, y, pesants, _wls_beta(design, y, pesants))
+
+    assert not np.allclose(se_plats, se_pesants)
+
+
+def test_erreurs_types_sans_degres_de_liberte_est_infini() -> None:
+    # n ≤ p : aucun degré de liberté résiduel ⇒ σ̂² indéfini ⇒ SE = +∞. C'est le signal
+    # « aucune information » que le shrinkage traduit en poids nul (tiré vers le prior).
+    design = np.array([[1.0, 0.0], [1.0, 1.0]])  # n = p = 2
+    y = np.array([1.0, 2.0])
+    weights = np.ones(2)
+    beta = np.array([1.0, 1.0])
+
+    se = _erreurs_types(design, y, weights, beta)
+
+    assert np.isinf(se).all()
+
+
+def test_erreurs_types_gere_la_quasi_singularite() -> None:
+    # Colonne colinéaire (XᵀWX singulière) : `pinv` (pas `inv`) ne lève pas et rend des
+    # SE finis (pseudo-inverse de norme minimale). Robustesse petit-échantillon rural.
+    design = np.array([[1.0, 2.0], [1.0, 2.0], [1.0, 2.0], [1.0, 2.0], [1.0, 2.0]])
+    y = np.array([1.0, 2.0, 3.0, 2.0, 2.0])
+    weights = np.ones(5)
+    beta = _wls_beta(design, y, weights)
+
+    se = _erreurs_types(design, y, weights, beta)
+
+    assert np.all(np.isfinite(se))
+
+
+def _echantillon_bruite(n_par_classe: int, insee: str = "31555") -> list[Mutation]:
+    """Maisons D et F avec bruit **déterministe** (±8 %) → variance résiduelle > 0."""
+    maisons: list[Mutation] = []
+    for classe, effet in (("D", 0.0), ("F", -0.20)):
+        for i in range(n_par_classe):
+            bati = 80 + (i % 5) * 10
+            terrain = 200 + (i % 4) * 50
+            base = _prix_theorique(bati, terrain, effet)
+            prix = round(base * (1 + 0.08 * ((i % 3) - 1)))
+            maisons.append(
+                _house(
+                    classe,
+                    bati,
+                    terrain,
+                    prix,
+                    insee=insee,
+                    lat=43.6 + 0.01 * i,
+                    lon=1.44 + 0.008 * i,
+                )
+            )
+    return maisons
+
+
+def test_se_dpe_a_les_memes_classes_que_coef_dpe() -> None:
+    # se_dpe est parallèle à coef_dpe (mêmes classes) ; la référence D est l'ancre
+    # (effet 0, SE 0) — jamais shrinkée.
+    result = fit(_echantillon_bruite(8), 43.6, 1.44, reference_dpe="D")
+
+    assert set(result.se_dpe) == set(result.coef_dpe)
+    assert result.se_dpe["D"] == 0.0
+
+
+def test_se_dpe_fini_et_positif_sur_donnees_bruitees() -> None:
+    # Avec des degrés de liberté et de la variance résiduelle, la SE d'une classe
+    # estimée est un réel strictement positif.
+    result = fit(_echantillon_bruite(8), 43.6, 1.44, reference_dpe="D")
+
+    assert 0.0 < result.se_dpe["F"] < math.inf
+
+
+def test_se_dpe_diminue_avec_plus_de_donnees() -> None:
+    # La précision (⇒ SE plus petite) est le cœur du shrinkage : plus de ventes pour
+    # une classe ⇒ effet mieux estimé ⇒ SE plus faible.
+    petit = fit(_echantillon_bruite(6), 43.6, 1.44, reference_dpe="D")
+    grand = fit(_echantillon_bruite(24), 43.6, 1.44, reference_dpe="D")
+
+    assert grand.se_dpe["F"] < petit.se_dpe["F"]
+
+
+def test_se_dpe_infini_sans_degres_de_liberte() -> None:
+    # Échantillon minuscule (n ≤ nombre de colonnes du design) : SE = +∞, la référence
+    # D restant à 0. Le shrinkage tirera alors entièrement la maille vers le prior.
+    minuscule = [
+        _house("D", 100, 300, 132_000),
+        _house("F", 100, 300, 108_000),
+    ]
+
+    result = fit(minuscule, 43.6, 1.44, reference_dpe="D")
+
+    assert result.se_dpe["D"] == 0.0
+    assert math.isinf(result.se_dpe["F"])

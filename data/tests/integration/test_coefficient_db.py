@@ -157,3 +157,38 @@ def test_debloquer_une_maille_est_refuse_tant_que_le_millesime_n_est_pas_publie(
         publier_millesime(conn, 2099, "test@integration")
         assert publier_maille(conn, "31903", 2099, "test@integration") == 1
         conn.commit()
+
+
+def test_les_ecarts_types_dpe_survivent_a_l_archivage() -> None:
+    # #249 : se_dpe (variance d'échantillonnage) est archivé dans l'historique — matière
+    # première recalculable des priors du shrinkage hiérarchique. Round-trip JSONB.
+    cli.run(os.environ)
+    pool = [
+        _house(dpe, 80 + 5 * i, round(3000.0 * (80 + 5 * i) ** 0.9 * math.exp(effect)))
+        for dpe, effect in _EFFECT.items()
+        for i in range(4)
+    ]
+    maille = compute_maille(
+        "31555",
+        43.6,
+        1.44,
+        2024,
+        pool,
+        config=replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1),
+    )
+    assert maille is not None
+    # Valeur déterministe pour un round-trip non ambigu (le fit noiseless donne SE≈0).
+    maille = replace(maille, se_dpe={"D": 0.0, "F": 0.5})
+
+    with psycopg.connect(DSN) as conn:
+        conn.execute("DELETE FROM data.coefficient_maille_historique WHERE code_insee = '31555'")
+        archiver_coefficient(conn, maille)
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT se_dpe->>'F' FROM data.coefficient_maille_historique "
+            "WHERE code_insee = '31555' AND millesime = 2024"
+        ).fetchone()
+
+    assert row is not None
+    assert float(row[0]) == 0.5

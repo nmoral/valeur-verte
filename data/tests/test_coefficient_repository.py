@@ -94,6 +94,19 @@ def test_le_cran_palier_bandes_et_effectifs_sont_persistes() -> None:
     assert json.loads(params[14]) == {"D": 20, "F": 18}  # effectifs_dpe
 
 
+def test_les_ecarts_types_dpe_sont_persistes() -> None:
+    # #249 : se_dpe (variance d'échantillonnage par classe) est archivé en JSONB — c'est
+    # la matière première de l'agrégat des priors τ̂² (recalculable sur l'archive).
+    conn = _FakeConnection()
+
+    archiver_coefficient(conn, _maille(se_dpe={"D": 0.0, "F": 0.5}))
+
+    query, params = conn.calls[0]
+    assert "se_dpe" in query
+    assert params is not None
+    assert json.loads(params[15])["F"] == 0.5
+
+
 def test_archiver_coefficient_versionne_par_millesime() -> None:
     """REG-1 (#129) : l'archivage conserve chaque millésime (clé code_insee+millesime),
     séparément de la table vive coefficient_maille, pour comparer les coefficients d'un
