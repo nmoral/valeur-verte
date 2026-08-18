@@ -50,6 +50,18 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
   ne tourne pas sur des données muettes. Le schéma attendu et le vocabulaire
   `periode_construction` (signalé, non bloquant) sont **versionnés** dans
   `schema_source.py`. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-1.
+- **Assertion de volumétrie DAT-2** (#125, `volumetrie.py`, `dat2.py`) : **en fin
+  d'ingestion, par département**, le nombre de ventes DVF insérées
+  (`mutations_inserees`, déjà archivé par #131 dans `data.rapport_batch`) est
+  confronté à celui du **millésime précédent** (relu, `lire_volumetrie_precedent` ;
+  la volumétrie courante, elle, est en main). Un écart au-delà de
+  `ecart_volumetrie_max_pct` (± 30 %, borne stricte) déclenche une **alerte
+  journalisée** (`porte_dat2` câblée dans la commande CLI `ingest` : log + message),
+  **jamais un échec ni un blocage** — DVF peut légitimement bouger, et c'est la
+  **seule assertion DAT non bloquante** : le calcul reste autorisé, le code de sortie
+  ne dépend que de l'ingestion. Sans base positive (premier chargement, ou précédent
+  à zéro) le verdict est **neutre**. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md)
+  § DAT-2.
 - **Mesure de distribution DAT-4** (#127, `vente_repository.calculer_distribution`) :
   **en fin d'ingestion**, les distributions observées du département (prix médian,
   surface bâtie médiane — `percentile_cont` sur `data.vente` jointe à `data.commune`
@@ -427,6 +439,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
 | `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
 | `taux_appariement_min_pct` / `chute_appariement_max_pct` | 60 / 10 | porte DAT-3 (#126) : plancher d'appariement DVF↔DPE et chute bloquante vs millésime précédent |
+| `ecart_volumetrie_max_pct` | 30 | assertion DAT-2 (#125) : écart de volumétrie (mutations insérées) vs millésime précédent au-delà duquel une **alerte** (non bloquante) est journalisée en fin d'ingestion |
 | `prix_median_min` / `prix_median_max` | 40 000 / 1 000 000 | DAT-4 (#127) : fourchette de plausibilité du prix médian départemental (BLOQUE) |
 | `bati_median_min` / `bati_median_max` | 60 / 160 | DAT-4 (#127) : fourchette de la surface bâtie médiane (BLOQUE ; ≠ 20-400 saisie pro #28) |
 | `terrain_aberrant_max_pct` | 50 | DAT-4 (#127) : part max de ventes à terrain nul/hors bornes §7 (BLOQUE) — à calibrer VPS |

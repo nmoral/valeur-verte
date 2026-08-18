@@ -31,6 +31,15 @@ _SELECT_TAUX_PRECEDENT = (
     "ORDER BY millesime DESC, debut DESC, id DESC LIMIT 1"
 )
 
+# DAT-2 (#125) : la volumétrie (mutations insérées) du millésime précédent, pour
+# mesurer l'écart ± 30 %. La volumétrie courante, elle, est en main en fin
+# d'ingestion (le RapportIngestion) — seul le précédent se relit ici.
+_SELECT_VOLUMETRIE_PRECEDENT = (
+    "SELECT mutations_inserees FROM data.rapport_batch "
+    "WHERE phase = 'ingestion' AND departement = %s AND millesime < %s "
+    "ORDER BY millesime DESC, debut DESC, id DESC LIMIT 1"
+)
+
 # DAT-4 (#127) : la distribution observée du (dept, millésime), archivée en JSONB pour
 # relecture à la porte au calcul. Dernière exécution du millésime (jamais d'UPDATE).
 _SELECT_DISTRIBUTION = (
@@ -146,6 +155,18 @@ def lire_taux_appariement_precedent(
         return None
     appariees, mutations = lignes[0]
     return taux_depuis_comptes(appariees, mutations)
+
+
+def lire_volumetrie_precedent(conn: Connection, departement: str, millesime: int) -> int | None:
+    """Volumétrie (mutations insérées) du millésime le plus récent **antérieur** à N.
+
+    Sert à mesurer l'écart ± 30 % (DAT-2) ; ``None`` s'il n'existe aucun millésime
+    antérieur (premier chargement) — l'assertion est alors neutre.
+    """
+    lignes = conn.execute(_SELECT_VOLUMETRIE_PRECEDENT, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    return int(lignes[0][0])
 
 
 def lire_distribution(conn: Connection, departement: str, millesime: int) -> Distribution | None:

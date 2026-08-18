@@ -55,6 +55,8 @@ def test_defauts_sans_environnement() -> None:
     # Appariement DVF ↔ DPE (DAT-3, #126) : plancher 60 %, chute bloquante > 10 pts
     assert config.taux_appariement_min_pct == 60.0
     assert config.chute_appariement_max_pct == 10.0
+    # Volumétrie par département (DAT-2, #125) : alerte au-delà de ± 30 % vs précédent
+    assert config.ecart_volumetrie_max_pct == 30.0
     # Distributions (DAT-4, #127) : fourchettes de plausibilité (bloquent) + écart DPE (alerte)
     assert config.prix_median_min == 40_000.0
     assert config.prix_median_max == 1_000_000.0
@@ -127,6 +129,11 @@ def test_surcharge_seuils_appariement() -> None:
     )
     assert config.taux_appariement_min_pct == 55.0
     assert config.chute_appariement_max_pct == 8.0
+
+
+def test_surcharge_seuil_volumetrie() -> None:
+    config = resolve_config({"VV_MOTEUR_ECART_VOLUMETRIE_MAX_PCT": "25"})
+    assert config.ecart_volumetrie_max_pct == 25.0
 
 
 def test_surcharge_seuils_distribution() -> None:

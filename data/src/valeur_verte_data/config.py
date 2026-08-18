@@ -102,6 +102,11 @@ class CalculConfig:
     # chute_appariement_max_pct points vs le millésime précédent, n'est pas calculé.
     taux_appariement_min_pct: float = 60.0
     chute_appariement_max_pct: float = 10.0
+    # Volumétrie par département (DAT-2, #125) : en fin d'ingestion, un département
+    # dont le nombre de ventes insérées s'écarte de plus de ecart_volumetrie_max_pct
+    # (± 30 %) vs le millésime précédent déclenche une **alerte**, jamais un blocage —
+    # DVF peut légitimement varier (seule assertion DAT non bloquante).
+    ecart_volumetrie_max_pct: float = 30.0
     # Distributions par département (DAT-4, #127), en fin d'ingestion, avant calcul.
     # Plausibilité (BLOQUE le calcul) : le prix médian doit rester dans [prix_median_min ;
     # prix_median_max] et la surface bâtie médiane dans [bati_median_min ; bati_median_max]
@@ -188,6 +193,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         ),
         chute_appariement_max_pct=_float(
             env, "CHUTE_APPARIEMENT_MAX_PCT", defaut.chute_appariement_max_pct
+        ),
+        ecart_volumetrie_max_pct=_float(
+            env, "ECART_VOLUMETRIE_MAX_PCT", defaut.ecart_volumetrie_max_pct
         ),
         prix_median_min=_float(env, "PRIX_MEDIAN_MIN", defaut.prix_median_min),
         prix_median_max=_float(env, "PRIX_MEDIAN_MAX", defaut.prix_median_max),
