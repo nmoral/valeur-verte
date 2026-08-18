@@ -281,14 +281,32 @@ def test_id_mutation_repete_a_l_identique_est_un_doublon_strict() -> None:
 
 
 def test_meme_mutation_sur_deux_communes_est_legitime() -> None:
-    # Une vente qui chevauche deux communes : même id_mutation, code_insee différents
-    # mais valeurs métier identiques → structure DVF normale (pas une pollution).
+    # Une vente qui chevauche deux communes : autant de communes distinctes que de
+    # lignes. Chaque commune porte sa **part** (surfaces propres), donc le critère
+    # est le nombre de communes, pas l'égalité des valeurs → structure DVF normale.
     doublons = detecter_doublons(
-        [_ligne(id=1, code_insee="09105"), _ligne(id=2, code_insee="09301")]
+        [
+            _ligne(id=1, code_insee="09105", surface_bati=154.0, surface_terrain=682.0),
+            _ligne(id=2, code_insee="09301", surface_bati=204.0, surface_terrain=1572.0),
+        ]
     )
     assert len(doublons) == 1
     assert doublons[0].code == "mutation_multi_communes"
     assert doublons[0].severite is Severite.ALERTE
+
+
+def test_commune_repetee_dans_un_groupe_est_une_anomalie() -> None:
+    # Trois lignes, deux communes : une commune est dupliquée (moins de communes que
+    # de lignes) → vraie pollution, pas une simple répartition multi-communes.
+    doublons = detecter_doublons(
+        [
+            _ligne(id=1, code_insee="09105"),
+            _ligne(id=2, code_insee="09105"),
+            _ligne(id=3, code_insee="09301"),
+        ]
+    )
+    assert len(doublons) == 1
+    assert doublons[0].severite is Severite.ANOMALIE
 
 
 def test_doublon_aux_valeurs_divergentes_est_une_anomalie() -> None:

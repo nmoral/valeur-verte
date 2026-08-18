@@ -140,13 +140,15 @@ def departements_de(communes: Collection[str]) -> frozenset[str]:
 def detecter_doublons(lignes: Iterable[LigneVente]) -> tuple[Anomalie, ...]:
     """Anomalies de doublon sur la clé ``(id_mutation, millesime)``, en trois classes :
 
-    - ``doublon`` (ANOMALIE) — copies **strictement identiques** (même commune,
-      mêmes valeurs) : ré-ingestion sans purge, vraie pollution ;
-    - ``mutation_multi_communes`` (ALERTE) — mêmes valeurs métier mais **communes
-      différentes** : une vente DVF qui chevauche deux communes est agrégée en une
-      ligne par commune. Structure normale, signalée sans faire échouer ;
-    - ``doublon_divergent`` (ANOMALIE) — valeurs métier **incohérentes** (prix,
-      surfaces…) entre les copies : incohérence réelle, la plus grave.
+    - ``mutation_multi_communes`` (ALERTE) — **autant de communes distinctes que de
+      lignes** : une vente DVF qui chevauche plusieurs communes est agrégée en une
+      ligne par commune (chacune porte sa part — surfaces, DPE propres). Structure
+      normale, signalée sans faire échouer. C'est le critère par **nombre de
+      communes**, pas par égalité des valeurs : les parts diffèrent légitimement ;
+    - ``doublon`` (ANOMALIE) — une commune est **répétée** avec des copies
+      strictement identiques : ré-ingestion sans purge, vraie pollution ;
+    - ``doublon_divergent`` (ANOMALIE) — une commune est répétée avec des valeurs
+      métier **incohérentes** : incohérence réelle, la plus grave.
 
     Sortie triée sur la référence (INV-5).
     """
@@ -160,22 +162,22 @@ def detecter_doublons(lignes: Iterable[LigneVente]) -> tuple[Anomalie, ...]:
             continue
         reference = f"mutation {id_mutation}/{millesime}"
         occurrences = len(groupe)
-        if _valeurs_metier_identiques(groupe):
+        communes_distinctes = len({v.code_insee for v in groupe})
+        if communes_distinctes == occurrences:
+            anomalies.append(
+                Anomalie(
+                    "mutation_multi_communes",
+                    Severite.ALERTE,
+                    f"mutation répartie sur {communes_distinctes} communes",
+                    reference,
+                )
+            )
+        elif _valeurs_metier_identiques(groupe):
             anomalies.append(
                 Anomalie(
                     "doublon",
                     Severite.ANOMALIE,
                     f"doublon strict ({occurrences} occurrences)",
-                    reference,
-                )
-            )
-        elif _seule_la_commune_differe(groupe):
-            communes = len({v.code_insee for v in groupe})
-            anomalies.append(
-                Anomalie(
-                    "mutation_multi_communes",
-                    Severite.ALERTE,
-                    f"mutation sur {communes} communes (valeurs identiques)",
                     reference,
                 )
             )
@@ -323,19 +325,6 @@ def _valeurs_metier_identiques(groupe: list[LigneVente]) -> bool:
         for v in groupe
     }
     return len(empreintes) == 1
-
-
-def _seule_la_commune_differe(groupe: list[LigneVente]) -> bool:
-    """Vrai si les copies ne diffèrent que par le ``code_insee`` (mutation multi-communes).
-
-    Les valeurs métier hors commune (prix, surfaces, date, DPE) sont identiques : la
-    même vente rattachée à plusieurs communes, structure DVF légitime — pas un doublon.
-    """
-    empreintes_hors_commune = {
-        (v.prix, v.surface_bati, v.surface_terrain, v.date_mutation, v.etiquette_dpe)
-        for v in groupe
-    }
-    return len(empreintes_hors_commune) == 1
 
 
 def _annee(date_mutation: str | None) -> int | None:
