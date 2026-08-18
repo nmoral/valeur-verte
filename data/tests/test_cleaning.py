@@ -2,7 +2,20 @@
 
 from __future__ import annotations
 
-from valeur_verte_data.cleaning import apply_cog, clean_mutations, is_clean, remap_insee
+from dataclasses import replace
+
+from valeur_verte_data.cleaning import (
+    FRANCE_LAT_MAX,
+    FRANCE_LAT_MIN,
+    FRANCE_LON_MAX,
+    FRANCE_LON_MIN,
+    apply_cog,
+    assainir_coordonnees,
+    clean_mutations,
+    coordonnees_plausibles,
+    is_clean,
+    remap_insee,
+)
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
 
 
@@ -61,6 +74,66 @@ def test_clean_mutations_filtre_les_aberrantes() -> None:
     mutations = [_mutation(prix="200000"), _mutation(prix="10")]
 
     assert len(clean_mutations(mutations)) == 1
+
+
+# --- Assainissement des coordonnées (géocodage corrompu) --------------------
+
+
+def test_coordonnees_plausibles_dans_la_metropole() -> None:
+    assert coordonnees_plausibles(2.35, 48.85)  # Paris
+    assert coordonnees_plausibles(9.15, 41.4)  # Corse (bord SE)
+
+
+def test_coordonnees_implausibles_hors_metropole() -> None:
+    assert not coordonnees_plausibles(2.28, 83.51)  # latitude polaire (corrompue)
+    assert not coordonnees_plausibles(2.28, 40.88)  # latitude sous la métropole
+    assert not coordonnees_plausibles(2.35, None)  # coordonnée partielle
+    assert not coordonnees_plausibles(None, None)  # absente
+
+
+def test_assainir_neutralise_les_coordonnees_impossibles() -> None:
+    # Les 60 ventes du 92 (ex. lat 83°N) : géoloc corrompue → NULL, mutation gardée.
+    corrompue = replace(_mutation(prix="250000"), longitude=2.287775, latitude=83.517705)
+
+    (assainie,) = assainir_coordonnees([corrompue])
+
+    assert assainie.longitude is None
+    assert assainie.latitude is None
+    assert assainie.prix == corrompue.prix  # la transaction n'est pas perdue
+
+
+def test_assainir_conserve_les_coordonnees_plausibles() -> None:
+    bonne = replace(_mutation(), longitude=2.35, latitude=48.85)
+
+    (inchangee,) = assainir_coordonnees([bonne])
+
+    assert inchangee.longitude == 2.35
+    assert inchangee.latitude == 48.85
+
+
+def test_assainir_laisse_les_ventes_sans_geoloc() -> None:
+    # Une vente sans coordonnées est légitime (elle sort de la sélection spatiale).
+    sans_geo = replace(_mutation(), longitude=None, latitude=None)
+
+    (inchangee,) = assainir_coordonnees([sans_geo])
+
+    assert inchangee.longitude is None
+    assert inchangee.latitude is None
+
+
+def test_coordonnees_plausibles_aux_bornes_exactes() -> None:
+    # Les coins de l'enveloppe sont inclus (bornes fermées).
+    assert coordonnees_plausibles(FRANCE_LON_MIN, FRANCE_LAT_MIN)
+    assert coordonnees_plausibles(FRANCE_LON_MAX, FRANCE_LAT_MAX)
+
+
+def test_assainir_neutralise_les_coordonnees_partielles() -> None:
+    # Une seule coordonnée présente est inexploitable : on neutralise les deux.
+    (sans_lat,) = assainir_coordonnees([replace(_mutation(), longitude=2.3, latitude=None)])
+    assert sans_lat.longitude is None
+
+    (sans_lon,) = assainir_coordonnees([replace(_mutation(), longitude=None, latitude=48.8)])
+    assert sans_lon.latitude is None
 
 
 def test_remap_insee_utilise_la_correspondance() -> None:
