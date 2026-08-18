@@ -945,3 +945,17 @@ def test_compute_maille_invariant_a_l_ordre_du_pool() -> None:
 
     assert reference is not None
     assert reference == melange
+
+
+def test_compute_maille_porte_les_ecarts_types_dpe() -> None:
+    # #249 : la maille transporte se_dpe (mêmes classes que coef_dpe) — matière
+    # première du shrinkage hiérarchique, remontée du fit puis persistée pour
+    # l'agrégat des priors départementaux.
+    pool = _cluster(15, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    maille = compute_maille("31555", 43.6, 1.44, 2024, pool, config=cfg)
+
+    assert maille is not None
+    assert set(maille.se_dpe) == set(maille.coef_dpe)
+    assert all(math.isfinite(se) for se in maille.se_dpe.values())
