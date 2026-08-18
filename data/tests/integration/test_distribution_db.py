@@ -124,7 +124,8 @@ def test_ne_compte_que_le_departement_demande() -> None:
 def _archiver(conn: psycopg.Connection, millesime: int, distribution: Distribution) -> None:
     rapport = RapportIngestion(departement="31", millesime=millesime, communes_traitees=1)
     rapport.distribution = distribution
-    enregistrer_rapport_ingestion(conn, rapport, debut=datetime(2026, 1, 1), fin=datetime(2026, 1, 1))
+    date = datetime(2026, 1, 1)
+    enregistrer_rapport_ingestion(conn, rapport, debut=date, fin=date)
 
 
 def test_archive_puis_relit_la_distribution_courante() -> None:

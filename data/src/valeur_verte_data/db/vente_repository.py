@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from ..distributions import Distribution
 from ..dvf import Mutation
 from ..matching import address_key
 from .runner import Connection
@@ -74,3 +75,54 @@ def insert_mutations(conn: Connection, mutations: Iterable[Mutation]) -> int:
         conn.execute(_INSERT, _params(mutation))
         inserted += 1
     return inserted
+
+
+# DAT-4 (#127) : distributions observées d'un département sur data.vente. La jointure
+# à data.commune borne le département par code_departement (gère 2A/2B/DOM, pas de
+# préfixe fragile). Les médianes sont calculées en base (percentile_cont, robuste sur
+# la base brute S12). « Terrain aberrant » = terrain nul ou hors bornes §7 (passées).
+_SELECT_DISTRIBUTION = (
+    "SELECT "
+    "percentile_cont(0.5) WITHIN GROUP (ORDER BY v.prix) "
+    "FILTER (WHERE v.prix IS NOT NULL), "
+    "percentile_cont(0.5) WITHIN GROUP (ORDER BY v.surface_bati) "
+    "FILTER (WHERE v.surface_bati IS NOT NULL), "
+    "count(*) FILTER (WHERE v.surface_terrain IS NULL "
+    "OR v.surface_terrain < %s OR v.surface_terrain > %s), "
+    "count(*) "
+    "FROM data.vente v JOIN data.commune c ON c.code_insee = v.code_insee "
+    "WHERE c.code_departement = %s AND v.millesime = %s"
+)
+_SELECT_HISTOGRAMME_DPE = (
+    "SELECT v.etiquette_dpe, count(*) "
+    "FROM data.vente v JOIN data.commune c ON c.code_insee = v.code_insee "
+    "WHERE c.code_departement = %s AND v.millesime = %s AND v.etiquette_dpe IS NOT NULL "
+    "GROUP BY v.etiquette_dpe"
+)
+
+
+def calculer_distribution(
+    conn: Connection,
+    departement: str,
+    millesime: int,
+    *,
+    terrain_min: float,
+    terrain_max: float,
+) -> Distribution:
+    """Mesure les distributions DAT-4 d'un (dept, millésime) sur ``data.vente``."""
+    prix_median, bati_median, terrain_aberrant, effectif = conn.execute(
+        _SELECT_DISTRIBUTION, [terrain_min, terrain_max, departement, millesime]
+    ).fetchall()[0]
+    histogramme = {
+        classe: int(nombre)
+        for classe, nombre in conn.execute(
+            _SELECT_HISTOGRAMME_DPE, [departement, millesime]
+        ).fetchall()
+    }
+    return Distribution(
+        prix_median=None if prix_median is None else float(prix_median),
+        surface_bati_median=None if bati_median is None else float(bati_median),
+        terrain_aberrant=int(terrain_aberrant),
+        effectif=int(effectif),
+        effectifs_dpe=histogramme,
+    )

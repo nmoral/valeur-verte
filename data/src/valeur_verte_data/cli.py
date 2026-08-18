@@ -25,6 +25,7 @@ from .db.rapport_batch_repository import (
     enregistrer_rapport_ingestion,
 )
 from .db.runner import resolve_dsn
+from .db.vente_repository import calculer_distribution
 from .ecarts import ecrire_ecarts_csv
 from .http import HttpFetcher
 from .orchestration import (
@@ -124,6 +125,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             debut = datetime.now()
             ingestion = ingest_departement(
                 HttpFetcher(), conn, arguments.departement, arguments.millesime, config=config
+            )
+            # DAT-4 (#127) : mesurer les distributions observées (prix/surface médianes,
+            # terrain aberrant, histogramme DPE) sur les ventes ingérées et les attacher
+            # au rapport. Elles sont archivées (#131) pour que la porte au calcul les
+            # relise (plausibilité bloquante, répartition DPE alerte). « Aberrant » =
+            # terrain nul ou hors bornes §7 (bornes de config passées au calcul).
+            ingestion.distribution = calculer_distribution(
+                conn,
+                arguments.departement,
+                arguments.millesime,
+                terrain_min=config.terrain_min,
+                terrain_max=config.terrain_max,
             )
             enregistrer_rapport_ingestion(conn, ingestion, debut=debut, fin=datetime.now())
             conn.commit()

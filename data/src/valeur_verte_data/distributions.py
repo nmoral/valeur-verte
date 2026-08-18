@@ -21,6 +21,7 @@ entrent, un verdict (bloque + motifs, alerte + motifs) sort.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,33 @@ class VerdictDistribution:
     motifs: tuple[str, ...]
     alerte: bool
     alertes: tuple[str, ...]
+
+
+def distribution_en_dict(distribution: Distribution) -> dict[str, Any]:
+    """Sérialise une distribution pour l'archivage JSONB (``data.rapport_batch``)."""
+    return {
+        "prix_median": distribution.prix_median,
+        "surface_bati_median": distribution.surface_bati_median,
+        "terrain_aberrant": distribution.terrain_aberrant,
+        "effectif": distribution.effectif,
+        "dpe": distribution.effectifs_dpe,
+    }
+
+
+def distribution_depuis_dict(brut: dict[str, Any]) -> Distribution:
+    """Reconstruit une distribution depuis le JSONB archivé (relecture à la porte).
+
+    ``brut`` provient d'un JSONB relu (non typé) : les médianes nulles restent nulles.
+    """
+    prix = brut["prix_median"]
+    bati = brut["surface_bati_median"]
+    return Distribution(
+        prix_median=None if prix is None else float(prix),
+        surface_bati_median=None if bati is None else float(bati),
+        terrain_aberrant=int(brut["terrain_aberrant"]),
+        effectif=int(brut["effectif"]),
+        effectifs_dpe=dict(brut["dpe"]),
+    )
 
 
 def parts_dpe(effectifs: dict[str, int]) -> dict[str, float]:

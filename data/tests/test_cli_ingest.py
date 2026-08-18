@@ -243,9 +243,7 @@ def test_l_ingest_calcule_et_attache_la_distribution_dat4(
         return distribution
 
     monkeypatch.setattr(cli, "calculer_distribution", _calculer, raising=False)
-    monkeypatch.setattr(
-        cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False
-    )
+    monkeypatch.setattr(cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False)
 
     cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
 
