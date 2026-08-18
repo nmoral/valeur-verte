@@ -57,6 +57,13 @@ def test_defauts_sans_environnement() -> None:
     assert config.chute_appariement_max_pct == 10.0
     # Volumétrie par département (DAT-2, #125) : alerte au-delà de ± 30 % vs précédent
     assert config.ecart_volumetrie_max_pct == 30.0
+    # Distributions (DAT-4, #127) : fourchettes de plausibilité (bloquent) + écart DPE (alerte)
+    assert config.prix_median_min == 40_000.0
+    assert config.prix_median_max == 1_000_000.0
+    assert config.bati_median_min == 60.0
+    assert config.bati_median_max == 160.0
+    assert config.terrain_aberrant_max_pct == 50.0
+    assert config.dpe_distribution_ecart_max_pct == 15.0
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -127,6 +134,25 @@ def test_surcharge_seuils_appariement() -> None:
 def test_surcharge_seuil_volumetrie() -> None:
     config = resolve_config({"VV_MOTEUR_ECART_VOLUMETRIE_MAX_PCT": "25"})
     assert config.ecart_volumetrie_max_pct == 25.0
+
+
+def test_surcharge_seuils_distribution() -> None:
+    config = resolve_config(
+        {
+            "VV_MOTEUR_PRIX_MEDIAN_MIN": "50000",
+            "VV_MOTEUR_PRIX_MEDIAN_MAX": "800000",
+            "VV_MOTEUR_BATI_MEDIAN_MIN": "70",
+            "VV_MOTEUR_BATI_MEDIAN_MAX": "150",
+            "VV_MOTEUR_TERRAIN_ABERRANT_MAX_PCT": "40",
+            "VV_MOTEUR_DPE_DISTRIBUTION_ECART_MAX_PCT": "20",
+        }
+    )
+    assert config.prix_median_min == 50_000.0
+    assert config.prix_median_max == 800_000.0
+    assert config.bati_median_min == 70.0
+    assert config.bati_median_max == 150.0
+    assert config.terrain_aberrant_max_pct == 40.0
+    assert config.dpe_distribution_ecart_max_pct == 20.0
 
 
 def test_surcharge_int() -> None:

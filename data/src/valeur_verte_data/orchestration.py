@@ -33,6 +33,7 @@ from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .degraded import CoverageMode
+from .distributions import Distribution
 from .ecarts import ClasseEcart, MotifRefus, RapportEcarts, ecart_maille
 from .http import Fetcher
 from .ingest import ingest_commune
@@ -83,6 +84,10 @@ class RapportIngestion:
     ventes_appariees: int = 0
     echecs: list[str] = field(default_factory=list)
     sans_donnees: list[str] = field(default_factory=list)
+    # DAT-4 (#127) : distributions observées du département (prix/surface médianes,
+    # terrain aberrant, histogramme DPE), mesurées en fin d'ingestion et archivées
+    # (#131) pour que la porte au calcul les relise. None si non calculées.
+    distribution: Distribution | None = None
 
     @property
     def est_en_echec(self) -> bool:

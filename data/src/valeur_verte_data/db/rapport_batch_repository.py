@@ -14,6 +14,7 @@ import json
 from datetime import datetime
 
 from ..appariement import taux_depuis_comptes
+from ..distributions import Distribution, distribution_depuis_dict, distribution_en_dict
 from ..orchestration import RapportCalcul, RapportIngestion
 from .runner import Connection
 
@@ -39,12 +40,27 @@ _SELECT_VOLUMETRIE_PRECEDENT = (
     "ORDER BY millesime DESC, debut DESC, id DESC LIMIT 1"
 )
 
+# DAT-4 (#127) : la distribution observée du (dept, millésime), archivée en JSONB pour
+# relecture à la porte au calcul. Dernière exécution du millésime (jamais d'UPDATE).
+_SELECT_DISTRIBUTION = (
+    "SELECT distribution FROM data.rapport_batch "
+    "WHERE phase = 'ingestion' AND departement = %s AND millesime = %s "
+    "AND distribution IS NOT NULL "
+    "ORDER BY debut DESC, id DESC LIMIT 1"
+)
+_SELECT_DISTRIBUTION_PRECEDENTE = (
+    "SELECT distribution FROM data.rapport_batch "
+    "WHERE phase = 'ingestion' AND departement = %s AND millesime < %s "
+    "AND distribution IS NOT NULL "
+    "ORDER BY millesime DESC, debut DESC, id DESC LIMIT 1"
+)
+
 _INSERT_INGESTION = (
     "INSERT INTO data.rapport_batch ("
     "phase, departement, millesime, debut, fin, "
     "communes_traitees, communes_referencees, mutations_inserees, ventes_appariees, "
-    "contours_charges, epci_charges, sans_donnees, echecs"
-    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)"
+    "contours_charges, epci_charges, sans_donnees, distribution, echecs"
+    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)"
 )
 
 _INSERT_CALCUL = (
@@ -79,6 +95,7 @@ def enregistrer_rapport_ingestion(
             rapport.contours_charges,
             rapport.epci_charges,
             len(rapport.sans_donnees),
+            _distribution_json(rapport.distribution),
             json.dumps(rapport.echecs),
         ),
     )
@@ -150,3 +167,36 @@ def lire_volumetrie_precedent(conn: Connection, departement: str, millesime: int
     if not lignes:
         return None
     return int(lignes[0][0])
+
+
+def lire_distribution(conn: Connection, departement: str, millesime: int) -> Distribution | None:
+    """Distribution archivée d'un (dept, millésime), dernière exécution (DAT-4).
+
+    Sert la plausibilité (prix/surface médianes, terrain aberrant) ; ``None`` si aucune
+    ingestion n'a archivé de distribution pour ce millésime (rien à juger).
+    """
+    lignes = conn.execute(_SELECT_DISTRIBUTION, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    return distribution_depuis_dict(lignes[0][0])
+
+
+def lire_distribution_dpe_precedent(
+    conn: Connection, departement: str, millesime: int
+) -> dict[str, int] | None:
+    """Histogramme DPE du millésime le plus récent **antérieur** à N (DAT-4).
+
+    Sert la comparaison de répartition DPE (alerte) ; ``None`` s'il n'existe aucune
+    distribution antérieure (premier chargement).
+    """
+    lignes = conn.execute(_SELECT_DISTRIBUTION_PRECEDENTE, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    return distribution_depuis_dict(lignes[0][0]).effectifs_dpe
+
+
+def _distribution_json(distribution: Distribution | None) -> str | None:
+    """Sérialise la distribution pour l'archivage, ou ``None`` (colonne NULL)."""
+    if distribution is None:
+        return None
+    return json.dumps(distribution_en_dict(distribution))

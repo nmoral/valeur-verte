@@ -206,6 +206,7 @@ def test_l_ingest_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch) -
     rapport = orchestration.RapportIngestion(departement="31", millesime=2024)
     rapport.communes_traitees = 1
     monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
+    monkeypatch.setattr(cli, "calculer_distribution", lambda *a, **k: None, raising=False)
 
     captures: dict[str, Any] = {}
     monkeypatch.setattr(
@@ -222,6 +223,45 @@ def test_l_ingest_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch) -
     assert captures["debut"] <= captures["fin"]
 
 
+def test_l_ingest_calcule_et_attache_la_distribution_dat4(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DAT-4 (#127) : l'ingest mesure les distributions et les attache au rapport.
+
+    Elles sont archivées avec le rapport (#131) pour que la porte au calcul les
+    relise. La CLI passe à ``calculer_distribution`` les bornes terrain de la config
+    (définition de « aberrant »).
+    """
+    import psycopg
+
+    from valeur_verte_data.distributions import Distribution
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    rapport = orchestration.RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+    monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
+
+    distribution = Distribution(200_000.0, 100.0, 120, 1000, {"D": 500, "E": 500})
+    captures: dict[str, Any] = {}
+
+    def _calculer(conn: Any, dept: str, mil: int, *, terrain_min: float, terrain_max: float) -> Any:
+        captures.update(dept=dept, mil=mil, terrain_min=terrain_min, terrain_max=terrain_max)
+        return distribution
+
+    monkeypatch.setattr(cli, "calculer_distribution", _calculer, raising=False)
+    monkeypatch.setattr(cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False)
+
+    cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    assert rapport.distribution is distribution
+    assert captures["dept"] == "31"
+    assert captures["mil"] == 2024
+    # Bornes §7 par défaut = définition de « terrain aberrant ».
+    assert captures["terrain_min"] == 50.0
+    assert captures["terrain_max"] == 5_000.0
+
+
 def _ingest_avec_rapport(
     monkeypatch: pytest.MonkeyPatch, mutations: int
 ) -> orchestration.RapportIngestion:
@@ -234,6 +274,8 @@ def _ingest_avec_rapport(
     rapport.communes_traitees = 1
     rapport.mutations_inserees = mutations
     monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
+    # DAT-4 (#127) : la CLI ingest mesure aussi la distribution — neutralisée ici.
+    monkeypatch.setattr(cli, "calculer_distribution", lambda *a, **k: None, raising=False)
     monkeypatch.setattr(cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False)
     return rapport
 

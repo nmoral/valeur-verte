@@ -62,6 +62,14 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
   ne dépend que de l'ingestion. Sans base positive (premier chargement, ou précédent
   à zéro) le verdict est **neutre**. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md)
   § DAT-2.
+- **Mesure de distribution DAT-4** (#127, `vente_repository.calculer_distribution`) :
+  **en fin d'ingestion**, les distributions observées du département (prix médian,
+  surface bâtie médiane — `percentile_cont` sur `data.vente` jointe à `data.commune`
+  par `code_departement`, robustes sur la base brute S12 —, nombre de ventes à terrain
+  **nul ou hors bornes §7**, histogramme des étiquettes DPE) sont mesurées et
+  **archivées** en JSONB dans `data.rapport_batch` (#131). Elles sont **relues au
+  calcul** par la porte DAT-4 (§11) — la mesure vit à l'ingestion, la décision au
+  calcul (comme DAT-3). Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-4.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
 - **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
@@ -331,6 +339,31 @@ qui s'effondre ne lève aucune erreur — il produit des coefficients sur un éc
   séparées (§5), la porte s'évalue **au calcul** en relisant le taux archivé. Sans taux mesuré
   (aucune ingestion, ou 0 mutation), rien à barrer.
 
+### DAT-4 — distributions (prix, surfaces, étiquettes DPE) (#127, `distributions.py`, `dat4.py`)
+
+Porte **en amont du calcul**, par département : confronte les distributions **observées**
+(mesurées et archivées à l'ingestion, §3) à des fourchettes de plausibilité et à
+l'ingestion précédente. Une médiane départementale grossièrement fausse trahit une
+ingestion cassée (prix en centimes, bâti et terrain intervertis) que DAT-1 ne voit pas —
+les colonnes existent, seul leur contenu est aberrant.
+
+- **plausibilité (BLOQUE)** (`distributions.evaluer_distribution`, motifs cumulables) :
+  prix médian dans `[prix_median_min ; prix_median_max]`, surface bâtie médiane dans
+  `[bati_median_min ; bati_median_max]` (60-160 m², distinct des bornes 20-400 de la
+  saisie pro #28), part de ventes à **terrain nul ou hors bornes §7** sous
+  `terrain_aberrant_max_pct`. Bornes **incluses** ; une médiane indéfinie (aucune valeur)
+  n'est pas un motif.
+- **répartition DPE (ALERTE seule, jamais un blocage)** : si la part d'une classe DPE se
+  déplace de plus de `dpe_distribution_ecart_max_pct` (points) vs le millésime précédent,
+  DAT-4 **alerte** sans arrêter le pipeline — une réforme DPE (2026) déplace
+  **légitimement** la distribution et appelle une décision humaine (recalibrer, repartir
+  d'un millésime de référence), pas un arrêt. Sans précédent (premier chargement), non
+  évaluée.
+- **effet** (`dat4.porte_dat4`, câblé dans la commande CLI `compute` après DAT-3) : la
+  plausibilité en échec **n'est pas calculée** (comme DAT-3, sortie en erreur, ancien
+  millésime servi) ; l'alerte DPE est journalisée mais **le calcul tourne**. Sans
+  distribution archivée (ingestion antérieure à DAT-4) ou effectif nul, rien à juger.
+
 ### REG-2 — publication manuelle d'un millésime (#130, `db/publication_repository.py`)
 
 Un millésime n'est **jamais publié automatiquement**. Le batch **calcule et archive** ;
@@ -407,6 +440,10 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
 | `taux_appariement_min_pct` / `chute_appariement_max_pct` | 60 / 10 | porte DAT-3 (#126) : plancher d'appariement DVF↔DPE et chute bloquante vs millésime précédent |
 | `ecart_volumetrie_max_pct` | 30 | assertion DAT-2 (#125) : écart de volumétrie (mutations insérées) vs millésime précédent au-delà duquel une **alerte** (non bloquante) est journalisée en fin d'ingestion |
+| `prix_median_min` / `prix_median_max` | 40 000 / 1 000 000 | DAT-4 (#127) : fourchette de plausibilité du prix médian départemental (BLOQUE) |
+| `bati_median_min` / `bati_median_max` | 60 / 160 | DAT-4 (#127) : fourchette de la surface bâtie médiane (BLOQUE ; ≠ 20-400 saisie pro #28) |
+| `terrain_aberrant_max_pct` | 50 | DAT-4 (#127) : part max de ventes à terrain nul/hors bornes §7 (BLOQUE) — à calibrer VPS |
+| `dpe_distribution_ecart_max_pct` | 15 | DAT-4 (#127) : déplacement max (points) de la part d'une classe DPE vs précédent → ALERTE (jamais un blocage) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |
