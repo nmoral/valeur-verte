@@ -20,6 +20,8 @@ from __future__ import annotations
 from valeur_verte_data.distributions import (
     Distribution,
     VerdictDistribution,
+    distribution_depuis_dict,
+    distribution_en_dict,
     evaluer_distribution,
 )
 
@@ -173,3 +175,27 @@ def test_dpe_ne_bloque_jamais_meme_tres_deplace() -> None:
     # jamais le calcul (réforme légitime, décision humaine).
     courant = _dist(effectifs_dpe={"A": 1000})
     assert _ev(courant, {"G": 1000}).bloque is False
+
+
+# --- (dé)sérialisation pour l'archivage JSONB (#131) ---
+
+
+def test_distribution_survit_a_un_aller_retour_json() -> None:
+    # La distribution est archivée en JSONB (rapport_batch) puis relue à la porte :
+    # l'aller-retour doit préserver toutes les métriques.
+    distribution = Distribution(
+        prix_median=205_000.0,
+        surface_bati_median=98.0,
+        terrain_aberrant=120,
+        effectif=1000,
+        effectifs_dpe={"D": 500, "E": 500},
+    )
+    assert distribution_depuis_dict(distribution_en_dict(distribution)) == distribution
+
+
+def test_distribution_serialise_les_medianes_absentes() -> None:
+    # Un département sans prix/surface mesurable archive des médianes nulles, pas 0.
+    distribution = Distribution(None, None, 0, 0, {})
+    reconstruite = distribution_depuis_dict(distribution_en_dict(distribution))
+    assert reconstruite.prix_median is None
+    assert reconstruite.surface_bati_median is None

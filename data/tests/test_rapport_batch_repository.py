@@ -17,6 +17,7 @@ from valeur_verte_data.db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
     enregistrer_rapport_ingestion,
 )
+from valeur_verte_data.distributions import Distribution
 from valeur_verte_data.ecarts import ClasseEcart, EcartMaille
 from valeur_verte_data.orchestration import RapportCalcul, RapportIngestion
 
@@ -63,6 +64,42 @@ def test_enregistre_le_rapport_d_ingestion() -> None:
     assert 2 in params  # len(sans_donnees)
     echecs = next(p for p in params if isinstance(p, str) and p.startswith("["))
     assert json.loads(echecs) == ["31999"]
+
+
+def test_archive_la_distribution_dat4_en_jsonb() -> None:
+    # DAT-4 (#127) : les distributions observées sont archivées en JSONB pour que la
+    # porte au calcul les relise (plausibilité + répartition DPE vs précédent).
+    conn = _FakeConnection()
+    rapport = RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+    rapport.distribution = Distribution(200_000.0, 100.0, 120, 1000, {"D": 500, "E": 500})
+
+    enregistrer_rapport_ingestion(conn, rapport, debut=_DEBUT, fin=_FIN)
+
+    query, params = conn.calls[0]
+    assert params is not None
+    assert "distribution" in query
+    distribution = next(
+        p for p in params if isinstance(p, str) and p.startswith("{") and "dpe" in p
+    )
+    charge = json.loads(distribution)
+    assert charge["prix_median"] == 200_000.0
+    assert charge["terrain_aberrant"] == 120
+    assert charge["dpe"] == {"D": 500, "E": 500}
+
+
+def test_archive_une_distribution_absente_en_null() -> None:
+    # Sans distribution calculée (rétro-compatibilité), la colonne reste NULL — pas
+    # un JSON « null » qui masquerait l'absence.
+    conn = _FakeConnection()
+    rapport = RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+
+    enregistrer_rapport_ingestion(conn, rapport, debut=_DEBUT, fin=_FIN)
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert None in params
 
 
 def test_enregistre_le_rapport_de_calcul() -> None:
