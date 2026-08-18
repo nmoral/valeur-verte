@@ -233,6 +233,37 @@ internes de la validation croisée — l'erreur médiane mesure l'estimateur pub
   **Décision : garder W2 par défaut, τ reste opt-in, pas de bascule du défaut.** Le
   mécanisme reste disponible pour un territoire à très forte dérive.
 
+### 4ter. Pooling partiel hiérarchique (#249, `pooling.py`, `batch.pool_hierarchique`)
+
+Empirical-Bayes **entre communes** (là où #177/#208 régularisent dans le temps) : en
+rural, les effets DPE d'une petite maille sont bruités, et la cascade #169 est
+**discontinue** (n=32 publie un fit local très bruité, n=28 bascule sur tout l'EPCI). Le
+pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** ``μ``
+(le fit poolé, `compute_maille_departement`) proportionnellement à sa **précision** :
+
+```
+θ̂ = μ + w·(β̂ − μ),   w = τ²/(τ²+SE²)
+```
+
+- ``SE²`` = variance d'échantillonnage de l'effet (`regression.fit` → `se_dpe`, §4) ;
+- ``τ²`` = **variance inter-communes** de l'effet, estimée en **forme fermée** (méthode
+  des moments autour du centre fixe ``μ`` : ``τ̂² = max(0, (Σ w(β̂−μ)² − M)/Σw)``,
+  ``w = 1/SE²``, une passe par (département, classe) — `pooling.variance_inter`).
+- **Poids piloté par les données** — aucune constante à régler. Classe bien estimée
+  (``SE`` petit) ⇒ ``w → 1`` (inchangée) ; mal estimée (``SE`` grand, voire ``+∞`` sans
+  degré de liberté) ⇒ ``w → 0`` (tirée vers ``μ``) ; communes homogènes (``τ̂² → 0``) ⇒
+  pooling complet (``μ`` partout) ; réellement divergentes ⇒ pas de pooling.
+- **Périmètre** : les **effets DPE** seulement (pas les élasticités) ; la **référence D**
+  n'est jamais tirée (ancre) ; une classe fusionnée cible l'effet de son **représentant
+  de bande** (#169) ; une classe sans cible ou portée par **< 2** communes reste locale.
+  ``ic_dpe`` est recalculé sur l'effet shrinké (l'IC a posteriori honnête —
+  `pooling.variance_posterieure` — est une évolution).
+- **Statut** : opt-in (`VV_MOTEUR_POOLING_HIERARCHIQUE`), **désactivé par défaut** (comme
+  τ #208). Câblé dans `orchestration.compute_departement` **avant** la cascade (§7) ;
+  ``se_dpe`` est **persisté** dans l'historique (§12) — matière première recalculable des
+  priors. **Calibration VPS à venir** (stabilité rurale, taux de publication LOCAL, biais,
+  erreur CV) avant toute bascule du défaut.
+
 ## 5. Sélection par rayon adaptatif (`radius.adaptive_selection`)
 
 - Élargit le rayon **10 → 15 → 20 → 30 → 50 km** (`radii_km`) jusqu'à atteindre
@@ -268,6 +299,14 @@ d'un cran** : d'abord **EPCI** (`compute_maille_epci` : ventes des communes du m
 EPCI, avec bandes), puis **DÉPARTEMENT** (`compute_maille_departement` : ventes du seul
 département, avec bandes) en dernier filet. Le premier cran qui publie l'emporte ;
 si aucun ne tient, la commune sort hors zone.
+
+**Pooling partiel (#249, opt-in, §4ter)** : quand `pooling_hierarchique` est actif, les
+mailles LOCAL sont **régularisées vers le fit poolé départemental AVANT** cette cascade —
+une petite maille bruitée, rapprochée d'un parent monotone/plausible, passe alors les
+invariants au lieu de basculer d'un cran. La cible (fit poolé) est le **parent du dernier
+cran** : calculée une fois en tête de boucle et réutilisée (mémoïsation #175). La cascade
+reste le **filet** : une maille LOCAL *shrinkée* qui rate encore un invariant descend
+EPCI → DÉPARTEMENT comme sans pooling. Désactivé, `calculees` est inchangé.
 
 ## 8. Écrêtage des outliers (`trimming.ecreter_residu`, S32 V2)
 
@@ -466,6 +505,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `voisins_indice_local` | 20 | S24 |
 | `effets_fixes_commune` | `false` | S22 |
 | `indice_local` | `true` | S24 |
+| `pooling_hierarchique` | `false` | #249 — pooling partiel empirical-Bayes des effets DPE vers le fit poolé départemental (§4ter) ; `false` = désactivé (non-régression exacte) ; opt-in, calibration VPS à venir |
 | `cv_folds` | 5 | validation croisée |
 | `erreur_mediane_max_pct` | 20 | seuil du tier standard (classe le `palier`) |
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |

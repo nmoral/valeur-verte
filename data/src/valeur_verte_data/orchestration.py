@@ -20,6 +20,7 @@ from .batch import (
     compute_communes,
     compute_maille_departement,
     compute_maille_epci,
+    pool_hierarchique,
 )
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import (
@@ -330,6 +331,22 @@ def compute_departement(
     epci_par_appartenance: dict[tuple[str, ...], MailleCoefficient | None] = {}
     maille_departementale: MailleCoefficient | None = None
     departement_calcule = False
+
+    # #249 : pooling partiel hiérarchique — tirer les effets DPE de chaque maille LOCAL
+    # vers le fit poolé départemental, proportionnellement à leur précision (empirical
+    # Bayes). Régulariseur **en amont** de la cascade : une petite maille bruitée,
+    # rapprochée d'un parent monotone/plausible, passe alors les invariants au lieu de
+    # basculer d'un cran. La cible est aussi le **parent du dernier cran** de la cascade
+    # → on la calcule une fois ici et on la réutilise (mémoïsation #175). Opt-in ; sans
+    # elle, `calculees` est inchangé (non-régression exacte).
+    if config.pooling_hierarchique and coordonnees:
+        maille_departementale = compute_maille_departement(
+            coordonnees[0][0], millesime, pool, config=config
+        )
+        departement_calcule = True
+        calculees = pool_hierarchique(
+            calculees, maille_departementale, reference_dpe=config.reference_dpe
+        )
 
     for code_insee, _latitude, _longitude in coordonnees:
         local = calculees.get(code_insee)
