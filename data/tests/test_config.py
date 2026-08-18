@@ -64,6 +64,8 @@ def test_defauts_sans_environnement() -> None:
     assert config.bati_median_max == 160.0
     assert config.terrain_aberrant_max_pct == 50.0
     assert config.dpe_distribution_ecart_max_pct == 15.0
+    # Fraîcheur des sources (DAT-5, #128) : alerte au-delà de 12 mois vs date d'exécution
+    assert config.fraicheur_max_mois == 12
     assert config.r2_min == 0.30
     # Signe/ordre de grandeur (INV-2, en log)
     assert config.gain_dpe_ec_max == 0.70
@@ -153,6 +155,10 @@ def test_surcharge_seuils_distribution() -> None:
     assert config.bati_median_max == 150.0
     assert config.terrain_aberrant_max_pct == 40.0
     assert config.dpe_distribution_ecart_max_pct == 20.0
+
+
+def test_surcharge_fraicheur_max_mois() -> None:
+    assert resolve_config({"VV_MOTEUR_FRAICHEUR_MAX_MOIS": "18"}).fraicheur_max_mois == 18
 
 
 def test_surcharge_int() -> None:
