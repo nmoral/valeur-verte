@@ -107,6 +107,18 @@ def test_ingest_commune_ecarte_les_transactions_aberrantes() -> None:
     assert len(conn.inserts()) == 1
 
 
+def test_ingest_commune_neutralise_les_coordonnees_impossibles() -> None:
+    # Les 60 ventes du 92 tombées à une latitude polaire (~83°N) : la vente est
+    # conservée, mais sa géoloc corrompue ne doit pas atteindre la base.
+    conn = _FakeConnection()
+    ligne = {**_LIGNE, "id_mutation": "2024-9", "longitude": "2.29", "latitude": "83.5"}
+
+    resultat = ingest_commune(_FakeFetcher(_dvf(ligne)), conn, "92076", 2024)
+
+    assert resultat.inserees == 1  # la transaction n'est pas perdue
+    assert all(83.5 not in (params or []) for _, params in conn.inserts())
+
+
 _DPE_ADEME = {
     "results": [
         {
