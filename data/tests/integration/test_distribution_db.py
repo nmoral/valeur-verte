@@ -55,12 +55,13 @@ def _vente(
         "valeur_fonciere": str(prix),
         "code_commune": code_insee,
         "surface_reelle_bati": str(bati),
-        "surface_terrain": "" if terrain is None else str(terrain),
         "latitude": "43.6",
         "longitude": "1.44",
     }
     (mutation,) = aggregate_mutations([row], millesime=2024)
-    return dataclasses.replace(mutation, etiquette_dpe=dpe)
+    # surface_terrain vient d'une agrégation par parcelle côté DVF (non reproduite ici) :
+    # on la fixe directement, comme etiquette_dpe (issue de l'appariement, pas du CSV).
+    return dataclasses.replace(mutation, etiquette_dpe=dpe, surface_terrain=terrain)
 
 
 def _base_vide() -> psycopg.Connection:
