@@ -21,7 +21,6 @@ from valeur_verte_data.pooling import (
     variance_posterieure,
 )
 
-
 # --- poids_pool : w = τ²/(τ²+v) ---
 
 
