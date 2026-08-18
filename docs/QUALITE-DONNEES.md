@@ -120,6 +120,36 @@ Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3 (ingestion).
 
 > Une réforme du DPE (celle de 2026 est en cours) déplacera cette distribution. C'est exactement le genre de changement que DAT-4 doit rendre visible plutôt que de laisser passer.
 
+**Livré.** Les distributions du département sont **mesurées en fin d'ingestion** sur
+`data.vente` (`vente_repository.calculer_distribution`, jointe à `data.commune` par
+`code_departement` — gère 2A/2B/DOM) : prix médian et surface bâtie médiane
+(`percentile_cont`, robustes sur la base brute S12), nombre de ventes à **terrain nul
+ou hors bornes §7** (définition de « aberrant » — DAT-4 mesure ce qui reste, cf. #17),
+et histogramme des étiquettes DPE. Elles sont **archivées** en JSONB dans
+`data.rapport_batch` (#131, migration 015) puis **relues à la porte au calcul**
+(`dat4.porte_dat4`, câblée dans la commande CLI `compute` après DAT-3, comme #126).
+
+Deux régimes :
+
+- **plausibilité → BLOQUE** (`distributions.evaluer_distribution`) : prix médian hors
+  `[prix_median_min ; prix_median_max]`, surface bâtie médiane hors
+  `[bati_median_min ; bati_median_max]` (60-160 m², **distinct** des 20-400 m² de la
+  saisie pro #28), ou part de terrain nul/aberrant au-dessus de
+  `terrain_aberrant_max_pct` → le département **n'est pas calculé** (sortie en erreur,
+  ancien millésime servi). Ce sont de larges garde-fous de sanité : une médiane
+  grossièrement fausse trahit une ingestion cassée (colonne prix en centimes, bâti et
+  terrain intervertis) que DAT-1 ne voit pas (les colonnes existent) ;
+- **répartition DPE → ALERTE seule** : un déplacement de plus de
+  `dpe_distribution_ecart_max_pct` points de la part d'une classe vs le millésime
+  précédent est **signalé sans bloquer** — une réforme du DPE (2026) déplace
+  **légitimement** la distribution et appelle une décision humaine (recalibrer les
+  seuils, repartir d'un nouveau millésime de référence), pas un arrêt du pipeline.
+
+Sans distribution archivée (ingestion antérieure à DAT-4) ou effectif nul, il n'y a
+rien à juger. Au **premier chargement**, la répartition DPE n'est pas comparable :
+l'alerte est neutre. Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3
+(mesure) et §11 (porte).
+
 ### DAT-5 — Fraîcheur — [#128](../../../issues/128)
 
 - Date de mutation la plus récente < 12 mois
@@ -186,7 +216,7 @@ Ces trois familles ne sont pas des tests unitaires : elles s'exécutent **sur le
 | Famille | Déclenchement | Effet en cas d'échec |
 |---|---|---|
 | TDD / mutation | CI, à chaque commit | Build rouge |
-| DAT-* | Fin d'ingestion | Blocage du calcul |
+| DAT-* | Fin d'ingestion | Blocage du calcul (**sauf** la répartition DPE de DAT-4 : alerte seule) |
 | INV-* | Fin de calcul, par maille | Maille non publiée + alerte |
 | REG-* | Avant publication | Blocage de la publication |
 

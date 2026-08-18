@@ -20,6 +20,7 @@ from datetime import datetime
 
 from .config import resolve_config
 from .dat3 import porte_dat3
+from .dat4 import porte_dat4
 from .db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
     enregistrer_rapport_ingestion,
@@ -104,6 +105,42 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(
                     f"Département {arguments.departement}, millésime {arguments.millesime} : "
                     f"calcul BLOQUÉ (DAT-3) — {motifs}"
+                )
+                return 1
+            # DAT-4 (#127) : distributions observées (relues de l'archive #131). La
+            # plausibilité (prix/surface médianes, terrain aberrant) barre le calcul
+            # comme DAT-3 ; la répartition DPE vs le millésime précédent ALERTE seule
+            # (réforme légitime, décision humaine) — le calcul tourne quand même.
+            distribution = porte_dat4(
+                conn,
+                arguments.departement,
+                arguments.millesime,
+                prix_median_min=config.prix_median_min,
+                prix_median_max=config.prix_median_max,
+                bati_median_min=config.bati_median_min,
+                bati_median_max=config.bati_median_max,
+                terrain_aberrant_max=config.terrain_aberrant_max_pct / 100,
+                dpe_ecart_max=config.dpe_distribution_ecart_max_pct / 100,
+            )
+            if distribution is not None and distribution.alerte:
+                alertes = " ; ".join(distribution.alertes)
+                logging.getLogger(__name__).warning(
+                    "Département %s : alerte distribution (DAT-4) — %s",
+                    arguments.departement,
+                    alertes,
+                )
+                print(
+                    f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                    f"ALERTE distribution (DAT-4) — {alertes}"
+                )
+            if distribution is not None and distribution.bloque:
+                motifs = " ; ".join(distribution.motifs)
+                logging.getLogger(__name__).warning(
+                    "Département %s : calcul bloqué (DAT-4) — %s", arguments.departement, motifs
+                )
+                print(
+                    f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                    f"calcul BLOQUÉ (DAT-4) — {motifs}"
                 )
                 return 1
             # La CLI possède l'horloge : elle borne l'exécution (durée du rapport #131).
