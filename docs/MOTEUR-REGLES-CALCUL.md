@@ -50,6 +50,18 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
   ne tourne pas sur des données muettes. Le schéma attendu et le vocabulaire
   `periode_construction` (signalé, non bloquant) sont **versionnés** dans
   `schema_source.py`. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-1.
+- **Assertion de volumétrie DAT-2** (#125, `volumetrie.py`, `dat2.py`) : **en fin
+  d'ingestion, par département**, le nombre de ventes DVF insérées
+  (`mutations_inserees`, déjà archivé par #131 dans `data.rapport_batch`) est
+  confronté à celui du **millésime précédent** (relu, `lire_volumetrie_precedent` ;
+  la volumétrie courante, elle, est en main). Un écart au-delà de
+  `ecart_volumetrie_max_pct` (± 30 %, borne stricte) déclenche une **alerte
+  journalisée** (`porte_dat2` câblée dans la commande CLI `ingest` : log + message),
+  **jamais un échec ni un blocage** — DVF peut légitimement bouger, et c'est la
+  **seule assertion DAT non bloquante** : le calcul reste autorisé, le code de sortie
+  ne dépend que de l'ingestion. Sans base positive (premier chargement, ou précédent
+  à zéro) le verdict est **neutre**. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md)
+  § DAT-2.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
 - **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
@@ -394,6 +406,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `erreur_mediane_max_pct_degrade` | 30 | plafond de publication INV-4 (tier dégradé #169) |
 | `ecart_alerte_pct` / `ecart_blocage_pct` | 10 / 25 | paliers d'écart au millésime précédent (REG-1 #129) |
 | `taux_appariement_min_pct` / `chute_appariement_max_pct` | 60 / 10 | porte DAT-3 (#126) : plancher d'appariement DVF↔DPE et chute bloquante vs millésime précédent |
+| `ecart_volumetrie_max_pct` | 30 | assertion DAT-2 (#125) : écart de volumétrie (mutations insérées) vs millésime précédent au-delà duquel une **alerte** (non bloquante) est journalisée en fin d'ingestion |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |

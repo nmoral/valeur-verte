@@ -105,6 +105,28 @@ Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3 (ingestion).
 - Nombre de lignes par département dans une fourchette attendue (± 30 % par rapport au millésime précédent)
 - Une variation au-delà déclenche une alerte, pas un échec — DVF peut légitimement bouger
 
+**Livré.** La volumétrie retenue est le **nombre de ventes DVF insérées**
+(`mutations_inserees`), déjà **archivé par département et par millésime** dans
+`data.rapport_batch` (#131). En **fin d'ingestion**, `porte_dat2` (câblée dans la
+commande CLI `ingest`) relit la volumétrie du **millésime précédent**
+(`lire_volumetrie_precedent`) — la volumétrie courante, elle, est en main dans le
+rapport d'ingestion, pas relue — et la confronte à celle du millésime via
+`evaluer_volumetrie` (module pur `volumetrie.py`). Un écart relatif au-delà de
+**± 30 %** (`ecart_volumetrie_max_pct`, borne stricte : ± 30 % pile reste dans la
+fourchette) produit une **alerte journalisée** (log + message nommant le sens et
+l'ampleur, ex. « volumétrie en baisse de 45 % vs précédent »).
+
+C'est la **seule assertion DAT non bloquante** (cf. §5) : contrairement à DAT-1 et
+DAT-3, elle **ne barre pas le calcul** et **ne change pas le code de sortie** de
+l'ingestion — DVF peut réellement varier d'une année à l'autre. Au **premier
+chargement** ([#19](../../../issues/19), Occitanie 2020), il n'y a pas de millésime
+précédent : le verdict est **neutre** plutôt qu'en échec (de même si le précédent est
+à zéro, l'écart relatif étant alors indéfini). L'assertion **suppose de conserver la
+volumétrie du millésime précédent** — garantie par le rapport de batch archivé (§6),
+sans lequel la comparaison serait impossible dès la deuxième ingestion.
+
+Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3 (ingestion).
+
 ### DAT-3 — Appariement DVF ↔ DPE — [#126](../../../issues/126)
 
 - **Taux d'appariement ≥ 60 %** — seuil du J1 de la roadmap
@@ -186,7 +208,7 @@ Ces trois familles ne sont pas des tests unitaires : elles s'exécutent **sur le
 | Famille | Déclenchement | Effet en cas d'échec |
 |---|---|---|
 | TDD / mutation | CI, à chaque commit | Build rouge |
-| DAT-* | Fin d'ingestion | Blocage du calcul |
+| DAT-* | Fin d'ingestion | Blocage du calcul (**sauf DAT-2** : alerte seule) |
 | INV-* | Fin de calcul, par maille | Maille non publiée + alerte |
 | REG-* | Avant publication | Blocage de la publication |
 
