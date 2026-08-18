@@ -123,6 +123,11 @@ class CalculConfig:
     # dpe_distribution_ecart_max_pct points de la part d'une classe vs le millésime
     # précédent est signalé — une réforme DPE (2026) déplace légitimement la distribution.
     dpe_distribution_ecart_max_pct: float = 15.0
+    # Fraîcheur des sources (DAT-5, #128) : en fin d'ingestion, un département dont la
+    # mutation la plus récente précède la date d'exécution de plus de fraicheur_max_mois
+    # mois déclenche une **alerte** (non bloquante) — DVF publié semestriellement, une
+    # source figée vieillit en silence. Un backfill volontaire alerte légitimement.
+    fraicheur_max_mois: int = 12
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -207,6 +212,7 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         dpe_distribution_ecart_max_pct=_float(
             env, "DPE_DISTRIBUTION_ECART_MAX_PCT", defaut.dpe_distribution_ecart_max_pct
         ),
+        fraicheur_max_mois=_int(env, "FRAICHEUR_MAX_MOIS", defaut.fraicheur_max_mois),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
         elasticite_bati_min=_float(env, "ELASTICITE_BATI_MIN", defaut.elasticite_bati_min),
