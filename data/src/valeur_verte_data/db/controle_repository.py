@@ -23,6 +23,7 @@ from ..controle_qualite import (
     RapportControle,
     construire_rapport,
     controler_ligne,
+    departements_de,
     detecter_doublons,
 )
 from .runner import Connection
@@ -43,17 +44,28 @@ def auditer(
     """Audite ``data.vente`` (filtré au besoin) et rend un rapport de validité.
 
     Chaque ligne passe aux contrôles par ligne ; les doublons sont ajoutés à part.
-    Le référentiel commune n'est passé que s'il est **peuplé** — vide, le contrôle
-    d'orphelinage reste muet (sinon toutes les ventes seraient signalées à tort).
+    L'orphelinage n'est jugé que dans les **départements couverts** par le référentiel
+    (dérivés une fois de ``data.commune``) : un département non chargé n'est pas peuplé
+    d'orphelins, et un référentiel vide rend le contrôle totalement muet.
     """
     where, params = _filtre(departement, millesime)
     communes_connues = charger_communes_connues(conn) or None
+    departements_references = (
+        departements_de(communes_connues) if communes_connues is not None else None
+    )
 
     rows = conn.execute(f"SELECT {_COLONNES} FROM data.vente{where}", params).fetchall()
     anomalies: list[Anomalie] = []
     for row in rows:
         ligne = _vers_ligne(row)
-        anomalies.extend(controler_ligne(ligne, communes_connues=communes_connues, config=config))
+        anomalies.extend(
+            controler_ligne(
+                ligne,
+                communes_connues=communes_connues,
+                departements_references=departements_references,
+                config=config,
+            )
+        )
     anomalies.extend(_doublons(conn, where, params))
 
     return construire_rapport(anomalies, lignes_controlees=len(rows))

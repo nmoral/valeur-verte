@@ -103,12 +103,15 @@ def controler_ligne(
     ligne: LigneVente,
     *,
     communes_connues: Collection[str] | None = None,
+    departements_references: Collection[str] | None = None,
     config: ControleConfig = DEFAULT_CONFIG,
 ) -> tuple[Anomalie, ...]:
     """Toutes les anomalies portées par une ligne, dans un ordre stable.
 
-    ``communes_connues`` fourni ⇒ on vérifie l'appartenance au référentiel ;
-    absent ⇒ le contrôle d'orphelinage reste muet (on ne peut pas juger).
+    L'orphelinage n'est jugé que dans un **département couvert** par le référentiel :
+    ``communes_connues`` **et** ``departements_references`` doivent être fournis, et
+    le département de la vente doit y figurer. Sinon le contrôle reste muet — un
+    département absent du référentiel n'est pas chargé, pas peuplé d'orphelins.
     """
     reference = f"vente#{ligne.id}"
     anomalies: list[Anomalie] = []
@@ -119,20 +122,33 @@ def controler_ligne(
     _controler_montants(ligne, config, signaler)
     _controler_tailles(ligne, config, signaler)
     _controler_geo(ligne, config, signaler)
-    _controler_referentiel(ligne, communes_connues, signaler)
+    _controler_referentiel(ligne, communes_connues, departements_references, signaler)
 
     return tuple(anomalies)
 
 
-def detecter_doublons(lignes: Iterable[LigneVente]) -> tuple[Anomalie, ...]:
-    """Anomalies de doublon sur la clé ``(id_mutation, millesime)``.
+def departements_de(communes: Collection[str]) -> frozenset[str]:
+    """Départements représentés dans un référentiel de communes (préfixe INSEE).
 
-    Un groupe de plus d'une ligne est toujours une anomalie : une même mutation
-    ne doit apparaître qu'une fois par millésime. Le cas le plus courant est le
-    **chevauchement inter-départements** (une vente de bordure ingérée par deux
-    départements). On qualifie ``doublon`` (lignes identiques) vs
-    ``doublon_divergent`` (valeurs métier incohérentes entre les copies), plus
-    grave. Sortie triée sur la référence (INV-5).
+    Le préfixe à deux caractères suffit et reste **cohérent** avec la dérivation du
+    département d'une vente (``code_insee[:2]``), Corse comprise (``2A``/``2B``) : le
+    gating d'orphelinage compare des grandeurs dérivées de la même façon.
+    """
+    return frozenset(code[:2] for code in communes)
+
+
+def detecter_doublons(lignes: Iterable[LigneVente]) -> tuple[Anomalie, ...]:
+    """Anomalies de doublon sur la clé ``(id_mutation, millesime)``, en trois classes :
+
+    - ``doublon`` (ANOMALIE) — copies **strictement identiques** (même commune,
+      mêmes valeurs) : ré-ingestion sans purge, vraie pollution ;
+    - ``mutation_multi_communes`` (ALERTE) — mêmes valeurs métier mais **communes
+      différentes** : une vente DVF qui chevauche deux communes est agrégée en une
+      ligne par commune. Structure normale, signalée sans faire échouer ;
+    - ``doublon_divergent`` (ANOMALIE) — valeurs métier **incohérentes** (prix,
+      surfaces…) entre les copies : incohérence réelle, la plus grave.
+
+    Sortie triée sur la référence (INV-5).
     """
     groupes: dict[tuple[str, int], list[LigneVente]] = {}
     for ligne in lignes:
@@ -150,6 +166,16 @@ def detecter_doublons(lignes: Iterable[LigneVente]) -> tuple[Anomalie, ...]:
                     "doublon",
                     Severite.ANOMALIE,
                     f"doublon strict ({occurrences} occurrences)",
+                    reference,
+                )
+            )
+        elif _seule_la_commune_differe(groupe):
+            communes = len({v.code_insee for v in groupe})
+            anomalies.append(
+                Anomalie(
+                    "mutation_multi_communes",
+                    Severite.ALERTE,
+                    f"mutation sur {communes} communes (valeurs identiques)",
                     reference,
                 )
             )
@@ -266,11 +292,19 @@ def _controler_geo(ligne: LigneVente, config: ControleConfig, signaler: _Signale
 
 
 def _controler_referentiel(
-    ligne: LigneVente, communes_connues: Collection[str] | None, signaler: _Signaler
+    ligne: LigneVente,
+    communes_connues: Collection[str] | None,
+    departements_references: Collection[str] | None,
+    signaler: _Signaler,
 ) -> None:
     if ligne.etiquette_dpe is not None and ligne.etiquette_dpe not in _ECHELLE_DPE:
         signaler("dpe_invalide", Severite.ALERTE, f"étiquette DPE {ligne.etiquette_dpe!r}")
-    if communes_connues is not None and ligne.code_insee not in communes_connues:
+    if (
+        communes_connues is not None
+        and departements_references is not None
+        and ligne.code_insee[:2] in departements_references
+        and ligne.code_insee not in communes_connues
+    ):
         signaler(
             "commune_orpheline", Severite.ALERTE, f"code INSEE {ligne.code_insee} hors référentiel"
         )
@@ -289,6 +323,19 @@ def _valeurs_metier_identiques(groupe: list[LigneVente]) -> bool:
         for v in groupe
     }
     return len(empreintes) == 1
+
+
+def _seule_la_commune_differe(groupe: list[LigneVente]) -> bool:
+    """Vrai si les copies ne diffèrent que par le ``code_insee`` (mutation multi-communes).
+
+    Les valeurs métier hors commune (prix, surfaces, date, DPE) sont identiques : la
+    même vente rattachée à plusieurs communes, structure DVF légitime — pas un doublon.
+    """
+    empreintes_hors_commune = {
+        (v.prix, v.surface_bati, v.surface_terrain, v.date_mutation, v.etiquette_dpe)
+        for v in groupe
+    }
+    return len(empreintes_hors_commune) == 1
 
 
 def _annee(date_mutation: str | None) -> int | None:
