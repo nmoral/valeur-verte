@@ -16,9 +16,7 @@ from valeur_verte_data.volumetrie import VerdictVolumetrie, evaluer_volumetrie
 _ECART = {"ecart_max": 0.30}
 
 
-def _ev(
-    volumetrie: int, precedente: int | None, *, departement: str = "31"
-) -> VerdictVolumetrie:
+def _ev(volumetrie: int, precedente: int | None, *, departement: str = "31") -> VerdictVolumetrie:
     return evaluer_volumetrie(departement, volumetrie, precedente, **_ECART)
 
 

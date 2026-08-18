@@ -234,9 +234,7 @@ def _ingest_avec_rapport(
     rapport.communes_traitees = 1
     rapport.mutations_inserees = mutations
     monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
-    monkeypatch.setattr(
-        cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False
-    )
+    monkeypatch.setattr(cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False)
     return rapport
 
 

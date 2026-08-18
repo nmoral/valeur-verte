@@ -140,9 +140,7 @@ def lire_taux_appariement_precedent(
     return taux_depuis_comptes(appariees, mutations)
 
 
-def lire_volumetrie_precedent(
-    conn: Connection, departement: str, millesime: int
-) -> int | None:
+def lire_volumetrie_precedent(conn: Connection, departement: str, millesime: int) -> int | None:
     """Volumétrie (mutations insérées) du millésime le plus récent **antérieur** à N.
 
     Sert à mesurer l'écart ± 30 % (DAT-2) ; ``None`` s'il n'existe aucun millésime
