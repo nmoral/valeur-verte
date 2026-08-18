@@ -102,6 +102,23 @@ def test_archive_une_distribution_absente_en_null() -> None:
     assert None in params
 
 
+def test_archive_la_date_de_mutation_la_plus_recente_dat5() -> None:
+    # DAT-5 (#128) : la date la plus récente est archivée (source de vérité de la
+    # fraîcheur, consommée par l'admin #46/#48).
+    from datetime import date
+
+    conn = _FakeConnection()
+    rapport = RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+    rapport.mutation_la_plus_recente = date(2024, 11, 20)
+
+    enregistrer_rapport_ingestion(conn, rapport, debut=_DEBUT, fin=_FIN)
+
+    _, params = conn.calls[0]
+    assert params is not None
+    assert date(2024, 11, 20) in params
+
+
 def test_enregistre_le_rapport_de_calcul() -> None:
     conn = _FakeConnection()
     rapport = RapportCalcul(departement="31", millesime=2024)
