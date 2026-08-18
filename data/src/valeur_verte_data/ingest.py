@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .cleaning import clean_mutations
+from .cleaning import assainir_coordonnees, clean_mutations
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.runner import Connection
 from .db.vente_repository import delete_mutations, insert_mutations
@@ -55,6 +55,9 @@ def ingest_commune(
         terrain_min=config.terrain_min,
         terrain_max=config.terrain_max,
     )
+    # Coordonnées hors métropole = géocodage corrompu (pas un choix de modèle) :
+    # neutralisées quoi qu'il arrive, même quand les bornes §7 sont désactivées (S12).
+    mutations = assainir_coordonnees(mutations)
     # Sans étiquette DPE ni période de construction, le moteur écarte la vente
     # (`regression._eligible`) : une base chargée sans appariement est stérile.
     mutations = attach_dpe(mutations, dpe_lookup(fetcher, code_insee))
