@@ -68,6 +68,10 @@ class MailleCoefficient:
     # Effectif observé par classe DPE publiée (INV-1, #119) : porte la tolérance
     # de monotonie. Défaut vide pour les mailles construites hors du moteur (tests).
     effectifs_dpe: dict[str, int] = field(default_factory=dict)
+    # Écart-type par classe DPE publiée (#249) : variance d'échantillonnage remontée du
+    # fit, matière première du shrinkage hiérarchique (poids w = τ²/(τ²+SE²)). Persistée
+    # dans l'historique pour recalculer les priors τ̂². Défaut vide (mailles hors moteur).
+    se_dpe: dict[str, float] = field(default_factory=dict)
 
 
 def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutation]:
@@ -142,6 +146,8 @@ def _maille(
         else {classe: coef for classe, coef in result.coef_dpe.items() if classe in publiables}
     )
     effectifs_dpe = {} if effectifs is None else {classe: effectifs[classe] for classe in coef_dpe}
+    # #249 : SE alignée sur les classes publiées (mêmes clés que coef_dpe).
+    se_dpe = {classe: result.se_dpe[classe] for classe in coef_dpe}
     return MailleCoefficient(
         code_insee=code_insee,
         millesime=millesime,
@@ -157,6 +163,7 @@ def _maille(
         alerte=alerte,
         palier=palier,
         effectifs_dpe=effectifs_dpe,
+        se_dpe=se_dpe,
     )
 
 

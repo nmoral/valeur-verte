@@ -28,16 +28,17 @@ _ARCHIVE = (
     "INSERT INTO data.coefficient_maille_historique ("
     "code_insee, millesime, rayon_retenu_km, n_transactions, r2, erreur_mediane, "
     "coef_m2_bati, coef_m2_terrain, coef_dpe, ic_dpe, alerte, "
-    "mode, palier, bandes, effectifs_dpe, classe_ecart, ecart, ecart_coefficient"
+    "mode, palier, bandes, effectifs_dpe, se_dpe, classe_ecart, ecart, ecart_coefficient"
     ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, "
-    "%s, %s, %s::jsonb, %s::jsonb, %s, %s, %s) "
+    "%s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s) "
     "ON CONFLICT (code_insee, millesime) DO UPDATE SET "
     "rayon_retenu_km = EXCLUDED.rayon_retenu_km, n_transactions = EXCLUDED.n_transactions, "
     "r2 = EXCLUDED.r2, erreur_mediane = EXCLUDED.erreur_mediane, "
     "coef_m2_bati = EXCLUDED.coef_m2_bati, coef_m2_terrain = EXCLUDED.coef_m2_terrain, "
     "coef_dpe = EXCLUDED.coef_dpe, ic_dpe = EXCLUDED.ic_dpe, alerte = EXCLUDED.alerte, "
     "mode = EXCLUDED.mode, palier = EXCLUDED.palier, bandes = EXCLUDED.bandes, "
-    "effectifs_dpe = EXCLUDED.effectifs_dpe, classe_ecart = EXCLUDED.classe_ecart, "
+    "effectifs_dpe = EXCLUDED.effectifs_dpe, se_dpe = EXCLUDED.se_dpe, "
+    "classe_ecart = EXCLUDED.classe_ecart, "
     "ecart = EXCLUDED.ecart, ecart_coefficient = EXCLUDED.ecart_coefficient, "
     "calcule_le = now()"
 )
@@ -87,6 +88,7 @@ def _params(maille: MailleCoefficient) -> list[object]:
         maille.palier.value,
         json.dumps(maille.bandes),
         json.dumps(maille.effectifs_dpe),
+        json.dumps(maille.se_dpe),
     ]
 
 

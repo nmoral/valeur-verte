@@ -181,6 +181,11 @@ log(prix) ~ 1 + log(bâti) + log1p(terrain) + [log(indice_local)]
 - **Sorties** :
   - `coef_dpe` = dict `{classe: effet_log}` (base D). **En log** : gain % = `exp(coef)−1`.
   - `coef_m2_bati` = `beta[1]` (élasticité log-log du bâti), `coef_m2_terrain` = `beta[2]`.
+  - `se_dpe` = dict `{classe: écart-type}` (#249, `_erreurs_types`) : écart-type
+    d'échantillonnage de chaque effet DPE — `√diag(σ̂²·(XᵀWX)⁻¹)`, `pinv` + garde dof
+    (`n ≤ p ⇒ +∞`). **Régresseur de précision** du pooling hiérarchique (poids
+    `w = τ²/(τ²+SE²)`) ; matière première des priors τ̂², **persistée** dans l'historique
+    (§12) mais **pas encore consommée** (shrinkage = lots suivants de #249).
   - `r2` pondéré, mesuré **sur l'échelle log** — **diagnostic seulement**, jamais publié (#23).
 - **Indice local** (S24, `indice_local=true`) : régresseur = médiane du prix/m² des
   **20 ventes les plus proches** (`voisins_indice_local`), le bien lui-même exclu.
@@ -431,6 +436,10 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 - **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
 - **`effectifs_dpe`** : effectif observé par classe DPE publiée, **persisté** (JSONB,
   migration 009) — débloque la tolérance INV-1 au rechargement (RECAP §6, #131).
+- **`se_dpe`** (#249) : écart-type par classe DPE publiée (§4), **persisté dans
+  l'historique** (`coefficient_maille_historique`, JSONB, migration 017) — matière
+  première recalculable des priors du pooling hiérarchique. **Non** sur la table vive
+  `coefficient_maille` (régresseur interne, jamais servi à l'app).
 - Restitution (`app`) : indicateur de fiabilité **Solide/Correct/Fragile** dérivé de
   (n, rayon) ; rayon null (repli EPCI/départemental) ⇒ toujours **Fragile** + bandeau,
   `mode` distinguant les deux crans.
