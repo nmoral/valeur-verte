@@ -102,6 +102,22 @@ class CalculConfig:
     # chute_appariement_max_pct points vs le millésime précédent, n'est pas calculé.
     taux_appariement_min_pct: float = 60.0
     chute_appariement_max_pct: float = 10.0
+    # Distributions par département (DAT-4, #127), en fin d'ingestion, avant calcul.
+    # Plausibilité (BLOQUE le calcul) : le prix médian doit rester dans [prix_median_min ;
+    # prix_median_max] et la surface bâtie médiane dans [bati_median_min ; bati_median_max]
+    # (60-160 m² imposé par l'issue, distinct des bornes 20-400 de la saisie pro #28) ;
+    # la part de ventes à terrain nul ou hors bornes §7 doit rester sous
+    # terrain_aberrant_max_pct. Ces fourchettes sont de larges garde-fous de sanité (une
+    # médiane grossièrement fausse = ingestion cassée) — à calibrer au VPS.
+    prix_median_min: float = 40_000.0
+    prix_median_max: float = 1_000_000.0
+    bati_median_min: float = 60.0
+    bati_median_max: float = 160.0
+    terrain_aberrant_max_pct: float = 50.0
+    # Répartition DPE (ALERTE seule, jamais un blocage) : un déplacement de plus de
+    # dpe_distribution_ecart_max_pct points de la part d'une classe vs le millésime
+    # précédent est signalé — une réforme DPE (2026) déplace légitimement la distribution.
+    dpe_distribution_ecart_max_pct: float = 15.0
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -172,6 +188,16 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         ),
         chute_appariement_max_pct=_float(
             env, "CHUTE_APPARIEMENT_MAX_PCT", defaut.chute_appariement_max_pct
+        ),
+        prix_median_min=_float(env, "PRIX_MEDIAN_MIN", defaut.prix_median_min),
+        prix_median_max=_float(env, "PRIX_MEDIAN_MAX", defaut.prix_median_max),
+        bati_median_min=_float(env, "BATI_MEDIAN_MIN", defaut.bati_median_min),
+        bati_median_max=_float(env, "BATI_MEDIAN_MAX", defaut.bati_median_max),
+        terrain_aberrant_max_pct=_float(
+            env, "TERRAIN_ABERRANT_MAX_PCT", defaut.terrain_aberrant_max_pct
+        ),
+        dpe_distribution_ecart_max_pct=_float(
+            env, "DPE_DISTRIBUTION_ECART_MAX_PCT", defaut.dpe_distribution_ecart_max_pct
         ),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
