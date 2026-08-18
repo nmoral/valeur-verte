@@ -21,6 +21,15 @@ BATI_MAX = 250.0
 TERRAIN_MIN = 50.0
 TERRAIN_MAX = 5_000.0
 
+# Enveloppe géographique de la métropole (Corse comprise). Au-delà, la géoloc est
+# **corrompue** (erreur de géocodage source — ex. les 60 ventes du 92 tombées à une
+# latitude polaire ~83°N), pas un choix de modèle : contrairement aux bornes §7
+# (désactivables, S12), ces coordonnées sont neutralisées **quoi qu'il arrive**.
+FRANCE_LON_MIN = -5.5
+FRANCE_LON_MAX = 9.8
+FRANCE_LAT_MIN = 41.0
+FRANCE_LAT_MAX = 51.5
+
 
 def _within(value: float | None, low: float, high: float) -> bool:
     return value is not None and low <= value <= high
@@ -73,6 +82,32 @@ def clean_mutations(
     ]
 
 
+def coordonnees_plausibles(longitude: float | None, latitude: float | None) -> bool:
+    """Vrai si le point est dans l'enveloppe métropolitaine (les deux axes requis)."""
+    return (
+        longitude is not None
+        and latitude is not None
+        and FRANCE_LON_MIN <= longitude <= FRANCE_LON_MAX
+        and FRANCE_LAT_MIN <= latitude <= FRANCE_LAT_MAX
+    )
+
+
+def assainir_coordonnees(mutations: Iterable[Mutation]) -> list[Mutation]:
+    """Neutralise (met à ``None``) les coordonnées hors métropole (géocodage corrompu).
+
+    La mutation est **conservée** mais dégéolocalisée : elle sort de la sélection
+    spatiale (``regression._eligible`` exige des coordonnées), exactement comme une
+    vente jamais géolocalisée — au lieu de matérialiser un ``geom`` aberrant qui
+    polluerait la base. Une vente déjà sans coordonnées passe inchangée.
+    """
+    return [
+        mutation
+        if mutation.longitude is None and mutation.latitude is None
+        else _assainir(mutation)
+        for mutation in mutations
+    ]
+
+
 def remap_insee(code_insee: str, correspondence: Mapping[str, str]) -> str:
     """Applique la correspondance COG (ancien → nouveau code), sinon inchangé."""
     return correspondence.get(code_insee, code_insee)
@@ -84,3 +119,10 @@ def apply_cog(mutations: Iterable[Mutation], correspondence: Mapping[str, str]) 
         replace(mutation, code_insee=remap_insee(mutation.code_insee, correspondence))
         for mutation in mutations
     ]
+
+
+def _assainir(mutation: Mutation) -> Mutation:
+    """Rend la mutation inchangée si sa géoloc est plausible, sinon coordonnées à ``None``."""
+    if coordonnees_plausibles(mutation.longitude, mutation.latitude):
+        return mutation
+    return replace(mutation, longitude=None, latitude=None)
