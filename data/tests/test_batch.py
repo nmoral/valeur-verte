@@ -996,7 +996,7 @@ def _maille_locale(
 
 def _cible(coef_dpe: dict[str, float], bandes: dict[str, str] | None = None) -> MailleCoefficient:
     return replace(
-        _maille_locale("00000", coef_dpe, {c: 0.0 for c in coef_dpe}),
+        _maille_locale("00000", coef_dpe, dict.fromkeys(coef_dpe, 0.0)),
         mode=CoverageMode.DEPARTEMENTAL,
         rayon_retenu_km=None,
         bandes=bandes or {},

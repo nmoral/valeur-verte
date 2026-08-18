@@ -13,7 +13,7 @@ peu peuplé, on refuse (``None``).
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
 from .bandes import bandes_monotones
@@ -21,6 +21,7 @@ from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
 from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
 from .dvf import Mutation
+from .pooling import effet_pool, variance_inter
 from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
 from .trimming import ecreter_residu
@@ -523,3 +524,70 @@ def compute_communes(
         )
         if maille is not None:
             yield maille
+
+
+def _cible_classe(cible: MailleCoefficient, classe: str) -> float | None:
+    """Effet départemental servant de cible de shrinkage pour ``classe`` (#249).
+
+    Direct si la classe est publiée au cran départemental ; sinon via son représentant
+    de bande (#169, ex. G servie par F) ; ``None`` si la classe n'a aucune cible — elle
+    n'est alors jamais tirée (repli sûr).
+    """
+    if classe in cible.coef_dpe:
+        return cible.coef_dpe[classe]
+    representant = cible.bandes.get(classe)
+    if representant is not None and representant in cible.coef_dpe:
+        return cible.coef_dpe[representant]
+    return None
+
+
+def pool_hierarchique(
+    mailles: Mapping[str, MailleCoefficient],
+    cible: MailleCoefficient | None,
+    *,
+    reference_dpe: str,
+) -> dict[str, MailleCoefficient]:
+    """Tire les effets DPE de chaque maille LOCAL vers la cible départementale (#249).
+
+    Empirical-Bayes hiérarchique : par classe DPE, la variance inter-communes ``τ̂²``
+    (``pooling.variance_inter`` autour de l'effet départemental ``μ`` = ``cible``) pilote
+    un poids ``w = τ²/(τ²+SE²)`` ; chaque effet communal devient ``μ + w·(β̂ − μ)``
+    (``pooling.effet_pool``). La classe de **référence** n'est jamais tirée (ancre) ; une
+    classe **sans cible** (absente du fit poolé, ni via bande) ou portée par **moins de
+    deux** communes reste **locale**. ``ic_dpe`` est recalculé sur l'effet shrinké. Sans
+    cible (fit départemental refusé), les mailles sont rendues **inchangées**.
+
+    Chaque classe est traitée indépendamment (résultat insensible à leur ordre) et les
+    priors sont des sommes commutatives — reproductible (INV-5).
+    """
+    if cible is None:
+        return dict(mailles)
+    classes = {
+        classe
+        for maille in mailles.values()
+        for classe in maille.coef_dpe
+        if classe != reference_dpe
+    }
+    priors: dict[str, tuple[float, float]] = {}
+    for classe in classes:
+        centre = _cible_classe(cible, classe)
+        if centre is None:
+            continue
+        estimations = [
+            (maille.coef_dpe[classe], maille.se_dpe[classe] ** 2)
+            for maille in mailles.values()
+            if classe in maille.coef_dpe and classe in maille.se_dpe
+        ]
+        tau2 = variance_inter(estimations, centre)
+        if tau2 is not None:
+            priors[classe] = (tau2, centre)
+    pooles: dict[str, MailleCoefficient] = {}
+    for code, maille in mailles.items():
+        coef = dict(maille.coef_dpe)
+        for classe, (tau2, centre) in priors.items():
+            if classe in coef and classe in maille.se_dpe:
+                coef[classe] = effet_pool(coef[classe], centre, tau2, maille.se_dpe[classe] ** 2)
+        pooles[code] = replace(
+            maille, coef_dpe=coef, ic_dpe=_intervals(coef, maille.erreur_mediane)
+        )
+    return pooles
