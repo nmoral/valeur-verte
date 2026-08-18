@@ -53,6 +53,11 @@ def _codes(anomalies: tuple[Anomalie, ...]) -> set[str]:
     return {anomalie.code for anomalie in anomalies}
 
 
+def _severite(anomalies: tuple[Anomalie, ...], code: str) -> Severite:
+    """Sévérité de l'anomalie portant ``code`` (KeyError implicite si absente)."""
+    return next(a.severite for a in anomalies if a.code == code)
+
+
 # --- Ligne saine ------------------------------------------------------------
 
 
@@ -92,6 +97,14 @@ def test_prix_m2_dans_la_tolerance_ne_declenche_rien() -> None:
 
 def test_prix_m2_absent_ne_declenche_pas_l_incoherence() -> None:
     assert "prix_m2_incoherent" not in _codes(controler_ligne(_ligne(prix_m2=None)))
+
+
+def test_prix_nul_avec_prix_m2_ne_provoque_pas_de_division() -> None:
+    # Le garde ``prix > 0`` protège le contrôle de cohérence d'une division par zéro
+    # (prix / bâti) : à prix nul, on signale prix_non_positif et on n'évalue pas prix_m2.
+    codes = _codes(controler_ligne(_ligne(prix=0.0, prix_m2=2_500.0)))
+    assert "prix_non_positif" in codes
+    assert "prix_m2_incoherent" not in codes
 
 
 # --- Tailles bâti / terrain -------------------------------------------------
@@ -144,6 +157,13 @@ def test_coordonnees_hors_bbox_metropole_est_une_alerte() -> None:
     assert hors[0].severite is Severite.ALERTE
 
 
+def test_bbox_signale_quand_une_seule_coordonnee_sort() -> None:
+    # Longitude hors plage mais latitude valide (et l'inverse) : les deux axes
+    # doivent être dans la bbox, pas seulement l'un des deux.
+    assert "hors_bbox" in _codes(controler_ligne(_ligne(longitude=55.0, latitude=45.0)))
+    assert "hors_bbox" in _codes(controler_ligne(_ligne(longitude=2.0, latitude=60.0)))
+
+
 def test_etiquette_dpe_invalide_est_une_alerte() -> None:
     codes = _codes(controler_ligne(_ligne(etiquette_dpe="Z")))
     assert "dpe_invalide" in codes
@@ -173,6 +193,35 @@ def test_referentiel_absent_n_evalue_pas_l_orphelinage() -> None:
 def test_annee_de_date_mutation_differente_du_millesime_est_une_alerte() -> None:
     codes = _codes(controler_ligne(_ligne(date_mutation="2019-03-02", millesime=2024)))
     assert "millesime_incoherent" in codes
+
+
+def test_chaque_controle_porte_la_bonne_severite() -> None:
+    # La sévérité classe l'anomalie (ANOMALIE ⇒ verdict en échec) : elle fait partie
+    # du comportement, pas de la présentation.
+    assert _severite(controler_ligne(_ligne(a_geom=False)), "geom_manquant") is Severite.ANOMALIE
+    sans_coords = controler_ligne(_ligne(longitude=None, latitude=None, a_geom=True))
+    assert _severite(sans_coords, "coordonnees_manquantes") is Severite.ANOMALIE
+    assert (
+        _severite(controler_ligne(_ligne(surface_terrain=-5.0)), "terrain_negatif")
+        is Severite.ANOMALIE
+    )
+    assert (
+        _severite(controler_ligne(_ligne(longitude=55.5, latitude=-21.1)), "hors_bbox")
+        is Severite.ALERTE
+    )
+    assert _severite(controler_ligne(_ligne(etiquette_dpe="Z")), "dpe_invalide") is Severite.ALERTE
+    incoherent = controler_ligne(_ligne(date_mutation="2019-03-02", millesime=2024))
+    assert _severite(incoherent, "millesime_incoherent") is Severite.ALERTE
+    orpheline = controler_ligne(_ligne(code_insee="99999"), communes_connues={"31555"})
+    assert _severite(orpheline, "commune_orpheline") is Severite.ALERTE
+    assert (
+        _severite(controler_ligne(_ligne(surface_bati=5_000.0, prix_m2=None)), "bati_absurde")
+        is Severite.ALERTE
+    )
+    assert (
+        _severite(controler_ligne(_ligne(surface_terrain=2_000_000.0)), "terrain_absurde")
+        is Severite.ALERTE
+    )
 
 
 # --- Configuration des seuils ----------------------------------------------
