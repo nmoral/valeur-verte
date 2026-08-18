@@ -104,6 +104,18 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
   **`false`** (S20) → **tous les millésimes de construction** comptent.
 - `surface_terrain` absente → traitée comme **0** (log1p).
 
+- **Mutations multi-communes exclues** (`multi_communes.filtrer_multi_communes`,
+  filtre de pool dans `orchestration.compute_departement`) : l'ingestion étant **par
+  commune**, une vente à cheval sur plusieurs communes produit **une ligne par
+  commune**, chacune portant le **prix total** de la vente mais la **surface de sa
+  seule commune** → le rapport prix/surface est faux (€/m² surestimé). Toutes les
+  copies d'une même `(id_mutation, millesime)` présente sous **plus d'un `code_insee`**
+  sont écartées **avant** la régression. Détecté au niveau du pool : les communes
+  d'une même vente étant contiguës (dept + limitrophes), toutes ses copies y sont, le
+  groupe est complet. Toujours actif (règle de correction, non configurable). L'audit
+  de validité (`controle_qualite`, code `mutation_multi_communes`) les signale par
+  ailleurs en alerte — elles ne sont pas supprimées de `data.vente`, seulement du calcul.
+
 **Pool** (`pool_repository.load_pool`) : ventes du département **+ départements
 limitrophes** (`limitrophes.LIMITROPHES`, débordement #18/#91), sur la **fenêtre de
 millésimes** demandée, `type_local='Maison'`, triées par `id_mutation` (ordre
