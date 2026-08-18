@@ -4,11 +4,10 @@ name: Déploiement
 #
 # Le runner GitHub publie l'image sur GHCR puis ouvre la connexion SSH vers le
 # VPS ; les identifiants vivent dans l'environnement « vps », jamais dans le dépôt.
-# Aucun déclencheur sur pull request : seul le code fusionné dans main, passé par
-# la porte qualité du workflow CI, atteint la production.
+# Déclenchement **manuel uniquement** (workflow_dispatch) : la mise en production
+# est une décision explicite, jamais un effet de bord d'un merge sur main. On
+# déploie le code de la branche choisie dans l'onglet Actions (par défaut main).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
