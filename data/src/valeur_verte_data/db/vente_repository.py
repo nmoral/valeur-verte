@@ -9,6 +9,7 @@ d'appariement DPE (``adresse_key``, §15) est normalisée à l'insertion.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import date
 from typing import Any
 
 from ..distributions import Distribution
@@ -126,3 +127,25 @@ def calculer_distribution(
         effectif=int(effectif),
         effectifs_dpe=histogramme,
     )
+
+
+# DAT-5 (#128) : date de mutation la plus récente d'un département sur data.vente.
+# Jointe à data.commune pour borner le département (comme calculer_distribution).
+_SELECT_DATE_MUTATION_MAX = (
+    "SELECT max(v.date_mutation) "
+    "FROM data.vente v JOIN data.commune c ON c.code_insee = v.code_insee "
+    "WHERE c.code_departement = %s AND v.millesime = %s"
+)
+
+
+def date_mutation_max(conn: Connection, departement: str, millesime: int) -> date | None:
+    """Date de mutation la plus récente d'un (dept, millésime) ; ``None`` si aucune vente.
+
+    Sert la fraîcheur DAT-5 (confrontée à la date d'exécution) et est archivée comme
+    source de vérité du millésime/fraîcheur.
+    """
+    lignes = conn.execute(_SELECT_DATE_MUTATION_MAX, [departement, millesime]).fetchall()
+    if not lignes:
+        return None
+    valeur: date | None = lignes[0][0]
+    return valeur

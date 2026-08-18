@@ -70,6 +70,17 @@ fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
   **archivées** en JSONB dans `data.rapport_batch` (#131). Elles sont **relues au
   calcul** par la porte DAT-4 (§11) — la mesure vit à l'ingestion, la décision au
   calcul (comme DAT-3). Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-4.
+- **Fraîcheur des sources DAT-5** (#128, `fraicheur.py`, `dat5.py`) : **en fin
+  d'ingestion**, la date de mutation la plus récente du département
+  (`vente_repository.date_mutation_max` sur `data.vente` ⋈ `data.commune`) est
+  confrontée à la **date d'exécution** du batch (`evaluer_fraicheur`). Au-delà de
+  `fraicheur_max_mois` (12 mois, borne stricte) d'ancienneté, une **alerte**
+  journalisée est émise (`porte_dat5` câblée dans la commande CLI `ingest`), **jamais
+  un blocage** — DVF est publié semestriellement, une source figée vieillit en silence
+  ; un backfill volontaire alerte légitimement. La date est **archivée**
+  (`rapport_batch.mutation_la_plus_recente`, migration 016) : source de vérité de la
+  fraîcheur/millésime consommée par l'admin (#46/#48). Sans vente datée, le verdict est
+  **neutre**. Voir [`QUALITE-DONNEES.md`](QUALITE-DONNEES.md) § DAT-5.
 - `cleaning.clean_mutations` applique les bornes §7 **par défaut** : prix ∈ [30 000 ;
   900 000] €, bâti ∈ [50 ; 250] m², terrain ∈ [50 ; 5 000] m² (si présent).
 - **Appariement DPE** (`dpe.build_dpe_lookup`, `attach_dpe`) : indexé par `(code_postal,
@@ -444,6 +455,7 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
 | `bati_median_min` / `bati_median_max` | 60 / 160 | DAT-4 (#127) : fourchette de la surface bâtie médiane (BLOQUE ; ≠ 20-400 saisie pro #28) |
 | `terrain_aberrant_max_pct` | 50 | DAT-4 (#127) : part max de ventes à terrain nul/hors bornes §7 (BLOQUE) — à calibrer VPS |
 | `dpe_distribution_ecart_max_pct` | 15 | DAT-4 (#127) : déplacement max (points) de la part d'une classe DPE vs précédent → ALERTE (jamais un blocage) |
+| `fraicheur_max_mois` | 12 | DAT-5 (#128) : ancienneté max (mois) de la mutation la plus récente vs date d'exécution → ALERTE (jamais un blocage) |
 | `r2_min` | 0,30 | garde-fou |
 | `gain_dpe_ec_max` | 0,70 | plafond gain log INV-2 |
 | `elasticite_bati_min/max` | 0,30 / 1,50 | INV-2 |

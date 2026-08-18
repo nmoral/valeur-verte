@@ -177,6 +177,30 @@ l'alerte est neutre. Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.
 - Date de mutation la plus récente < 12 mois
 - Millésime des sources journalisé et affiché dans l'admin
 
+**Livré.** En **fin d'ingestion**, la date de mutation la plus récente du département
+est mesurée sur `data.vente` (`vente_repository.date_mutation_max`, jointe à
+`data.commune` par `code_departement` — gère 2A/2B/DOM) et confrontée à la **date
+d'exécution** du batch via `evaluer_fraicheur` (module pur `fraicheur.py`). Au-delà de
+`fraicheur_max_mois` (**12 mois**, borne stricte : à la limite exacte la source est
+encore fraîche), `porte_dat5` (câblée dans la commande CLI `ingest`) émet une **alerte
+journalisée** (log + message).
+
+C'est une assertion **non bloquante** (cf. §5) : DVF est publié semestriellement, et
+une source qui **cesse d'être mise à jour** ne lève aucune erreur — le pipeline
+retraite sereinement des données périmées et publie des coefficients qui vieillissent
+en silence. DAT-5 **rend visible** ce mode de défaillance discret sans arrêter le
+pipeline : un **backfill volontaire** (réingérer un vieux millésime pour recalcul)
+alerte alors légitimement, la décision de recalculer restant humaine. Sans vente datée,
+le verdict est **neutre**.
+
+La date la plus récente est **archivée** (`data.rapport_batch.mutation_la_plus_recente`,
+migration 016), aux côtés du **millésime** déjà journalisé (#131) : **une seule source
+de vérité** de la fraîcheur/millésime, consommée par le rapport de batch (§6), l'état du
+dernier import (#46) et la page publique de statut du modèle (#48). L'affichage côté
+admin/public relève de ces écrans ; DAT-5 en fournit la donnée.
+
+Détail : [`MOTEUR-REGLES-CALCUL.md`](MOTEUR-REGLES-CALCUL.md) §3 (ingestion).
+
 ---
 
 ## 3. Tests de non-régression sur coefficients
@@ -238,7 +262,7 @@ Ces trois familles ne sont pas des tests unitaires : elles s'exécutent **sur le
 | Famille | Déclenchement | Effet en cas d'échec |
 |---|---|---|
 | TDD / mutation | CI, à chaque commit | Build rouge |
-| DAT-* | Fin d'ingestion | Blocage du calcul (**sauf DAT-2** et la **répartition DPE de DAT-4** : alerte seule) |
+| DAT-* | Fin d'ingestion | Blocage du calcul (**sauf DAT-2**, **DAT-5**, et la **répartition DPE de DAT-4** : alerte seule) |
 | INV-* | Fin de calcul, par maille | Maille non publiée + alerte |
 | REG-* | Avant publication | Blocage de la publication |
 
