@@ -13,6 +13,8 @@ et ``ALERTE`` (suspect mais possiblement légitime — valeur absurde, hors bbox
 
 from __future__ import annotations
 
+import io
+
 from valeur_verte_data.controle_qualite import (
     Anomalie,
     ControleConfig,
@@ -22,6 +24,7 @@ from valeur_verte_data.controle_qualite import (
     construire_rapport,
     controler_ligne,
     detecter_doublons,
+    ecrire_controle_csv,
 )
 
 
@@ -266,3 +269,28 @@ def test_rapport_est_un_dataclass_gele() -> None:
     rapport = construire_rapport((), lignes_controlees=0)
     assert isinstance(rapport, RapportControle)
     assert rapport.valide is True
+
+
+# --- Export CSV -------------------------------------------------------------
+
+
+def test_csv_porte_un_entete_et_une_ligne_par_anomalie() -> None:
+    rapport = construire_rapport(
+        (
+            _anomalie("prix_non_positif", Severite.ANOMALIE),
+            _anomalie("hors_bbox", Severite.ALERTE),
+        ),
+        lignes_controlees=5,
+    )
+    tampon = io.StringIO()
+    ecrire_controle_csv(rapport, tampon)
+    lignes = tampon.getvalue().splitlines()
+    assert lignes[0] == "severite,code,reference,message"
+    assert len(lignes) == 3  # en-tête + 2 anomalies
+    assert "prix_non_positif" in lignes[1]
+
+
+def test_csv_vide_ne_porte_que_l_entete() -> None:
+    tampon = io.StringIO()
+    ecrire_controle_csv(construire_rapport((), lignes_controlees=0), tampon)
+    assert tampon.getvalue().splitlines() == ["severite,code,reference,message"]
