@@ -493,6 +493,22 @@ def charger_epci_departement(
     return enregistres
 
 
+def charger_communes_departement(
+    fetcher: Fetcher, conn: ConnexionTransactionnelle, departement: str
+) -> int:
+    """Charge le référentiel des noms de communes d'un département (#220).
+
+    ``data.commune`` est normalement peuplé à l'ingestion (``upsert_communes``) ;
+    cette commande le (re)charge **sans re-télécharger DVF** — pour un département
+    ingéré avant #220, ou après une fusion de communes. Idempotent (upsert) ; une
+    seule transaction, committée s'il y a eu un enregistrement.
+    """
+    ecrites = upsert_communes(conn, fetch_communes_by_departement(fetcher, departement))
+    if ecrites:
+        conn.commit()
+    return ecrites
+
+
 def _charger_contours(
     fetcher: Fetcher,
     conn: ConnexionTransactionnelle,

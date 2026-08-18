@@ -36,6 +36,7 @@ from .http import HttpFetcher
 from .orchestration import (
     RapportCalcul,
     RapportIngestion,
+    charger_communes_departement,
     charger_epci_departement,
     compute_departement,
     ingest_departement,
@@ -69,6 +70,12 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     epci.add_argument("--departement", required=True, help="Code département (ex. 52)")
 
+    communes = commandes.add_parser(
+        "load-communes",
+        help="Charger le référentiel des noms de communes d'un département (#220)",
+    )
+    communes.add_argument("--departement", required=True, help="Code département (ex. 31)")
+
     audit = commandes.add_parser(
         "audit", help="Contrôler la validité de data.vente (read-only, sans effet de bord)"
     )
@@ -99,6 +106,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.commande == "load-epci":
             charges = charger_epci_departement(HttpFetcher(), conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} EPCI enregistré(s)")
+            return 0
+        if arguments.commande == "load-communes":
+            charges = charger_communes_departement(HttpFetcher(), conn, arguments.departement)
+            print(f"Département {arguments.departement} : {charges} commune(s) référencée(s)")
             return 0
         if arguments.commande == "audit":
             return _auditer(conn, arguments)
