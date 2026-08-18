@@ -59,8 +59,9 @@ _INSERT_INGESTION = (
     "INSERT INTO data.rapport_batch ("
     "phase, departement, millesime, debut, fin, "
     "communes_traitees, communes_referencees, mutations_inserees, ventes_appariees, "
-    "contours_charges, epci_charges, sans_donnees, distribution, echecs"
-    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)"
+    "contours_charges, epci_charges, sans_donnees, distribution, "
+    "mutation_la_plus_recente, echecs"
+    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb)"
 )
 
 _INSERT_CALCUL = (
@@ -96,6 +97,7 @@ def enregistrer_rapport_ingestion(
             rapport.epci_charges,
             len(rapport.sans_donnees),
             _distribution_json(rapport.distribution),
+            rapport.mutation_la_plus_recente,
             json.dumps(rapport.echecs),
         ),
     )

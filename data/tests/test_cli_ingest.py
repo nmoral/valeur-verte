@@ -349,6 +349,57 @@ def test_l_ingest_confronte_la_volumetrie_en_main_et_le_seuil_config(
     assert captures["mil"] == 2024
 
 
+def test_l_ingest_alerte_sur_source_perimee(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """DAT-5 (#128) : une source périmée (> 12 mois) alerte, sans bloquer.
+
+    La date la plus récente (portée par le verdict) est attachée au rapport pour être
+    archivée ; l'alerte est visible mais le code de sortie ne dépend que de l'ingestion.
+    """
+    from datetime import date
+
+    from valeur_verte_data.fraicheur import VerdictFraicheur
+
+    _ingest_avec_rapport(monkeypatch, mutations=1000)
+    motif = "source périmée : mutation la plus récente 2023-06-01"
+    verdict = VerdictFraicheur("31", date(2023, 6, 1), True, (motif,))
+    monkeypatch.setattr(cli, "porte_dat5", lambda *a, **k: verdict)
+
+    code = cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    out = capsys.readouterr().out
+    assert "ALERTE" in out and "DAT-5" in out and motif in out
+    assert code == 0  # non bloquant
+
+
+def test_l_ingest_attache_la_date_et_passe_reference_et_seuil(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La CLI attache la date au rapport (pour l'archive) et passe à DAT-5 la date
+    d'exécution comme référence et le seuil de config."""
+    from datetime import date
+
+    from valeur_verte_data.fraicheur import VerdictFraicheur
+
+    rapport = _ingest_avec_rapport(monkeypatch, mutations=1000)
+    captures: dict[str, Any] = {}
+
+    def _porte(
+        conn: Any, dept: str, mil: int, reference: Any, *, max_mois: int
+    ) -> VerdictFraicheur:
+        captures.update(reference=reference, max_mois=max_mois)
+        return VerdictFraicheur(dept, date(2025, 12, 1), False, ())
+
+    monkeypatch.setattr(cli, "porte_dat5", _porte)
+
+    cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    assert rapport.mutation_la_plus_recente == date(2025, 12, 1)
+    assert isinstance(captures["reference"], date)  # date d'exécution
+    assert captures["max_mois"] == 12  # seuil de config
+
+
 def test_un_departement_entierement_en_echec_sort_en_erreur(
     connexion: _FausseConnexion,
 ) -> None:

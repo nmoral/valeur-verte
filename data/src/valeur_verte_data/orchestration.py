@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
+from datetime import date
 from typing import Protocol
 
 import httpx
@@ -88,6 +89,10 @@ class RapportIngestion:
     # terrain aberrant, histogramme DPE), mesurées en fin d'ingestion et archivées
     # (#131) pour que la porte au calcul les relise. None si non calculées.
     distribution: Distribution | None = None
+    # DAT-5 (#128) : date de mutation la plus récente du département, mesurée en fin
+    # d'ingestion et archivée (source de vérité de la fraîcheur/millésime, #46/#48).
+    # None si aucune vente datée.
+    mutation_la_plus_recente: date | None = None
 
     @property
     def est_en_echec(self) -> bool:

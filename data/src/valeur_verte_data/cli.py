@@ -22,6 +22,7 @@ from .config import resolve_config
 from .dat2 import porte_dat2
 from .dat3 import porte_dat3
 from .dat4 import porte_dat4
+from .dat5 import porte_dat5
 from .db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
     enregistrer_rapport_ingestion,
@@ -176,6 +177,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 terrain_min=config.terrain_min,
                 terrain_max=config.terrain_max,
             )
+            # DAT-5 (#128) : juger la fraîcheur (mutation la plus récente vs date
+            # d'exécution) et attacher la date au rapport — source de vérité archivée
+            # de la fraîcheur/millésime (#46/#48). Alerte non bloquante (plus bas).
+            verdict_fraicheur = porte_dat5(
+                conn,
+                arguments.departement,
+                arguments.millesime,
+                debut.date(),
+                max_mois=config.fraicheur_max_mois,
+            )
+            ingestion.mutation_la_plus_recente = verdict_fraicheur.date_mutation_max
             enregistrer_rapport_ingestion(conn, ingestion, debut=debut, fin=datetime.now())
             conn.commit()
             # DAT-2 (#125) : la volumétrie d'un département peut légitimement bouger,
@@ -200,6 +212,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(
                     f"Département {arguments.departement}, millésime {arguments.millesime} : "
                     f"ALERTE volumétrie (DAT-2) — {motifs}"
+                )
+            # DAT-5 (#128) : une source figée (mutation la plus récente > 12 mois) vieillit
+            # en silence. On ALERTE sans bloquer — un backfill volontaire alerte
+            # légitimement, la décision de recalculer reste humaine.
+            if verdict_fraicheur.perimee:
+                motifs = " ; ".join(verdict_fraicheur.motifs)
+                logging.getLogger(__name__).warning(
+                    "Département %s : alerte fraîcheur (DAT-5) — %s",
+                    arguments.departement,
+                    motifs,
+                )
+                print(
+                    f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                    f"ALERTE fraîcheur (DAT-5) — {motifs}"
                 )
             rapport = ingestion
 
