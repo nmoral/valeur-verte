@@ -118,7 +118,7 @@ def test_detecte_geom_manquant_quand_coordonnees_presentes() -> None:
 
 
 def test_detecte_doublon_de_mutation() -> None:
-    # Deux lignes pour la même (id_mutation, millesime) : ré-ingestion / chevauchement.
+    # Deux lignes identiques pour la même (id_mutation, millesime) : ré-ingestion.
     with _base_vide() as conn:
         _inserer_commune(conn)
         _inserer_vente(conn, id_mutation="2024-000042")
@@ -126,6 +126,20 @@ def test_detecte_doublon_de_mutation() -> None:
         conn.commit()
         rapport = auditer(conn, departement="31", millesime=2024)
         assert "doublon" in _codes(rapport)
+
+
+def test_mutation_multi_communes_est_signalee_comme_legitime() -> None:
+    # Même mutation sur deux communes du 09, valeurs identiques : structure DVF
+    # normale → ALERTE mutation_multi_communes, pas une anomalie bloquante.
+    with _base_vide() as conn:
+        _inserer_commune(conn, code_insee="09105")
+        _inserer_commune(conn, code_insee="09301")
+        _inserer_vente(conn, id_mutation="2021-114057", millesime=2021, code_insee="09105")
+        _inserer_vente(conn, id_mutation="2021-114057", millesime=2021, code_insee="09301")
+        conn.commit()
+        rapport = auditer(conn, departement="09", millesime=2021)
+        assert "mutation_multi_communes" in _codes(rapport)
+        assert "doublon" not in _codes(rapport)
 
 
 def test_commune_orpheline_du_referentiel() -> None:
@@ -147,12 +161,23 @@ def test_referentiel_vide_ne_declenche_pas_l_orphelinage() -> None:
         assert "commune_orpheline" not in _codes(rapport)
 
 
+def test_departement_non_couvert_par_le_referentiel_ne_declenche_pas_l_orphelinage() -> None:
+    # Le référentiel ne couvre que le 31 ; une vente du 09 n'est pas jugée orpheline
+    # (référentiel non chargé pour ce département) — le cas vu en prod.
+    with _base_vide() as conn:
+        _inserer_commune(conn, code_insee="31555")
+        _inserer_vente(conn, code_insee="09999")
+        conn.commit()
+        rapport = auditer(conn, departement="09", millesime=2024)
+        assert "commune_orpheline" not in _codes(rapport)
+
+
 def test_filtre_par_departement() -> None:
     with _base_vide() as conn:
         _inserer_commune(conn, code_insee="31555")
-        _inserer_commune(conn, code_insee="09122")
+        _inserer_commune(conn, code_insee="09999")
         _inserer_vente(conn, id_mutation="2024-0031", code_insee="31555")
-        _inserer_vente(conn, id_mutation="2024-0009", code_insee="09122")
+        _inserer_vente(conn, id_mutation="2024-0009", code_insee="09999")
         conn.commit()
         rapport = auditer(conn, departement="31", millesime=2024)
         assert rapport.lignes_controlees == 1

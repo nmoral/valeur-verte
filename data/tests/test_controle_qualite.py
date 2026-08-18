@@ -23,6 +23,7 @@ from valeur_verte_data.controle_qualite import (
     Severite,
     construire_rapport,
     controler_ligne,
+    departements_de,
     detecter_doublons,
     ecrire_controle_csv,
 )
@@ -174,20 +175,50 @@ def test_etiquette_dpe_valide_ou_absente_ne_declenche_rien() -> None:
         assert "dpe_invalide" not in _codes(controler_ligne(_ligne(etiquette_dpe=dpe)))
 
 
-def test_commune_orpheline_du_referentiel_est_une_alerte() -> None:
-    codes = _codes(controler_ligne(_ligne(code_insee="99999"), communes_connues={"31555"}))
+def test_commune_orpheline_dans_un_departement_couvert_est_une_alerte() -> None:
+    # Le dept 31 est couvert (31555 au référentiel) ; 31999 en est absent → orphelin.
+    codes = _codes(
+        controler_ligne(
+            _ligne(code_insee="31999"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
+    )
     assert "commune_orpheline" in codes
+
+
+def test_orphelin_muet_si_departement_absent_du_referentiel() -> None:
+    # Le référentiel ne couvre que le 31 : une vente du 09 ne peut être jugée
+    # orpheline (le référentiel n'est simplement pas chargé pour ce département) —
+    # sinon 100 % des ventes d'un dept non chargé seraient signalées à tort.
+    codes = _codes(
+        controler_ligne(
+            _ligne(code_insee="09999"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
+    )
+    assert "commune_orpheline" not in codes
 
 
 def test_commune_connue_ne_declenche_rien() -> None:
     assert "commune_orpheline" not in _codes(
-        controler_ligne(_ligne(code_insee="31555"), communes_connues={"31555"})
+        controler_ligne(
+            _ligne(code_insee="31555"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
     )
 
 
 def test_referentiel_absent_n_evalue_pas_l_orphelinage() -> None:
     # Sans référentiel fourni, on ne peut pas juger l'appartenance : contrôle muet.
     assert "commune_orpheline" not in _codes(controler_ligne(_ligne(code_insee="99999")))
+
+
+def test_departements_de_derive_les_prefixes_insee() -> None:
+    # Le département couvert se dérive du préfixe INSEE (Corse comprise : 2A/2B).
+    assert departements_de({"31555", "31149", "09122", "2A004"}) == {"31", "09", "2A"}
 
 
 def test_annee_de_date_mutation_differente_du_millesime_est_une_alerte() -> None:
@@ -212,7 +243,9 @@ def test_chaque_controle_porte_la_bonne_severite() -> None:
     assert _severite(controler_ligne(_ligne(etiquette_dpe="Z")), "dpe_invalide") is Severite.ALERTE
     incoherent = controler_ligne(_ligne(date_mutation="2019-03-02", millesime=2024))
     assert _severite(incoherent, "millesime_incoherent") is Severite.ALERTE
-    orpheline = controler_ligne(_ligne(code_insee="99999"), communes_connues={"31555"})
+    orpheline = controler_ligne(
+        _ligne(code_insee="31999"), communes_connues={"31555"}, departements_references={"31"}
+    )
     assert _severite(orpheline, "commune_orpheline") is Severite.ALERTE
     assert (
         _severite(controler_ligne(_ligne(surface_bati=5_000.0, prix_m2=None)), "bati_absurde")
@@ -239,15 +272,27 @@ def test_mutation_unique_ne_produit_aucun_doublon() -> None:
     assert detecter_doublons([_ligne(id=1), _ligne(id=2, id_mutation="2024-000002")]) == ()
 
 
-def test_id_mutation_repete_sur_un_millesime_est_une_anomalie() -> None:
-    # Cas typique : chevauchement inter-départements (vente de bordure ingérée 2×).
+def test_id_mutation_repete_a_l_identique_est_un_doublon_strict() -> None:
+    # Même commune, valeurs identiques : ré-ingestion sans purge → vraie pollution.
     doublons = detecter_doublons([_ligne(id=1), _ligne(id=2)])
     assert len(doublons) == 1
     assert doublons[0].code == "doublon"
     assert doublons[0].severite is Severite.ANOMALIE
 
 
-def test_doublon_aux_valeurs_divergentes_est_qualifie() -> None:
+def test_meme_mutation_sur_deux_communes_est_legitime() -> None:
+    # Une vente qui chevauche deux communes : même id_mutation, code_insee différents
+    # mais valeurs métier identiques → structure DVF normale (pas une pollution).
+    doublons = detecter_doublons(
+        [_ligne(id=1, code_insee="09105"), _ligne(id=2, code_insee="09301")]
+    )
+    assert len(doublons) == 1
+    assert doublons[0].code == "mutation_multi_communes"
+    assert doublons[0].severite is Severite.ALERTE
+
+
+def test_doublon_aux_valeurs_divergentes_est_une_anomalie() -> None:
+    # Même commune mais valeurs métier incohérentes (prix) : vraie anomalie.
     doublons = detecter_doublons([_ligne(id=1, prix=250_000.0), _ligne(id=2, prix=300_000.0)])
     assert len(doublons) == 1
     assert doublons[0].code == "doublon_divergent"
