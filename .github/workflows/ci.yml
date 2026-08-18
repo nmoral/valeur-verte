@@ -5,14 +5,21 @@ name: CI
 # (data/** ou app/**) ; `gate` reste vert quand elles sont non concernées
 # (docs, infra…) et rouge dès qu'une vérification réelle échoue. Cela permet
 # l'auto-merge des PR sans code sans contourner les portes qualité.
+#
+# Déclenché **uniquement sur pull request** : `main` n'accepte que des merges de
+# PR déjà vertes, rejouer le CI sur le push de merge ne ferait que doubler le coût.
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:
   contents: read
   pull-requests: read
+
+# Un nouveau push sur une PR annule le run précédent encore en cours : retour
+# plus rapide et pas de minutes gaspillées sur un état déjà dépassé.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   changes:
@@ -66,6 +73,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: data/pyproject.toml
       - name: Installer les dépendances
         run: pip install -e '.[dev]'
       - name: Lint & format (Ruff)
@@ -116,6 +125,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: data/pyproject.toml
       - name: Installer les dépendances
         run: pip install -e '.[dev]'
       - name: Migrations + tests d'intégration (PostGIS réel)
@@ -151,6 +162,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: infra/pyproject.toml
       - name: Installer les dépendances
         run: pip install -e '.[dev]'
       - name: Lint & format (Ruff)
@@ -197,6 +210,14 @@ jobs:
           coverage: pcov
           extensions: pdo_pgsql, intl, gd
           tools: composer
+      # vendor/ restauré tel quel entre runs quand composer.lock ne bouge pas :
+      # composer install ne fait alors que vérifier, il ne retélécharge rien.
+      - name: Cache Composer (vendor)
+        uses: actions/cache@v4
+        with:
+          path: app/vendor
+          key: composer-${{ runner.os }}-php8.4-${{ hashFiles('app/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.4-
       - name: Installer les dépendances
         run: composer install --no-interaction --no-progress
       - name: Préparer les bases (rôle app, schéma app, base de test)
