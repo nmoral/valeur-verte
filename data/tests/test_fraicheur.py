@@ -55,9 +55,12 @@ def test_date_a_la_limite_est_fraiche() -> None:
 
 def test_source_perimee_declenche_une_alerte() -> None:
     # Mutation la plus récente de 2023 alors qu'on tourne en 2026 : source figée.
-    verdict = _ev(date(2023, 6, 1))
+    verdict = _ev(date(2023, 6, 1), departement="09")
     assert verdict.perimee is True
     assert any("2023-06-01" in m for m in verdict.motifs)
+    # Le verdict transporte le contexte pour la journalisation par département.
+    assert verdict.departement == "09"
+    assert verdict.date_mutation_max == date(2023, 6, 1)
 
 
 def test_un_jour_avant_la_limite_est_perime() -> None:
@@ -70,10 +73,11 @@ def test_un_jour_avant_la_limite_est_perime() -> None:
 
 def test_sans_date_est_neutre() -> None:
     # Aucune mutation datée (rien à juger) : neutre plutôt qu'une alerte infondée.
-    verdict = _ev(None)
+    verdict = _ev(None, departement="09")
     assert verdict.perimee is False
     assert verdict.motifs == ()
     assert verdict.date_mutation_max is None
+    assert verdict.departement == "09"
 
 
 # --- date_limite_fraicheur : recul de N mois, avec bissextile et bascule d'année ---
