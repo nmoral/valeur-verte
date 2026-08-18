@@ -170,6 +170,13 @@ def test_la_commande_ingest_exige_departement_et_millesime() -> None:
         cli.main(["ingest", "--departement", "31"])
 
 
+class _Resultat:
+    """Résultat de requête minimal : DAT-2 (#125) relit la volumétrie précédente."""
+
+    def fetchall(self) -> list[Any]:
+        return []
+
+
 class _ConnexionContexte:
     """Fausse connexion psycopg : sert de gestionnaire de contexte et de connexion."""
 
@@ -179,8 +186,8 @@ class _ConnexionContexte:
     def __exit__(self, *_: Any) -> bool:
         return False
 
-    def execute(self, query: str, params: Sequence[Any] | None = None) -> None:
-        return None
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> _Resultat:
+        return _Resultat()
 
     def commit(self) -> None:
         return None
@@ -213,6 +220,91 @@ def test_l_ingest_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch) -
     assert captures["rapport"] is rapport
     assert isinstance(captures["debut"], datetime)
     assert captures["debut"] <= captures["fin"]
+
+
+def _ingest_avec_rapport(
+    monkeypatch: pytest.MonkeyPatch, mutations: int
+) -> orchestration.RapportIngestion:
+    """Câble une ingestion CLI hors-ligne rendant un rapport à volumétrie choisie."""
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    rapport = orchestration.RapportIngestion(departement="31", millesime=2024)
+    rapport.communes_traitees = 1
+    rapport.mutations_inserees = mutations
+    monkeypatch.setattr(cli, "ingest_departement", lambda *a, **k: rapport)
+    monkeypatch.setattr(cli, "enregistrer_rapport_ingestion", lambda *a, **k: None, raising=False)
+    return rapport
+
+
+def test_l_ingest_alerte_sur_ecart_de_volumetrie(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """DAT-2 (#125) : un écart de volumétrie > ± 30 % vs le précédent alerte.
+
+    L'alerte est visible (message) mais **ne bloque pas** : le code de sortie reste
+    celui de l'ingestion (0 si elle a chargé quelque chose) — seule assertion DAT
+    non bloquante.
+    """
+    from valeur_verte_data.volumetrie import VerdictVolumetrie
+
+    _ingest_avec_rapport(monkeypatch, mutations=1450)
+    motif = "volumétrie en hausse de 45 % vs précédent (1000 → 1450)"
+    monkeypatch.setattr(
+        cli, "porte_dat2", lambda *a, **k: VerdictVolumetrie("31", 1450, 1000, True, (motif,))
+    )
+
+    code = cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    out = capsys.readouterr().out
+    assert "ALERTE" in out and "DAT-2" in out
+    assert motif in out
+    assert code == 0  # non bloquant : l'alerte ne change pas le code de sortie
+
+
+def test_l_ingest_sans_ecart_ne_signale_rien(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Volumétrie stable : aucune alerte DAT-2 dans la sortie."""
+    from valeur_verte_data.volumetrie import VerdictVolumetrie
+
+    _ingest_avec_rapport(monkeypatch, mutations=1000)
+    monkeypatch.setattr(
+        cli, "porte_dat2", lambda *a, **k: VerdictVolumetrie("31", 1000, 1000, False, ())
+    )
+
+    code = cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    assert "ALERTE" not in capsys.readouterr().out
+    assert code == 0
+
+
+def test_l_ingest_confronte_la_volumetrie_en_main_et_le_seuil_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La CLI passe à DAT-2 la volumétrie du rapport en main et le seuil config (/100).
+
+    Sans ça, la porte jugerait une volumétrie relue (couplage inutile) ou un seuil
+    en points de pourcentage au lieu d'une fraction.
+    """
+    from valeur_verte_data.volumetrie import VerdictVolumetrie
+
+    _ingest_avec_rapport(monkeypatch, mutations=1450)
+    captures: dict[str, Any] = {}
+
+    def _porte(conn: Any, dept: str, mil: int, vol: int, *, ecart_max: float) -> VerdictVolumetrie:
+        captures.update(dept=dept, mil=mil, vol=vol, ecart_max=ecart_max)
+        return VerdictVolumetrie(dept, vol, None, False, ())
+
+    monkeypatch.setattr(cli, "porte_dat2", _porte)
+
+    cli.main(["ingest", "--departement", "31", "--millesime", "2024"])
+
+    assert captures["vol"] == 1450  # la volumétrie en main, pas une relecture
+    assert captures["ecart_max"] == 0.30  # 30 % config → fraction
+    assert captures["dept"] == "31"
+    assert captures["mil"] == 2024
 
 
 def test_un_departement_entierement_en_echec_sort_en_erreur(
