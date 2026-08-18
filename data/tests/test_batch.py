@@ -15,6 +15,7 @@ from valeur_verte_data.batch import (
     compute_maille,
     compute_maille_departement,
     compute_maille_epci,
+    pool_hierarchique,
 )
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
@@ -959,3 +960,158 @@ def test_compute_maille_porte_les_ecarts_types_dpe() -> None:
     assert maille is not None
     assert set(maille.se_dpe) == set(maille.coef_dpe)
     assert all(math.isfinite(se) for se in maille.se_dpe.values())
+
+
+# ---------------------------------------------------------------------------
+# #249 — Pooling partiel hiérarchique (lot 3a). Tire les effets DPE de chaque
+# maille LOCAL vers la cible départementale (fit poolé μ), proportionnellement
+# à la précision (poids τ²/(τ²+SE²)). Régulariseur en amont de la cascade.
+# ---------------------------------------------------------------------------
+
+
+def _maille_locale(
+    code: str,
+    coef_dpe: dict[str, float],
+    se_dpe: dict[str, float],
+    *,
+    erreur: float | None = 20.0,
+) -> MailleCoefficient:
+    return MailleCoefficient(
+        code_insee=code,
+        millesime=2024,
+        mode=CoverageMode.LOCAL,
+        rayon_retenu_km=15,
+        n_transactions=50,
+        r2=0.5,
+        erreur_mediane=erreur,
+        coef_m2_bati=0.9,
+        coef_m2_terrain=0.05,
+        coef_dpe=coef_dpe,
+        ic_dpe={},
+        alerte=None,
+        palier=PalierFiabilite.STANDARD,
+        se_dpe=se_dpe,
+    )
+
+
+def _cible(coef_dpe: dict[str, float], bandes: dict[str, str] | None = None) -> MailleCoefficient:
+    return replace(
+        _maille_locale("00000", coef_dpe, {c: 0.0 for c in coef_dpe}),
+        mode=CoverageMode.DEPARTEMENTAL,
+        rayon_retenu_km=None,
+        bandes=bandes or {},
+    )
+
+
+def test_pool_hierarchique_pooling_complet_quand_homogene() -> None:
+    # Écarts entre communes uniquement dus au bruit (v=1, effets ±1) : τ̂²=0 →
+    # pooling complet, chaque maille sert l'effet départemental μ_F=0.
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 1.0}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 1.0}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["F"] == 0.0
+    assert pooles["B"].coef_dpe["F"] == 0.0
+
+
+def test_pool_hierarchique_shrinkage_partiel_quand_heterogene() -> None:
+    # Effets ±1 bien au-delà du bruit (v=0,25) : τ̂²=(8−2)/8=0,75 ⇒ w=0,75 ⇒
+    # A : 1,0 → μ + 0,75·(1−0) = 0,75 (tiré, pas effacé).
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["F"] == pytest.approx(0.75)
+
+
+def test_pool_hierarchique_sans_info_tire_entierement_vers_la_cible() -> None:
+    # Une maille dont la classe a SE=∞ (n ≤ p) est tirée entièrement vers μ_F=0.
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+        "C": _maille_locale("C", {"D": 0.0, "F": 0.5}, {"D": 0.0, "F": math.inf}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    assert pooles["C"].coef_dpe["F"] == 0.0
+
+
+def test_pool_hierarchique_ne_tire_jamais_la_reference() -> None:
+    # La classe de référence (D) est l'ancre : effet 0 conservé, jamais mélangé.
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["D"] == 0.0
+
+
+def test_pool_hierarchique_classe_sans_cible_reste_locale() -> None:
+    # Classe absente du fit poolé (ni directe ni via bande) : pas de cible → local gardé.
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "C": 0.10}, {"D": 0.0, "C": 0.1}),
+        "B": _maille_locale("B", {"D": 0.0, "C": 0.20}, {"D": 0.0, "C": 0.1}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["C"] == 0.10
+
+
+def test_pool_hierarchique_classe_dans_une_seule_maille_reste_locale() -> None:
+    # Une classe portée par une seule commune : τ² non estimable (None) → pas de
+    # shrinkage (rien à quoi se comparer).
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "G": 0.30}, {"D": 0.0, "G": 0.1}),
+        "B": _maille_locale("B", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.1}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0, "G": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["G"] == 0.30
+
+
+def test_pool_hierarchique_utilise_le_representant_de_bande() -> None:
+    # Classe G fusionnée en bande F côté départemental : la cible de G est l'effet de F.
+    # μ_G = 0,1 ; τ̂² = (20−2)/200 = 0,09 ; w = 0,9 ⇒ A : 0,1 + 0,9·(0,3−0,1) = 0,28.
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "G": 0.30}, {"D": 0.0, "G": 0.1}),
+        "B": _maille_locale("B", {"D": 0.0, "G": 0.50}, {"D": 0.0, "G": 0.1}),
+    }
+    cible = _cible({"D": 0.0, "F": 0.10}, bandes={"G": "F"})
+
+    pooles = pool_hierarchique(mailles, cible, reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["G"] == pytest.approx(0.28)
+
+
+def test_pool_hierarchique_cible_absente_ne_change_rien() -> None:
+    # Fit départemental refusé (None) : aucune régularisation, mailles inchangées.
+    mailles = {"A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5})}
+
+    pooles = pool_hierarchique(mailles, None, reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["F"] == 1.0
+
+
+def test_pool_hierarchique_recalcule_l_ic_sur_l_effet_shrinke() -> None:
+    # ic_dpe suit l'effet publié : après shrinkage à 0,75 avec erreur 20 %, l'IC vaut
+    # 0,75 ± 0,75·0,20 = (0,60 ; 0,90).
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    bas, haut = pooles["A"].ic_dpe["F"]
+    assert (round(bas, 6), round(haut, 6)) == (0.60, 0.90)
