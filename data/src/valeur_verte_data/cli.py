@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from .config import resolve_config
+from .dat2 import porte_dat2
 from .dat3 import porte_dat3
 from .db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
@@ -127,6 +128,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             enregistrer_rapport_ingestion(conn, ingestion, debut=debut, fin=datetime.now())
             conn.commit()
+            # DAT-2 (#125) : la volumétrie d'un département peut légitimement bouger,
+            # mais un écart de plus de ± 30 % vs le millésime précédent est le symptôme
+            # d'une source tronquée ou dédoublée. On ALERTE sans bloquer — seule
+            # assertion DAT non bloquante : le calcul reste autorisé, le code de sortie
+            # ne dépend que de l'ingestion elle-même.
+            verdict_volumetrie = porte_dat2(
+                conn,
+                arguments.departement,
+                arguments.millesime,
+                ingestion.mutations_inserees,
+                ecart_max=config.ecart_volumetrie_max_pct / 100,
+            )
+            if verdict_volumetrie.alerte:
+                motifs = " ; ".join(verdict_volumetrie.motifs)
+                logging.getLogger(__name__).warning(
+                    "Département %s : alerte volumétrie (DAT-2) — %s",
+                    arguments.departement,
+                    motifs,
+                )
+                print(
+                    f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                    f"ALERTE volumétrie (DAT-2) — {motifs}"
+                )
             rapport = ingestion
 
     print(rapport.resume())

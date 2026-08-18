@@ -102,6 +102,11 @@ class CalculConfig:
     # chute_appariement_max_pct points vs le millésime précédent, n'est pas calculé.
     taux_appariement_min_pct: float = 60.0
     chute_appariement_max_pct: float = 10.0
+    # Volumétrie par département (DAT-2, #125) : en fin d'ingestion, un département
+    # dont le nombre de ventes insérées s'écarte de plus de ecart_volumetrie_max_pct
+    # (± 30 %) vs le millésime précédent déclenche une **alerte**, jamais un blocage —
+    # DVF peut légitimement varier (seule assertion DAT non bloquante).
+    ecart_volumetrie_max_pct: float = 30.0
     r2_min: float = 0.30
     # INV-2 (#120), reformulé en log (le modèle sort des effets log/élasticités,
     # pas des €). Plafond de vraisemblance du gain E→C en log (≈ +100 %) et plage
@@ -172,6 +177,9 @@ def resolve_config(env: Mapping[str, str]) -> CalculConfig:
         ),
         chute_appariement_max_pct=_float(
             env, "CHUTE_APPARIEMENT_MAX_PCT", defaut.chute_appariement_max_pct
+        ),
+        ecart_volumetrie_max_pct=_float(
+            env, "ECART_VOLUMETRIE_MAX_PCT", defaut.ecart_volumetrie_max_pct
         ),
         r2_min=_float(env, "R2_MIN", defaut.r2_min),
         gain_dpe_ec_max=_float(env, "GAIN_DPE_EC_MAX", defaut.gain_dpe_ec_max),
