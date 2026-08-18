@@ -48,6 +48,7 @@ from .invariants import (
     evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
+from .multi_communes import filtrer_multi_communes
 from .ruptures import filtrer_regime_dpe
 from .schema_source import SchemaSourceError
 
@@ -291,12 +292,18 @@ def compute_departement(
     charge = len(pool)
     pool = filtrer_regime_dpe(pool, millesime, config.dpe_reform_boundaries)
     ecartes = charge - len(pool)
+    # Mutations multi-communes : leur prix (total de la vente) n'est pas attribuable à
+    # la surface d'une seule commune → prix/m² faussé, on les écarte de la régression.
+    avant_multi = len(pool)
+    pool = filtrer_multi_communes(pool)
+    multi = avant_multi - len(pool)
     logger.info(
-        "Pool du département %s (+ %s) : %d vente(s)%s",
+        "Pool du département %s (+ %s) : %d vente(s)%s%s",
         departement,
         ", ".join(voisins) if voisins else "aucun limitrophe",
         len(pool),
         f" ({ecartes} écartée(s) — régime DPE antérieur, #215)" if ecartes else "",
+        f" ({multi} écartée(s) — mutation multi-communes)" if multi else "",
     )
 
     coordonnees = [
