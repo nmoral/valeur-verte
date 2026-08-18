@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -61,6 +61,10 @@ class RegressionResult:
     coef_m2_terrain: float
     n: int
     r2: float
+    # Écart-type de chaque effet DPE (#249), mêmes classes que ``coef_dpe`` ; la
+    # référence D est l'ancre (effet 0, SE 0, jamais shrinkée). ``+∞`` si n ≤ p.
+    # Régresseur de précision du pooling hiérarchique : poids w = τ²/(τ²+SE²).
+    se_dpe: dict[str, float] = field(default_factory=dict)
 
 
 def gaussian_weight(distance_km: float, sigma_km: float = DEFAULT_SIGMA_KM) -> float:
@@ -173,6 +177,9 @@ class _Model:
     # Poids (gaussien × temporel #208) de chaque ligne d'apprentissage, mémorisés
     # ici pour que le R² les réutilise sans recalcul (source unique de la pondération).
     weights: NDArray[np.float64]
+    # Écart-type de chaque coefficient (#249) : √diag(σ̂²·(XᵀWX)⁻¹), aligné sur ``beta``.
+    # Sert le shrinkage hiérarchique (poids w = τ²/(τ²+SE²)). ``+∞`` si n ≤ p.
+    se: NDArray[np.float64]
 
 
 def _build_columns(rows: list[_Row], reference_dpe: str, *, avec_commune: bool = True) -> _Columns:
@@ -327,6 +334,31 @@ def _weights(
     return np.asarray(spatial * temporel, dtype=np.float64)
 
 
+def _erreurs_types(
+    design: NDArray[np.float64],
+    y: NDArray[np.float64],
+    weights: NDArray[np.float64],
+    beta: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Écart-type de chaque coefficient MCO pondéré (#249) : ``√diag(σ̂²·(XᵀWX)⁻¹)``.
+
+    ``σ̂² = RSS_pondéré / (n − p)`` (``p`` = nombre de colonnes du design). Sans degré de
+    liberté résiduel (``n ≤ p``), la variance est indéfinie → SE **``+∞``** : « aucune
+    information », que le shrinkage hiérarchique (#249) traduit en poids nul (la maille
+    est alors tirée entièrement vers le prior départemental). On inverse par ``pinv``
+    (pas ``inv``) pour rester robuste à une ``XᵀWX`` quasi-singulière — colinéarité
+    fréquente en petit échantillon rural.
+    """
+    n, p = design.shape
+    if n - p <= 0:
+        return np.full(p, np.inf, dtype=np.float64)
+    residus = y - design @ beta
+    variance_residuelle = float(np.sum(weights * residus**2)) / (n - p)
+    xtwx = design.T @ (weights[:, None] * design)
+    covariance = variance_residuelle * np.linalg.pinv(xtwx)
+    return np.asarray(np.sqrt(np.maximum(np.diag(covariance), 0.0)), dtype=np.float64)
+
+
 def _fit_model(
     rows: list[_Row],
     center_lat: float,
@@ -360,6 +392,7 @@ def _fit_model(
         etendue_minimale=etendue_minimale,
         avec_indice=avec_indice,
         weights=weights,
+        se=_erreurs_types(design, y, weights, beta),
     )
 
 
@@ -428,8 +461,12 @@ def fit(
     # commencent après, donc leur position dépend de la présence de l'indice.
     dpe_debut = 4 if indice_local else 3
     coef_dpe = {model.columns.reference_dpe: 0.0}
+    # #249 : SE par classe, alignée sur ``coef_dpe`` (mêmes positions de ``beta``). La
+    # référence D est l'ancre (effet 0, SE 0) — jamais shrinkée.
+    se_dpe = {model.columns.reference_dpe: 0.0}
     for offset, level in enumerate(model.columns.dpe):
         coef_dpe[level] = float(model.beta[dpe_debut + offset])
+        se_dpe[level] = float(model.se[dpe_debut + offset])
 
     predictions = np.log(_predict(model, rows))
     weighted_mean = float(np.sum(weights * y) / np.sum(weights))
@@ -443,4 +480,5 @@ def fit(
         coef_m2_terrain=float(model.beta[2]),
         n=n,
         r2=r2,
+        se_dpe=se_dpe,
     )

@@ -627,7 +627,13 @@ def _echantillon_bruite(n_par_classe: int, insee: str = "31555") -> list[Mutatio
             prix = round(base * (1 + 0.08 * ((i % 3) - 1)))
             maisons.append(
                 _house(
-                    classe, bati, terrain, prix, insee=insee, lat=43.6 + 0.01 * i, lon=1.44 + 0.008 * i
+                    classe,
+                    bati,
+                    terrain,
+                    prix,
+                    insee=insee,
+                    lat=43.6 + 0.01 * i,
+                    lon=1.44 + 0.008 * i,
                 )
             )
     return maisons
