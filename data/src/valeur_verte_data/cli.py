@@ -19,15 +19,17 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from .config import resolve_config
+from .controle_qualite import ecrire_controle_csv
 from .dat2 import porte_dat2
 from .dat3 import porte_dat3
 from .dat4 import porte_dat4
 from .dat5 import porte_dat5
+from .db.controle_repository import auditer
 from .db.rapport_batch_repository import (
     enregistrer_rapport_calcul,
     enregistrer_rapport_ingestion,
 )
-from .db.runner import resolve_dsn
+from .db.runner import Connection, resolve_dsn
 from .db.vente_repository import calculer_distribution
 from .ecarts import ecrire_ecarts_csv
 from .http import HttpFetcher
@@ -67,6 +69,17 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     epci.add_argument("--departement", required=True, help="Code département (ex. 52)")
 
+    audit = commandes.add_parser(
+        "audit", help="Contrôler la validité de data.vente (read-only, sans effet de bord)"
+    )
+    perimetre = audit.add_mutually_exclusive_group(required=True)
+    perimetre.add_argument("--departement", help="Auditer un seul département (ex. 31)")
+    perimetre.add_argument("--tous", action="store_true", help="Auditer toute la base")
+    audit.add_argument("--millesime", type=int, help="Restreindre à un millésime (optionnel)")
+    audit.add_argument(
+        "--rapport", help="Chemin d'un CSV où écrire le détail des anomalies (optionnel)"
+    )
+
     return analyseur.parse_args(argv)
 
 
@@ -87,6 +100,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             charges = charger_epci_departement(HttpFetcher(), conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} EPCI enregistré(s)")
             return 0
+        if arguments.commande == "audit":
+            return _auditer(conn, arguments)
         rapport: RapportIngestion | RapportCalcul
         if arguments.commande == "compute":
             # DAT-3 (#126) : un appariement DVF↔DPE effondré produirait des coefficients
@@ -233,6 +248,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     if rapport.echecs:
         print("Communes en échec : " + ", ".join(rapport.echecs))
     return 1 if rapport.est_en_echec else 0
+
+
+def _auditer(conn: Connection, arguments: argparse.Namespace) -> int:
+    """Scanne data.vente et rend le code de sortie (≠ 0 si anomalie).
+
+    ``--tous`` lève le filtre département (les doublons inter-départements ne sont
+    complets que sur un scan global). Les ALERTES sont affichées mais ne changent
+    pas le code de sortie — seules les ANOMALIES font échouer (cf. rapport.valide).
+    """
+    departement = None if arguments.tous else arguments.departement
+    rapport = auditer(conn, departement=departement, millesime=arguments.millesime)
+
+    print(rapport.resume())
+    for anomalie in rapport.anomalies:
+        print(
+            f"  [{anomalie.severite.value}] {anomalie.reference} — "
+            f"{anomalie.code} : {anomalie.message}"
+        )
+    if arguments.rapport:
+        with open(arguments.rapport, "w", encoding="utf-8", newline="") as fichier:
+            ecrire_controle_csv(rapport, fichier)
+        print(f"Rapport CSV : {arguments.rapport} ({len(rapport.anomalies)} anomalie(s))")
+
+    return 0 if rapport.valide else 1
 
 
 if __name__ == "__main__":  # pragma: no cover

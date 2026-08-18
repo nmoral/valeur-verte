@@ -22,9 +22,11 @@ un prédicat par ligne.
 
 from __future__ import annotations
 
+import csv
 from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import TextIO
 
 # Échelle DPE valide (§9). Une étiquette hors de cet ensemble est suspecte.
 _ECHELLE_DPE = "ABCDEFG"
@@ -197,6 +199,16 @@ def construire_rapport(anomalies: Iterable[Anomalie], *, lignes_controlees: int)
         sorted(anomalies, key=lambda a: (_ORDRE_SEVERITE[a.severite], a.reference, a.code))
     )
     return RapportControle(anomalies=triees, lignes_controlees=lignes_controlees)
+
+
+def ecrire_controle_csv(rapport: RapportControle, fichier: TextIO) -> None:
+    """Écrit le détail des anomalies en CSV (une ligne par anomalie, en-tête inclus)."""
+    writer = csv.writer(fichier)
+    writer.writerow(["severite", "code", "reference", "message"])
+    for anomalie in rapport.anomalies:
+        writer.writerow(
+            [anomalie.severite.value, anomalie.code, anomalie.reference, anomalie.message]
+        )
 
 
 def _controler_montants(ligne: LigneVente, config: ControleConfig, signaler: _Signaler) -> None:
