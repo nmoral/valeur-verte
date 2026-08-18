@@ -1,0 +1,408 @@
+"""Contrôle de validité de ``data.vente`` — cœur pur (audit read-only).
+
+L'audit **constate** des anomalies sur les ventes déjà ingérées ; il ne filtre ni
+ne corrige (la base brute S12 est volontaire). Ces tests fixent l'API du module
+pur : un prédicat par ligne (``controler_ligne``), la détection de doublons
+(``detecter_doublons``, intrinsèquement cross-lignes) et l'agrégation en rapport
+(``construire_rapport``) avec verdict et code de sortie. Tout est hors-ligne :
+aucune connexion, la couche DB n'est qu'un pourvoyeur de lignes.
+
+Deux sévérités : ``ANOMALIE`` (incohérent, casse le modèle — prix ≤ 0, doublon)
+et ``ALERTE`` (suspect mais possiblement légitime — valeur absurde, hors bbox).
+"""
+
+from __future__ import annotations
+
+import io
+
+from valeur_verte_data.controle_qualite import (
+    Anomalie,
+    ControleConfig,
+    LigneVente,
+    RapportControle,
+    Severite,
+    construire_rapport,
+    controler_ligne,
+    departements_de,
+    detecter_doublons,
+    ecrire_controle_csv,
+)
+
+
+def _ligne(**overrides: object) -> LigneVente:
+    """Ligne saine par défaut ; surcharger un champ pour cibler un contrôle."""
+    defaut: dict[str, object] = {
+        "id": 1,
+        "id_mutation": "2024-000001",
+        "millesime": 2024,
+        "code_insee": "31555",
+        "date_mutation": "2024-05-01",
+        "prix": 250_000.0,
+        "surface_bati": 100.0,
+        "surface_terrain": 400.0,
+        "prix_m2": 2_500.0,  # = prix / surface_bati (cohérent)
+        "etiquette_dpe": "D",
+        "longitude": 1.44,
+        "latitude": 43.6,
+        "a_geom": True,
+    }
+    defaut.update(overrides)
+    return LigneVente(**defaut)  # type: ignore[arg-type]
+
+
+def _codes(anomalies: tuple[Anomalie, ...]) -> set[str]:
+    return {anomalie.code for anomalie in anomalies}
+
+
+def _severite(anomalies: tuple[Anomalie, ...], code: str) -> Severite:
+    """Sévérité de l'anomalie portant ``code`` (KeyError implicite si absente)."""
+    return next(a.severite for a in anomalies if a.code == code)
+
+
+# --- Ligne saine ------------------------------------------------------------
+
+
+def test_ligne_saine_aucune_anomalie() -> None:
+    assert controler_ligne(_ligne()) == ()
+
+
+# --- Cohérence intra-mutation ----------------------------------------------
+
+
+def test_prix_nul_ou_negatif_est_une_anomalie() -> None:
+    for prix in (0.0, -1.0, None):
+        anomalies = controler_ligne(_ligne(prix=prix, prix_m2=None))
+        fautives = [a for a in anomalies if a.code == "prix_non_positif"]
+        assert fautives
+        assert all(a.severite is Severite.ANOMALIE for a in fautives)
+
+
+def test_surface_bati_nulle_ou_negative_est_une_anomalie() -> None:
+    for bati in (0.0, -10.0, None):
+        codes = _codes(controler_ligne(_ligne(surface_bati=bati, prix_m2=None)))
+        assert "bati_non_positif" in codes
+
+
+def test_prix_m2_incoherent_avec_prix_sur_bati_est_une_alerte() -> None:
+    # prix/bati = 2500 ; prix_m2 annoncé à 4000 → écart ~60 % > tolérance.
+    anomalies = controler_ligne(_ligne(prix_m2=4_000.0))
+    incoherences = [a for a in anomalies if a.code == "prix_m2_incoherent"]
+    assert len(incoherences) == 1
+    assert incoherences[0].severite is Severite.ALERTE
+
+
+def test_prix_m2_dans_la_tolerance_ne_declenche_rien() -> None:
+    # 2550 vs 2500 attendu = 2 % < tolérance par défaut (5 %).
+    assert _codes(controler_ligne(_ligne(prix_m2=2_550.0))) == set()
+
+
+def test_prix_m2_absent_ne_declenche_pas_l_incoherence() -> None:
+    assert "prix_m2_incoherent" not in _codes(controler_ligne(_ligne(prix_m2=None)))
+
+
+def test_prix_nul_avec_prix_m2_ne_provoque_pas_de_division() -> None:
+    # Le garde ``prix > 0`` protège le contrôle de cohérence d'une division par zéro
+    # (prix / bâti) : à prix nul, on signale prix_non_positif et on n'évalue pas prix_m2.
+    codes = _codes(controler_ligne(_ligne(prix=0.0, prix_m2=2_500.0)))
+    assert "prix_non_positif" in codes
+    assert "prix_m2_incoherent" not in codes
+
+
+# --- Tailles bâti / terrain -------------------------------------------------
+
+
+def test_terrain_negatif_est_une_anomalie() -> None:
+    codes = _codes(controler_ligne(_ligne(surface_terrain=-5.0)))
+    assert "terrain_negatif" in codes
+
+
+def test_terrain_absent_ou_nul_est_legitime() -> None:
+    for terrain in (0.0, None):
+        assert _codes(controler_ligne(_ligne(surface_terrain=terrain))) == set()
+
+
+def test_bati_au_dela_du_plafond_absurde_est_une_alerte() -> None:
+    anomalie = controler_ligne(_ligne(surface_bati=5_000.0, prix_m2=None))
+    absurdes = [a for a in anomalie if a.code == "bati_absurde"]
+    assert len(absurdes) == 1
+    assert absurdes[0].severite is Severite.ALERTE
+
+
+def test_terrain_au_dela_du_plafond_absurde_est_une_alerte() -> None:
+    codes = _codes(controler_ligne(_ligne(surface_terrain=2_000_000.0)))
+    assert "terrain_absurde" in codes
+
+
+# --- Géo & référentiel ------------------------------------------------------
+
+
+def test_coordonnees_presentes_sans_geom_est_une_anomalie() -> None:
+    codes = _codes(controler_ligne(_ligne(a_geom=False)))
+    assert "geom_manquant" in codes
+
+
+def test_geom_present_sans_coordonnees_est_une_anomalie() -> None:
+    codes = _codes(controler_ligne(_ligne(longitude=None, latitude=None, a_geom=True)))
+    assert "coordonnees_manquantes" in codes
+
+
+def test_ni_geom_ni_coordonnees_ne_declenche_rien() -> None:
+    # Une vente non géolocalisée est légitime (elle sort du calcul, pas polluante).
+    assert _codes(controler_ligne(_ligne(longitude=None, latitude=None, a_geom=False))) == set()
+
+
+def test_coordonnees_hors_bbox_metropole_est_une_alerte() -> None:
+    anomalies = controler_ligne(_ligne(longitude=55.5, latitude=-21.1))  # La Réunion
+    hors = [a for a in anomalies if a.code == "hors_bbox"]
+    assert len(hors) == 1
+    assert hors[0].severite is Severite.ALERTE
+
+
+def test_bbox_signale_quand_une_seule_coordonnee_sort() -> None:
+    # Longitude hors plage mais latitude valide (et l'inverse) : les deux axes
+    # doivent être dans la bbox, pas seulement l'un des deux.
+    assert "hors_bbox" in _codes(controler_ligne(_ligne(longitude=55.0, latitude=45.0)))
+    assert "hors_bbox" in _codes(controler_ligne(_ligne(longitude=2.0, latitude=60.0)))
+
+
+def test_etiquette_dpe_invalide_est_une_alerte() -> None:
+    codes = _codes(controler_ligne(_ligne(etiquette_dpe="Z")))
+    assert "dpe_invalide" in codes
+
+
+def test_etiquette_dpe_valide_ou_absente_ne_declenche_rien() -> None:
+    for dpe in ("A", "G", None):
+        assert "dpe_invalide" not in _codes(controler_ligne(_ligne(etiquette_dpe=dpe)))
+
+
+def test_commune_orpheline_dans_un_departement_couvert_est_une_alerte() -> None:
+    # Le dept 31 est couvert (31555 au référentiel) ; 31999 en est absent → orphelin.
+    codes = _codes(
+        controler_ligne(
+            _ligne(code_insee="31999"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
+    )
+    assert "commune_orpheline" in codes
+
+
+def test_orphelin_muet_si_departement_absent_du_referentiel() -> None:
+    # Le référentiel ne couvre que le 31 : une vente du 09 ne peut être jugée
+    # orpheline (le référentiel n'est simplement pas chargé pour ce département) —
+    # sinon 100 % des ventes d'un dept non chargé seraient signalées à tort.
+    codes = _codes(
+        controler_ligne(
+            _ligne(code_insee="09999"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
+    )
+    assert "commune_orpheline" not in codes
+
+
+def test_commune_connue_ne_declenche_rien() -> None:
+    assert "commune_orpheline" not in _codes(
+        controler_ligne(
+            _ligne(code_insee="31555"),
+            communes_connues={"31555"},
+            departements_references={"31"},
+        )
+    )
+
+
+def test_referentiel_absent_n_evalue_pas_l_orphelinage() -> None:
+    # Sans référentiel fourni, on ne peut pas juger l'appartenance : contrôle muet.
+    assert "commune_orpheline" not in _codes(controler_ligne(_ligne(code_insee="99999")))
+
+
+def test_departements_de_derive_les_prefixes_insee() -> None:
+    # Le département couvert se dérive du préfixe INSEE (Corse comprise : 2A/2B).
+    assert departements_de({"31555", "31149", "09122", "2A004"}) == {"31", "09", "2A"}
+
+
+def test_annee_de_date_mutation_differente_du_millesime_est_une_alerte() -> None:
+    codes = _codes(controler_ligne(_ligne(date_mutation="2019-03-02", millesime=2024)))
+    assert "millesime_incoherent" in codes
+
+
+def test_chaque_controle_porte_la_bonne_severite() -> None:
+    # La sévérité classe l'anomalie (ANOMALIE ⇒ verdict en échec) : elle fait partie
+    # du comportement, pas de la présentation.
+    assert _severite(controler_ligne(_ligne(a_geom=False)), "geom_manquant") is Severite.ANOMALIE
+    sans_coords = controler_ligne(_ligne(longitude=None, latitude=None, a_geom=True))
+    assert _severite(sans_coords, "coordonnees_manquantes") is Severite.ANOMALIE
+    assert (
+        _severite(controler_ligne(_ligne(surface_terrain=-5.0)), "terrain_negatif")
+        is Severite.ANOMALIE
+    )
+    assert (
+        _severite(controler_ligne(_ligne(longitude=55.5, latitude=-21.1)), "hors_bbox")
+        is Severite.ALERTE
+    )
+    assert _severite(controler_ligne(_ligne(etiquette_dpe="Z")), "dpe_invalide") is Severite.ALERTE
+    incoherent = controler_ligne(_ligne(date_mutation="2019-03-02", millesime=2024))
+    assert _severite(incoherent, "millesime_incoherent") is Severite.ALERTE
+    orpheline = controler_ligne(
+        _ligne(code_insee="31999"), communes_connues={"31555"}, departements_references={"31"}
+    )
+    assert _severite(orpheline, "commune_orpheline") is Severite.ALERTE
+    assert (
+        _severite(controler_ligne(_ligne(surface_bati=5_000.0, prix_m2=None)), "bati_absurde")
+        is Severite.ALERTE
+    )
+    assert (
+        _severite(controler_ligne(_ligne(surface_terrain=2_000_000.0)), "terrain_absurde")
+        is Severite.ALERTE
+    )
+
+
+# --- Configuration des seuils ----------------------------------------------
+
+
+def test_les_plafonds_de_vraisemblance_sont_configurables() -> None:
+    stricte = ControleConfig(bati_max_absurde=90.0)
+    assert "bati_absurde" in _codes(controler_ligne(_ligne(surface_bati=100.0), config=stricte))
+
+
+# --- Doublons (cross-lignes) ------------------------------------------------
+
+
+def test_mutation_unique_ne_produit_aucun_doublon() -> None:
+    assert detecter_doublons([_ligne(id=1), _ligne(id=2, id_mutation="2024-000002")]) == ()
+
+
+def test_id_mutation_repete_a_l_identique_est_un_doublon_strict() -> None:
+    # Même commune, valeurs identiques : ré-ingestion sans purge → vraie pollution.
+    doublons = detecter_doublons([_ligne(id=1), _ligne(id=2)])
+    assert len(doublons) == 1
+    assert doublons[0].code == "doublon"
+    assert doublons[0].severite is Severite.ANOMALIE
+
+
+def test_meme_mutation_sur_deux_communes_est_legitime() -> None:
+    # Une vente qui chevauche deux communes : autant de communes distinctes que de
+    # lignes. Chaque commune porte sa **part** (surfaces propres), donc le critère
+    # est le nombre de communes, pas l'égalité des valeurs → structure DVF normale.
+    doublons = detecter_doublons(
+        [
+            _ligne(id=1, code_insee="09105", surface_bati=154.0, surface_terrain=682.0),
+            _ligne(id=2, code_insee="09301", surface_bati=204.0, surface_terrain=1572.0),
+        ]
+    )
+    assert len(doublons) == 1
+    assert doublons[0].code == "mutation_multi_communes"
+    assert doublons[0].severite is Severite.ALERTE
+
+
+def test_commune_repetee_dans_un_groupe_est_une_anomalie() -> None:
+    # Trois lignes, deux communes : une commune est dupliquée (moins de communes que
+    # de lignes) → vraie pollution, pas une simple répartition multi-communes.
+    doublons = detecter_doublons(
+        [
+            _ligne(id=1, code_insee="09105"),
+            _ligne(id=2, code_insee="09105"),
+            _ligne(id=3, code_insee="09301"),
+        ]
+    )
+    assert len(doublons) == 1
+    assert doublons[0].severite is Severite.ANOMALIE
+
+
+def test_doublon_aux_valeurs_divergentes_est_une_anomalie() -> None:
+    # Même commune mais valeurs métier incohérentes (prix) : vraie anomalie.
+    doublons = detecter_doublons([_ligne(id=1, prix=250_000.0), _ligne(id=2, prix=300_000.0)])
+    assert len(doublons) == 1
+    assert doublons[0].code == "doublon_divergent"
+    assert doublons[0].severite is Severite.ANOMALIE
+
+
+def test_meme_id_mutation_sur_millesimes_distincts_n_est_pas_un_doublon() -> None:
+    # La clé de doublon est (id_mutation, millesime) : deux millésimes ⇒ deux ventes.
+    lignes = [_ligne(id=1, millesime=2023), _ligne(id=2, millesime=2024)]
+    assert detecter_doublons(lignes) == ()
+
+
+def test_doublons_tries_de_maniere_deterministe() -> None:
+    lignes = [
+        _ligne(id=1, id_mutation="2024-000002"),
+        _ligne(id=2, id_mutation="2024-000002"),
+        _ligne(id=3, id_mutation="2024-000001"),
+        _ligne(id=4, id_mutation="2024-000001"),
+    ]
+    refs = [a.reference for a in detecter_doublons(lignes)]
+    assert refs == sorted(refs)
+
+
+# --- Agrégation en rapport --------------------------------------------------
+
+
+def _anomalie(code: str, severite: Severite, reference: str = "vente#1") -> Anomalie:
+    return Anomalie(code=code, severite=severite, message=code, reference=reference)
+
+
+def test_rapport_compte_anomalies_et_alertes() -> None:
+    anomalies = (
+        _anomalie("prix_non_positif", Severite.ANOMALIE),
+        _anomalie("hors_bbox", Severite.ALERTE),
+        _anomalie("dpe_invalide", Severite.ALERTE),
+    )
+    rapport = construire_rapport(anomalies, lignes_controlees=10)
+    assert rapport.n_anomalies == 1
+    assert rapport.n_alertes == 2
+    assert rapport.lignes_controlees == 10
+
+
+def test_rapport_valide_ssi_aucune_anomalie() -> None:
+    sain = construire_rapport((_anomalie("hors_bbox", Severite.ALERTE),), lignes_controlees=1)
+    pollue = construire_rapport((_anomalie("doublon", Severite.ANOMALIE),), lignes_controlees=1)
+    assert sain.valide is True  # les alertes ne font pas échouer
+    assert pollue.valide is False
+
+
+def test_rapport_ordonne_les_anomalies_avant_les_alertes() -> None:
+    entree = (
+        _anomalie("hors_bbox", Severite.ALERTE, "vente#9"),
+        _anomalie("doublon", Severite.ANOMALIE, "vente#5"),
+    )
+    rapport = construire_rapport(entree, lignes_controlees=2)
+    assert rapport.anomalies[0].severite is Severite.ANOMALIE
+    assert rapport.anomalies[1].severite is Severite.ALERTE
+
+
+def test_resume_mentionne_les_compteurs() -> None:
+    rapport = construire_rapport((_anomalie("doublon", Severite.ANOMALIE),), lignes_controlees=42)
+    resume = rapport.resume()
+    assert "42" in resume
+    assert "1" in resume
+
+
+def test_rapport_est_un_dataclass_gele() -> None:
+    rapport = construire_rapport((), lignes_controlees=0)
+    assert isinstance(rapport, RapportControle)
+    assert rapport.valide is True
+
+
+# --- Export CSV -------------------------------------------------------------
+
+
+def test_csv_porte_un_entete_et_une_ligne_par_anomalie() -> None:
+    rapport = construire_rapport(
+        (
+            _anomalie("prix_non_positif", Severite.ANOMALIE),
+            _anomalie("hors_bbox", Severite.ALERTE),
+        ),
+        lignes_controlees=5,
+    )
+    tampon = io.StringIO()
+    ecrire_controle_csv(rapport, tampon)
+    lignes = tampon.getvalue().splitlines()
+    assert lignes[0] == "severite,code,reference,message"
+    assert len(lignes) == 3  # en-tête + 2 anomalies
+    assert "prix_non_positif" in lignes[1]
+
+
+def test_csv_vide_ne_porte_que_l_entete() -> None:
+    tampon = io.StringIO()
+    ecrire_controle_csv(construire_rapport((), lignes_controlees=0), tampon)
+    assert tampon.getvalue().splitlines() == ["severite,code,reference,message"]
