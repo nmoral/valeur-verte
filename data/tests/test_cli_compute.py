@@ -410,6 +410,7 @@ def test_le_compute_archive_le_rapport_de_batch(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
     monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)  # DAT-3 ne barre pas ici
+    monkeypatch.setattr(cli, "porte_dat4", lambda *a, **k: None)  # DAT-4 non plus
     rapport = orchestration.RapportCalcul(departement="31", millesime=2024)
     rapport.communes_calculees = 5
     monkeypatch.setattr(cli, "compute_departement", lambda *a, **k: rapport)
@@ -457,6 +458,7 @@ def test_compute_non_bloque_par_dat3_calcule_normalement(monkeypatch: pytest.Mon
     monkeypatch.setenv("DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
     monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)  # rien à barrer
+    monkeypatch.setattr(cli, "porte_dat4", lambda *a, **k: None)  # rien à barrer non plus
     rapport = orchestration.RapportCalcul(departement="31", millesime=2025)
     rapport.communes_calculees = 5
     appels: list[int] = []
@@ -472,6 +474,67 @@ def test_compute_non_bloque_par_dat3_calcule_normalement(monkeypatch: pytest.Mon
 
     assert appels == [1]  # le calcul a bien tourné
     assert code == 0
+
+
+def test_compute_bloque_par_dat4_plausibilite_ne_calcule_pas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DAT-4 (#127) : une distribution implausible (médiane cassée) bloque le calcul."""
+    import psycopg
+
+    from valeur_verte_data.distributions import VerdictDistribution
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)  # DAT-3 laisse passer
+    monkeypatch.setattr(
+        cli,
+        "porte_dat4",
+        lambda *a, **k: VerdictDistribution(
+            "31", True, ("prix médian 1500 € hors fourchette",), False, ()
+        ),
+    )
+    appels: list[int] = []
+    monkeypatch.setattr(cli, "compute_departement", lambda *a, **k: appels.append(1))
+
+    code = cli.main(["compute", "--departement", "31", "--millesime", "2025"])
+
+    assert appels == []  # le calcul n'a pas tourné
+    assert code == 1
+
+
+def test_compute_alerte_dat4_dpe_calcule_quand_meme(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """DAT-4 (#127) : un déplacement de la répartition DPE alerte mais ne bloque pas."""
+    import psycopg
+
+    from valeur_verte_data.distributions import VerdictDistribution
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **k: _ConnexionContexte())
+    monkeypatch.setattr(cli, "porte_dat3", lambda *a, **k: None)
+    motif = "répartition DPE : classe D déplacée de 60 pts vs précédent (20% → 80%)"
+    monkeypatch.setattr(
+        cli, "porte_dat4", lambda *a, **k: VerdictDistribution("31", False, (), True, (motif,))
+    )
+    rapport = orchestration.RapportCalcul(departement="31", millesime=2025)
+    rapport.communes_calculees = 5
+    appels: list[int] = []
+
+    def _compute(*a: Any, **k: Any) -> orchestration.RapportCalcul:
+        appels.append(1)
+        return rapport
+
+    monkeypatch.setattr(cli, "compute_departement", _compute)
+    monkeypatch.setattr(cli, "enregistrer_rapport_calcul", lambda *a, **k: None, raising=False)
+
+    code = cli.main(["compute", "--departement", "31", "--millesime", "2025"])
+
+    assert appels == [1]  # le calcul a bien tourné malgré l'alerte
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "ALERTE" in out and "DAT-4" in out and motif in out
 
 
 def test_une_commune_devenue_non_calculable_perd_son_coefficient(
