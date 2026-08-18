@@ -66,18 +66,14 @@ def test_distribution_absente_rend_none_sans_lire_le_precedent(
     # ne lit même pas le précédent.
     monkeypatch.setattr(dat4, "lire_distribution", lambda *a: None)
     appels: list[int] = []
-    monkeypatch.setattr(
-        dat4, "lire_distribution_dpe_precedent", lambda *a: appels.append(1)
-    )
+    monkeypatch.setattr(dat4, "lire_distribution_dpe_precedent", lambda *a: appels.append(1))
     assert dat4.porte_dat4(object(), "31", 2025, **_BORNES) is None
     assert appels == []
 
 
 def test_departement_sans_vente_rend_none(monkeypatch: pytest.MonkeyPatch) -> None:
     # Distribution archivée mais effectif nul : aucune médiane, rien à juger.
-    monkeypatch.setattr(
-        dat4, "lire_distribution", lambda *a: Distribution(None, None, 0, 0, {})
-    )
+    monkeypatch.setattr(dat4, "lire_distribution", lambda *a: Distribution(None, None, 0, 0, {}))
     assert dat4.porte_dat4(object(), "31", 2025, **_BORNES) is None
 
 
