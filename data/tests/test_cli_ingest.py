@@ -385,7 +385,9 @@ def test_l_ingest_attache_la_date_et_passe_reference_et_seuil(
     rapport = _ingest_avec_rapport(monkeypatch, mutations=1000)
     captures: dict[str, Any] = {}
 
-    def _porte(conn: Any, dept: str, mil: int, reference: Any, *, max_mois: int) -> VerdictFraicheur:
+    def _porte(
+        conn: Any, dept: str, mil: int, reference: Any, *, max_mois: int
+    ) -> VerdictFraicheur:
         captures.update(reference=reference, max_mois=max_mois)
         return VerdictFraicheur(dept, date(2025, 12, 1), False, ())
 
