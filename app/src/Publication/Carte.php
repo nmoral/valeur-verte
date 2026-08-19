@@ -27,7 +27,7 @@ final readonly class Carte
     }
 
     /**
-     * @return array{w: int, h: int, feats: list<array{dept: string, nom: string, path: string, m: array{n: int, gain: ?int, gainED: ?int, dept: int}|null}>}
+     * @return array{w: int, h: int, feats: list<array{dept: string, nom: string, path: string, m: array{n: int, gain: ?int, gainCB: ?int, dept: int}|null}>}
      */
     public function donnees(): array
     {
@@ -43,7 +43,7 @@ final readonly class Carte
                 'm' => null === $metrique ? null : [
                     'n' => $metrique->zones,
                     'gain' => $metrique->gainEc,
-                    'gainED' => $metrique->gainEd,
+                    'gainCB' => $metrique->gainCb,
                     'dept' => $metrique->partDepartementale,
                 ],
             ];

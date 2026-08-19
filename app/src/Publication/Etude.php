@@ -11,7 +11,7 @@ namespace App\Publication;
 final readonly class Etude
 {
     /**
-     * @param array{w: int, h: int, feats: list<array{dept: string, nom: string, path: string, m: array{n: int, gain: ?int, gainED: ?int, dept: int}|null}>} $carte
+     * @param array{w: int, h: int, feats: list<array{dept: string, nom: string, path: string, m: array{n: int, gain: ?int, gainCB: ?int, dept: int}|null}>} $carte
      */
     public function __construct(
         public int $millesime,
@@ -21,7 +21,8 @@ final readonly class Etude
         public int $departementsCouverts,
         public int $communesReferencees,
         public ?int $medianeGainEc,
-        public ?int $medianeGainEd,
+        public ?int $medianeGainCb,
+        public int $departementsOuBMesure,
         public array $carte,
         public Constats $constats,
         public int $departementsAbsents,

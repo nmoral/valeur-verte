@@ -9,27 +9,27 @@ const TEAL="#0f6e6e",AMBER="#d99a2b",CLAY="#b8442f",PALE="#e8f1f0";
 function scaleBad(t){t=Math.max(0,Math.min(1,t));return t<.5?mix(TEAL,AMBER,t*2):mix(AMBER,CLAY,(t-.5)*2)}
 function scaleSeq(t){t=Math.max(0,Math.min(1,t));return mix(PALE,TEAL,t)}
 
-const MED_EC = MD.med.ec, MED_ED = MD.med.ed;
+const MED_EC = MD.med.ec, MED_CB = MD.med.cb;
+const cumulEB=m=>Math.round(((1+m.gain/100)*(1+m.gainCB/100)-1)*100);
 
 const METRICS={
- delta:{dom:[0,21],bad:false,get:m=>m&&m.gain!=null&&m.gainED!=null?m.gain-m.gainED:null,
-   fmt:v=>(v>0?"+":"")+v+" pts",lo:"0 pt",hi:"21 pts",
-   titleHi:"Là où s'arrêter à D coûte le plus cher",
-   titleLo:"Là où le palier C change le moins",
-   noteHi:"Points de valeur perdus en s'arrêtant à la classe D plutôt que d'atteindre C.",
-   noteLo:"Départements où D et C se valorisent presque pareil."},
  gain:{dom:[5,36],bad:false,get:m=>m?m.gain:null,fmt:v=>(v>0?"+":"")+v+" %",
    lo:"+5 %",hi:"+36 %",
-   titleHi:"Le premium le plus élevé",titleLo:"Le premium le plus faible",
+   titleHi:"Où atteindre C rapporte le plus",titleLo:"Où atteindre C rapporte le moins",
    noteHi:"Départements où la rénovation de E vers C ajoute le plus de valeur.",
    noteLo:"Départements où l'étiquette pèse le moins sur le prix."},
+ cb:{dom:[0,15],bad:false,get:m=>m&&m.gainCB!=null?m.gainCB:null,fmt:v=>(v>0?"+":"")+v+" %",
+   lo:"+0 %",hi:"+15 %",
+   titleHi:"Où le cran vers B rapporte le plus",titleLo:"Où le cran vers B rapporte le moins",
+   noteHi:"Supplément de valeur du dernier cran, de C à B, là où assez de maisons l'atteignent.",
+   noteLo:"Départements où passer de C à B n'ajoute presque rien de plus que C."},
  solid:{dom:[0,60],bad:true,get:m=>m?m.dept:null,fmt:v=>v+" %",
    lo:"mesure fine",hi:"mesure large",
    titleHi:"Où la mesure est la plus large",titleLo:"Où la mesure est la plus fine",
    noteHi:"Part des zones estimées à l'échelle du département faute de ventes proches.",
    noteLo:"Départements où presque tout est mesuré localement."}
 };
-let cur="delta", desc=true;
+let cur="gain", desc=true;
 
 const svg=document.getElementById("map"),tip=document.getElementById("tip");
 const paths={};
@@ -63,20 +63,28 @@ function paint(){
    `<span class="rn">${f.nom} <small>${f.m.n} zones</small></span>`+
    `<span class="rvv">${M.fmt(v)}</span></li>`}).join("")}
 
-function steps(ed,ec){
- const mx=Math.max(ec,1),h=v=>Math.round(6+34*v/mx);
+function steps(ec,eb){
+ const mx=Math.max(eb,1),h=v=>Math.round(6+34*v/mx);
  return `<div class="steps">
-  <div class="st"><i style="height:${h(ed)}px"></i><b>+${ed} %</b><u>vers D</u></div>
-  <div class="st"><i class="hi" style="height:${h(ec)}px"></i><b>+${ec} %</b><u>vers C</u></div>
+  <div class="st"><i style="height:${h(ec)}px"></i><b>+${ec} %</b><u>de E à C</u></div>
+  <div class="st"><i class="hi" style="height:${h(eb)}px"></i><b>+${eb} %</b><u>jusqu'à B</u></div>
  </div>`}
 
 function showTip(e,f){
  const m=f.m;tip.hidden=false;
- tip.innerHTML=`<h3>${f.nom}<span>${f.dept}</span></h3>`+(m&&m.gain!=null&&m.gainED!=null?
-  steps(m.gainED,m.gain)+
-  `<div class="row"><span>écart entre les deux</span><b>${m.gain-m.gainED>0?"+":""}${m.gain-m.gainED} pts</b></div>
-   <div class="row" style="border-top:0;margin-top:0;padding-top:2px"><span>zones mesurées</span><b>${m.n}</b></div>`
-  :`<div class="row" style="border-top:0"><span>Hors périmètre</span><b>—</b></div>`);
+ let body;
+ if(m&&m.gain!=null&&m.gainCB!=null){
+  body=steps(m.gain,cumulEB(m))+
+   `<div class="row"><span>le cran de plus, C→B</span><b>+${m.gainCB} %</b></div>
+    <div class="row" style="border-top:0;margin-top:0;padding-top:2px"><span>zones mesurées</span><b>${m.n}</b></div>`;
+ }else if(m&&m.gain!=null){
+  body=`<div class="row" style="border-top:0"><span>de E à C</span><b>+${m.gain} %</b></div>
+    <div class="row"><span>cran vers B</span><b>non mesuré ici</b></div>
+    <div class="row"><span>zones mesurées</span><b>${m.n}</b></div>`;
+ }else{
+  body=`<div class="row" style="border-top:0"><span>Hors périmètre</span><b>—</b></div>`;
+ }
+ tip.innerHTML=`<h3>${f.nom}<span>${f.dept}</span></h3>`+body;
  const r=svg.getBoundingClientRect();
  let x=e.clientX-r.left+14,y=e.clientY-r.top+14;
  if(x>r.width-228)x=e.clientX-r.left-tip.offsetWidth-14;
@@ -88,20 +96,20 @@ document.getElementById("seg").addEventListener("click",e=>{
  [...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));paint()});
 document.getElementById("flip").addEventListener("click",()=>{desc=!desc;paint()});
 
-const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 document.getElementById("q").addEventListener("input",e=>{
  const q=norm(e.target.value.trim()),box=document.getElementById("qres");
  if(q.length<2){box.hidden=true;return}
  const f=F.find(x=>x.m&&(x.dept===q||norm(x.nom).startsWith(q)));
  box.hidden=false;
  if(!f){box.innerHTML=`<div class="qn">Aucun résultat</div><div class="qm" style="border-top:0">Département non couvert, ou orthographe différente.</div>`;return}
- const ec=f.m.gain,ed=f.m.gainED,d=ec-ed;
+ const ec=f.m.gain,cb=f.m.gainCB;
  box.innerHTML=`<div class="qn">${f.nom}<span>${f.dept}</span></div>`+
   `<div class="qsteps">
-     <div class="qs"><b>+${ed} %</b><u>vers D</u></div>
-     <div class="qs"><b>+${ec} %</b><u>vers C</u></div>
+     <div class="qs"><b>+${ec} %</b><u>de E à C</u></div>
+     <div class="qs"><b>${cb!=null?"+"+cb+" %":"—"}</b><u>cran vers B</u></div>
    </div>`+
-  `<div class="qm">Aller jusqu'à C rapporte ${d} points de plus · médiane nationale ${MED_ED} % et ${MED_EC} %</div>`});
+  `<div class="qm">${cb!=null?`Le cran vers B n'ajoute que ${cb} points de plus`:`Le niveau B n'est pas mesurable ici`} · médiane nationale E→C ${MED_EC} %${MED_CB!=null?", C→B "+MED_CB+" %":""}</div>`});
 
 
 paint();

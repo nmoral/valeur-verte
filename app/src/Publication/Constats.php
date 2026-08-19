@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Publication;
 
 /**
- * Les constats chiffrés de la page publique (#48/#224), dérivés des métriques
+ * Les classements chiffrés de la page publique (#48/#224), dérivés des métriques
  * départementales du millésime publié — plus aucun département ni pourcentage
  * figé dans le gabarit.
  *
- * Les classements citent les départements extrêmes, groupés par valeur égale, en
- * accumulant les paliers jusqu'à en nommer au moins cinq.
+ * Les listes citent les départements extrêmes par gain E→C, groupés par valeur
+ * égale, en accumulant les paliers jusqu'à en nommer au moins cinq.
  */
 final readonly class Constats
 {
@@ -22,7 +22,6 @@ final readonly class Constats
      * @param list<GroupeGain> $gainsLesPlusForts
      */
     public function __construct(
-        public EcartSecondPalier $ecartSecondPalier,
         public array $gainsLesPlusFaibles,
         public array $gainsLesPlusForts,
         public int $departementsAuDela30,
@@ -35,21 +34,14 @@ final readonly class Constats
     public static function depuis(array $metriques): self
     {
         $gains = [];
-        $ecarts = [];
         foreach ($metriques as $metrique) {
             if (null === $metrique->gainEc) {
                 continue;
             }
             $gains[] = ['nom' => $metrique->nom, 'valeur' => $metrique->gainEc];
-            if (null !== $metrique->gainEd) {
-                $ecarts[] = ['nom' => $metrique->nom, 'valeur' => $metrique->gainEc - $metrique->gainEd];
-            }
         }
 
-        $groupesEcart = self::grouper(self::tries($ecarts, decroissant: true));
-
         return new self(
-            new EcartSecondPalier(self::noms($groupesEcart), self::seuil($groupesEcart)),
             self::grouper(self::tries($gains, decroissant: false)),
             self::grouper(self::tries($gains, decroissant: true)),
             \count(array_filter($gains, static fn (array $g): bool => $g['valeur'] > self::SEUIL_ELEVE)),
@@ -96,32 +88,5 @@ final readonly class Constats
         }
 
         return $groupes;
-    }
-
-    /**
-     * @param list<GroupeGain> $groupes
-     *
-     * @return list<string>
-     */
-    private static function noms(array $groupes): array
-    {
-        $noms = [];
-        foreach ($groupes as $groupe) {
-            $noms = [...$noms, ...$groupe->noms];
-        }
-
-        return $noms;
-    }
-
-    /**
-     * @param list<GroupeGain> $groupes
-     */
-    private static function seuil(array $groupes): int
-    {
-        if ([] === $groupes) {
-            return 0;
-        }
-
-        return $groupes[array_key_last($groupes)]->valeur;
     }
 }
