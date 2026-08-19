@@ -31,6 +31,18 @@ pool département+limitrophes (maisons)          [pool_repository.load_pool]
 Orchestration département : `orchestration.compute_departement` (pool chargé une
 fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 
+**Court-circuit « pool nourri seulement par les limitrophes » (#255)** : après chargement
+du pool et ses filtres (régime DPE #215, multi-communes #252), si le pool est **non vide**
+mais qu'**aucune** de ses ventes n'appartient au département demandé (préfixe
+`code_insee[:2]`, voisins exclus), `compute_departement` **renvoie un rapport vide sans
+rien calculer ni archiver**. Un département hors périmètre DVF (Alsace-Moselle 57/67/68,
+Paris 75) n'a aucune vente propre ; sans ce garde-fou, ses communes de bord capteraient les
+ventes limitrophes (#18) et publieraient des mailles « locales » fantômes — nocives car en
+N+1 une apparition réelle serait lue comme un changement par REG-1. Le débordement
+**nourrit** le calcul, il ne le **crée** pas. Un pool **vide** (aucune vente du tout) suit
+la voie normale : les communes sont **refusées** (REG-2 retire leurs coefficients périmés),
+pas silencieusement ignorées.
+
 ## 2. Segment de biens
 
 - **Maisons uniquement** — `pool_repository.SEGMENT_MVP = "Maison"`, `config.segment = "Maison"`.
