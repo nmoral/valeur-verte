@@ -115,7 +115,9 @@
           Passer de E à D fait gagner {{ etude.medianeGainEd }} % de valeur ; aller jusqu'à C en fait gagner {{ etude.medianeGainEc }} %.
           La seconde moitié du chemin rapporte donc autant que la première — alors qu'elle
           coûte généralement moins cher, l'essentiel du chantier étant déjà engagé.
-          Dans l'Indre, la Vienne ou la Meuse, l'écart dépasse 17 points.
+          {%- if etude.constats.ecartSecondPalier.noms is not empty %}
+          {{ etude.constats.ecartSecondPalier.nomsJoints }} : l'écart y dépasse {{ etude.constats.ecartSecondPalier.seuil }} points.
+          {%- endif %}
         </p>
       </article>
       <article>
@@ -123,8 +125,8 @@
         <h3>Plus l'immobilier est cher, moins l'étiquette compte</h3>
         <p>
           Les départements où la rénovation rapporte le moins sont tous des marchés tendus :
-          Hauts-de-Seine (+5 %), Seine-Saint-Denis (+7 %), Var et Val-de-Marne (+8 %),
-          Alpes-Maritimes (+8 %). Là où l'emplacement et le foncier dominent le prix,
+          {%- for groupe in etude.constats.gainsLesPlusFaibles %} {{ groupe.nomsJoints }} (+{{ groupe.valeur }} %){{ loop.last ? '.' : ',' }}{%- endfor %}
+          Là où l'emplacement et le foncier dominent le prix,
           la performance énergétique pèse peu dans l'arbitrage de l'acheteur.
         </p>
       </article>
@@ -132,8 +134,8 @@
         <span class="fnum">03</span>
         <h3>La France rurale est celle qui gagne le plus</h3>
         <p>
-          Indre (+36 %), Vienne et Meuse (+35 %), Haute-Marne et Orne (+32 %), Mayenne et
-          Cher (+31 %). Onze départements dépassent +30 %. Le bâti y est plus ancien, les
+          {%- for groupe in etude.constats.gainsLesPlusForts %}{{ loop.first ? '' : ' ' }}{{ groupe.nomsJoints }} (+{{ groupe.valeur }} %){{ loop.last ? '.' : ',' }}{%- endfor %}
+          {{ etude.constats.departementsAuDela30 }} département{{ etude.constats.departementsAuDela30 > 1 ? 's' }} dépasse{{ etude.constats.departementsAuDela30 > 1 ? 'nt' }} +30 %. Le bâti y est plus ancien, les
           passoires plus nombreuses, et le coût de l'énergie pèse davantage dans le budget
           des ménages : une maison rénovée s'y distingue nettement.
         </p>
@@ -176,7 +178,7 @@
       <li><b>L'étiquette n'est pas qu'une mesure d'énergie.</b> Dans les centres anciens, les logements les plus mal classés sont parfois les plus recherchés — le cachet du bâti se paie, indépendamment de la consommation. Les écarts impliquant la classe G doivent être lus avec prudence.</li>
       <li><b>Un département n'est pas un marché.</b> Les chiffres présentés ici sont des médianes départementales, qui recouvrent des écarts locaux importants entre une métropole et son arrière-pays.</li>
       <li><b>Maisons individuelles uniquement.</b> En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</li>
-      <li><b>Six départements sont absents.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
+      <li><b>{{ etude.departementsAbsents }} département{{ etude.departementsAbsents > 1 ? 's' }} {{ etude.departementsAbsents > 1 ? 'sont absents' : 'est absent' }}.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
       <li><b>Une corrélation, pas une garantie.</b> Ces écarts décrivent un marché observé. Ils n'engagent aucune valeur pour un bien particulier.</li>
     </ul>
   </section>

@@ -38,6 +38,14 @@ final readonly class MetriquesDepartementales
         return new self($metriques);
     }
 
+    /**
+     * @return list<MetriqueDepartement>
+     */
+    public function departements(): array
+    {
+        return $this->metriques;
+    }
+
     public function pour(string $code): ?MetriqueDepartement
     {
         foreach ($this->metriques as $metrique) {
