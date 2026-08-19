@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# Page de génération de lead propre à un pro : pas d'indexation tant que le
+       site n'est pas ouvert (réduit aussi la surface de scraping, épic #6). #}
+    <meta name="robots" content="noindex">
+    <title>{% block titre %}{{ branding.nom ?? 'Estimation de la valeur verte' }}{% endblock %}</title>
+</head>
+<body>
+<main data-page="widget" style="--marque: {{ branding.couleurPrincipale.hex }};">
+    <header class="entete">
+        {% if branding.logoUrl %}
+            <img data-marque="logo" src="{{ branding.logoUrl }}" alt="{{ branding.nom ?? 'Logo' }}">
+        {% endif %}
+        <span data-marque="nom">{{ branding.nom }}</span>
+    </header>
+
+    {% block contenu %}{% endblock %}
+</main>
+</body>
+</html>

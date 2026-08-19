@@ -1,23 +1,48 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    {# Page de génération de lead propre à un pro : pas d'indexation tant que le
-       site n'est pas ouvert (réduit aussi la surface de scraping, épic #6). #}
-    <meta name="robots" content="noindex">
-    <title>{{ branding.nom ?? 'Estimation de la valeur verte' }}</title>
-</head>
-<body>
-<main data-page="widget" style="--marque: {{ branding.couleurPrincipale.hex }};">
-    <header class="entete">
-        {% if branding.logoUrl %}
-            <img data-marque="logo" src="{{ branding.logoUrl }}" alt="{{ branding.nom ?? 'Logo' }}">
-        {% endif %}
-        <span data-marque="nom">{{ branding.nom }}</span>
-    </header>
+{% extends 'widget/base.html.twig' %}
 
-    {# Le parcours d'estimation (adresse → premier chiffre → mur de contact) arrive en #41. #}
-</main>
-</body>
-</html>
+{% block contenu %}
+    {# Parcours particulier (#41, §4) : adresse → surfaces → DPE. L'autocomplétion
+       BAN (côté JS) renseignera le champ caché `code_insee`. Le mur de contact ne
+       vient jamais ici : d'abord le premier chiffre. #}
+    <form data-widget="estimation" method="post" action="/{{ token }}/estimation">
+        <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
+
+        <label>Adresse du bien
+            <input type="text" name="adresse" autocomplete="off" value="{{ valeurs.adresse|default('') }}" required>
+        </label>
+
+        <label>Surface habitable (m²)
+            <input type="number" name="surface_batie" min="20" max="400" value="{{ valeurs.surface_batie|default('') }}" required>
+        </label>
+
+        <label>Surface du terrain (m²)
+            <input type="number" name="surface_terrain" min="0" max="10000" value="{{ valeurs.surface_terrain|default('0') }}">
+        </label>
+
+        <label>DPE actuel
+            <select name="dpe_avant">
+                {% for dpe in dpe_options %}
+                    <option value="{{ dpe.value }}" {{ valeurs.dpe_avant|default('') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>DPE visé après travaux
+            <select name="dpe_apres">
+                {% for dpe in dpe_options %}
+                    <option value="{{ dpe.value }}" {{ valeurs.dpe_apres|default('C') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        {% if erreurs|default([]) is not empty %}
+            <ul data-widget="erreurs">
+                {% for erreur in erreurs %}
+                    <li>{{ erreur }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <button type="submit">Estimer la valeur verte</button>
+    </form>
+{% endblock %}
