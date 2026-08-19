@@ -30,6 +30,7 @@ final readonly class Restitution
         private PorteeEstimation $portee,
         private PalierFiabilite $palier,
         private array $bandesAppliquees,
+        private bool $partiellementRapprochee,
     ) {
     }
 
@@ -48,8 +49,18 @@ final readonly class Restitution
         PorteeEstimation $portee = PorteeEstimation::Local,
         PalierFiabilite $palier = PalierFiabilite::Standard,
         array $bandesAppliquees = [],
+        bool $partiellementRapprochee = false,
     ): self {
-        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime, $prixBaseEuros, $prixSaisiParLePro, $portee, $palier, $bandesAppliquees);
+        return new self($montantEuros, $borneBasseEuros, $borneHauteEuros, $n, $rayonKm, $millesime, $prixBaseEuros, $prixSaisiParLePro, $portee, $palier, $bandesAppliquees, $partiellementRapprochee);
+    }
+
+    /**
+     * #261 : la maille a été fortement rapprochée du fit départemental par le pooling
+     * — le badge « partiellement rapprochée du département » le signale à l'usager.
+     */
+    public function estPartiellementRapprochee(): bool
+    {
+        return $this->partiellementRapprochee;
     }
 
     public function montantEuros(): int

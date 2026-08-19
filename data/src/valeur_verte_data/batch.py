@@ -22,7 +22,7 @@ from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
 from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
 from .dvf import Mutation
-from .pooling import effet_pool, variance_inter, variance_posterieure
+from .pooling import effet_pool, poids_pool, variance_inter, variance_posterieure
 from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
 from .trimming import ecreter_residu
@@ -74,6 +74,12 @@ class MailleCoefficient:
     # fit, matière première du shrinkage hiérarchique (poids w = τ²/(τ²+SE²)). Persistée
     # dans l'historique pour recalculer les priors τ̂². Défaut vide (mailles hors moteur).
     se_dpe: dict[str, float] = field(default_factory=dict)
+    # Poids de régularisation du pooling (#261) : min des ``w = τ²/(τ²+SE²)`` sur les
+    # classes DPE effectivement tirées vers le fit départemental. ``w → 1`` = maille
+    # quasi locale, ``w → 0`` = fortement rapprochée du département. ``None`` quand la
+    # maille n'a été régularisée sur aucune classe (pooling off, ou aucune cible).
+    # Sert le badge « partiellement rapprochée du département » côté restitution.
+    poids_pooling: float | None = None
 
 
 def _meme_departement(code_insee: str, pool: Sequence[Mutation]) -> list[Mutation]:
@@ -601,11 +607,14 @@ def pool_hierarchique(
         # (#260) là où la classe est régularisée — le shrinkage emprunte de la force au
         # département, donc l'écart-type se resserre (v_post = τ²v/(τ²+v) < v).
         se_effectif = {classe: maille.se_dpe[classe] for classe in coef if classe in maille.se_dpe}
+        # Poids de régularisation (#261) : ``w = τ²/(τ²+SE²)`` par classe tirée.
+        poids: list[float] = []
         for classe, (tau2, centre) in priors.items():
             if classe in coef and classe in maille.se_dpe:
                 variance = maille.se_dpe[classe] ** 2
                 coef[classe] = effet_pool(coef[classe], centre, tau2, variance)
                 se_effectif[classe] = math.sqrt(variance_posterieure(tau2, variance))
+                poids.append(poids_pool(tau2, variance))
         # Fourchette SE-based partout où l'on a un écart-type (#260) ; repli heuristique
         # sur l'erreur médiane pour une classe sans SE (rare : régresseur sans ddl).
         fraction = None if maille.erreur_mediane is None else maille.erreur_mediane / 100.0
@@ -615,5 +624,8 @@ def pool_hierarchique(
                 ic_dpe[classe] = _intervalle_se(effet, se_effectif[classe])
             elif fraction is not None:
                 ic_dpe[classe] = (effet - abs(effet) * fraction, effet + abs(effet) * fraction)
-        pooles[code] = replace(maille, coef_dpe=coef, ic_dpe=ic_dpe)
+        # min des w : la régularisation la plus forte parmi les classes tirées (#261).
+        pooles[code] = replace(
+            maille, coef_dpe=coef, ic_dpe=ic_dpe, poids_pooling=min(poids) if poids else None
+        )
     return pooles

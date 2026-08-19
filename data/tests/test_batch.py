@@ -21,7 +21,7 @@ from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
-from valeur_verte_data.pooling import variance_inter, variance_posterieure
+from valeur_verte_data.pooling import poids_pool, variance_inter, variance_posterieure
 from valeur_verte_data.radius import RadiusSelection
 
 # Effets en logarithme : le modèle est log-linéaire (#115).
@@ -1102,6 +1102,32 @@ def test_pool_hierarchique_cible_absente_ne_change_rien() -> None:
     pooles = pool_hierarchique(mailles, None, reference_dpe="D")
 
     assert pooles["A"].coef_dpe["F"] == 1.0
+
+
+def test_pool_hierarchique_expose_le_poids_de_regularisation() -> None:
+    """#261 : chaque maille poolée porte ``poids_pooling`` = min des ``w`` sur ses
+    classes tirées (la régularisation la plus forte). ``w = τ²/(τ²+SE²)`` ; ici
+    τ²=0,75, SE²=0,25 → w=0,75. Sert le badge « partiellement rapprochée du dépt ».
+    """
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    tau2 = variance_inter([(1.0, 0.25), (-1.0, 0.25)], 0.0)
+    assert tau2 is not None
+    assert pooles["A"].poids_pooling == poids_pool(tau2, 0.25)
+
+
+def test_pool_hierarchique_maille_non_tiree_a_un_poids_none() -> None:
+    """Sans classe régularisée (cible absente), pas de poids (badge non affiché)."""
+    mailles = {"A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5})}
+
+    pooles = pool_hierarchique(mailles, None, reference_dpe="D")
+
+    assert pooles["A"].poids_pooling is None
 
 
 def test_pool_hierarchique_ic_classe_non_shrinkee_utilise_le_se_local() -> None:

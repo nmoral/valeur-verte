@@ -283,6 +283,13 @@ pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** 
   classe), convertie en € par `exp`. Repli sur l'erreur médiane si `ic_dpe` manque. Les bornes €
   sont **figées telles quelles** dans l'instantané (#33) — PDF reproductible sans changement de
   format.
+- **Poids de régularisation exposé (#261)** : chaque maille poolée porte
+  `poids_pooling` = **min des `w = τ²/(τ²+SE²)`** sur ses classes DPE tirées (la
+  régularisation la plus forte ; `None` si aucune classe tirée). `w → 1` = maille quasi
+  locale, `w → 0` = fortement rapprochée du département. **Persisté** sur la table vive
+  **et** l'historique (migration 019, projeté par `publier_millesime`/`publier_maille`) —
+  matière du badge « partiellement rapprochée du département » côté restitution (transparence :
+  une maille très régularisée n'est plus vraiment « locale »).
 - **Garde du prior (#262, `orchestration.prior_pooling_fiable`)** : on ne régularise que
   vers un fit poolé départemental **fiable** — le shrinkage suppose le prior meilleur que
   l'observation locale pour la **variance**, pas pour le **biais**. μ doit être **publiable**
@@ -515,6 +522,10 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
   l'historique** (`coefficient_maille_historique`, JSONB, migration 017) — matière
   première recalculable des priors du pooling hiérarchique. **Non** sur la table vive
   `coefficient_maille` (régresseur interne, jamais servi à l'app).
+- **`poids_pooling`** (#261) : min des poids `w` de régularisation du pooling (§4ter),
+  `DOUBLE PRECISION` nullable **persisté sur la vive ET l'historique** (migration 019) —
+  **servi à l'app** (contrairement à `se_dpe`) pour le badge « partiellement rapprochée du
+  département ». `None` quand la maille n'a été régularisée sur aucune classe.
 - Restitution (`app`) : indicateur de fiabilité **Solide/Correct/Fragile** dérivé de
   (n, rayon) ; rayon null (repli EPCI/départemental) ⇒ toujours **Fragile** + bandeau,
   `mode` distinguant les deux crans.

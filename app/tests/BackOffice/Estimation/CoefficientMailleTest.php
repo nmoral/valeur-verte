@@ -200,6 +200,38 @@ final class CoefficientMailleTest extends TestCase
     }
 
     /**
+     * #261 : une maille fortement régularisée par le pooling (poids w < 0,5, le
+     * département a pesé > 50 %) est signalée « partiellement rapprochée du
+     * département » ; sinon (peu régularisée, ou pas de pooling) elle ne l'est pas.
+     */
+    public function testUneMailleFortementRegulariseeEstPartiellementRapprochee(): void
+    {
+        $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0, poidsPooling: 0.3);
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
+
+        self::assertTrue($restitution->estPartiellementRapprochee());
+    }
+
+    public function testUneMaillePeuRegulariseeNEstPasPartiellementRapprochee(): void
+    {
+        $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0, poidsPooling: 0.8);
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
+
+        self::assertFalse($restitution->estPartiellementRapprochee());
+    }
+
+    public function testUneMailleSansPoolingNEstPasPartiellementRapprochee(): void
+    {
+        $maille = self::maille(['D' => 0.0, 'C' => 0.10, 'E' => -0.20], erreurMediane: 20.0);
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, 100000, false);
+
+        self::assertFalse($restitution->estPartiellementRapprochee());
+    }
+
+    /**
      * @param array<string, float>               $coefDpe
      * @param array<string, string>              $bandes
      * @param array<string, array{float, float}> $icDpe
@@ -214,6 +246,7 @@ final class CoefficientMailleTest extends TestCase
         PalierFiabilite $palier = PalierFiabilite::Standard,
         array $bandes = [],
         array $icDpe = [],
+        ?float $poidsPooling = null,
     ): CoefficientMaille {
         return CoefficientMaille::depuis(
             millesime: $millesime,
@@ -225,6 +258,7 @@ final class CoefficientMailleTest extends TestCase
             palier: $palier,
             bandes: $bandes,
             icDpe: $icDpe,
+            poidsPooling: $poidsPooling,
         );
     }
 }

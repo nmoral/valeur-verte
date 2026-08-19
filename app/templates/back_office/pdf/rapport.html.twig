@@ -124,6 +124,10 @@
             <div class="bandeau-info">{% for classe, bande in restitution.bandesAppliquees %}La classe {{ classe }} est estimée via la bande {{ bande }}.{% if not loop.last %} {% endif %}{% endfor %}</div>
         {% endif %}
 
+        {% if restitution.estPartiellementRapprochee %}
+            <div class="bandeau-info">Estimation partiellement rapprochée du département : faute de ventes locales suffisantes, l'effet DPE a été rapproché de la moyenne départementale.</div>
+        {% endif %}
+
         <table class="stats" cellpadding="0" cellspacing="0"><tr>
             <td><span class="stat-k">Transactions</span><br><span class="stat-v">{{ restitution.n|number_format(0, ',', ' ') }}</span></td>
             <td><span class="stat-k">Rayon retenu</span><br><span class="stat-v">{{ restitution.intitulePortee }}</span></td>

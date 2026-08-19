@@ -24,7 +24,7 @@ final readonly class CoefficientMailleDbal implements FournisseurCoefficientMail
     public function pour(string $codeInsee): ?CoefficientMaille
     {
         $ligne = $this->connexion->fetchAssociative(
-            'SELECT millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, ic_dpe, mode, palier, bandes
+            'SELECT millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, ic_dpe, mode, palier, bandes, poids_pooling
              FROM data.coefficient_maille
              WHERE code_insee = :code',
             ['code' => $codeInsee],
@@ -52,7 +52,17 @@ final readonly class CoefficientMailleDbal implements FournisseurCoefficientMail
             palier: PalierFiabilite::depuis(self::texteOuNull($ligne['palier'])),
             bandes: $bandes,
             icDpe: self::intervalles($ligne['ic_dpe']),
+            poidsPooling: self::reelOuNull($ligne['poids_pooling']),
         );
+    }
+
+    /**
+     * Poids de régularisation du pooling (#261) : flottant ou ``null`` (maille non
+     * poolée, ou ligne héritée avant la colonne). ``null`` ⇒ pas de badge.
+     */
+    private static function reelOuNull(mixed $valeur): ?float
+    {
+        return is_numeric($valeur) ? (float) $valeur : null;
     }
 
     /**

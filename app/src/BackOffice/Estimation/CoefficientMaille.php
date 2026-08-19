@@ -20,6 +20,13 @@ use App\BackOffice\Restitution\Restitution;
 final readonly class CoefficientMaille
 {
     /**
+     * Sous ce poids de régularisation (#261), le fit départemental a pesé plus de la
+     * moitié dans l'effet DPE servi : la maille n'est plus vraiment « locale », on le
+     * signale (badge « partiellement rapprochée du département »).
+     */
+    private const float SEUIL_RAPPROCHEMENT = 0.5;
+
+    /**
      * @param array<string, float>               $coefDpe effets log par étiquette DPE publiée
      * @param array<string, string>              $bandes  classe DPE → représentant de sa bande (vide au cran local, #169)
      * @param array<string, array{float, float}> $icDpe   intervalle [bas, haut] de l'effet log par classe (#260)
@@ -34,6 +41,7 @@ final readonly class CoefficientMaille
         private PalierFiabilite $palier,
         private array $bandes,
         private array $icDpe,
+        private ?float $poidsPooling,
     ) {
     }
 
@@ -52,8 +60,20 @@ final readonly class CoefficientMaille
         PalierFiabilite $palier = PalierFiabilite::Standard,
         array $bandes = [],
         array $icDpe = [],
+        ?float $poidsPooling = null,
     ): self {
-        return new self($millesime, $rayonKm, $n, $erreurMediane, $coefDpe, $portee, $palier, $bandes, $icDpe);
+        return new self(
+            $millesime,
+            $rayonKm,
+            $n,
+            $erreurMediane,
+            $coefDpe,
+            $portee,
+            $palier,
+            $bandes,
+            $icDpe,
+            $poidsPooling,
+        );
     }
 
     /**
@@ -82,7 +102,17 @@ final readonly class CoefficientMaille
             portee: $this->portee,
             palier: $this->palier,
             bandesAppliquees: $this->bandesAppliquees($avant, $apres),
+            partiellementRapprochee: $this->estPartiellementRapprochee(),
         );
+    }
+
+    /**
+     * #261 : la maille a-t-elle été fortement rapprochée du fit départemental par le
+     * pooling (poids w sous le seuil) ? Sans pooling (`poidsPooling` nul), non.
+     */
+    public function estPartiellementRapprochee(): bool
+    {
+        return null !== $this->poidsPooling && $this->poidsPooling < self::SEUIL_RAPPROCHEMENT;
     }
 
     /**
