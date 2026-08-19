@@ -277,9 +277,12 @@ pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** 
   SE, l'IC est **SE local** (`coef ± SE`) ; repli sur l'heuristique erreur médiane
   seulement pour une classe **sans** SE (rare). ⚠️ Ces fourchettes SE-based sont souvent
   **plus larges** que l'ancienne heuristique et peuvent **traverser zéro** (un effet non
-  distinguable de 0) — c'est l'incertitude réelle du coefficient, plus honnête. **Lot
-  data** : l'app doit encore lire `ic_dpe` pour la fourchette servie/PDF (aujourd'hui
-  dérivée de `erreur_mediane`).
+  distinguable de 0) — c'est l'incertitude réelle du coefficient, plus honnête. **Restitution
+  (#260)** : `CoefficientMaille::estimer` dérive la fourchette € de `ic_dpe` — demi-largeur de
+  l'écart avant→après = `√(demi_IC_avant² + demi_IC_apres²)` (indépendance ; nulle si même
+  classe), convertie en € par `exp`. Repli sur l'erreur médiane si `ic_dpe` manque. Les bornes €
+  sont **figées telles quelles** dans l'instantané (#33) — PDF reproductible sans changement de
+  format.
 - **Statut** : opt-in (`VV_MOTEUR_POOLING_HIERARCHIQUE`), **désactivé par défaut** (comme
   τ #208). Câblé dans `orchestration.compute_departement` **avant** la cascade (§7) ;
   ``se_dpe`` est **persisté** dans l'historique (§12) — matière première recalculable des

@@ -96,6 +96,10 @@ Règles :
   `git fetch origin main && git worktree add -b issue-<num>-<slug> ../<repo>-issue-<num> origin/main`
   (ex. `../valeur-verte-issue-20`). Travailler **dans ce worktree** jusqu'au bout.
 - La branche reste **focalisée sur son issue** : pas de changements hors périmètre.
+- **Avant chaque PR (ouverture ou mise à jour)** : `git fetch origin main` puis
+  `git rebase origin/main`. On rejoue les portes qualité après le rebase, on ne pousse
+  que sur une base à jour — la revue et la CI portent alors sur l'écart réel avec `main`,
+  et on évite les conflits de merge tardifs.
 - Ouvrir une **Pull Request vers `main`** ; le corps contient `Closes #<num>`.
 - **Une fois la tâche terminée** (PR mergée ou abandonnée), **supprimer le worktree** :
   `git worktree remove ../<repo>-issue-<num>` (puis `git worktree prune` au besoin). On
@@ -282,6 +286,8 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
 - Suivre le cycle **Red → Green → Refactor** avec **un commit par étape**, sans exception.
 - **Un worktree dédié + une branche par issue** (créés depuis `main`, §2), PR vers `main`,
   statut de l'issue tenu à jour ; **supprimer le worktree une fois la tâche terminée**.
+- **Avant chaque PR** : `git fetch origin main && git rebase origin/main`, rejouer les
+  portes, ne pousser que sur une base à jour (§2).
 - Lancer `make check` avant de déclarer une étape terminée, `make mutation` avant la revue ;
   rapporter honnêtement l'état (tests rouges = le dire).
 - Ne pas affaiblir les portes qualité ni contourner un outil pour « faire vert ».
