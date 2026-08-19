@@ -80,6 +80,29 @@ final class PagePublicationTest extends WebTestCase
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');
     }
 
+    public function testLesConstatsCitentLesDepartementsPubliesEtNonDesValeursFigees(): void
+    {
+        $texte = $this->page()->filter('.findings')->text();
+
+        // Dérivé des données semées (31 Haute-Garonne +35 %, 09 Ariège +11 %),
+        // plus les noms/pourcentages figés de l'ancienne rédaction.
+        self::assertStringContainsString('Haute-Garonne', $texte);
+        self::assertStringContainsString('35 %', $texte);
+        self::assertStringContainsString('Ariège', $texte);
+        self::assertStringNotContainsString('Hauts-de-Seine', $texte);
+        self::assertStringNotContainsString('Onze départements', $texte);
+    }
+
+    public function testLeNombreDeDepartementsAbsentsEstCompteEtNonFige(): void
+    {
+        // Deux départements publiés sur les ~96 dessinés : le compte des absents
+        // est loin de « six » et doit refléter les données, pas un texte figé.
+        $texte = $this->page()->filter('.limits')->text();
+
+        self::assertDoesNotMatchRegularExpression('/Six d[ée]partements sont absents/u', $texte);
+        self::assertMatchesRegularExpression('/\d+\s+départements sont absents/u', $texte);
+    }
+
     public function testLaPageRamèneALAccueil(): void
     {
         $crawler = $this->page();

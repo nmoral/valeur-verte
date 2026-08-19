@@ -67,8 +67,34 @@ final class EtudePublieeTest extends TestCase
         self::assertSame(['31', '09'], array_column($etude->carte['feats'], 'dept'));
     }
 
-    private static function etude(?LectureModelePublieEnMemoire $lecture = null): EtudePubliee
+    public function testLesConstatsSontDerivesDesDepartementsPublies(): void
     {
+        $etude = self::etude()->courante();
+
+        self::assertNotNull($etude);
+        // 31 (Haute-Garonne) : +35 % E→C, +21 % E→D ; 09 (Ariège) : +11 %, +5 %.
+        self::assertSame(35, $etude->constats->gainsLesPlusForts[0]->valeur);
+        self::assertSame(['Haute-Garonne'], $etude->constats->gainsLesPlusForts[0]->noms);
+        self::assertSame(1, $etude->constats->departementsAuDela30);
+        // Écart du second palier : 31 → 35−21=14, 09 → 11−5=6.
+        self::assertSame(['Haute-Garonne', 'Ariège'], $etude->constats->ecartSecondPalier->noms);
+        self::assertSame(6, $etude->constats->ecartSecondPalier->seuil);
+    }
+
+    public function testLesDepartementsDessinesSansMetriqueSontComptesAbsents(): void
+    {
+        // Contours de trois départements (31, 09, 75) mais seuls 31 et 09 publiés :
+        // Paris est dessiné sans chiffres — donc compté absent.
+        $etude = self::etude(null, 'contours-avec-absent.json')->courante();
+
+        self::assertNotNull($etude);
+        self::assertSame(1, $etude->departementsAbsents);
+    }
+
+    private static function etude(
+        ?LectureModelePublieEnMemoire $lecture = null,
+        string $contours = 'contours-de-test.json',
+    ): EtudePubliee {
         $lecture ??= new LectureModelePublieEnMemoire(
             new Publication(
                 2025,
@@ -86,7 +112,7 @@ final class EtudePublieeTest extends TestCase
 
         return new EtudePubliee(
             $lecture,
-            new ContoursDepartements(\dirname(__DIR__).'/Publication/contours-de-test.json'),
+            new ContoursDepartements(\dirname(__DIR__).'/Publication/'.$contours),
         );
     }
 }
