@@ -823,6 +823,49 @@ def test_compute_communes_memoise_le_mode_departemental_par_departement(
     assert mailles[0].coef_dpe == mailles[1].coef_dpe
 
 
+def test_compute_communes_ne_recalcule_pas_le_sous_echantillon_departemental_par_commune(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#277 : le sous-échantillon départemental (``_meme_departement``) ne dépend que du
+    préfixe département, **identique** pour toutes les communes du batch → il est évalué
+    **une seule fois** par département, pas refait à chaque commune. C'est, avec le tri du
+    pool, le travail invariant hoisté hors de la boucle pour accélérer le chemin LOCAL."""
+    pool = _cluster(4, lat=43.6, lon=1.44)  # 12 ventes ≥ seuil → LOCAL
+    cfg = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+
+    original = batch._meme_departement
+    appels: list[str] = []
+
+    def espion(code_insee: str, pool_arg: object) -> object:
+        appels.append(code_insee)
+        return original(code_insee, pool_arg)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(batch, "_meme_departement", espion)
+
+    mailles = list(
+        compute_communes([("31001", 43.6, 1.44), ("31002", 43.6, 1.44)], pool, 2024, config=cfg)
+    )
+
+    assert len(mailles) == 2
+    assert len(appels) == 1, "un seul filtrage départemental pour tout le département"
+
+
+def test_compute_communes_insensible_a_l_ordre_du_pool() -> None:
+    """#277 (garde-fou INV-5) : hoister le tri du pool hors de la boucle ne doit pas
+    rendre le résultat dépendant de l'ordre d'entrée. Un pool inversé produit des mailles
+    identiques (l'ordre canonique ``id_mutation`` est rétabli une fois pour toutes)."""
+    pool = _cluster(4, lat=43.6, lon=1.44)
+    cfg = replace(CalculConfig(), min_local_sample=10, min_sample=10, min_class_sample=1)
+    communes = [("31001", 43.6, 1.44), ("31002", 43.6, 1.44)]
+
+    droit = list(compute_communes(communes, pool, 2024, config=cfg))
+    inverse = list(compute_communes(communes, list(reversed(pool)), 2024, config=cfg))
+
+    assert [m.code_insee for m in droit] == [m.code_insee for m in inverse]
+    assert [m.coef_dpe for m in droit] == [m.coef_dpe for m in inverse]
+    assert [m.erreur_mediane for m in droit] == [m.erreur_mediane for m in inverse]
+
+
 def test_compute_maille_ic_calibre_sur_erreur_non_nulle() -> None:
     pool: list[Mutation] = []
     for dpe, effect in _EFFECT.items():
