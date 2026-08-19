@@ -55,6 +55,39 @@ final class ListeMillesimesBloquees
         ];
     }
 
+    /**
+     * Débloquer d'un coup n'a de sens qu'une fois le millésime publié — même garde
+     * que le bouton par ligne (REG-2). Tant qu'il ne l'est pas, aucune action de
+     * groupe, donc aucune case de sélection.
+     *
+     * @return list<array{cle: string, libelle: string, confirmation?: string}>
+     */
+    public function actionsGroupees(): array
+    {
+        if (!$this->millesimePublie) {
+            return [];
+        }
+
+        return [
+            [
+                'cle' => 'millesimes.publier_mailles',
+                'libelle' => 'Débloquer la sélection',
+                'confirmation' => 'Débloquer et mettre en service les mailles sélectionnées ?',
+            ],
+        ];
+    }
+
+    /**
+     * L'identifiant porte le millésime : le socle ne transmet que la sélection à
+     * l'action de groupe, qui a besoin du couple (millésime, code INSEE).
+     */
+    public function identifiant(mixed $element): string
+    {
+        return $element instanceof MailleBloquee
+            ? \sprintf('%d:%s', $this->millesime, $element->codeInsee())
+            : '';
+    }
+
     protected function source(): SourceListe
     {
         return new SourceEnMemoire(
