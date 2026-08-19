@@ -1,0 +1,36 @@
+{% extends 'widget/base.html.twig' %}
+
+{% block contenu %}
+    {% if restitution is null %}
+        {# On ne fabrique jamais un chiffre par défaut : hors couverture, on le dit. #}
+        <p data-widget="indisponible">
+            L'estimation est indisponible pour cette adresse (commune hors couverture).
+        </p>
+    {% else %}
+        {# Le premier chiffre : la valeur verte, présentée avec son contexte, sans
+           email. Le mur de contact vient ensuite (jamais avant, §4). #}
+        <section data-widget="valeur-verte">
+            <p class="montant">{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
+            <p class="fourchette">
+                Fourchette : {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} €
+                – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €
+            </p>
+            <ul class="stats">
+                <li data-stat="effectif">{{ restitution.n }} transactions</li>
+                <li data-stat="rayon">{{ restitution.intitulePortee }}</li>
+                <li data-stat="millesime">{{ restitution.millesime }}</li>
+            </ul>
+        </section>
+
+        {# Mur de contact (#42) : la soumission (lead + double opt-in + PDF) sera
+           câblée en #42 ; ici on présente le formulaire après le premier chiffre. #}
+        <section data-widget="mur-contact">
+            <p>Recevez le détail chiffré et le PDF de votre estimation :</p>
+            <form method="post" action="/{{ token }}/contact">
+                <label>Votre nom <input type="text" name="nom" required></label>
+                <label>Votre email <input type="email" name="email" required></label>
+                <button type="submit">Recevoir mon estimation détaillée</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}
