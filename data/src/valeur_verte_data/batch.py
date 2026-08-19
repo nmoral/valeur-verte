@@ -346,19 +346,52 @@ def compute_maille(
     elle n'est calculée qu'une fois puis réutilisée (seul ``code_insee`` change). Le
     mode LOCAL reste par commune (voisinage propre).
     """
-    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY),
-    # or il pilote l'affectation des plis de CV et l'ordre de sommation OLS.
-    # On fige un ordre canonique pour que le résultat ne dépende que du jeu.
+    # INV-5 (#123) : l'ordre du pool n'est pas garanti (SELECT sans ORDER BY), or il
+    # pilote l'affectation des plis de CV et l'ordre de sommation OLS. On fige un ordre
+    # canonique pour que le résultat ne dépende que du jeu.
     pool = sorted(pool, key=lambda mutation: mutation.id_mutation)
-    selection = adaptive_selection(
-        centroid_lat, centroid_lon, pool, min_sample=config.min_sample, radii=config.radii_km
-    )
     departemental = _meme_departement(code_insee, pool)
-    n_local = len(
-        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
-    )
     n_departement = len(
         _eligible(departemental, restreindre_bati_ancien=config.restreindre_bati_ancien)
+    )
+    return _compute_maille_sur_pool_prepare(
+        code_insee,
+        centroid_lat,
+        centroid_lon,
+        millesime,
+        pool,
+        departemental=departemental,
+        n_departement=n_departement,
+        config=config,
+        memo_departemental=memo_departemental,
+    )
+
+
+def _compute_maille_sur_pool_prepare(
+    code_insee: str,
+    centroid_lat: float,
+    centroid_lon: float,
+    millesime: int,
+    pool_trie: Sequence[Mutation],
+    *,
+    departemental: Sequence[Mutation],
+    n_departement: int,
+    config: CalculConfig,
+    memo_departemental: dict[str, MailleCoefficient | None] | None,
+) -> MailleCoefficient | None:
+    """Cœur de ``compute_maille`` sur un pool **déjà trié** (INV-5) et un sous-échantillon
+    départemental **déjà filtré/compté**.
+
+    Le tri du pool et le filtrage départemental sont **invariants** entre les communes d'un
+    même batch (même département) : ``compute_communes`` les hoiste hors de la boucle et
+    appelle ce cœur directement (#277) ; ``compute_maille`` (usage isolé) les prépare puis
+    délègue ici. Seule la sélection locale (centre = commune) reste par commune.
+    """
+    selection = adaptive_selection(
+        centroid_lat, centroid_lon, pool_trie, min_sample=config.min_sample, radii=config.radii_km
+    )
+    n_local = len(
+        _eligible(selection.sample, restreindre_bati_ancien=config.restreindre_bati_ancien)
     )
     decision = decide_mode(n_local, n_departement, seuil=config.min_local_sample)
 
@@ -531,13 +564,29 @@ def compute_communes(
     est identique pour toutes les communes du dept, donc calculée une seule fois.
     """
     memo_departemental: dict[str, MailleCoefficient | None] = {}
+    # #277 : le travail invariant entre communes d'un même batch est hoisté hors de la
+    # boucle — le tri canonique du pool (INV-5) une seule fois, et le sous-échantillon
+    # départemental (+ son comptage éligible) mémoïsé par département (comme la
+    # régression départementale #200). Seule la sélection locale reste par commune.
+    pool_trie = sorted(pool, key=lambda mutation: mutation.id_mutation)
+    departemental_par_dept: dict[str, list[Mutation]] = {}
+    n_departement_par_dept: dict[str, int] = {}
     for code_insee, lat, lon in communes:
-        maille = compute_maille(
+        departement = code_insee[:2]
+        if departement not in departemental_par_dept:
+            dep = _meme_departement(code_insee, pool_trie)
+            departemental_par_dept[departement] = dep
+            n_departement_par_dept[departement] = len(
+                _eligible(dep, restreindre_bati_ancien=config.restreindre_bati_ancien)
+            )
+        maille = _compute_maille_sur_pool_prepare(
             code_insee,
             lat,
             lon,
             millesime,
-            pool,
+            pool_trie,
+            departemental=departemental_par_dept[departement],
+            n_departement=n_departement_par_dept[departement],
             config=config,
             memo_departemental=memo_departemental,
         )
