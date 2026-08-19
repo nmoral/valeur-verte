@@ -307,6 +307,21 @@ def compute_departement(
         f" ({multi} écartée(s) — mutation multi-communes)" if multi else "",
     )
 
+    # #255 : un département dont le pool est **nourri uniquement par les limitrophes**
+    # (non vide, mais aucune vente native — `code_insee` préfixé par le département) ne
+    # produit aucune maille. Ses communes de bord publieraient sinon des mailles
+    # « locales » fantômes — nocives car en N+1 une apparition réelle serait lue comme
+    # un changement (REG-1). Le débordement (#18) nourrit le calcul, il ne le crée pas.
+    # Un pool **vide** (aucune vente du tout) suit la voie normale : les communes sont
+    # refusées (REG-2 retire leurs coefficients périmés), pas silencieusement ignorées.
+    if pool and not any(vente.code_insee[:2] == departement for vente in pool):
+        logger.info(
+            "Département %s : aucune vente native (pool nourri seulement par les "
+            "limitrophes) — aucune maille produite (#255).",
+            departement,
+        )
+        return rapport
+
     coordonnees = [
         (commune.code_insee, commune.centre_latitude, commune.centre_longitude)
         for commune in communes

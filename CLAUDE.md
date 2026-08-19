@@ -86,14 +86,20 @@ Règles :
 
 ---
 
-## 2. Une branche par issue
+## 2. Une branche — et un worktree — par tâche
 
-- Toute tâche part d'une **issue** (voir le backlog). Une issue = **une branche** = une PR.
-- Créer la branche **depuis `main`** à jour :
-  `git switch main && git pull && git switch -c issue-<num>-<slug>`
-  (ex. `issue-20-rayon-adaptatif`).
+- Toute tâche part d'une **issue** (voir le backlog). Une issue = **une branche** = **un
+  worktree dédié** = une PR.
+- **Chaque nouvelle tâche démarre dans un nouveau worktree**, jamais dans un worktree
+  existant qui porte déjà une autre branche (sinon les commits atterrissent sur la
+  mauvaise branche). Créer le worktree et sa branche **depuis `main`** à jour :
+  `git fetch origin main && git worktree add -b issue-<num>-<slug> ../<repo>-issue-<num> origin/main`
+  (ex. `../valeur-verte-issue-20`). Travailler **dans ce worktree** jusqu'au bout.
 - La branche reste **focalisée sur son issue** : pas de changements hors périmètre.
 - Ouvrir une **Pull Request vers `main`** ; le corps contient `Closes #<num>`.
+- **Une fois la tâche terminée** (PR mergée ou abandonnée), **supprimer le worktree** :
+  `git worktree remove ../<repo>-issue-<num>` (puis `git worktree prune` au besoin). On
+  ne laisse pas s'accumuler des worktrees dormants.
 - Faire évoluer le **label de statut** de l'issue au fil de l'eau :
   `statut: à faire` → `statut: en cours` → `statut: en revue` → (fermeture) `statut: fini`.
   `statut: bloqué` si dépendance non satisfaite.
@@ -274,7 +280,8 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
 ## 8. Attendu de Claude
 
 - Suivre le cycle **Red → Green → Refactor** avec **un commit par étape**, sans exception.
-- **Une branche par issue**, PR vers `main`, statut de l'issue tenu à jour.
+- **Un worktree dédié + une branche par issue** (créés depuis `main`, §2), PR vers `main`,
+  statut de l'issue tenu à jour ; **supprimer le worktree une fois la tâche terminée**.
 - Lancer `make check` avant de déclarer une étape terminée, `make mutation` avant la revue ;
   rapporter honnêtement l'état (tests rouges = le dire).
 - Ne pas affaiblir les portes qualité ni contourner un outil pour « faire vert ».
