@@ -23,6 +23,8 @@ final readonly class Etude
         public ?int $medianeGainEc,
         public ?int $medianeGainEd,
         public array $carte,
+        public Constats $constats,
+        public int $departementsAbsents,
     ) {
     }
 }
