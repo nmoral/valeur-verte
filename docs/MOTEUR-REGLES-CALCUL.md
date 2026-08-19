@@ -268,8 +268,18 @@ pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** 
 - **Périmètre** : les **effets DPE** seulement (pas les élasticités) ; la **référence D**
   n'est jamais tirée (ancre) ; une classe fusionnée cible l'effet de son **représentant
   de bande** (#169) ; une classe sans cible ou portée par **< 2** communes reste locale.
-  ``ic_dpe`` est recalculé sur l'effet shrinké (l'IC a posteriori honnête —
-  `pooling.variance_posterieure` — est une évolution).
+- **Fourchette de l'effet (#260)** : `ic_dpe` découle désormais de l'**écart-type de
+  l'effet**, `coef ± IC_Z·SE` (`IC_Z = 1`, soit ±1 SD ≈ 68 %, `batch._intervalle_se`) —
+  **pas** de l'erreur médiane. Pour une classe **régularisée**, le SE est **postérieur**
+  (`√variance_posterieure(τ², SE²) = √(τ²·SE²/(τ²+SE²))`, `pooling.variance_posterieure`)
+  donc **plus resserré** que le SE local : le bénéfice du shrinkage (emprunt de force au
+  département) est visible dans la fourchette. Pour une classe **non tirée** portant un
+  SE, l'IC est **SE local** (`coef ± SE`) ; repli sur l'heuristique erreur médiane
+  seulement pour une classe **sans** SE (rare). ⚠️ Ces fourchettes SE-based sont souvent
+  **plus larges** que l'ancienne heuristique et peuvent **traverser zéro** (un effet non
+  distinguable de 0) — c'est l'incertitude réelle du coefficient, plus honnête. **Lot
+  data** : l'app doit encore lire `ic_dpe` pour la fourchette servie/PDF (aujourd'hui
+  dérivée de `erreur_mediane`).
 - **Statut** : opt-in (`VV_MOTEUR_POOLING_HIERARCHIQUE`), **désactivé par défaut** (comme
   τ #208). Câblé dans `orchestration.compute_departement` **avant** la cascade (§7) ;
   ``se_dpe`` est **persisté** dans l'historique (§12) — matière première recalculable des
@@ -484,7 +494,10 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
   bord) : la restitution en dérive le bandeau « estimation dégradée ». Le tier
   DEGRADE est désormais **publié** (INV-4 gate au plafond 30 %) **et persisté**
   (migration 009).
-- **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
+- **`ic_dpe`** : intervalle par classe. Hors pooling, intervalle empirique **heuristique**
+  (S29) — `coef ± |coef|·(erreur_mediane/100)`. Après pooling (#260), fourchette
+  **SE-based** `coef ± IC_Z·SE` (SE **postérieur** pour une classe régularisée, SE local
+  sinon ; §4ter). Deux régimes coexistent tant que les crans non poolés n'ont pas convergé.
 - **`effectifs_dpe`** : effectif observé par classe DPE publiée, **persisté** (JSONB,
   migration 009) — débloque la tolérance INV-1 au rechargement (RECAP §6, #131).
 - **`se_dpe`** (#249) : écart-type par classe DPE publiée (§4), **persisté dans

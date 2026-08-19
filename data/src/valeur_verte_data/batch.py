@@ -12,6 +12,7 @@ peu peuplé, on refuse (``None``).
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -21,7 +22,7 @@ from .config import DEFAULT_CONFIG, CalculConfig
 from .cross_validation import median_relative_error
 from .degraded import CoverageMode, PalierFiabilite, decide_mode, palier_erreur
 from .dvf import Mutation
-from .pooling import effet_pool, variance_inter
+from .pooling import effet_pool, variance_inter, variance_posterieure
 from .radius import RadiusSelection, adaptive_selection
 from .regression import RegressionResult, _eligible, fit
 from .trimming import ecreter_residu
@@ -127,6 +128,18 @@ def _intervals(
         classe: (coef - abs(coef) * fraction, coef + abs(coef) * fraction)
         for classe, coef in coef_dpe.items()
     }
+
+
+# Multiplicateur de l'écart-type pour la fourchette de l'effet DPE (#260) : ±1 SD,
+# soit un intervalle ~68 %. La fourchette du pooling découle de l'écart-type de l'effet
+# (SE local, ou SE **postérieur** pour une classe régularisée), pas de l'erreur médiane.
+IC_Z = 1.0
+
+
+def _intervalle_se(coef: float, se: float) -> tuple[float, float]:
+    """Fourchette ``coef ± IC_Z·se`` d'un effet DPE, à partir de son écart-type."""
+    demi = IC_Z * se
+    return (coef - demi, coef + demi)
 
 
 def _maille(
@@ -584,10 +597,23 @@ def pool_hierarchique(
     pooles: dict[str, MailleCoefficient] = {}
     for code, maille in mailles.items():
         coef = dict(maille.coef_dpe)
+        # SE effectif par classe : SE local par défaut, remplacé par le SE **postérieur**
+        # (#260) là où la classe est régularisée — le shrinkage emprunte de la force au
+        # département, donc l'écart-type se resserre (v_post = τ²v/(τ²+v) < v).
+        se_effectif = {classe: maille.se_dpe[classe] for classe in coef if classe in maille.se_dpe}
         for classe, (tau2, centre) in priors.items():
             if classe in coef and classe in maille.se_dpe:
-                coef[classe] = effet_pool(coef[classe], centre, tau2, maille.se_dpe[classe] ** 2)
-        pooles[code] = replace(
-            maille, coef_dpe=coef, ic_dpe=_intervals(coef, maille.erreur_mediane)
-        )
+                variance = maille.se_dpe[classe] ** 2
+                coef[classe] = effet_pool(coef[classe], centre, tau2, variance)
+                se_effectif[classe] = math.sqrt(variance_posterieure(tau2, variance))
+        # Fourchette SE-based partout où l'on a un écart-type (#260) ; repli heuristique
+        # sur l'erreur médiane pour une classe sans SE (rare : régresseur sans ddl).
+        fraction = None if maille.erreur_mediane is None else maille.erreur_mediane / 100.0
+        ic_dpe: dict[str, tuple[float, float]] = {}
+        for classe, effet in coef.items():
+            if classe in se_effectif:
+                ic_dpe[classe] = _intervalle_se(effet, se_effectif[classe])
+            elif fraction is not None:
+                ic_dpe[classe] = (effet - abs(effet) * fraction, effet + abs(effet) * fraction)
+        pooles[code] = replace(maille, coef_dpe=coef, ic_dpe=ic_dpe)
     return pooles
