@@ -27,8 +27,21 @@
         <section data-widget="mur-contact">
             <p>Recevez le détail chiffré et le PDF de votre estimation :</p>
             <form method="post" action="/{{ token }}/contact">
+                {# Les entrées de l'estimation sont reportées pour figer l'instantané
+                   au moment de la demande (l'autocomplétion BAN remplira `code_insee`). #}
+                <input type="hidden" name="adresse" value="{{ valeurs.adresse|default('') }}">
+                <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
+                <input type="hidden" name="surface_batie" value="{{ valeurs.surface_batie|default('') }}">
+                <input type="hidden" name="surface_terrain" value="{{ valeurs.surface_terrain|default('') }}">
+                <input type="hidden" name="dpe_avant" value="{{ valeurs.dpe_avant|default('') }}">
+                <input type="hidden" name="dpe_apres" value="{{ valeurs.dpe_apres|default('') }}">
+
                 <label>Votre nom <input type="text" name="nom" required></label>
                 <label>Votre email <input type="email" name="email" required></label>
+                <label>
+                    <input type="checkbox" name="consentement" value="on">
+                    J'accepte d'être recontacté au sujet de mon estimation.
+                </label>
                 <button type="submit">Recevoir mon estimation détaillée</button>
             </form>
         </section>

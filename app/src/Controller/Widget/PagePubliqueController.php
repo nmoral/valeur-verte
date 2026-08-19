@@ -101,6 +101,7 @@ final class PagePubliqueController extends AbstractController
         return $this->render('widget/resultat.html.twig', [
             'branding' => $branding,
             'token' => $token,
+            'valeurs' => $valeurs,
             'restitution' => $this->estimation($estimateur, $valeurs['code_insee'], $saisie),
         ]);
     }

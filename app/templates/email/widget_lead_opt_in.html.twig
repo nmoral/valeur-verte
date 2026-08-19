@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Confirmez votre demande d'estimation</title>
+</head>
+<body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
+    <p>Bonjour {{ nom }},</p>
+    <p>
+        Vous venez d'obtenir une estimation de la valeur verte de votre bien.
+        Pour recevoir le détail chiffré et votre PDF, confirmez votre adresse email :
+    </p>
+    <p>
+        <a href="{{ lien }}" style="display:inline-block;padding:12px 20px;background:#0E4A5C;color:#ffffff;text-decoration:none;border-radius:6px;">
+            Confirmer et voir mon estimation
+        </a>
+    </p>
+    <p style="font-size:13px;color:#555;">
+        Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+        Le lien : {{ lien }}
+    </p>
+</body>
+</html>

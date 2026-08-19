@@ -119,6 +119,13 @@ services:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
 
+    # Capture de lead widget (#42) : lien de confirmation d'opt-in construit sur le
+    # sous-domaine widget. ; le jeton expire après cette durée (usage unique).
+    App\Widget\CaptureLead:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $dureeValiditeMinutes: 1440
+
     # Envoi d'email transactionnel (#108) : adaptateur Brevo (API HTTP). Clé et
     # adresse expéditrice depuis l'environnement, jamais versionnées.
     App\Notification\Mailer: '@App\Notification\MailerBrevo'
@@ -136,6 +143,12 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+when@dev:
+    services:
+        # En dev, on n'appelle pas Brevo : l'email est journalisé (lien inclus)
+        # pour inspecter les parcours (opt-in, confirmation) au navigateur.
+        App\Notification\Mailer: '@App\Notification\MailerJournal'
 
 when@test:
     services:
