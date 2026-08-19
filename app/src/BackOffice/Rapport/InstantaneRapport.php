@@ -190,6 +190,7 @@ final readonly class InstantaneRapport
                 'mode' => $this->restitution->portee()->value,
                 'palier' => $this->restitution->palier()->value,
                 'bandes_appliquees' => $this->restitution->bandesAppliquees(),
+                'partiellement_rapprochee' => $this->restitution->estPartiellementRapprochee(),
             ],
             'calcul' => $this->contexte?->toArray(),
             'marque' => [
@@ -295,6 +296,7 @@ final readonly class InstantaneRapport
             PorteeEstimation::depuis(self::texteOuNull($restitution['mode'] ?? null), $rayonKm),
             PalierFiabilite::depuis(self::texteOuNull($restitution['palier'] ?? null)),
             self::mappingTexte($restitution['bandes_appliquees'] ?? []),
+            self::booleen($restitution['partiellement_rapprochee'] ?? false),
         );
     }
 
