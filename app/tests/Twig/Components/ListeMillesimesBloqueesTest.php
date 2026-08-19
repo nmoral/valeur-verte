@@ -8,6 +8,7 @@ use App\AdminInterne\Millesime\DecisionMillesime;
 use App\Tests\AdminInterne\Millesime\ProvisionneSchemaData;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\UX\LiveComponent\Test\InteractsWithLiveComponents;
+use Symfony\UX\LiveComponent\Test\TestLiveComponent;
 
 /**
  * Action de groupe sur les mailles à vérifier (#239/#130) : débloquer la
@@ -64,7 +65,7 @@ final class ListeMillesimesBloqueesTest extends KernelTestCase
         $composant->call('executerGroupe', ['cle' => 'millesimes.publier_mailles']);
     }
 
-    private function composant(bool $publie): object
+    private function composant(bool $publie): TestLiveComponent
     {
         return $this->createLiveComponent('ListeMillesimesBloquees', [
             'millesime' => 2024,
