@@ -16,6 +16,7 @@ import pytest
 from valeur_verte_data import orchestration
 from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
+from valeur_verte_data.dvf import Mutation
 from valeur_verte_data.ecarts import ClasseEcart
 
 
@@ -80,6 +81,30 @@ def _maille(
         coef_dpe=coef_dpe if coef_dpe is not None else {"D": 0.0, "F": -0.20},
         ic_dpe={},
         alerte=None,
+    )
+
+
+def _vente_native(code_insee: str) -> Mutation:
+    """Une vente propre au département, pour que le pool ne soit pas vide (#255)."""
+    return Mutation(
+        id_mutation="m1",
+        date_mutation="2024-01-01",
+        millesime=2024,
+        code_insee=code_insee,
+        code_postal="31000",
+        nom_commune="Toulouse",
+        type_local="Maison",
+        nombre_pieces_principales=4,
+        prix=200000.0,
+        surface_bati=100.0,
+        surface_terrain=500.0,
+        prix_m2=2000.0,
+        adresse_numero="1",
+        adresse_suffixe=None,
+        adresse_nom_voie="RUE",
+        longitude=1.44,
+        latitude=43.60,
+        etiquette_dpe="D",
     )
 
 
@@ -205,6 +230,9 @@ def test_une_maille_sans_precedent_est_archivee_sans_classe(
 
 
 def _brancher(monkeypatch: pytest.MonkeyPatch, mailles: list[MailleCoefficient]) -> None:
-    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [])
+    # #255 : le pool doit porter au moins une vente native (dept 31), sinon
+    # `compute_departement` court-circuite (aucune vente propre ⇒ aucune maille) et
+    # ces tests — qui visent le plumbing d'archivage/refus — ne calculeraient rien.
+    monkeypatch.setattr(orchestration, "load_pool", lambda *_, **__: [_vente_native("31555")])
     monkeypatch.setattr(orchestration, "compute_communes", lambda *a, **k: list(mailles))
     monkeypatch.setattr(orchestration, "read_adjacence", lambda conn, dep: {})

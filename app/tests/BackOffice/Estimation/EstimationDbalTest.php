@@ -146,6 +146,9 @@ final class EstimationDbalTest extends KernelTestCase
         $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS mode   TEXT');
         $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS palier TEXT');
         $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS bandes JSONB');
+        // #260 : la fourchette découle de ic_dpe ; NULL (inserts sans cette colonne)
+        // fait retomber l'estimation sur l'erreur médiane (repli), assertions inchangées.
+        $this->prive->executeStatement('ALTER TABLE data.coefficient_maille ADD COLUMN IF NOT EXISTS ic_dpe JSONB');
         $this->prive->executeStatement(
             'CREATE TABLE IF NOT EXISTS data.vente (
                 id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
