@@ -58,12 +58,13 @@ final class PagePublicationTest extends WebTestCase
         self::assertStringContainsString('2', $crawler->filter('[data-etat="communes"]')->text());
     }
 
-    public function testLeBandeauDePreuveAfficheLesMedianesNationales(): void
+    public function testLeBandeauDePreuveAfficheLeGainVersCEtLeCranVersB(): void
     {
         $crawler = $this->page();
 
-        self::assertStringContainsString('13', $crawler->filter('[data-mesure="gain-d"] b')->text());
+        // E→C national (médiane 23) et cran C→B national (seul 31 porte un B, +8 %).
         self::assertStringContainsString('23', $crawler->filter('[data-mesure="gain-c"] b')->text());
+        self::assertStringContainsString('8', $crawler->filter('[data-mesure="gain-cb"] b')->text());
     }
 
     public function testLaCarteEmbarqueLesMetriquesDeChaqueDepartement(): void
@@ -76,8 +77,17 @@ final class PagePublicationTest extends WebTestCase
         self::assertSame(760, $donnees['w']);
         self::assertIsArray($donnees['feats']);
         $parDepartement = array_column($donnees['feats'], 'm', 'dept');
-        self::assertSame(['n' => 2, 'gain' => 35, 'gainED' => 21, 'dept' => 0], $parDepartement['31']);
+        self::assertSame(['n' => 2, 'gain' => 35, 'gainCB' => 8, 'dept' => 0], $parDepartement['31']);
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');
+    }
+
+    public function testLeMessageEstRecentreSurLArbitrageCVersB(): void
+    {
+        $texte = $this->page()->filter('body')->text();
+
+        // Le message pivote vers C/B et abandonne le « s'arrêter à D ».
+        self::assertStringContainsString('classe B', $texte);
+        self::assertStringNotContainsString('s\'arrêter à la classe D', $texte);
     }
 
     public function testLesConstatsCitentLesDepartementsPubliesEtNonDesValeursFigees(): void
@@ -183,8 +193,9 @@ final class PagePublicationTest extends WebTestCase
      */
     private function publier(): void
     {
-        $this->semerMaille('31001', calculeLe: '2026-02-08 04:12:00');
-        $this->semerMaille('31002', calculeLe: '2026-02-08 04:12:00');
+        // La Haute-Garonne porte un B publiable (cran C→B mesurable) ; l'Ariège non.
+        $this->semerMaille('31001', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
+        $this->semerMaille('31002', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
         $this->semerMaille('09001', mode: 'departemental', coefDpe: '{"D":0.0,"C":0.05,"E":-0.05}');
         $this->semerMaille('09002', mode: 'departemental', coefDpe: '{"D":0.0,"C":0.05,"E":-0.05}');
         $this->semerCommune('31001', 'Toulouse', '31');

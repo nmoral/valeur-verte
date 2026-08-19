@@ -84,9 +84,22 @@ final readonly class MetriquesDepartementales
         return Mediane::de($this->gains(static fn (MetriqueDepartement $metrique) => $metrique->gainEc));
     }
 
-    public function medianeGainEd(): ?int
+    /**
+     * Supplément national du cran C→B : médiane des médianes départementales, sur
+     * les seuls départements où un B est publié.
+     */
+    public function medianeGainCb(): ?int
     {
-        return Mediane::de($this->gains(static fn (MetriqueDepartement $metrique) => $metrique->gainEd));
+        return Mediane::de($this->gains(static fn (MetriqueDepartement $metrique) => $metrique->gainCb));
+    }
+
+    /**
+     * Nombre de départements où le cran C→B est mesurable (au moins une maille
+     * portant un B publié).
+     */
+    public function departementsAvecCb(): int
+    {
+        return \count($this->gains(static fn (MetriqueDepartement $metrique) => $metrique->gainCb));
     }
 
     /**

@@ -6,8 +6,9 @@ namespace App\Publication;
 
 /**
  * Ce que la carte colore pour un département (#224) : effectif de zones mesurées,
- * gains médians E→C et E→D, et part des zones estimées à l'échelle du département
- * (faute de ventes assez proches — cascade #169).
+ * gain médian E→C, supplément médian du cran C→B (là où un B est publié), et part
+ * des zones estimées à l'échelle du département (faute de ventes assez proches —
+ * cascade #169).
  */
 final readonly class MetriqueDepartement
 {
@@ -16,7 +17,7 @@ final readonly class MetriqueDepartement
         public string $nom,
         public int $zones,
         public ?int $gainEc,
-        public ?int $gainEd,
+        public ?int $gainCb,
         public int $partDepartementale,
     ) {
     }
@@ -33,7 +34,7 @@ final readonly class MetriqueDepartement
             nom: NomsDepartements::pour($code),
             zones: \count($mailles),
             gainEc: Mediane::de(self::gains($mailles, 'E', 'C')),
-            gainEd: Mediane::de(self::gains($mailles, 'E', 'D')),
+            gainCb: Mediane::de(self::gains($mailles, 'C', 'B')),
             partDepartementale: (int) round(100 * \count($departementales) / \count($mailles)),
         );
     }
