@@ -32,7 +32,7 @@ final class CarteTest extends TestCase
                 'dept' => '31',
                 'nom' => 'Haute-Garonne',
                 'path' => 'M0,0 L1,1Z',
-                'm' => ['n' => 2, 'gain' => 35, 'gainED' => 21, 'dept' => 0],
+                'm' => ['n' => 2, 'gain' => 35, 'gainCB' => 8, 'dept' => 0],
             ],
             $donnees['feats'][0],
         );
@@ -49,8 +49,8 @@ final class CarteTest extends TestCase
     private static function carte(): Carte
     {
         $mailles = [
-            new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
-            new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
+            new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
+            new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
         ];
 
         return new Carte(

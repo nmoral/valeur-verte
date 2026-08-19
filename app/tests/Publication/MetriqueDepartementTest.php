@@ -75,7 +75,38 @@ final class MetriqueDepartementTest extends TestCase
 
         self::assertNotNull($metrique);
         self::assertNull($metrique->gainEc);
-        self::assertNull($metrique->gainEd);
+        self::assertNull($metrique->gainCb);
+    }
+
+    public function testLeGainVersBEstLaMedianeDuCranDepuisC(): void
+    {
+        $metriques = MetriquesDepartementales::depuisMailles([
+            new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
+            new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.27, 'E' => -0.19]),
+        ]);
+
+        // cran C→B : exp(0,08)−1 = 8 % ; exp(0,16)−1 = 17 % → médiane {8, 17} = 13 %.
+        self::assertSame(13, $metriques->pour('31')?->gainCb);
+    }
+
+    public function testUneMailleSansClasseBEstIgnoreeDuCranVersB(): void
+    {
+        $metriques = MetriquesDepartementales::depuisMailles([
+            new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
+            new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
+        ]);
+
+        // Seule 31001 porte un B publiable : le cran C→B est le sien (8 %).
+        self::assertSame(8, $metriques->pour('31')?->gainCb);
+    }
+
+    public function testUnDepartementSansAucunBNAffichePasDeCranVersB(): void
+    {
+        $metriques = MetriquesDepartementales::depuisMailles([
+            self::maille('31001'),
+        ]);
+
+        self::assertNull($metriques->pour('31')?->gainCb);
     }
 
     public function testLaPartDepartementaleMesureLesMaillesEstimeesALEchelleDuDepartement(): void

@@ -26,6 +26,11 @@ final readonly class EtudePubliee
         }
 
         $metriques = MetriquesDepartementales::depuisMailles($this->lecture->mailles());
+        $chemins = $this->contours->chemins();
+        $absents = \count(array_diff(
+            array_map(static fn (int|string $code): string => (string) $code, array_keys($chemins)),
+            $metriques->codes(),
+        ));
 
         return new Etude(
             millesime: $publication->millesime,
@@ -35,8 +40,11 @@ final readonly class EtudePubliee
             departementsCouverts: $metriques->departementsCouverts(),
             communesReferencees: $this->lecture->communesReferencees(),
             medianeGainEc: $metriques->medianeGainEc(),
-            medianeGainEd: $metriques->medianeGainEd(),
-            carte: (new Carte($this->contours->chemins(), $metriques))->donnees(),
+            medianeGainCb: $metriques->medianeGainCb(),
+            departementsOuBMesure: $metriques->departementsAvecCb(),
+            carte: (new Carte($chemins, $metriques))->donnees(),
+            constats: Constats::depuis($metriques->departements()),
+            departementsAbsents: $absents,
         );
     }
 }

@@ -165,6 +165,10 @@
             <p class="banner banner-bande banner-fiabilite" role="note">{% for classe, bande in restitution.bandesAppliquees %}La classe {{ classe }} est estimée via la bande {{ bande }}.{% if not loop.last %} {% endif %}{% endfor %}</p>
         {% endif %}
 
+        {% if restitution.estPartiellementRapprochee %}
+            <p class="banner banner-info banner-fiabilite" role="note">Estimation partiellement rapprochée du département&nbsp;: faute de ventes locales suffisantes, l'effet DPE a été rapproché de la moyenne départementale.</p>
+        {% endif %}
+
         <div class="stats">
             <div class="stat"><span class="stat-k">Transactions <twig:Infobulle texte="Nombre de ventes comparables retenues pour l'estimation. Plus il y en a, plus l'estimation est fiable." /></span><span class="stat-v">{{ restitution.n|number_format(0, ',', ' ') }}</span></div>
             <div class="stat"><span class="stat-k">Rayon retenu <twig:Infobulle texte="Zone autour du bien dans laquelle les ventes comparables ont été retenues. Un petit rayon reflète un marché très local." /></span><span class="stat-v">{{ restitution.intitulePortee }}</span></div>

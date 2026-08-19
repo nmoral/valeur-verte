@@ -54,9 +54,11 @@ final class EtudePublieeTest extends TestCase
         $etude = self::etude()->courante();
 
         self::assertNotNull($etude);
-        // Médianes départementales : 31 → +35 % / +21 %, 09 → +11 % / +5 %.
+        // E→C par département : 31 → +35 %, 09 → +11 % → médiane 23.
         self::assertSame(23, $etude->medianeGainEc);
-        self::assertSame(13, $etude->medianeGainEd);
+        // Cran C→B : seul 31 porte un B (+8 %) ; 09 sans B est ignoré → médiane 8.
+        self::assertSame(8, $etude->medianeGainCb);
+        self::assertSame(1, $etude->departementsOuBMesure);
     }
 
     public function testLaCarteEstAssembleeAvecLesContoursFiges(): void
@@ -67,8 +69,31 @@ final class EtudePublieeTest extends TestCase
         self::assertSame(['31', '09'], array_column($etude->carte['feats'], 'dept'));
     }
 
-    private static function etude(?LectureModelePublieEnMemoire $lecture = null): EtudePubliee
+    public function testLesConstatsSontDerivesDesDepartementsPublies(): void
     {
+        $etude = self::etude()->courante();
+
+        self::assertNotNull($etude);
+        // Classement E→C : 31 (Haute-Garonne, +35 %) devant 09 (Ariège, +11 %).
+        self::assertSame(35, $etude->constats->gainsLesPlusForts[0]->valeur);
+        self::assertSame(['Haute-Garonne'], $etude->constats->gainsLesPlusForts[0]->noms);
+        self::assertSame(1, $etude->constats->departementsAuDela30);
+    }
+
+    public function testLesDepartementsDessinesSansMetriqueSontComptesAbsents(): void
+    {
+        // Contours de trois départements (31, 09, 75) mais seuls 31 et 09 publiés :
+        // Paris est dessiné sans chiffres — donc compté absent.
+        $etude = self::etude(null, 'contours-avec-absent.json')->courante();
+
+        self::assertNotNull($etude);
+        self::assertSame(1, $etude->departementsAbsents);
+    }
+
+    private static function etude(
+        ?LectureModelePublieEnMemoire $lecture = null,
+        string $contours = 'contours-de-test.json',
+    ): EtudePubliee {
         $lecture ??= new LectureModelePublieEnMemoire(
             new Publication(
                 2025,
@@ -76,8 +101,8 @@ final class EtudePublieeTest extends TestCase
                 new \DateTimeImmutable('2026-02-08 04:12:00'),
             ),
             [
-                new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
-                new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
+                new Maille('31001', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
+                new Maille('31002', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
                 new Maille('09001', 'departemental', ['D' => 0.0, 'C' => 0.05, 'E' => -0.05]),
                 new Maille('09002', 'departemental', ['D' => 0.0, 'C' => 0.05, 'E' => -0.05]),
             ],
@@ -86,7 +111,7 @@ final class EtudePublieeTest extends TestCase
 
         return new EtudePubliee(
             $lecture,
-            new ContoursDepartements(\dirname(__DIR__).'/Publication/contours-de-test.json'),
+            new ContoursDepartements(\dirname(__DIR__).'/Publication/'.$contours),
         );
     }
 }

@@ -96,6 +96,7 @@ trait ProvisionneSchemaData
             'palier TEXT',
             'bandes JSONB',
             'effectifs_dpe JSONB',
+            'poids_pooling DOUBLE PRECISION',
             'calcule_le TIMESTAMP NOT NULL DEFAULT now()',
         ] as $colonne) {
             $prive->executeStatement(
@@ -120,6 +121,7 @@ trait ProvisionneSchemaData
                 palier          TEXT,
                 bandes          JSONB,
                 effectifs_dpe   JSONB,
+                poids_pooling   DOUBLE PRECISION,
                 calcule_le      TIMESTAMP NOT NULL DEFAULT now(),
                 PRIMARY KEY (code_insee, millesime)
             )',

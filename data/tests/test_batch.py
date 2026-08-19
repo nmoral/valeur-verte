@@ -21,6 +21,7 @@ from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.cross_validation import median_relative_error
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
+from valeur_verte_data.pooling import poids_pool, variance_inter, variance_posterieure
 from valeur_verte_data.radius import RadiusSelection
 
 # Effets en logarithme : le modèle est log-linéaire (#115).
@@ -1103,9 +1104,11 @@ def test_pool_hierarchique_cible_absente_ne_change_rien() -> None:
     assert pooles["A"].coef_dpe["F"] == 1.0
 
 
-def test_pool_hierarchique_recalcule_l_ic_sur_l_effet_shrinke() -> None:
-    # ic_dpe suit l'effet publié : après shrinkage à 0,75 avec erreur 20 %, l'IC vaut
-    # 0,75 ± 0,75·0,20 = (0,60 ; 0,90).
+def test_pool_hierarchique_expose_le_poids_de_regularisation() -> None:
+    """#261 : chaque maille poolée porte ``poids_pooling`` = min des ``w`` sur ses
+    classes tirées (la régularisation la plus forte). ``w = τ²/(τ²+SE²)`` ; ici
+    τ²=0,75, SE²=0,25 → w=0,75. Sert le badge « partiellement rapprochée du dépt ».
+    """
     mailles = {
         "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
         "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
@@ -1113,5 +1116,58 @@ def test_pool_hierarchique_recalcule_l_ic_sur_l_effet_shrinke() -> None:
 
     pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
 
+    tau2 = variance_inter([(1.0, 0.25), (-1.0, 0.25)], 0.0)
+    assert tau2 is not None
+    assert pooles["A"].poids_pooling == poids_pool(tau2, 0.25)
+
+
+def test_pool_hierarchique_maille_non_tiree_a_un_poids_none() -> None:
+    """Sans classe régularisée (cible absente), pas de poids (badge non affiché)."""
+    mailles = {"A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5})}
+
+    pooles = pool_hierarchique(mailles, None, reference_dpe="D")
+
+    assert pooles["A"].poids_pooling is None
+
+
+def test_pool_hierarchique_ic_classe_non_shrinkee_utilise_le_se_local() -> None:
+    """#260 : SE-based **partout**. Une classe non régularisée (présente dans une seule
+    commune → reste locale) porte une fourchette ``coef ± SE local``, pas l'heuristique
+    erreur_mediane. Ici G n'existe que dans A : effet inchangé, IC = 0,4 ± 0,3.
+    """
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0, "G": 0.4}, {"D": 0.0, "F": 0.5, "G": 0.3}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0, "G": 0.0}), reference_dpe="D")
+
+    assert pooles["A"].coef_dpe["G"] == 0.4  # non tirée (une seule commune)
+    bas, haut = pooles["A"].ic_dpe["G"]
+    assert (round(bas, 6), round(haut, 6)) == (round(0.4 - 0.3, 6), round(0.4 + 0.3, 6))
+
+
+def test_pool_hierarchique_ic_classe_shrinkee_utilise_la_variance_posterieure() -> None:
+    """#260 : la fourchette d'une classe shrinkée découle de la variance POSTÉRIEURE
+    de l'effet (τ²·v/(τ²+v)), pas de l'heuristique erreur_mediane.
+
+    La maille régularisée emprunte de la force au département : son écart-type
+    postérieur (√0,1875 ≈ 0,433) est **plus resserré** que son SE local (0,5). La
+    fourchette est ``coef ± 1·√variance_posterieure`` (±1 SD, ~68 %).
+    """
+    mailles = {
+        "A": _maille_locale("A", {"D": 0.0, "F": 1.0}, {"D": 0.0, "F": 0.5}),
+        "B": _maille_locale("B", {"D": 0.0, "F": -1.0}, {"D": 0.0, "F": 0.5}),
+    }
+
+    pooles = pool_hierarchique(mailles, _cible({"D": 0.0, "F": 0.0}), reference_dpe="D")
+
+    tau2 = variance_inter([(1.0, 0.25), (-1.0, 0.25)], 0.0)  # τ̂² = 0,75
+    assert tau2 is not None
+    se_post = math.sqrt(variance_posterieure(tau2, 0.25))  # √0,1875 ≈ 0,433
+    coef = pooles["A"].coef_dpe["F"]  # 0,75 (effet shrinké)
     bas, haut = pooles["A"].ic_dpe["F"]
-    assert (round(bas, 6), round(haut, 6)) == (0.60, 0.90)
+    assert (round(bas, 6), round(haut, 6)) == (
+        round(coef - se_post, 6),
+        round(coef + se_post, 6),
+    )

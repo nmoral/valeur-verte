@@ -31,6 +31,18 @@ pool département+limitrophes (maisons)          [pool_repository.load_pool]
 Orchestration département : `orchestration.compute_departement` (pool chargé une
 fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
 
+**Court-circuit « pool nourri seulement par les limitrophes » (#255)** : après chargement
+du pool et ses filtres (régime DPE #215, multi-communes #252), si le pool est **non vide**
+mais qu'**aucune** de ses ventes n'appartient au département demandé (préfixe
+`code_insee[:2]`, voisins exclus), `compute_departement` **renvoie un rapport vide sans
+rien calculer ni archiver**. Un département hors périmètre DVF (Alsace-Moselle 57/67/68,
+Paris 75) n'a aucune vente propre ; sans ce garde-fou, ses communes de bord capteraient les
+ventes limitrophes (#18) et publieraient des mailles « locales » fantômes — nocives car en
+N+1 une apparition réelle serait lue comme un changement par REG-1. Le débordement
+**nourrit** le calcul, il ne le **crée** pas. Un pool **vide** (aucune vente du tout) suit
+la voie normale : les communes sont **refusées** (REG-2 retire leurs coefficients périmés),
+pas silencieusement ignorées.
+
 ## 2. Segment de biens
 
 - **Maisons uniquement** — `pool_repository.SEGMENT_MVP = "Maison"`, `config.segment = "Maison"`.
@@ -256,8 +268,36 @@ pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** 
 - **Périmètre** : les **effets DPE** seulement (pas les élasticités) ; la **référence D**
   n'est jamais tirée (ancre) ; une classe fusionnée cible l'effet de son **représentant
   de bande** (#169) ; une classe sans cible ou portée par **< 2** communes reste locale.
-  ``ic_dpe`` est recalculé sur l'effet shrinké (l'IC a posteriori honnête —
-  `pooling.variance_posterieure` — est une évolution).
+- **Fourchette de l'effet (#260)** : `ic_dpe` découle désormais de l'**écart-type de
+  l'effet**, `coef ± IC_Z·SE` (`IC_Z = 1`, soit ±1 SD ≈ 68 %, `batch._intervalle_se`) —
+  **pas** de l'erreur médiane. Pour une classe **régularisée**, le SE est **postérieur**
+  (`√variance_posterieure(τ², SE²) = √(τ²·SE²/(τ²+SE²))`, `pooling.variance_posterieure`)
+  donc **plus resserré** que le SE local : le bénéfice du shrinkage (emprunt de force au
+  département) est visible dans la fourchette. Pour une classe **non tirée** portant un
+  SE, l'IC est **SE local** (`coef ± SE`) ; repli sur l'heuristique erreur médiane
+  seulement pour une classe **sans** SE (rare). ⚠️ Ces fourchettes SE-based sont souvent
+  **plus larges** que l'ancienne heuristique et peuvent **traverser zéro** (un effet non
+  distinguable de 0) — c'est l'incertitude réelle du coefficient, plus honnête. **Restitution
+  (#260)** : `CoefficientMaille::estimer` dérive la fourchette € de `ic_dpe` — demi-largeur de
+  l'écart avant→après = `√(demi_IC_avant² + demi_IC_apres²)` (indépendance ; nulle si même
+  classe), convertie en € par `exp`. Repli sur l'erreur médiane si `ic_dpe` manque. Les bornes €
+  sont **figées telles quelles** dans l'instantané (#33) — PDF reproductible sans changement de
+  format.
+- **Poids de régularisation exposé (#261)** : chaque maille poolée porte
+  `poids_pooling` = **min des `w = τ²/(τ²+SE²)`** sur ses classes DPE tirées (la
+  régularisation la plus forte ; `None` si aucune classe tirée). `w → 1` = maille quasi
+  locale, `w → 0` = fortement rapprochée du département. **Persisté** sur la table vive
+  **et** l'historique (migration 019, projeté par `publier_millesime`/`publier_maille`) —
+  matière du badge « partiellement rapprochée du département » côté restitution (transparence :
+  une maille très régularisée n'est plus vraiment « locale »).
+- **Garde du prior (#262, `orchestration.prior_pooling_fiable`)** : on ne régularise que
+  vers un fit poolé départemental **fiable** — le shrinkage suppose le prior meilleur que
+  l'observation locale pour la **variance**, pas pour le **biais**. μ doit être **publiable**
+  au sens d'**INV-1** (pas d'inversion DPE *bloquante* ; une inversion **tolérée** est réputée
+  réelle #115, on lui fait confiance — garde **lenient**) **et** d'**INV-2** (signes/ordres).
+  Sinon la cible passe à `None` (pas de pooling pour ce département, journalisé) et la
+  cascade reprend la main. `compute_maille_departement` reste mémoïsé pour le dernier cran
+  (INV-5, #175) — seule la cible du pooling est neutralisée.
 - **Statut** : opt-in (`VV_MOTEUR_POOLING_HIERARCHIQUE`), **désactivé par défaut** (comme
   τ #208). Câblé dans `orchestration.compute_departement` **avant** la cascade (§7) ;
   ``se_dpe`` est **persisté** dans l'historique (§12) — matière première recalculable des
@@ -472,13 +512,20 @@ Colonnes : `code_insee` (PK), `millesime`, `rayon_retenu_km` (null si départeme
   bord) : la restitution en dérive le bandeau « estimation dégradée ». Le tier
   DEGRADE est désormais **publié** (INV-4 gate au plafond 30 %) **et persisté**
   (migration 009).
-- **`ic_dpe`** : intervalle empirique **heuristique** (S29) — `coef ± |coef|·(erreur_mediane/100)`.
+- **`ic_dpe`** : intervalle par classe. Hors pooling, intervalle empirique **heuristique**
+  (S29) — `coef ± |coef|·(erreur_mediane/100)`. Après pooling (#260), fourchette
+  **SE-based** `coef ± IC_Z·SE` (SE **postérieur** pour une classe régularisée, SE local
+  sinon ; §4ter). Deux régimes coexistent tant que les crans non poolés n'ont pas convergé.
 - **`effectifs_dpe`** : effectif observé par classe DPE publiée, **persisté** (JSONB,
   migration 009) — débloque la tolérance INV-1 au rechargement (RECAP §6, #131).
 - **`se_dpe`** (#249) : écart-type par classe DPE publiée (§4), **persisté dans
   l'historique** (`coefficient_maille_historique`, JSONB, migration 017) — matière
   première recalculable des priors du pooling hiérarchique. **Non** sur la table vive
   `coefficient_maille` (régresseur interne, jamais servi à l'app).
+- **`poids_pooling`** (#261) : min des poids `w` de régularisation du pooling (§4ter),
+  `DOUBLE PRECISION` nullable **persisté sur la vive ET l'historique** (migration 019) —
+  **servi à l'app** (contrairement à `se_dpe`) pour le badge « partiellement rapprochée du
+  département ». `None` quand la maille n'a été régularisée sur aucune classe.
 - Restitution (`app`) : indicateur de fiabilité **Solide/Correct/Fragile** dérivé de
   (n, rayon) ; rayon null (repli EPCI/départemental) ⇒ toujours **Fragile** + bandeau,
   `mode` distinguant les deux crans.

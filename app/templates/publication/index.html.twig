@@ -21,19 +21,20 @@
 
   <header class="hero">
     <p class="eyebrow">Étude · Valeur verte des maisons · France, millésime <span data-etat="millesime">{{ etude.millesime }}</span></p>
-    <h1>S'arrêter à la classe D, c'est laisser <em>la moitié du gain</em> sur la table.</h1>
+    <h1>Rénover jusqu'à C, ou pousser jusqu'à <em>B</em> ? Sur le marché, l'essentiel du gain est déjà à C.</h1>
     <p class="chapo">
-      Nous avons mesuré, zone par zone, l'écart de prix entre des maisons comparables de classes
-      énergétiques différentes — à partir des ventes réellement enregistrées par les notaires,
-      croisées aux diagnostics de l'ADEME. Une rénovation de E vers D fait gagner {{ etude.medianeGainEd }} % de valeur.
-      Aller jusqu'à C en fait gagner {{ etude.medianeGainEc }} %. Le second palier vaut donc autant que le premier,
-      et il est presque toujours moins cher à atteindre.
+      Les aides à la rénovation exigent un saut d'au moins deux classes, et poussent souvent jusqu'à la classe B.
+      Mais qu'en dit le marché ? Zone par zone, à partir des ventes réellement enregistrées par les notaires,
+      croisées aux diagnostics de l'ADEME, nous avons mesuré chaque cran. Atteindre C — deux classes, de E à C —
+      ajoute en médiane {{ etude.medianeGainEc }} % de valeur. Le cran de plus, vers B, n'en ajoute que
+      {% if etude.medianeGainCb is not null %}{{ etude.medianeGainCb }} %{% else %}une part réduite{% endif %} :
+      bien moins que son surcoût — et que les aides — ne le laissent croire.
     </p>
     <div class="proof">
       <div class="pf" data-mesure="zones"><b>{{ etude.zonesMesurees|number_format(0, ',', ' ') }}</b><span>zones mesurées</span></div>
       <div class="pf" data-mesure="departements"><b>{{ etude.departementsCouverts }}</b><span>départements</span></div>
-      <div class="pf" data-mesure="gain-d"><b>+{{ etude.medianeGainEd }} %</b><span>en s'arrêtant à D</span></div>
-      <div class="pf" data-mesure="gain-c"><b>+{{ etude.medianeGainEc }} %</b><span>en allant jusqu'à C</span></div>
+      <div class="pf" data-mesure="gain-c"><b>+{{ etude.medianeGainEc }} %</b><span>de E jusqu'à C</span></div>
+      <div class="pf" data-mesure="gain-cb"><b>{% if etude.medianeGainCb is not null %}+{{ etude.medianeGainCb }} %{% else %}—{% endif %}</b><span>le cran de plus, vers B</span></div>
     </div>
   </header>
 
@@ -73,8 +74,8 @@
   <section class="block">
     <div class="ctl">
       <div class="seg" id="seg" role="tablist">
-        <button data-m="delta" class="on">Ce que coûte l'arrêt en D</button>
-        <button data-m="gain">Où rénover rapporte le plus</button>
+        <button data-m="gain" class="on">Où atteindre C rapporte le plus</button>
+        <button data-m="cb">Le supplément du cran vers B</button>
         <button data-m="solid">Où la mesure est la plus fine</button>
       </div>
       <div class="legend" id="legend"></div>
@@ -110,12 +111,13 @@
     <div class="findings">
       <article>
         <span class="fnum">01</span>
-        <h3>Le deuxième palier vaut autant que le premier</h3>
+        <h3>Le gros du gain est atteint à C</h3>
         <p>
-          Passer de E à D fait gagner {{ etude.medianeGainEd }} % de valeur ; aller jusqu'à C en fait gagner {{ etude.medianeGainEc }} %.
-          La seconde moitié du chemin rapporte donc autant que la première — alors qu'elle
-          coûte généralement moins cher, l'essentiel du chantier étant déjà engagé.
-          Dans l'Indre, la Vienne ou la Meuse, l'écart dépasse 17 points.
+          Atteindre C — deux classes, de E à C — vaut en médiane +{{ etude.medianeGainEc }} % de valeur.
+          Le cran supplémentaire vers B n'ajoute que
+          {% if etude.medianeGainCb is not null %}+{{ etude.medianeGainCb }} %{% else %}une part réduite{% endif %} :
+          un rendement décroissant qu'on retrouve dans {{ etude.departementsOuBMesure }} départements — partout où le B est
+          assez fréquent pour être mesuré. Les aides poussent pourtant vers B ; le marché, lui, paie surtout la montée à C.
         </p>
       </article>
       <article>
@@ -123,8 +125,8 @@
         <h3>Plus l'immobilier est cher, moins l'étiquette compte</h3>
         <p>
           Les départements où la rénovation rapporte le moins sont tous des marchés tendus :
-          Hauts-de-Seine (+5 %), Seine-Saint-Denis (+7 %), Var et Val-de-Marne (+8 %),
-          Alpes-Maritimes (+8 %). Là où l'emplacement et le foncier dominent le prix,
+          {%- for groupe in etude.constats.gainsLesPlusFaibles %} {{ groupe.nomsJoints }} (+{{ groupe.valeur }} %){{ loop.last ? '.' : ',' }}{%- endfor %}
+          Là où l'emplacement et le foncier dominent le prix,
           la performance énergétique pèse peu dans l'arbitrage de l'acheteur.
         </p>
       </article>
@@ -132,8 +134,8 @@
         <span class="fnum">03</span>
         <h3>La France rurale est celle qui gagne le plus</h3>
         <p>
-          Indre (+36 %), Vienne et Meuse (+35 %), Haute-Marne et Orne (+32 %), Mayenne et
-          Cher (+31 %). Onze départements dépassent +30 %. Le bâti y est plus ancien, les
+          {%- for groupe in etude.constats.gainsLesPlusForts %}{{ loop.first ? '' : ' ' }}{{ groupe.nomsJoints }} (+{{ groupe.valeur }} %){{ loop.last ? '.' : ',' }}{%- endfor %}
+          {{ etude.constats.departementsAuDela30 }} département{{ etude.constats.departementsAuDela30 > 1 ? 's' }} dépasse{{ etude.constats.departementsAuDela30 > 1 ? 'nt' }} +30 %. Le bâti y est plus ancien, les
           passoires plus nombreuses, et le coût de l'énergie pèse davantage dans le budget
           des ménages : une maison rénovée s'y distingue nettement.
         </p>
@@ -176,7 +178,8 @@
       <li><b>L'étiquette n'est pas qu'une mesure d'énergie.</b> Dans les centres anciens, les logements les plus mal classés sont parfois les plus recherchés — le cachet du bâti se paie, indépendamment de la consommation. Les écarts impliquant la classe G doivent être lus avec prudence.</li>
       <li><b>Un département n'est pas un marché.</b> Les chiffres présentés ici sont des médianes départementales, qui recouvrent des écarts locaux importants entre une métropole et son arrière-pays.</li>
       <li><b>Maisons individuelles uniquement.</b> En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</li>
-      <li><b>Six départements sont absents.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
+      <li><b>Le niveau B ne se mesure pas partout.</b> Il faut assez de maisons déjà classées B pour estimer le cran C→B : c'est le cas dans {{ etude.departementsOuBMesure }} départements. Ailleurs, la comparaison s'arrête au palier C.</li>
+      <li><b>{{ etude.departementsAbsents }} département{{ etude.departementsAbsents > 1 ? 's' }} {{ etude.departementsAbsents > 1 ? 'sont absents' : 'est absent' }}.</b> L'Alsace-Moselle (57, 67, 68) relève d'un régime foncier distinct et n'est pas couverte par DVF ; Paris et la Corse ne comptent pas assez de ventes de maisons.</li>
       <li><b>Une corrélation, pas une garantie.</b> Ces écarts décrivent un marché observé. Ils n'engagent aucune valeur pour un bien particulier.</li>
     </ul>
   </section>
@@ -209,7 +212,7 @@
 
 </div>
 
-<script type="application/json" id="carte-donnees">{{ etude.carte|merge({ med: { ec: etude.medianeGainEc, ed: etude.medianeGainEd } })|json_encode|raw }}</script>
+<script type="application/json" id="carte-donnees">{{ etude.carte|merge({ med: { ec: etude.medianeGainEc, cb: etude.medianeGainCb } })|json_encode|raw }}</script>
 <script src="{{ asset('js/publication.js') }}" defer></script>
 </body>
 </html>
