@@ -599,6 +599,17 @@ se câble par petits pas TDD. État :
   toutes les communes du dept, calculé **une seule fois par batch** (`compute_communes`
   passe un cache `memo_departemental`) et réutilisé (seul `code_insee` change). Le mode
   LOCAL reste par commune (voisinage propre, régressions légitimement différentes).
+- ✅ **Travail invariant hoisté hors de la boucle communes (#277)** : le **tri canonique
+  du pool** (INV-5) et le **sous-échantillon départemental** (`_meme_departement` + son
+  comptage `_eligible`) ne dépendent que du jeu de ventes et du préfixe département —
+  **identiques pour toutes les communes du batch**. `compute_communes` les calcule donc
+  **une seule fois** (tri du pool une fois ; départemental mémoïsé par département, comme
+  la régression #200) puis appelle le cœur par-commune `_compute_maille_sur_pool_prepare`.
+  Avant, `compute_maille` les refaisait **à chaque commune** — sur un gros département
+  (pool dept+limitrophes ×2 en W2, ~586 communes) le seul re-tri répété coûtait des dizaines
+  de secondes de pur gaspillage. Sortie **strictement inchangée** (INV-5 préservé) ; seule
+  la **sélection locale** (centre = commune) reste légitimement par commune. `compute_maille`
+  (usage isolé) prépare puis délègue au même cœur — comportement identique.
 - ✅ **Persistance** : migration 009 ajoute `mode`, `palier`, `bandes`, `effectifs_dpe`
   à `coefficient_maille` ; `upsert_coefficient` les écrit (contrat data→app complet).
 - ✅ **Restitution `app`** : le lecteur (`CoefficientMailleDbal`) projette `mode`,
