@@ -24,7 +24,7 @@ final readonly class CoefficientMailleDbal implements FournisseurCoefficientMail
     public function pour(string $codeInsee): ?CoefficientMaille
     {
         $ligne = $this->connexion->fetchAssociative(
-            'SELECT millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, palier, bandes
+            'SELECT millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, ic_dpe, mode, palier, bandes
              FROM data.coefficient_maille
              WHERE code_insee = :code',
             ['code' => $codeInsee],
@@ -51,7 +51,27 @@ final readonly class CoefficientMailleDbal implements FournisseurCoefficientMail
             portee: PorteeEstimation::depuis(self::texteOuNull($ligne['mode']), $rayonKm),
             palier: PalierFiabilite::depuis(self::texteOuNull($ligne['palier'])),
             bandes: $bandes,
+            icDpe: self::intervalles($ligne['ic_dpe']),
         );
+    }
+
+    /**
+     * Décode ``ic_dpe`` (JSONB ``{classe: [bas, haut]}``) en intervalles de flottants.
+     * Une entrée mal formée est ignorée ; une colonne absente donne un mapping vide
+     * (repli erreur médiane côté estimation, #260).
+     *
+     * @return array<string, array{float, float}>
+     */
+    private static function intervalles(mixed $json): array
+    {
+        $intervalles = [];
+        foreach (self::decode($json) as $classe => $bornes) {
+            if (\is_array($bornes) && isset($bornes[0], $bornes[1]) && is_numeric($bornes[0]) && is_numeric($bornes[1])) {
+                $intervalles[$classe] = [(float) $bornes[0], (float) $bornes[1]];
+            }
+        }
+
+        return $intervalles;
     }
 
     private static function entier(mixed $valeur): int
