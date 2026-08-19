@@ -26,6 +26,17 @@ class BrandingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Marque d'un tenant désigné explicitement, ou la marque par défaut à défaut.
+     *
+     * Nécessaire sur la page publique (#40) : le cloisonnement y est éteint (pas de
+     * pro connecté), `courant()` renverrait la première marque tous tenants confondus.
+     */
+    public function pourTenant(int $tenantId): Branding
+    {
+        return $this->findOneBy(['tenantId' => $tenantId]) ?? Branding::parDefaut();
+    }
+
+    /**
      * Matérialise la marque par défaut pour un tenant, tenant attribué
      * **explicitement** : au provisionnement d'un compte, le contexte tenant n'est
      * pas encore posé (cf. EnregistreurFicheEntreprise).

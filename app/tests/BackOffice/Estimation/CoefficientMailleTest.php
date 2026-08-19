@@ -30,6 +30,59 @@ final class CoefficientMailleTest extends TestCase
         self::assertSame(41983, $restitution->borneHauteEuros());
     }
 
+    /**
+     * #260 : quand la maille porte `ic_dpe` (fourchette SE-based du moteur), la
+     * fourchette € découle de l'**incertitude des coefficients**, pas de l'erreur
+     * médiane. Δ = coef(C)−coef(E) ; la demi-largeur de l'écart combine les deux
+     * demi-IC (indépendance : √(demi_C² + demi_E²)) puis passe en € par exp.
+     */
+    public function testLaFourchetteDecouleDeLIcDpeQuandDisponible(): void
+    {
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10, 'E' => -0.20],
+            erreurMediane: 20.0,
+            icDpe: ['D' => [0.0, 0.0], 'C' => [-0.05, 0.25], 'E' => [-0.30, -0.10]],
+        );
+
+        $restitution = $maille->estimer(Dpe::E, Dpe::C, prixBaseEuros: 100000, prixSaisiParLePro: false);
+
+        $demiC = (0.25 - (-0.05)) / 2.0;   // 0,15
+        $demiE = (-0.10 - (-0.30)) / 2.0;  // 0,10
+        $demiEcart = sqrt($demiC ** 2 + $demiE ** 2);
+        $delta = 0.10 - (-0.20);
+        self::assertSame((int) round(100000 * (exp($delta) - 1.0)), $restitution->montantEuros());
+        self::assertSame(
+            (int) round(100000 * (exp($delta - $demiEcart) - 1.0)),
+            $restitution->borneBasseEuros(),
+        );
+        self::assertSame(
+            (int) round(100000 * (exp($delta + $demiEcart) - 1.0)),
+            $restitution->borneHauteEuros(),
+        );
+        // La fourchette SE-based diffère de l'ancienne (erreur médiane → 27989/41983).
+        self::assertNotSame(27989, $restitution->borneBasseEuros());
+    }
+
+    /**
+     * #260 : avec `ic_dpe`, un même DPE avant/après garde un gain ET une fourchette
+     * nuls — l'écart des coefficients est exactement zéro (classes identiques,
+     * corrélation 1), pas √2·demi_IC. Sinon on afficherait une fourchette autour de 0.
+     */
+    public function testUnMemeDpeAvecIcDonneUneFourchetteNulle(): void
+    {
+        $maille = self::maille(
+            ['D' => 0.0, 'C' => 0.10],
+            erreurMediane: 20.0,
+            icDpe: ['D' => [0.0, 0.0], 'C' => [-0.05, 0.25]],
+        );
+
+        $restitution = $maille->estimer(Dpe::C, Dpe::C, 100000, false);
+
+        self::assertSame(0, $restitution->montantEuros());
+        self::assertSame(0, $restitution->borneBasseEuros());
+        self::assertSame(0, $restitution->borneHauteEuros());
+    }
+
     public function testLaRestitutionPorteLeContexteDeLaMaille(): void
     {
         $maille = self::maille(
@@ -147,8 +200,9 @@ final class CoefficientMailleTest extends TestCase
     }
 
     /**
-     * @param array<string, float>  $coefDpe
-     * @param array<string, string> $bandes
+     * @param array<string, float>               $coefDpe
+     * @param array<string, string>              $bandes
+     * @param array<string, array{float, float}> $icDpe
      */
     private static function maille(
         array $coefDpe,
@@ -159,6 +213,7 @@ final class CoefficientMailleTest extends TestCase
         PorteeEstimation $portee = PorteeEstimation::Local,
         PalierFiabilite $palier = PalierFiabilite::Standard,
         array $bandes = [],
+        array $icDpe = [],
     ): CoefficientMaille {
         return CoefficientMaille::depuis(
             millesime: $millesime,
@@ -169,6 +224,7 @@ final class CoefficientMailleTest extends TestCase
             portee: $portee,
             palier: $palier,
             bandes: $bandes,
+            icDpe: $icDpe,
         );
     }
 }

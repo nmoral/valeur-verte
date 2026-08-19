@@ -258,6 +258,23 @@ def _raisons_de_rejet(
     )
 
 
+def prior_pooling_fiable(cible: MailleCoefficient, config: CalculConfig) -> bool:
+    """#262 : le fit poolé départemental n'est un prior fiable pour le pooling (#249)
+    que s'il est **publiable** au sens d'INV-1 et d'INV-2.
+
+    Le shrinkage suppose le prior plus fiable que l'observation locale — vrai pour la
+    **variance**, pas pour le **biais** : régulariser vers un μ cassé propagerait son
+    anomalie à toutes les mailles rurales tirées vers lui. On exige donc l'absence
+    d'inversion DPE **bloquante** (une inversion *tolérée* est réputée réelle #115, on
+    lui fait confiance) et le respect des signes/ordres (INV-2). Sinon, pas de pooling
+    pour ce département — la cascade reprend la main.
+    """
+    return (
+        evaluer_monotonie_dpe(cible, config).publiable
+        and evaluer_signe_ordre_grandeur(cible, config).publiable
+    )
+
+
 def compute_departement(
     fetcher: Fetcher,
     conn: ConnexionTransactionnelle,
@@ -307,6 +324,21 @@ def compute_departement(
         f" ({multi} écartée(s) — mutation multi-communes)" if multi else "",
     )
 
+    # #255 : un département dont le pool est **nourri uniquement par les limitrophes**
+    # (non vide, mais aucune vente native — `code_insee` préfixé par le département) ne
+    # produit aucune maille. Ses communes de bord publieraient sinon des mailles
+    # « locales » fantômes — nocives car en N+1 une apparition réelle serait lue comme
+    # un changement (REG-1). Le débordement (#18) nourrit le calcul, il ne le crée pas.
+    # Un pool **vide** (aucune vente du tout) suit la voie normale : les communes sont
+    # refusées (REG-2 retire leurs coefficients périmés), pas silencieusement ignorées.
+    if pool and not any(vente.code_insee[:2] == departement for vente in pool):
+        logger.info(
+            "Département %s : aucune vente native (pool nourri seulement par les "
+            "limitrophes) — aucune maille produite (#255).",
+            departement,
+        )
+        return rapport
+
     coordonnees = [
         (commune.code_insee, commune.centre_latitude, commune.centre_longitude)
         for commune in communes
@@ -344,9 +376,19 @@ def compute_departement(
             coordonnees[0][0], millesime, pool, config=config
         )
         departement_calcule = True
-        calculees = pool_hierarchique(
-            calculees, maille_departementale, reference_dpe=config.reference_dpe
-        )
+        # #262 : garde dur — ne régulariser que vers un prior départemental fiable
+        # (publiable INV-1/INV-2). Un μ cassé propagerait son biais ; on le neutralise
+        # (cible=None ⇒ pas de pooling), la cascade reprend la main. `maille_departementale`
+        # reste mémoïsée pour le dernier cran (INV-5, #175), seule la cible du pooling change.
+        cible = maille_departementale
+        if cible is not None and not prior_pooling_fiable(cible, config):
+            logger.info(
+                "Département %s : prior départemental non fiable (INV-1/INV-2) — "
+                "pooling ignoré (#262).",
+                departement,
+            )
+            cible = None
+        calculees = pool_hierarchique(calculees, cible, reference_dpe=config.reference_dpe)
 
     for code_insee, _latitude, _longitude in coordonnees:
         local = calculees.get(code_insee)
