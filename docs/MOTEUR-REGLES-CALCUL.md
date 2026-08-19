@@ -283,6 +283,14 @@ pooling tire chaque effet DPE communal ``β̂`` vers l'effet **départemental** 
   classe), convertie en € par `exp`. Repli sur l'erreur médiane si `ic_dpe` manque. Les bornes €
   sont **figées telles quelles** dans l'instantané (#33) — PDF reproductible sans changement de
   format.
+- **Garde du prior (#262, `orchestration.prior_pooling_fiable`)** : on ne régularise que
+  vers un fit poolé départemental **fiable** — le shrinkage suppose le prior meilleur que
+  l'observation locale pour la **variance**, pas pour le **biais**. μ doit être **publiable**
+  au sens d'**INV-1** (pas d'inversion DPE *bloquante* ; une inversion **tolérée** est réputée
+  réelle #115, on lui fait confiance — garde **lenient**) **et** d'**INV-2** (signes/ordres).
+  Sinon la cible passe à `None` (pas de pooling pour ce département, journalisé) et la
+  cascade reprend la main. `compute_maille_departement` reste mémoïsé pour le dernier cran
+  (INV-5, #175) — seule la cible du pooling est neutralisée.
 - **Statut** : opt-in (`VV_MOTEUR_POOLING_HIERARCHIQUE`), **désactivé par défaut** (comme
   τ #208). Câblé dans `orchestration.compute_departement` **avant** la cascade (§7) ;
   ``se_dpe`` est **persisté** dans l'historique (§12) — matière première recalculable des

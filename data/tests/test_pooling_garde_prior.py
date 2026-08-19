@@ -68,6 +68,8 @@ def test_prior_avec_inversion_bloquante_n_est_pas_fiable() -> None:
 
 def test_prior_qui_viole_inv2_n_est_pas_fiable() -> None:
     # Monotone, mais élasticité bâti hors bornes INV-2 (> 1,50) : signe/ordre KO.
-    cible = _cible({"C": 0.10, "D": 0.0, "E": -0.20}, {"C": 60, "D": 200, "E": 60}, coef_m2_bati=2.0)
+    cible = _cible(
+        {"C": 0.10, "D": 0.0, "E": -0.20}, {"C": 60, "D": 200, "E": 60}, coef_m2_bati=2.0
+    )
 
     assert prior_pooling_fiable(cible, DEFAULT_CONFIG) is False
