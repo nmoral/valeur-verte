@@ -15,6 +15,7 @@ use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
  * Parcours particulier sur la page publique hébergée (#41, épic #6, décision D9).
@@ -150,6 +151,10 @@ final class ParcoursEstimationTest extends WebTestCase
         $client->disableReboot();
 
         $token = $this->creerPage($client, slug: 'agence-durand', couleur: $couleur, nom: $nom);
+        // Le plafond anti-abus (#43) persiste entre tests : sans reset, l'IP par
+        // défaut « 127.0.0.1 » partagée finit par saturer et un parcours légitime
+        // récolterait un 429. Même convention que les tests d'inscription / mdp oublié.
+        $this->libererLimiteursWidget($token);
 
         if ($couvert) {
             $this->coefficients($client)->definir(self::CODE_INSEE, CoefficientMaille::depuis(
@@ -164,6 +169,17 @@ final class ParcoursEstimationTest extends WebTestCase
         }
 
         return [$client, $token];
+    }
+
+    private function libererLimiteursWidget(string $token, string $ip = '127.0.0.1'): void
+    {
+        $conteneur = static::getContainer();
+        $parIp = $conteneur->get('limiter.widget_ip');
+        $parPage = $conteneur->get('limiter.widget_page');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $parIp);
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $parPage);
+        $parIp->create($ip)->reset();
+        $parPage->create($token)->reset();
     }
 
     private function estimer(

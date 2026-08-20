@@ -72,6 +72,12 @@ services:
         arguments:
             $inscriptionIpLimiter: '@limiter.inscription_ip'
 
+    # Plafond anti-abus du widget (#43) : les deux fabriques nommées (par IP et par page).
+    App\Widget\PlafondWidget:
+        arguments:
+            $widgetIpLimiter: '@limiter.widget_ip'
+            $widgetPageLimiter: '@limiter.widget_page'
+
     # Lecture des coefficients et du prix de marché dans le schéma « data »
     # (lecture seule pour « app ») : chaîne de calcul économique (#25).
     App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'

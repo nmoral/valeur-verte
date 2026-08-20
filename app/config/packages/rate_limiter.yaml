@@ -1,0 +1,17 @@
+# Anti-abus du widget public (#43, épic #6). Deux plafonds complémentaires sur les
+# endpoints publics coûteux (estimation = calcul, capture de lead = emails) :
+#  - widget_ip   : borne l'usage individuel d'une IP ;
+#  - widget_page : borne le trafic d'une page/tenant, pour qu'une page seule ne
+#                  puisse pas saturer le service (pic distribué sur IP multiples).
+# Au dépassement de l'un ou l'autre : 429. Détection réactive et notification admin
+# relèvent d'une issue dédiée (#268) — ici, seul le plafond préventif.
+framework:
+    rate_limiter:
+        widget_ip:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '15 minutes'
+        widget_page:
+            policy: 'sliding_window'
+            limit: 300
+            interval: '1 hour'
