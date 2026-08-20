@@ -78,6 +78,7 @@ services:
             $widgetIpLimiter: '@limiter.widget_ip'
             $widgetPageLimiter: '@limiter.widget_page'
             $widgetEmissionLimiter: '@limiter.widget_emission'
+            $widgetEvenementLimiter: '@limiter.widget_evenement'
 
     # Jeton de chargement du widget (#43) : signé au secret applicatif (timing + anti-rejeu).
     App\Widget\JetonChargementWidget:
