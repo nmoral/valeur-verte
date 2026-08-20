@@ -19,6 +19,7 @@ use App\Widget\CaptureLead;
 use App\Widget\ConfirmationLead;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
+use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,8 +50,10 @@ final class ContactController extends AbstractController
         BrandingRepository $brandings,
         CaptureLead $capture,
         PlafondWidget $plafond,
+        PiegeAntiBotWidget $piege,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
+        $piege->verifier($request);
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());

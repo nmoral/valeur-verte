@@ -5,6 +5,7 @@
        BAN (côté JS) renseignera le champ caché `code_insee`. Le mur de contact ne
        vient jamais ici : d'abord le premier chiffre. #}
     <form data-widget="estimation" method="post" action="/{{ token }}/estimation">
+        {{ include('widget/_piege.html.twig') }}
         <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
         <label>Adresse du bien

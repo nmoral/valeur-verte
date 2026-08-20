@@ -27,6 +27,7 @@
         <section data-widget="mur-contact">
             <p>Recevez le détail chiffré et le PDF de votre estimation :</p>
             <form method="post" action="/{{ token }}/contact">
+                {{ include('widget/_piege.html.twig') }}
                 {# Les entrées de l'estimation sont reportées pour figer l'instantané
                    au moment de la demande (l'autocomplétion BAN remplira `code_insee`). #}
                 <input type="hidden" name="adresse" value="{{ valeurs.adresse|default('') }}">
