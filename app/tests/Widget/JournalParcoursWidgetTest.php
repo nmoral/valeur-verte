@@ -10,6 +10,7 @@ use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\TypeEvenementWidget;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -96,10 +97,10 @@ final class JournalParcoursWidgetTest extends KernelTestCase
 
     private function evenements(): EvenementWidgetRepository
     {
-        $repository = static::getContainer()->get(EvenementWidgetRepository::class);
-        self::assertInstanceOf(EvenementWidgetRepository::class, $repository);
+        $registry = static::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $registry);
 
-        return $repository;
+        return new EvenementWidgetRepository($registry);
     }
 
     /**
