@@ -84,6 +84,11 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Vérification Turnstile (#43) : secret Cloudflare depuis l'environnement (vide = inerte).
+    App\Widget\VerificateurTurnstile:
+        arguments:
+            $secret: '%env(TURNSTILE_SECRET)%'
+
     # Lecture des coefficients et du prix de marché dans le schéma « data »
     # (lecture seule pour « app ») : chaîne de calcul économique (#25).
     App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'

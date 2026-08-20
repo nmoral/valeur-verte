@@ -1,0 +1,8 @@
+{# Défi Cloudflare Turnstile (#43, contrôle 2) — invisible, sans friction. Rendu
+   seulement si la clé publique est configurée ; sinon le widget reste inerte. Le
+   script Cloudflare dépose le jeton dans le champ `cf-turnstile-response`, vérifié
+   côté serveur avant l'estimation / la capture. #}
+{% if turnstile_site_key is not empty %}
+    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}

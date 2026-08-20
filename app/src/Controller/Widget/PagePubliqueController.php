@@ -18,6 +18,7 @@ use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
 use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
+use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -78,12 +79,14 @@ final class PagePubliqueController extends AbstractController
         PlafondWidget $plafond,
         PiegeAntiBotWidget $piege,
         JetonChargementWidget $jetons,
+        VerificateurTurnstile $turnstile,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
         $piege->verifier($request);
         if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
             throw new UnprocessableEntityHttpException();
         }
+        $turnstile->verifier($request->request->getString('cf-turnstile-response'), $request->getClientIp());
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());

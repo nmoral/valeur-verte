@@ -1,5 +1,8 @@
 twig:
     file_name_pattern: '*.twig'
+    globals:
+        # Clé publique Turnstile (#43) exposée aux formulaires widget ; vide = défi non rendu.
+        turnstile_site_key: '%env(TURNSTILE_SITE_KEY)%'
 
 when@test:
     twig:
