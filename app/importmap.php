@@ -24,6 +24,10 @@
  */
 return [
     'app' => ['path' => './assets/app.js', 'entrypoint' => true],
+    // Page publique du widget (#90) : émetteur des étapes de parcours qui
+    // n'existent que dans le navigateur. Entrypoint séparé — la page publique
+    // ne charge ni Stimulus ni les styles de l'espace pro.
+    'widget_parcours' => ['path' => './assets/widget_parcours.js', 'entrypoint' => true],
     '@hotwired/stimulus' => ['version' => '3.2.2'],
     '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
     '@symfony/ux-live-component' => ['path' => './vendor/symfony/ux-live-component/assets/dist/live_controller.js'],
