@@ -72,8 +72,9 @@ Nombre de ventes de l'échantillon. Deux effectifs coexistent, à ne pas confond
 
 ### sd (écart-type, *standard deviation*)
 
-Dispersion d'une grandeur autour de sa moyenne, dans **son unité**. Ici :
-dispersion du coefficient entre rééchantillonnages.
+Dispersion d'une grandeur autour de sa moyenne, dans **son unité**. Ici : l'écart-type
+d'échantillonnage du coefficient (`SE`), calculé analytiquement (`√diag(σ̂²·(XᵀWX)⁻¹)`),
+**postérieur** sous pooling partiel — pas par rééchantillonnage (voir [Bootstrap](#bootstrap)).
 
 > Toulouse : `sd = 2,4 points` sur un gain C vs E de 13,5 %.
 
