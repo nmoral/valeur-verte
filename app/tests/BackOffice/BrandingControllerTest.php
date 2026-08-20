@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\BackOffice;
 
+use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\BrandingRepository;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -55,6 +56,24 @@ final class BrandingControllerTest extends WebTestCase
         $branding = self::getContainer()->get(BrandingRepository::class);
         self::assertInstanceOf(BrandingRepository::class, $branding);
         self::assertSame('Rénov Toulouse', $branding->courant()->nom());
+    }
+
+    public function testUneSaisieTropLongueEstRefuseeAvecUnMessageAuLieuDUnePanne(): void
+    {
+        // Sans borne à la frontière, un dépassement partirait en erreur SQL (500) :
+        // le pro doit lire ce qu'il doit reprendre.
+        $client = static::createClient();
+        $client->request('POST', '/marque', [
+            'couleur' => '#0E4A5C',
+            'nom' => str_repeat('a', Branding::LONGUEUR_MAX_NOM + 1),
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'nom');
+
+        $branding = self::getContainer()->get(BrandingRepository::class);
+        self::assertInstanceOf(BrandingRepository::class, $branding);
+        self::assertNull($branding->courant()->nom(), 'Rien n\'a été enregistré.');
     }
 
     public function testUneCouleurInvalideEstRefuseeSansRienEnregistrer(): void
