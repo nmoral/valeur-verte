@@ -24,6 +24,7 @@ final readonly class PlafondWidget
     public function __construct(
         private RateLimiterFactoryInterface $widgetIpLimiter,
         private RateLimiterFactoryInterface $widgetPageLimiter,
+        private RateLimiterFactoryInterface $widgetEmissionLimiter,
     ) {
     }
 
@@ -36,6 +37,19 @@ final readonly class PlafondWidget
             || !$this->widgetPageLimiter->create($token)->consume(1)->isAccepted();
 
         if ($depasse) {
+            throw new TooManyRequestsHttpException();
+        }
+    }
+
+    /**
+     * Plafond d'émission d'un jeton de chargement (GET du formulaire), par IP :
+     * borne le moissonnage de jetons frais.
+     *
+     * @throws TooManyRequestsHttpException au dépassement du plafond d'émission
+     */
+    public function verifierEmission(?string $ip): void
+    {
+        if (!$this->widgetEmissionLimiter->create($ip ?? '')->consume(1)->isAccepted()) {
             throw new TooManyRequestsHttpException();
         }
     }

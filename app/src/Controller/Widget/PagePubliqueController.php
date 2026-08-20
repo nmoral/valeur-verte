@@ -50,10 +50,13 @@ final class PagePubliqueController extends AbstractController
     )]
     public function afficher(
         string $token,
+        Request $request,
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         JetonChargementWidget $jetons,
+        PlafondWidget $plafond,
     ): Response {
+        $plafond->verifierEmission($request->getClientIp());
         $page = $this->pageActive($token, $pages);
 
         return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], [], $jetons->emettre());
