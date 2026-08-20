@@ -112,7 +112,9 @@ final class CspWidgetTest extends WebTestCase
         // politique-ci est taillée pour la page publique, elle ne déborde pas.
         $client = static::createClient();
 
-        $client->request('GET', 'http://'.self::HOTE_APP.'/connexion');
+        $client->followRedirects();
+        $client->request('GET', 'http://'.self::HOTE_APP.'/');
+        self::assertResponseIsSuccessful();
 
         self::assertFalse(
             $client->getResponse()->headers->has('Content-Security-Policy'),
@@ -149,7 +151,8 @@ final class CspWidgetTest extends WebTestCase
             if (false === $mots || [] === $mots) {
                 continue;
             }
-            $directives[array_shift($mots)] = array_values($mots);
+            $nom = array_shift($mots);
+            $directives[$nom] = $mots;
         }
 
         return $directives;
