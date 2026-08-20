@@ -78,6 +78,11 @@ services:
             $widgetIpLimiter: '@limiter.widget_ip'
             $widgetPageLimiter: '@limiter.widget_page'
 
+    # Jeton de chargement du widget (#43) : signé au secret applicatif (timing + anti-rejeu).
+    App\Widget\JetonChargementWidget:
+        arguments:
+            $secret: '%kernel.secret%'
+
     # Lecture des coefficients et du prix de marché dans le schéma « data »
     # (lecture seule pour « app ») : chaîne de calcul économique (#25).
     App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'

@@ -13,6 +13,7 @@ use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
+use App\Widget\JetonChargementWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
 use App\Widget\PiegeAntiBotWidget;
@@ -20,6 +21,7 @@ use App\Widget\PlafondWidget;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -50,10 +52,11 @@ final class PagePubliqueController extends AbstractController
         string $token,
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
+        JetonChargementWidget $jetons,
     ): Response {
         $page = $this->pageActive($token, $pages);
 
-        return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], []);
+        return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], [], $jetons->emettre());
     }
 
     #[Route(
@@ -71,9 +74,13 @@ final class PagePubliqueController extends AbstractController
         EstimateurValeurVerte $estimateur,
         PlafondWidget $plafond,
         PiegeAntiBotWidget $piege,
+        JetonChargementWidget $jetons,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
         $piege->verifier($request);
+        if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
+            throw new UnprocessableEntityHttpException();
+        }
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
@@ -90,7 +97,7 @@ final class PagePubliqueController extends AbstractController
         $dpeAvant = Dpe::tryFrom($valeurs['dpe_avant']);
         $dpeApres = Dpe::tryFrom($valeurs['dpe_apres']);
         if (null === $dpeAvant || null === $dpeApres) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], $jetons->emettre(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -102,7 +109,7 @@ final class PagePubliqueController extends AbstractController
                 $dpeApres,
             );
         } catch (SaisieInvalide $erreur) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), $jetons->emettre(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return $this->render('widget/resultat.html.twig', [
@@ -110,6 +117,7 @@ final class PagePubliqueController extends AbstractController
             'token' => $token,
             'valeurs' => $valeurs,
             'restitution' => $this->estimation($estimateur, $valeurs['code_insee'], $saisie),
+            'jeton_chargement' => $jetons->emettre(),
         ]);
     }
 
@@ -127,7 +135,7 @@ final class PagePubliqueController extends AbstractController
      * @param array<string, string> $valeurs
      * @param array<string, string> $erreurs
      */
-    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, int $statut = Response::HTTP_OK): Response
+    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, string $jetonChargement, int $statut = Response::HTTP_OK): Response
     {
         return $this->render('widget/page.html.twig', [
             'branding' => $branding,
@@ -135,6 +143,7 @@ final class PagePubliqueController extends AbstractController
             'valeurs' => $valeurs,
             'erreurs' => $erreurs,
             'dpe_options' => Dpe::cases(),
+            'jeton_chargement' => $jetonChargement,
         ], new Response('', $statut));
     }
 

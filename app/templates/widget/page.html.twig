@@ -6,6 +6,7 @@
        vient jamais ici : d'abord le premier chiffre. #}
     <form data-widget="estimation" method="post" action="/{{ token }}/estimation">
         {{ include('widget/_piege.html.twig') }}
+        <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
         <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
         <label>Adresse du bien

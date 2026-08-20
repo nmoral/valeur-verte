@@ -17,6 +17,7 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\Widget\CaptureLead;
 use App\Widget\ConfirmationLead;
+use App\Widget\JetonChargementWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
 use App\Widget\PiegeAntiBotWidget;
@@ -24,6 +25,7 @@ use App\Widget\PlafondWidget;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -51,9 +53,13 @@ final class ContactController extends AbstractController
         CaptureLead $capture,
         PlafondWidget $plafond,
         PiegeAntiBotWidget $piege,
+        JetonChargementWidget $jetons,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
         $piege->verifier($request);
+        if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
+            throw new UnprocessableEntityHttpException();
+        }
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
