@@ -25,6 +25,21 @@ class EvenementWidgetRepository extends ServiceEntityRepository
     }
 
     /**
+     * Supprime les événements survenus avant la borne (rétention courte, #90).
+     *
+     * @return int nombre d'événements supprimés
+     */
+    public function purgerAnterieursA(\DateTimeImmutable $limite): int
+    {
+        return $this->createQueryBuilder('e')
+            ->delete()
+            ->andWhere('e.survenuLe < :limite')
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * Les étapes d'une même visite, dans l'ordre où elles ont été franchies.
      *
      * @return list<EvenementWidget>
