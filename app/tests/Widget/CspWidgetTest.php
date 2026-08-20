@@ -103,7 +103,15 @@ final class CspWidgetTest extends WebTestCase
 
         $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', []);
 
-        self::assertNotSame([], $this->directives($client), 'Toute réponse de la zone widget est couverte.');
+        self::assertNotSame(
+            [],
+            $this->directives($client),
+            \sprintf(
+                'Toute réponse de la zone widget est couverte (statut %d, en-têtes : %s).',
+                $client->getResponse()->getStatusCode(),
+                implode(', ', array_keys($client->getResponse()->headers->all())),
+            ),
+        );
     }
 
     public function testLaZoneProNestPasConcerneeParCettePolitique(): void
