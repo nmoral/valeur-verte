@@ -30,8 +30,7 @@ final readonly class UrlLogo
         $parts = parse_url($url);
         if (false === $parts
             || 'https' !== ($parts['scheme'] ?? null)
-            || '' === ($parts['host'] ?? '')
-            || null === ($parts['host'] ?? null)
+            || !isset($parts['host'])
         ) {
             throw new \InvalidArgumentException(\sprintf('URL de logo invalide : « %s ». Attendu un chemin /… ou une URL https publique.', $url));
         }

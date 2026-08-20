@@ -58,6 +58,9 @@ class Branding implements TenantAwareInterface
         $this->telephone = self::normaliser($telephone);
         $this->mentionsLegales = self::normaliser($mentionsLegales);
         $this->logoUrl = self::normaliser($logoUrl);
+        if (null !== $this->logoUrl) {
+            UrlLogo::valider($this->logoUrl);
+        }
         $this->nom = self::normaliser($nom);
     }
 
