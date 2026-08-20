@@ -35,6 +35,12 @@ use Symfony\Component\HttpKernel\KernelEvents;
  *   perd la couleur — dégradation cosmétique, jamais une page cassée.
  * - Turnstile (#43) a besoin de son script, de son iframe et de son origine : sans
  *   `frame-src`/`connect-src`, l'anti-abus casserait en silence.
+ *
+ * ⚠️ **En mode debug uniquement**, Symfony retire lui-même cet en-tête des réponses
+ * d'erreur ({@see \Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader()},
+ * priorité -128) pour que sa page d'exception — bourrée de styles inline — reste
+ * lisible. En production (`APP_DEBUG=0`) les réponses d'erreur portent bien la
+ * politique. Ne pas confondre ce comportement du framework avec un trou ici.
  */
 #[AsEventListener(event: KernelEvents::RESPONSE)]
 final readonly class CspWidget

@@ -7,10 +7,12 @@ namespace App\Tests\Widget;
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\Couleur;
 use App\Tenant\TenantRepository;
+use App\Widget\JetonChargementWidget;
 use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\MockClock;
 
 /**
  * Politique de sécurité du contenu de la page publique hébergée (#267, D9).
@@ -99,19 +101,32 @@ final class CspWidgetTest extends WebTestCase
     {
         // La CSP ne peut pas couvrir la seule première page : c'est le résultat qui
         // porte le mur de contact, donc le formulaire le plus intéressant à détourner.
+        // On exerce une vraie estimation (200) : une réponse d'erreur ne dirait rien
+        // ici, Symfony retirant lui-même la CSP des pages d'exception en mode debug
+        // (ErrorListener::removeCspHeader, cf. CspWidget).
         [$client, $token] = $this->preparer();
 
-        $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', []);
+        $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', [
+            'adresse' => '12 rue des Lilas, Toulouse',
+            'code_insee' => '',
+            'surface_batie' => '90',
+            'surface_terrain' => '500',
+            'dpe_avant' => 'E',
+            'dpe_apres' => 'C',
+            'jeton_chargement' => $this->jetonChargementValide(),
+        ]);
 
-        self::assertNotSame(
-            [],
-            $this->directives($client),
-            \sprintf(
-                'Toute réponse de la zone widget est couverte (statut %d, en-têtes : %s).',
-                $client->getResponse()->getStatusCode(),
-                implode(', ', array_keys($client->getResponse()->headers->all())),
-            ),
-        );
+        self::assertResponseIsSuccessful();
+        self::assertSame(["'none'"], $this->directives($client)['frame-ancestors'] ?? []);
+    }
+
+    private function jetonChargementValide(): string
+    {
+        $secret = static::getContainer()->getParameter('kernel.secret');
+        self::assertIsString($secret);
+        $horloge = new MockClock(new \DateTimeImmutable('@'.(time() - JetonChargementWidget::AGE_MIN_SECONDES - 1)));
+
+        return (new JetonChargementWidget($secret, $horloge))->emettre();
     }
 
     public function testLaZoneProNestPasConcerneeParCettePolitique(): void
