@@ -26,6 +26,16 @@ final class SessionParcoursWidget
         return bin2hex(random_bytes(self::OCTETS));
     }
 
+    /**
+     * Reprend l'identifiant porté par le formulaire s'il est bien formé, sinon en
+     * ouvre un nouveau : le champ voyage par le navigateur, on ne lui fait pas
+     * confiance, et une valeur douteuse n'interrompt jamais le parcours.
+     */
+    public function reprendreOuDemarrer(string $candidat): string
+    {
+        return $this->estValide($candidat) ? $candidat : $this->demarrer();
+    }
+
     public function estValide(string $identifiant): bool
     {
         return 1 === preg_match('/^[0-9a-f]{'.(2 * self::OCTETS).'}$/', $identifiant);

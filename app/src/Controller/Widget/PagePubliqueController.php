@@ -14,10 +14,13 @@ use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
 use App\Widget\JetonChargementWidget;
+use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
 use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
+use App\Widget\SessionParcoursWidget;
+use App\Widget\TypeEvenementWidget;
 use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,6 +42,9 @@ use Symfony\Component\Routing\Attribute\Route;
  * (EstimateurValeurVerte, pur, sans tenant) ; rien n'est persisté et aucun quota
  * n'est consommé. La capture du lead et le PDF relèvent de #42 ; l'anti-abus
  * (Turnstile, jeton anti-rejeu) de #43.
+ *
+ * Chaque étape franchie est journalisée anonymement (#90) : le chargement ouvre
+ * une visite, dont l'identifiant voyage par les formulaires — jamais un cookie.
  */
 final class PagePubliqueController extends AbstractController
 {
@@ -56,11 +62,16 @@ final class PagePubliqueController extends AbstractController
         BrandingRepository $brandings,
         JetonChargementWidget $jetons,
         PlafondWidget $plafond,
+        SessionParcoursWidget $sessions,
+        JournalParcoursWidget $journal,
     ): Response {
         $plafond->verifierEmission($request->getClientIp());
         $page = $this->pageActive($token, $pages);
 
-        return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], [], $jetons->emettre());
+        $session = $sessions->demarrer();
+        $journal->enregistrer($page, $session, TypeEvenementWidget::WidgetCharge);
+
+        return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], [], $jetons->emettre(), $session);
     }
 
     #[Route(
@@ -80,6 +91,8 @@ final class PagePubliqueController extends AbstractController
         PiegeAntiBotWidget $piege,
         JetonChargementWidget $jetons,
         VerificateurTurnstile $turnstile,
+        SessionParcoursWidget $sessions,
+        JournalParcoursWidget $journal,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
         $piege->verifier($request);
@@ -90,6 +103,7 @@ final class PagePubliqueController extends AbstractController
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
+        $session = $sessions->reprendreOuDemarrer($request->request->getString('session_parcours'));
 
         $valeurs = [
             'adresse' => $request->request->getString('adresse'),
@@ -103,7 +117,7 @@ final class PagePubliqueController extends AbstractController
         $dpeAvant = Dpe::tryFrom($valeurs['dpe_avant']);
         $dpeApres = Dpe::tryFrom($valeurs['dpe_apres']);
         if (null === $dpeAvant || null === $dpeApres) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], $jetons->emettre(), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], $jetons->emettre(), $session, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -115,15 +129,26 @@ final class PagePubliqueController extends AbstractController
                 $dpeApres,
             );
         } catch (SaisieInvalide $erreur) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), $jetons->emettre(), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), $jetons->emettre(), $session, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $restitution = $this->estimation($estimateur, $valeurs['code_insee'], $saisie);
+
+        // Le funnel se lit dans l'ordre : le chiffre s'affiche, et le mur de contact
+        // ne suit que s'il y a un chiffre à monnayer — hors couverture le parcours
+        // s'arrête là, l'abandon se lisant comme l'absence de l'étape suivante.
+        $journal->enregistrer($page, $session, TypeEvenementWidget::EstimationAffichee, ['disponible' => null !== $restitution]);
+        if (null !== $restitution) {
+            $journal->enregistrer($page, $session, TypeEvenementWidget::MurContactAffiche);
         }
 
         return $this->render('widget/resultat.html.twig', [
             'branding' => $branding,
             'token' => $token,
             'valeurs' => $valeurs,
-            'restitution' => $this->estimation($estimateur, $valeurs['code_insee'], $saisie),
+            'restitution' => $restitution,
             'jeton_chargement' => $jetons->emettre(),
+            'session_parcours' => $session,
         ]);
     }
 
@@ -141,7 +166,7 @@ final class PagePubliqueController extends AbstractController
      * @param array<string, string> $valeurs
      * @param array<string, string> $erreurs
      */
-    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, string $jetonChargement, int $statut = Response::HTTP_OK): Response
+    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, string $jetonChargement, string $session, int $statut = Response::HTTP_OK): Response
     {
         return $this->render('widget/page.html.twig', [
             'branding' => $branding,
@@ -150,6 +175,7 @@ final class PagePubliqueController extends AbstractController
             'erreurs' => $erreurs,
             'dpe_options' => Dpe::cases(),
             'jeton_chargement' => $jetonChargement,
+            'session_parcours' => $session,
         ], new Response('', $statut));
     }
 

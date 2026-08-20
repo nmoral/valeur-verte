@@ -8,6 +8,9 @@
         {{ include('widget/_piege.html.twig') }}
         {{ include('widget/_turnstile.html.twig') }}
         <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
+        {# Visite en cours (#90) : identifiant anonyme et éphémère, porté par le
+           formulaire — pas de cookie, pas de stockage navigateur. #}
+        <input type="hidden" name="session_parcours" value="{{ session_parcours }}">
         <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
         <label>Adresse du bien
