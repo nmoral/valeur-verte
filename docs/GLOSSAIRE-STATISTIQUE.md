@@ -43,9 +43,11 @@ dont la stabilité importe le plus.
 
 ### IC 95 % (intervalle de confiance à 95 %)
 
-Fourchette dans laquelle le coefficient se situe avec 95 % de confiance. Obtenue
-par [bootstrap](#bootstrap) : bornes aux percentiles 2,5 % et 97,5 % des
-rééchantillonnages.
+Fourchette d'incertitude du coefficient. **Calculée analytiquement** à partir de
+l'écart-type d'échantillonnage de l'effet (`se_dpe`, fourchette `coef ± IC_Z·SE`, #260) —
+**pas** par [bootstrap](#bootstrap). Sous pooling partiel, le SE est **postérieur**,
+resserré par le shrinkage. `IC_Z = 1` par défaut, soit ±1 écart-type (~68 %) ; à défaut
+de SE, repli sur l'heuristique `coef ± |coef|·(erreur_mediane/100)` (S29).
 
 > Toulouse, gain C vs E : `[+8,5 % ; +17,9 %]` autour d'une médiane de +13,5 %.
 
@@ -173,7 +175,12 @@ réestime. Répété 200 fois, cela donne la distribution du coefficient, donc s
 L'idée : à défaut de pouvoir observer d'autres marchés, on simule d'autres
 échantillons du même marché.
 
-Sert à produire l'`IC 95 %` affiché, et le `cv`.
+> ⚠️ **Non utilisé par le moteur.** Un temps envisagé pour produire l'`IC`, il a été
+> **remplacé** par le calcul **analytique** de l'écart-type de l'effet
+> (`se_dpe = √diag(σ̂²·(XᵀWX)⁻¹)`, #249) et sa **variance postérieure** après pooling
+> partiel (#260) — moins coûteux que 200 réestimations par maille et cohérent avec le
+> shrinkage. L'entrée reste ici comme repère de vocabulaire, pas comme description du
+> pipeline (voir [IC 95 %](#ic-95--intervalle-de-confiance-à-95-)).
 
 ### Leave-one-out
 
