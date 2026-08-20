@@ -65,7 +65,9 @@ Nombre de ventes de l'échantillon. Deux effectifs coexistent, à ne pas confond
 
 - **n brut** — toutes les ventes retenues par le rayon ;
 - **n éligible** — celles que le moteur exploite réellement : DPE renseigné,
-  bâti antérieur à 1989, prix et surface valides.
+  prix et surface valides, coordonnées présentes. **Tous les millésimes de
+  construction comptent** (S20, `restreindre_bati_ancien=false`) — la restriction
+  au bâti < 1989 est désactivée en production.
 
 > Environ **40 %** du brut est éligible (2 680 sur 6 713). Un seuil fixé sur le
 > brut est donc deux fois et demie moins exigeant qu'il n'en a l'air.
@@ -85,6 +87,10 @@ la moyenne, 95 % à moins de deux.
 
 Écart-type rapporté à la valeur mesurée : `cv = sd / |médiane|`. **Sans unité**,
 donc comparable entre mailles — contrairement à `sd`.
+
+> ⚠️ **Non calculé par le moteur aujourd'hui.** Concept lié au bootstrap (abandonné) ;
+> le juge de qualité **publié** est l'**erreur médiane** de validation croisée (§ ci-dessous),
+> pas le `cv`. L'entrée reste comme repère de lecture.
 
 > Toulouse `0,18`, Colomiers `0,19`, maille en repli départemental `0,10`.
 
