@@ -49,6 +49,61 @@ final class VerificateurTurnstileTest extends TestCase
         $verificateur->verifier('jeton-invalide', '203.0.113.1');
     }
 
+    public function testLAppelPorteLeSecretLaReponseEtLIp(): void
+    {
+        $corpsCapture = null;
+        $http = new MockHttpClient(static function (string $methode, string $url, array $options) use (&$corpsCapture): MockResponse {
+            self::assertSame('POST', $methode);
+            self::assertStringContainsString('siteverify', $url);
+            $corpsCapture = \is_string($options['body'] ?? null) ? $options['body'] : '';
+
+            return new MockResponse((string) json_encode(['success' => true]));
+        });
+        $verificateur = new VerificateurTurnstile('mon-secret', $http);
+
+        $verificateur->verifier('jeton-abc', '203.0.113.9');
+
+        $corps = urldecode((string) $corpsCapture);
+        self::assertStringContainsString('secret=mon-secret', $corps);
+        self::assertStringContainsString('response=jeton-abc', $corps);
+        self::assertStringContainsString('remoteip=203.0.113.9', $corps);
+    }
+
+    public function testSansIpLeRemoteipEstOmis(): void
+    {
+        $corpsCapture = null;
+        $http = new MockHttpClient(static function (string $methode, string $url, array $options) use (&$corpsCapture): MockResponse {
+            $corpsCapture = \is_string($options['body'] ?? null) ? $options['body'] : '';
+
+            return new MockResponse((string) json_encode(['success' => true]));
+        });
+        $verificateur = new VerificateurTurnstile('mon-secret', $http);
+
+        $verificateur->verifier('jeton-abc', null);
+
+        self::assertStringNotContainsString('remoteip', urldecode((string) $corpsCapture));
+    }
+
+    public function testUneReponseSansChampSuccesEstRejetee(): void
+    {
+        $http = new MockHttpClient([new MockResponse((string) json_encode(['error-codes' => []]))]);
+        $verificateur = new VerificateurTurnstile('mon-secret', $http);
+
+        $this->expectException(UnprocessableEntityHttpException::class);
+        $verificateur->verifier('jeton-abc', '203.0.113.9');
+    }
+
+    public function testUneErreurHttpDeSiteverifyEstTraiteeCommeUnEchec(): void
+    {
+        // siteverify en panne (5xx) : on ne laisse pas passer et on ne crashe pas —
+        // le défi est réputé non validé (fail-closed), soit un 422 propre.
+        $http = new MockHttpClient([new MockResponse((string) json_encode(['success' => false]), ['http_code' => 500])]);
+        $verificateur = new VerificateurTurnstile('mon-secret', $http);
+
+        $this->expectException(UnprocessableEntityHttpException::class);
+        $verificateur->verifier('jeton-abc', '203.0.113.9');
+    }
+
     public function testUneReponseVideEstRejeteeSansAppelReseau(): void
     {
         $http = new MockHttpClient([]);
