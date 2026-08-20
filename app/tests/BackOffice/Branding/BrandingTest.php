@@ -22,6 +22,15 @@ final class BrandingTest extends TestCase
         self::assertNull($branding->logoUrl());
     }
 
+    public function testUneUrlDeLogoDangereuseEstRejeteeALaCreation(): void
+    {
+        // Frontière : une URL de logo vers une adresse interne (SSRF) est refusée
+        // dès la création du branding, jamais stockée.
+        $this->expectException(\InvalidArgumentException::class);
+
+        Branding::creer(Couleur::depuisHex('#0E4A5C'), null, null, null, 'https://169.254.169.254/latest/meta-data/');
+    }
+
     public function testUnBrandingExposeSesElements(): void
     {
         $branding = Branding::creer(
