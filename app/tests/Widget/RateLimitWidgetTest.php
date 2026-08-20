@@ -10,9 +10,11 @@ use App\BackOffice\Estimation\CoefficientMaille;
 use App\Tenant\TenantRepository;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
+use App\Widget\JetonChargementWidget;
 use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 /**
@@ -165,6 +167,16 @@ final class RateLimitWidgetTest extends WebTestCase
             'surface_terrain' => '500',
             'dpe_avant' => 'E',
             'dpe_apres' => 'C',
+            'jeton_chargement' => $this->jetonChargementValide(),
         ], $extra);
+    }
+
+    private function jetonChargementValide(): string
+    {
+        $secret = static::getContainer()->getParameter('kernel.secret');
+        self::assertIsString($secret);
+        $horloge = new MockClock(new \DateTimeImmutable('@'.(time() - JetonChargementWidget::AGE_MIN_SECONDES - 1)));
+
+        return (new JetonChargementWidget($secret, $horloge))->emettre();
     }
 }

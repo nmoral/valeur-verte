@@ -1,0 +1,8 @@
+{# Honeypot anti-bot (#43, contrôle 3) : champ leurre masqué, jamais rempli par un
+   humain (hors flux visuel, aria-hidden, hors tabulation, autocomplete désactivé).
+   Un bot naïf le remplit → la soumission est rejetée (422) côté serveur. #}
+<div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden">
+    <label>Ne remplissez pas ce champ
+        <input type="text" name="site_web" tabindex="-1" autocomplete="off" value="">
+    </label>
+</div>

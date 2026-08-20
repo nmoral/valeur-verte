@@ -15,3 +15,9 @@ framework:
             policy: 'sliding_window'
             limit: 300
             interval: '1 hour'
+        # Émission des jetons de chargement (GET du formulaire) plafonnée par IP :
+        # borne le moissonnage de jetons frais destinés à alimenter des soumissions.
+        widget_emission:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '5 minutes'

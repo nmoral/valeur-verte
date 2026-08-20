@@ -77,6 +77,17 @@ services:
         arguments:
             $widgetIpLimiter: '@limiter.widget_ip'
             $widgetPageLimiter: '@limiter.widget_page'
+            $widgetEmissionLimiter: '@limiter.widget_emission'
+
+    # Jeton de chargement du widget (#43) : signé au secret applicatif (timing + anti-rejeu).
+    App\Widget\JetonChargementWidget:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    # Vérification Turnstile (#43) : secret Cloudflare depuis l'environnement (vide = inerte).
+    App\Widget\VerificateurTurnstile:
+        arguments:
+            $secret: '%env(TURNSTILE_SECRET)%'
 
     # Lecture des coefficients et du prix de marché dans le schéma « data »
     # (lecture seule pour « app ») : chaîne de calcul économique (#25).

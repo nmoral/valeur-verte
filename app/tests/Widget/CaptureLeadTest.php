@@ -16,10 +16,12 @@ use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
 use App\Tests\Notification\Double\MailerEnMemoire;
 use App\Widget\DemandeLead;
+use App\Widget\JetonChargementWidget;
 use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
@@ -236,12 +238,22 @@ final class CaptureLeadTest extends WebTestCase
             'surface_terrain' => '500',
             'dpe_avant' => 'E',
             'dpe_apres' => 'C',
+            'jeton_chargement' => $this->jetonChargementValide(),
         ];
         if ($consentement) {
             $champs['consentement'] = 'on';
         }
 
         $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/contact', $champs);
+    }
+
+    private function jetonChargementValide(): string
+    {
+        $secret = static::getContainer()->getParameter('kernel.secret');
+        self::assertIsString($secret);
+        $horloge = new MockClock(new \DateTimeImmutable('@'.(time() - JetonChargementWidget::AGE_MIN_SECONDES - 1)));
+
+        return (new JetonChargementWidget($secret, $horloge))->emettre();
     }
 
     private function lienDeConfirmation(KernelBrowser $client): string
