@@ -40,7 +40,7 @@ final class BornesBrandingTest extends TestCase
     {
         $branding = $this->creerAvec($champ, str_repeat('a', $borne));
 
-        self::assertSame($borne, mb_strlen((string) $branding->{$champ}()));
+        self::assertSame($borne, mb_strlen((string) $this->lire($branding, $champ)));
     }
 
     #[DataProvider('champsBornes')]
@@ -78,6 +78,17 @@ final class BornesBrandingTest extends TestCase
 
         self::assertNull($branding->nom());
         self::assertNull($branding->mentionsLegales());
+    }
+
+    private function lire(Branding $branding, string $champ): ?string
+    {
+        return match ($champ) {
+            'nom' => $branding->nom(),
+            'telephone' => $branding->telephone(),
+            'numeroRge' => $branding->numeroRge(),
+            'mentionsLegales' => $branding->mentionsLegales(),
+            default => self::fail(\sprintf('Champ inconnu : %s.', $champ)),
+        };
     }
 
     private function creerAvec(string $champ, string $valeur): Branding
