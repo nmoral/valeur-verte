@@ -12,7 +12,6 @@ use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
 use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 

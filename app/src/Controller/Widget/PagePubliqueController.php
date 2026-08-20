@@ -15,6 +15,7 @@ use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
+use App\Widget\PlafondWidget;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -67,7 +68,10 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         EstimateurValeurVerte $estimateur,
+        PlafondWidget $plafond,
     ): Response {
+        $plafond->verifier($request->getClientIp(), $token);
+
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
 

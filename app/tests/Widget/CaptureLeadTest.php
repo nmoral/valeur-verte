@@ -20,6 +20,7 @@ use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
  * Capture du lead sur la page publique hébergée + double opt-in (#42, épic #6).
@@ -163,6 +164,17 @@ final class CaptureLeadTest extends WebTestCase
         self::assertCount(0, $this->rapports($client)->recents());
     }
 
+    private function libererLimiteursWidget(string $token, string $ip = '127.0.0.1'): void
+    {
+        $conteneur = static::getContainer();
+        $parIp = $conteneur->get('limiter.widget_ip');
+        $parPage = $conteneur->get('limiter.widget_page');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $parIp);
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $parPage);
+        $parIp->create($ip)->reset();
+        $parPage->create($token)->reset();
+    }
+
     /**
      * @return array{0: KernelBrowser, 1: string, 2: int}
      */
@@ -194,6 +206,10 @@ final class CaptureLeadTest extends WebTestCase
         $users->enregistrer($pro);
 
         $em->flush();
+
+        // Le plafond anti-abus (#43) persiste entre tests : reset de l'IP par défaut
+        // partagée pour qu'une capture légitime ne récolte pas un 429 (cf. #43).
+        $this->libererLimiteursWidget($token);
 
         $this->coefficients($client)->definir(self::CODE_INSEE, CoefficientMaille::depuis(
             millesime: 2024,

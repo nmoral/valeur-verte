@@ -19,6 +19,7 @@ use App\Widget\CaptureLead;
 use App\Widget\ConfirmationLead;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
+use App\Widget\PlafondWidget;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,7 +48,10 @@ final class ContactController extends AbstractController
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         CaptureLead $capture,
+        PlafondWidget $plafond,
     ): Response {
+        $plafond->verifier($request->getClientIp(), $token);
+
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
 
