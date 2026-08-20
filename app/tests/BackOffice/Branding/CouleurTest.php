@@ -43,5 +43,12 @@ final class CouleurTest extends TestCase
         yield 'trop long' => ['#0E4A5C0'];
         yield 'caractère non hexadécimal' => ['#0E4A5Z'];
         yield 'vide' => [''];
+        // #267 : la couleur est injectée dans un attribut `style` de la page
+        // publique. Une valeur qui s'échappe de son contexte CSS ouvrirait une
+        // requête sortante ou un habillage pirate — la borne est le format, strict.
+        yield 'échappement de contexte CSS' => ['red;background:url(https://exfiltration.test/x)'];
+        yield 'fermeture de déclaration' => ['#0E4A5C;}'];
+        yield 'expression CSS' => ['expression(alert(1))'];
+        yield 'url javascript' => ['javascript:alert(1)'];
     }
 }
