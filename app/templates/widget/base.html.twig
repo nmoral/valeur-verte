@@ -19,5 +19,12 @@
 
     {% block contenu %}{% endblock %}
 </main>
+{# Mesure du parcours (#90) : module minimal, chargé en direct plutôt que par
+   `importmap()`. Il n'importe rien, et l'importmap tirerait sur cette page
+   publique un polyfill hébergé chez un tiers (ga.jspm.io) — inacceptable pour une
+   page dont on annonce la collecte anonyme et sans partage tiers. La page
+   fonctionne à l'identique sans ce module : seules les étapes purement navigateur
+   (adresse saisie, détail déplié) manqueraient. #}
+<script type="module" src="{{ asset('widget_parcours.js') }}"></script>
 </body>
 </html>

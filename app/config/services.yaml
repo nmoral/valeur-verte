@@ -78,6 +78,7 @@ services:
             $widgetIpLimiter: '@limiter.widget_ip'
             $widgetPageLimiter: '@limiter.widget_page'
             $widgetEmissionLimiter: '@limiter.widget_emission'
+            $widgetEvenementLimiter: '@limiter.widget_evenement'
 
     # Jeton de chargement du widget (#43) : signé au secret applicatif (timing + anti-rejeu).
     App\Widget\JetonChargementWidget:
@@ -135,6 +136,13 @@ services:
         arguments:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
+
+    # Rétention des événements de parcours (#90) : durée de conservation courte,
+    # cohérente avec la finalité déclarée (mesure d'audience et de conversion).
+    # La purge est jouée par un cron quotidien (registre #190).
+    App\Widget\PurgeEvenementsWidget:
+        arguments:
+            $retentionJours: 90
 
     # Capture de lead widget (#42) : lien de confirmation d'opt-in construit sur le
     # sous-domaine widget. ; le jeton expire après cette durée (usage unique).

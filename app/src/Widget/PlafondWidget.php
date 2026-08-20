@@ -25,6 +25,7 @@ final readonly class PlafondWidget
         private RateLimiterFactoryInterface $widgetIpLimiter,
         private RateLimiterFactoryInterface $widgetPageLimiter,
         private RateLimiterFactoryInterface $widgetEmissionLimiter,
+        private RateLimiterFactoryInterface $widgetEvenementLimiter,
     ) {
     }
 
@@ -50,6 +51,20 @@ final readonly class PlafondWidget
     public function verifierEmission(?string $ip): void
     {
         if (!$this->widgetEmissionLimiter->create($ip ?? '')->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException();
+        }
+    }
+
+    /**
+     * Plafond de la collecte d'événements de parcours (#90), par IP : l'endpoint
+     * est bavard et bon marché, le plafond borne le bourrage de faux événements
+     * sans gêner un parcours normal.
+     *
+     * @throws TooManyRequestsHttpException au dépassement du plafond de collecte
+     */
+    public function verifierEvenement(?string $ip): void
+    {
+        if (!$this->widgetEvenementLimiter->create($ip ?? '')->consume(1)->isAccepted()) {
             throw new TooManyRequestsHttpException();
         }
     }

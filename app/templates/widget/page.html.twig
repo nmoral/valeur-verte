@@ -4,14 +4,18 @@
     {# Parcours particulier (#41, §4) : adresse → surfaces → DPE. L'autocomplétion
        BAN (côté JS) renseignera le champ caché `code_insee`. Le mur de contact ne
        vient jamais ici : d'abord le premier chiffre. #}
-    <form data-widget="estimation" method="post" action="/{{ token }}/estimation">
+    <form data-widget="estimation" method="post" action="/{{ token }}/estimation"
+          data-parcours-url="/{{ token }}/evenement">
         {{ include('widget/_piege.html.twig') }}
         {{ include('widget/_turnstile.html.twig') }}
         <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
+        {# Visite en cours (#90) : identifiant anonyme et éphémère, porté par le
+           formulaire — pas de cookie, pas de stockage navigateur. #}
+        <input type="hidden" name="session_parcours" value="{{ session_parcours }}">
         <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
         <label>Adresse du bien
-            <input type="text" name="adresse" autocomplete="off" value="{{ valeurs.adresse|default('') }}" required>
+            <input type="text" name="adresse" data-parcours="adresse" autocomplete="off" value="{{ valeurs.adresse|default('') }}" required>
         </label>
 
         <label>Surface habitable (m²)

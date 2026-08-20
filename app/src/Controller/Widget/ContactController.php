@@ -18,10 +18,13 @@ use App\BackOffice\Rapport\Source;
 use App\Widget\CaptureLead;
 use App\Widget\ConfirmationLead;
 use App\Widget\JetonChargementWidget;
+use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
 use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
+use App\Widget\SessionParcoursWidget;
+use App\Widget\TypeEvenementWidget;
 use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -56,6 +59,8 @@ final class ContactController extends AbstractController
         PiegeAntiBotWidget $piege,
         JetonChargementWidget $jetons,
         VerificateurTurnstile $turnstile,
+        SessionParcoursWidget $sessions,
+        JournalParcoursWidget $journal,
     ): Response {
         $plafond->verifier($request->getClientIp(), $token);
         $piege->verifier($request);
@@ -96,6 +101,14 @@ final class ContactController extends AbstractController
         } catch (EstimationIndisponible|ClasseNonPubliee) {
             return $this->erreur($branding, 'Estimation indisponible pour cette adresse.');
         }
+
+        // Dernière étape du funnel (#90) : la demande est enregistrée. La suite
+        // (confirmation de l'email) ne relève plus du parcours sur la page.
+        $journal->enregistrer(
+            $page,
+            $sessions->reprendreOuDemarrer($request->request->getString('session_parcours')),
+            TypeEvenementWidget::LeadSoumis,
+        );
 
         return $this->render('widget/contact_opt_in.html.twig', [
             'branding' => $branding,

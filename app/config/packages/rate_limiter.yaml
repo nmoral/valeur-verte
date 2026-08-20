@@ -21,3 +21,11 @@ framework:
             policy: 'sliding_window'
             limit: 60
             interval: '5 minutes'
+        # Collecte des événements de parcours (#90) : endpoint bavard mais très bon
+        # marché (une écriture), d'où un plafond plus large que les endpoints
+        # coûteux — il borne le bourrage de faux événements, pas l'usage normal
+        # (une visite en déclare deux ou trois).
+        widget_evenement:
+            policy: 'sliding_window'
+            limit: 120
+            interval: '15 minutes'
