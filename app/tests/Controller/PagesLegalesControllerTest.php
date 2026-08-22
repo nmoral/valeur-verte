@@ -200,4 +200,22 @@ final class PagesLegalesControllerTest extends WebTestCase
 
         return $crawler;
     }
+
+    public function testLaRetentionAnnonceeSuitLaDecisionD10(): void
+    {
+        // Ce que la page promet doit être ce que le cron applique (#294) :
+        // anonymisation à 24 mois, suppression à 3 ans.
+        $client = static::createClient();
+        $crawler = $client->request('GET', 'http://'.self::HOTE.'/confidentialite');
+
+        self::assertResponseIsSuccessful();
+        $prospects = $crawler->filter('[data-traitement="prospects-widget"] [data-rubrique="duree"]')->text();
+        self::assertStringContainsString('24 mois', $prospects);
+        self::assertMatchesRegularExpression('/anonymis/i', $prospects, 'La page doit annoncer l\'anonymisation, pas la seule suppression.');
+        self::assertStringContainsString('3 ans', $prospects);
+
+        $rapports = $crawler->filter('[data-traitement="rapports"] [data-rubrique="duree"]')->text();
+        self::assertMatchesRegularExpression('/anonymis/i', $rapports);
+        self::assertStringContainsString('3 ans', $rapports);
+    }
 }

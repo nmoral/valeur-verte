@@ -23,6 +23,12 @@ use Doctrine\ORM\Mapping as ORM;
 class Rapport implements TenantAwareInterface
 {
     use TenantAwareTrait;
+    /**
+     * Ce qui tient la place d'une adresse qu'on ne sait pas borner (libellé sans
+     * code postal) : l'instantané doit rester lisible — `SaisieAudit` refuse une
+     * adresse vide et le PDF s'en régénère (D10, #68).
+     */
+    public const string ADRESSE_ABSENTE = '-';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -93,6 +99,15 @@ class Rapport implements TenantAwareInterface
 
     #[ORM\Column(length: 32, nullable: true)]
     private ?string $contactTelephone;
+
+    /**
+     * Date d'anonymisation (D10, #68) : marque qu'un rapport a déjà perdu son
+     * contact et vu son adresse bornée. Sert de garde d'idempotence — la purge
+     * quotidienne ne repasse jamais sur un rapport déjà traité — et de trace
+     * pour le registre des traitements.
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $anonymiseLe = null;
 
     private function __construct(
         string $reference,
@@ -198,6 +213,43 @@ class Rapport implements TenantAwareInterface
     public function estUnLead(): bool
     {
         return null !== $this->contactNom;
+    }
+
+    public function anonymiseLe(): ?\DateTimeImmutable
+    {
+        return $this->anonymiseLe;
+    }
+
+    public function estAnonymise(): bool
+    {
+        return null !== $this->anonymiseLe;
+    }
+
+    /**
+     * Anonymise le rapport à l'échéance de rétention (D10, #68) : le contact
+     * disparaît, l'adresse tombe à sa commune — dans la colonne **et** dans
+     * l'instantané figé, faute de quoi le PDF, régénéré depuis le JSONB, la
+     * ressusciterait. Les calculs ne sont pas touchés : mêmes chiffres, même
+     * contexte, même référence (`CLAUDE.md` §7).
+     */
+    public function anonymiser(\DateTimeImmutable $quand): void
+    {
+        $this->contactNom = null;
+        $this->contactEmail = null;
+        $this->contactTelephone = null;
+
+        // Une adresse vide rendrait l'instantané illisible (`SaisieAudit` l'interdit)
+        // et casserait la régénération du PDF : sans commune à garder, un tiret
+        // tient la place.
+        $borne = AdresseCommune::borner($this->adresse);
+        $this->adresse = '' === $borne ? self::ADRESSE_ABSENTE : $borne;
+
+        $saisie = $this->instantane['saisie'] ?? null;
+        \assert(\is_array($saisie), 'Tout instantané porte une saisie.');
+        $saisie['adresse'] = $this->adresse;
+        $this->instantane['saisie'] = $saisie;
+
+        $this->anonymiseLe = $quand;
     }
 
     /**
