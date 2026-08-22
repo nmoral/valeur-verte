@@ -53,6 +53,21 @@ class PagePublique implements TenantAwareInterface
     #[ORM\Column(name: 'suspendue_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $suspendueLe = null;
 
+    /**
+     * Durcissement temporaire du défi anti-bot après un pic (#268) : jusqu'à cette
+     * date, le Turnstile est rendu visible plutôt qu'invisible. Borné dans le temps
+     * — la friction ne doit pas survivre à l'incident qui l'a justifiée.
+     */
+    #[ORM\Column(name: 'challenge_renforce_jusqua', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $challengeRenforceJusqua = null;
+
+    /**
+     * Dernière alerte de pic émise pour cette page (#268), qui porte la fenêtre de
+     * silence : un pic dure, l'alerte ne doit pas se répéter à chaque requête.
+     */
+    #[ORM\Column(name: 'alertee_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $alerteeLe = null;
+
     private function __construct(int $tenantId, string $token, string $slug)
     {
         $this->setTenantId($tenantId);
@@ -99,6 +114,29 @@ class PagePublique implements TenantAwareInterface
     public function reactiver(): void
     {
         $this->suspendueLe = null;
+    }
+
+    public function renforcerChallengeJusqua(\DateTimeImmutable $echeance): void
+    {
+        $this->challengeRenforceJusqua = $echeance;
+    }
+
+    /**
+     * Vrai tant que le durcissement décidé après un pic court encore (#268).
+     */
+    public function exigeChallengeVisible(\DateTimeImmutable $maintenant): bool
+    {
+        return null !== $this->challengeRenforceJusqua && $this->challengeRenforceJusqua > $maintenant;
+    }
+
+    public function marquerAlertee(\DateTimeImmutable $quand): void
+    {
+        $this->alerteeLe = $quand;
+    }
+
+    public function derniereAlerteLe(): ?\DateTimeImmutable
+    {
+        return $this->alerteeLe;
     }
 
     /**

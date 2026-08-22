@@ -85,6 +85,11 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Seuils de l'anti-abus réactif du widget (#268) : calibration par défaut,
+    # objet-valeur (pas de service autowirable sans fabrique).
+    App\Widget\SeuilsAntiAbusWidget:
+        factory: ['App\Widget\SeuilsAntiAbusWidget', 'parDefaut']
+
     # Vérification Turnstile (#43) : secret Cloudflare depuis l'environnement (vide = inerte).
     App\Widget\VerificateurTurnstile:
         arguments:
