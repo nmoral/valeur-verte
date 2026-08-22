@@ -10,8 +10,10 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\RetentionRapports;
 use App\BackOffice\Rapport\Source;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * Rétention des rapports (décision D10, #68).
@@ -34,6 +36,7 @@ final class RetentionRapportsTest extends KernelTestCase
     private const int ANONYMISATION_MOIS = 24;
     private const int SUPPRESSION_MOIS = 36;
     private const string ADRESSE = '12 Rue des Lilas 31000 Toulouse';
+    private const string COMMANDE = 'app:rapport:appliquer-retention';
 
     private RapportRepository $rapports;
 
@@ -117,6 +120,39 @@ final class RetentionRapportsTest extends KernelTestCase
 
         self::assertTrue($this->relire($premier)->estAnonymise());
         self::assertTrue($this->relire($second)->estAnonymise());
+    }
+
+    public function testLaCommandeAppliqueLaRetentionEtRendCompte(): void
+    {
+        // Durées réelles de configuration : un rapport de 2020 est largement
+        // au-delà des deux échéances.
+        $rapport = $this->rapportProduitLe('2020-03-01 09:00:00');
+        $tester = new CommandTester($this->commande());
+
+        $tester->execute([]);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('supprimé', $tester->getDisplay());
+        self::assertNull($this->rapports->parReference($rapport->reference()));
+    }
+
+    public function testLaCommandeEstIdempotente(): void
+    {
+        // Rejouée dans la foulée, elle ne trouve plus rien : un cron quotidien
+        // ne doit jamais rougir à vide.
+        $tester = new CommandTester($this->commande());
+
+        $tester->execute([]);
+        $tester->execute([]);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('0 rapport(s) anonymisé(s)', $tester->getDisplay());
+        self::assertStringContainsString('0 rapport(s) supprimé(s)', $tester->getDisplay());
+    }
+
+    private function commande(): \Symfony\Component\Console\Command\Command
+    {
+        return (new Application(self::$kernel ?? self::bootKernel()))->find(self::COMMANDE);
     }
 
     private function retention(): RetentionRapports
