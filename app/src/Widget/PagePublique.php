@@ -32,6 +32,12 @@ class PagePublique implements TenantAwareInterface
 {
     use TenantAwareTrait;
 
+    /**
+     * Borne du slug, celle de la colonne : une saisie plus longue est refusée au
+     * bord (#38) plutôt que tranchée par une erreur SQL à l'insertion.
+     */
+    public const int LONGUEUR_MAX_SLUG = 120;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -89,6 +95,15 @@ class PagePublique implements TenantAwareInterface
     public function slug(): string
     {
         return $this->slug;
+    }
+
+    /**
+     * Renommer n'est pas déménager : le slug change, le jeton reste — les liens
+     * déjà partagés continuent de résoudre la page (#40, le slug est décoratif).
+     */
+    public function renommer(SlugPage $slug): void
+    {
+        $this->slug = $slug->valeur();
     }
 
     public function estActive(): bool

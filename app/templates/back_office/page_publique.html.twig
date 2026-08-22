@@ -11,6 +11,10 @@
     .pp-etat.est-retiree::before{background:var(--rule-strong)}
     .pp-masque{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
     .pp-note{font:13px/1.5 'Public Sans',sans-serif;color:var(--slate);max-width:640px;margin:12px 0 0}
+    .pp-erreur{margin:0 0 12px;padding:10px 12px;border:1px solid var(--bad);border-radius:2px;color:var(--bad);font-size:13px}
+    .pp-slug{display:flex;gap:8px;align-items:flex-end;max-width:640px;margin-top:14px}
+    .pp-slug label{font:500 13px/1.3 'Public Sans',sans-serif;color:var(--ink);display:block;margin-bottom:6px}
+    .pp-slug input{flex:1;font:14px/1.4 'Public Sans',sans-serif;border:1px solid var(--rule);border-radius:6px;padding:9px 11px}
 </style>
 {% endblock %}
 
@@ -21,11 +25,25 @@
         <span class="pp-etat{{ page.estActive ? '' : ' est-retiree' }}" data-etat>{{ page.estActive ? 'en ligne' : 'retirée' }}</span>
     </div>
 
+    {% if erreur %}<p class="pp-erreur" role="alert" data-erreur>{{ erreur }}</p>{% endif %}
+
     <div class="pp-lien">
         <label class="pp-masque" for="pp-lien-champ">Adresse de votre page publique</label>
         <input type="text" id="pp-lien-champ" value="{{ lien }}" readonly>
         <button type="button" class="btn" data-copier data-lien="{{ lien }}">Copier</button>
     </div>
+
+    <form class="pp-slug" method="post" action="{{ path('back_office_page_publique_slug') }}">
+        <div style="flex:1">
+            <label for="pp-slug">Nom affiché dans le lien</label>
+            <input type="text" id="pp-slug" name="slug" value="{{ page.slug }}" maxlength="{{ longueur_max_slug }}">
+        </div>
+        <button type="submit" class="btn">Renommer</button>
+    </form>
+    <p class="pp-note">
+        Ce nom n'est qu'un habillage : les liens déjà partagés continuent de fonctionner
+        après un renommage.
+    </p>
 
     <p class="pp-note">
         Cette page <strong>ne consomme pas</strong> votre essai : seuls les audits que vous

@@ -186,7 +186,21 @@ final class PagePubliqueControllerTest extends WebTestCase
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->clear();
-        $pages = $em->getRepository(PagePublique::class)->findBy(['tenantId' => $tenantId]);
+        // La requête vient d'armer le cloisonnement sur le pro connecté : pour
+        // relire la page d'un *autre* tenant, le test doit le suspendre.
+        $filtres = $em->getFilters();
+        $cloisonne = $filtres->isEnabled('tenant');
+        if ($cloisonne) {
+            $filtres->suspend('tenant');
+        }
+
+        try {
+            $pages = $em->getRepository(PagePublique::class)->findBy(['tenantId' => $tenantId]);
+        } finally {
+            if ($cloisonne) {
+                $filtres->restore('tenant');
+            }
+        }
 
         self::assertCount(1, $pages);
 
