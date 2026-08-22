@@ -8,6 +8,7 @@ use App\Tenant\TenantRepository;
 use App\Widget\EvenementWidgetRepository;
 use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
+use App\Widget\SurveillanceAntiAbusWidget;
 use App\Widget\TypeEvenementWidget;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -35,7 +36,7 @@ final class JournalParcoursWidgetTest extends KernelTestCase
         self::bootKernel();
         [$page, $tenantId] = $this->creerPage();
         $horloge = new MockClock(new \DateTimeImmutable('2026-08-20 14:30:00'));
-        $journal = new JournalParcoursWidget($this->evenements(), $horloge);
+        $journal = new JournalParcoursWidget($this->evenements(), $horloge, $this->surveillance());
 
         $journal->enregistrer($page, self::SESSION, TypeEvenementWidget::WidgetCharge);
 
@@ -54,7 +55,7 @@ final class JournalParcoursWidgetTest extends KernelTestCase
         self::bootKernel();
         [$page] = $this->creerPage();
         $horloge = new MockClock(new \DateTimeImmutable('2026-08-20 14:30:00'));
-        $journal = new JournalParcoursWidget($this->evenements(), $horloge);
+        $journal = new JournalParcoursWidget($this->evenements(), $horloge, $this->surveillance());
 
         $journal->enregistrer($page, self::SESSION, TypeEvenementWidget::WidgetCharge);
         $horloge->sleep(12);
@@ -74,7 +75,7 @@ final class JournalParcoursWidgetTest extends KernelTestCase
     {
         self::bootKernel();
         [$page] = $this->creerPage();
-        $journal = new JournalParcoursWidget($this->evenements(), new MockClock());
+        $journal = new JournalParcoursWidget($this->evenements(), new MockClock(), $this->surveillance());
 
         $journal->enregistrer($page, self::SESSION, TypeEvenementWidget::EstimationAffichee, ['disponible' => false]);
 
@@ -85,7 +86,7 @@ final class JournalParcoursWidgetTest extends KernelTestCase
     {
         self::bootKernel();
         [$page] = $this->creerPage();
-        $journal = new JournalParcoursWidget($this->evenements(), new MockClock());
+        $journal = new JournalParcoursWidget($this->evenements(), new MockClock(), $this->surveillance());
         $autreSession = '0f1e2d3c4b5a69788796a5b4c3d2e1f0';
 
         $journal->enregistrer($page, self::SESSION, TypeEvenementWidget::WidgetCharge);
@@ -93,6 +94,19 @@ final class JournalParcoursWidgetTest extends KernelTestCase
 
         self::assertCount(1, $this->evenements()->pourSession(self::SESSION));
         self::assertCount(1, $this->evenements()->pourSession($autreSession));
+    }
+
+    /**
+     * La surveillance anti-abus (#268) est branchée sur la collecte : le journal ne
+     * se construit plus sans elle. Ici on prend celle du conteneur — ses seuils de
+     * production laissent passer les quelques événements de ces scénarios.
+     */
+    private function surveillance(): SurveillanceAntiAbusWidget
+    {
+        $surveillance = static::getContainer()->get(SurveillanceAntiAbusWidget::class);
+        self::assertInstanceOf(SurveillanceAntiAbusWidget::class, $surveillance);
+
+        return $surveillance;
     }
 
     private function evenements(): EvenementWidgetRepository

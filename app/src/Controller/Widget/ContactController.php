@@ -17,19 +17,15 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\Widget\CaptureLead;
 use App\Widget\ConfirmationLead;
-use App\Widget\JetonChargementWidget;
+use App\Widget\GardeAntiAbusWidget;
 use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
-use App\Widget\PiegeAntiBotWidget;
-use App\Widget\PlafondWidget;
 use App\Widget\SessionParcoursWidget;
 use App\Widget\TypeEvenementWidget;
-use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -38,7 +34,8 @@ use Symfony\Component\Routing\Attribute\Route;
  * Le mur de contact (#41) poste ici. Rien n'est révélé au pro avant confirmation :
  * `capturer` n'émet qu'une demande à confirmer + un email d'opt-in ; `confirmer`
  * matérialise le lead (Rapport Source::Widget) et notifie le pro ; `pdf` sert le
- * document figé au visiteur. Contrôleur fin : la logique vit dans les services.
+ * document figé au visiteur. Contrôleur fin : la logique vit dans les services —
+ * l'anti-abus préventif est rassemblé dans {@see GardeAntiAbusWidget} (#43/#268).
  */
 final class ContactController extends AbstractController
 {
@@ -55,19 +52,11 @@ final class ContactController extends AbstractController
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         CaptureLead $capture,
-        PlafondWidget $plafond,
-        PiegeAntiBotWidget $piege,
-        JetonChargementWidget $jetons,
-        VerificateurTurnstile $turnstile,
+        GardeAntiAbusWidget $garde,
         SessionParcoursWidget $sessions,
         JournalParcoursWidget $journal,
     ): Response {
-        $plafond->verifier($request->getClientIp(), $token);
-        $piege->verifier($request);
-        if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
-            throw new UnprocessableEntityHttpException();
-        }
-        $turnstile->verifier($request->request->getString('cf-turnstile-response'), $request->getClientIp());
+        $garde->verifier($request, $token);
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());

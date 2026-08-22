@@ -13,19 +13,18 @@ use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
+use App\Widget\GardeAntiAbusWidget;
 use App\Widget\JetonChargementWidget;
 use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
-use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
 use App\Widget\SessionParcoursWidget;
 use App\Widget\TypeEvenementWidget;
-use App\Widget\VerificateurTurnstile;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -64,6 +63,7 @@ final class PagePubliqueController extends AbstractController
         PlafondWidget $plafond,
         SessionParcoursWidget $sessions,
         JournalParcoursWidget $journal,
+        ClockInterface $horloge,
     ): Response {
         $plafond->verifierEmission($request->getClientIp());
         $page = $this->pageActive($token, $pages);
@@ -71,7 +71,15 @@ final class PagePubliqueController extends AbstractController
         $session = $sessions->demarrer();
         $journal->enregistrer($page, $session, TypeEvenementWidget::WidgetCharge);
 
-        return $this->rendreFormulaire($brandings->pourTenant($page->tenantIdProprietaire()), $token, [], [], $jetons->emettre(), $session);
+        return $this->rendreFormulaire(
+            $brandings->pourTenant($page->tenantIdProprietaire()),
+            $token,
+            [],
+            [],
+            $jetons->emettre(),
+            $session,
+            $page->exigeChallengeVisible($horloge->now()),
+        );
     }
 
     #[Route(
@@ -87,23 +95,18 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         EstimateurValeurVerte $estimateur,
-        PlafondWidget $plafond,
-        PiegeAntiBotWidget $piege,
+        GardeAntiAbusWidget $garde,
         JetonChargementWidget $jetons,
-        VerificateurTurnstile $turnstile,
         SessionParcoursWidget $sessions,
         JournalParcoursWidget $journal,
+        ClockInterface $horloge,
     ): Response {
-        $plafond->verifier($request->getClientIp(), $token);
-        $piege->verifier($request);
-        if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
-            throw new UnprocessableEntityHttpException();
-        }
-        $turnstile->verifier($request->request->getString('cf-turnstile-response'), $request->getClientIp());
+        $garde->verifier($request, $token);
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());
         $session = $sessions->reprendreOuDemarrer($request->request->getString('session_parcours'));
+        $defiVisible = $page->exigeChallengeVisible($horloge->now());
 
         $valeurs = [
             'adresse' => $request->request->getString('adresse'),
@@ -117,7 +120,7 @@ final class PagePubliqueController extends AbstractController
         $dpeAvant = Dpe::tryFrom($valeurs['dpe_avant']);
         $dpeApres = Dpe::tryFrom($valeurs['dpe_apres']);
         if (null === $dpeAvant || null === $dpeApres) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], $jetons->emettre(), $session, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, ['dpe' => 'Le DPE actuel et le DPE cible sont obligatoires.'], $jetons->emettre(), $session, $defiVisible, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -129,7 +132,7 @@ final class PagePubliqueController extends AbstractController
                 $dpeApres,
             );
         } catch (SaisieInvalide $erreur) {
-            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), $jetons->emettre(), $session, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->rendreFormulaire($branding, $token, $valeurs, $erreur->erreurs(), $jetons->emettre(), $session, $defiVisible, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $restitution = $this->estimation($estimateur, $valeurs['code_insee'], $saisie);
@@ -149,6 +152,7 @@ final class PagePubliqueController extends AbstractController
             'restitution' => $restitution,
             'jeton_chargement' => $jetons->emettre(),
             'session_parcours' => $session,
+            'turnstile_visible' => $defiVisible,
         ]);
     }
 
@@ -166,7 +170,7 @@ final class PagePubliqueController extends AbstractController
      * @param array<string, string> $valeurs
      * @param array<string, string> $erreurs
      */
-    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, string $jetonChargement, string $session, int $statut = Response::HTTP_OK): Response
+    private function rendreFormulaire(Branding $branding, string $token, array $valeurs, array $erreurs, string $jetonChargement, string $session, bool $defiVisible, int $statut = Response::HTTP_OK): Response
     {
         return $this->render('widget/page.html.twig', [
             'branding' => $branding,
@@ -176,6 +180,7 @@ final class PagePubliqueController extends AbstractController
             'dpe_options' => Dpe::cases(),
             'jeton_chargement' => $jetonChargement,
             'session_parcours' => $session,
+            'turnstile_visible' => $defiVisible,
         ], new Response('', $statut));
     }
 

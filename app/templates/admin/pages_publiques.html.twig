@@ -1,0 +1,11 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Pages publiques · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Pages publiques{% endblock %}
+
+{% block admin_subtitle %}<p>Les pages d'estimation hébergées des pros, leur état de service et l'état du défi anti-bot. Suspendre coupe la page immédiatement : ses visiteurs ne la trouvent plus.</p>{% endblock %}
+
+{% block admin_content %}
+    <twig:ListePagesPubliques />
+{% endblock %}

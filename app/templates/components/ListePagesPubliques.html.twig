@@ -1,0 +1,26 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucune page publique pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.slug }} <span class="badge-attente">tenant #{{ element.tenantId }}</span></td>
+            <td>
+                {% if element.estSuspendue %}
+                    <span class="badge-attente" title="Suspendue le {{ element.suspendueLe|date('d/m/Y H:i') }}">Suspendue</span>
+                {% else %}
+                    <span class="badge-traite">{{ element.etatDeService }}</span>
+                {% endif %}
+            </td>
+            <td>{{ element.defiDurci(this.maintenant) ? 'Durci' : 'Invisible' }}</td>
+            <td>{{ element.alerteeLe ? element.alerteeLe|date('d/m/Y H:i') : '—' }}</td>
+        {% endblock %}
+    {% endembed %}
+</div>

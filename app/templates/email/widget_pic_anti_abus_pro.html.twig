@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Activité inhabituelle sur votre page publique</title>
+</head>
+<body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
+    <p>Nous avons constaté une activité inhabituelle sur votre page publique d'estimation.</p>
+    <ul>
+        <li><strong>Ce qui a été mesuré :</strong> {{ mesure }} {{ motif }} en {{ fenetre_minutes }} minutes (seuil : {{ seuil }}).</li>
+    </ul>
+    {% if suspendue %}
+        <p><strong>Votre page a été suspendue par sécurité.</strong> Elle ne répond plus aux visiteurs le temps que nous vérifiions ce qui s'est passé. Répondez à cet email pour la faire rétablir.</p>
+    {% else %}
+        <p>Par précaution, la vérification anti-robot de votre page est temporairement renforcée. Vos visiteurs peuvent avoir à valider une case supplémentaire pendant quelques heures.</p>
+    {% endif %}
+    <p style="font-size:13px;color:#555;">Si vous êtes à l'origine de ce pic (campagne, salon, publication), il n'y a rien à faire : tout revient à la normale de lui-même.</p>
+</body>
+</html>
