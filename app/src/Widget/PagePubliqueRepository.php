@@ -67,4 +67,14 @@ class PagePubliqueRepository extends ServiceEntityRepository
 
         return false !== $existe;
     }
+
+    /**
+     * Page du pro courant, ou `null` s'il n'en a pas encore (compte antérieur à
+     * #38). Le cloisonnement fait le tri : depuis l'espace pro, le filtre restreint
+     * la recherche au tenant connecté.
+     */
+    public function courante(): ?PagePublique
+    {
+        return $this->findOneBy([], ['id' => 'ASC']);
+    }
 }
