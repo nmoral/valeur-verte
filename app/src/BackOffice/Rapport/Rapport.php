@@ -22,14 +22,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'rapport')]
 class Rapport implements TenantAwareInterface
 {
+    use TenantAwareTrait;
     /**
      * Ce qui tient la place d'une adresse qu'on ne sait pas borner (libellé sans
      * code postal) : l'instantané doit rester lisible — `SaisieAudit` refuse une
      * adresse vide et le PDF s'en régénère (D10, #68).
      */
     public const string ADRESSE_ABSENTE = '-';
-
-    use TenantAwareTrait;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

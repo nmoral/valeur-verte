@@ -57,6 +57,7 @@ final class RapportsControllerTest extends WebTestCase
         // Valeur verte et lien PDF stable.
         self::assertStringContainsString('/rapports/2026-0900.pdf', $html);
     }
+
     public function testLaPageNePrometPlusUneConservationIndefinie(): void
     {
         // La rétention D10 (#68) rend « consultable indéfiniment » faux : le

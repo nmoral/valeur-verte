@@ -200,6 +200,7 @@ final class PagesLegalesControllerTest extends WebTestCase
 
         return $crawler;
     }
+
     public function testLaRetentionAnnonceeSuitLaDecisionD10(): void
     {
         // Ce que la page promet doit être ce que le cron applique (#294) :

@@ -63,6 +63,7 @@ class RapportRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
     /**
      * Anonymise les rapports produits avant la borne et pas encore traités
      * (D10, #68) : contact effacé, adresse bornée à la commune, dans la colonne
