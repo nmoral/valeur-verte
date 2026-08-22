@@ -103,12 +103,13 @@ final class CspWidgetTest extends WebTestCase
         // porte le mur de contact, donc le formulaire le plus intéressant à détourner.
         // On exerce une vraie estimation (200) : une réponse d'erreur ne dirait rien
         // ici, Symfony retirant lui-même la CSP des pages d'exception en mode debug
-        // (ErrorListener::removeCspHeader, cf. CspWidget).
+        // (ErrorListener::removeCspHeader, cf. CspWidget). D'où le code INSEE
+        // renseigné — une adresse non résolue est désormais refusée en 422 (#287).
         [$client, $token] = $this->preparer();
 
         $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', [
             'adresse' => '12 rue des Lilas, Toulouse',
-            'code_insee' => '',
+            'code_insee' => '31555',
             'surface_batie' => '90',
             'surface_terrain' => '500',
             'dpe_avant' => 'E',

@@ -105,6 +105,41 @@ final class ParcoursEstimationTest extends WebTestCase
         self::assertSelectorNotExists('[data-widget="mur-contact"]');
     }
 
+    public function testUneAdresseNonChoisieDansLaListeEstRefuseeAvantToutChiffre(): void
+    {
+        // Sans code INSEE, la commune n'a jamais été résolue (#287) : le dire, au
+        // lieu de laisser croire à un défaut de couverture du moteur.
+        [$client, $token] = $this->preparer();
+
+        $this->estimer($client, $token, codeInsee: '');
+
+        self::assertResponseStatusCodeSame(422);
+        $html = strtolower((string) $client->getResponse()->getContent());
+        self::assertStringContainsString('liste', $html, "L'erreur doit inviter à choisir une adresse dans la liste.");
+        self::assertStringNotContainsString('hors couverture', $html);
+        self::assertSelectorNotExists('[data-widget="valeur-verte"]');
+        self::assertSelectorNotExists('[data-widget="mur-contact"]');
+    }
+
+    public function testUneAdresseNonChoisieRendLeFormulaireAvecLaSaisieConservee(): void
+    {
+        // Le visiteur ne doit pas tout retaper pour une adresse à re-sélectionner.
+        [$client, $token] = $this->preparer();
+
+        $crawler = $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', [
+            'adresse' => '12 rue des Lilas, Toulouse',
+            'code_insee' => '',
+            'surface_batie' => '90',
+            'surface_terrain' => '500',
+            'dpe_avant' => 'E',
+            'dpe_apres' => 'C',
+            'jeton_chargement' => $this->jetonChargementValide(),
+        ]);
+
+        self::assertSame('12 rue des Lilas, Toulouse', $crawler->filter('input[name="adresse"]')->attr('value'));
+        self::assertSame('90', $crawler->filter('input[name="surface_batie"]')->attr('value'));
+    }
+
     public function testUneSaisieInvalideEstRefusee(): void
     {
         [$client, $token] = $this->preparer();

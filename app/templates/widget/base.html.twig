@@ -26,5 +26,9 @@
    fonctionne à l'identique sans ce module : seules les étapes purement navigateur
    (adresse saisie, détail déplié) manqueraient. #}
 <script type="module" src="{{ asset('widget_parcours.js') }}"></script>
+{# Autocomplétion d'adresse (#287) : même parti pris que ci-dessus — module local,
+   chargé en direct, qui n'appelle que notre propre endpoint. Sans lui, le champ
+   adresse reste une saisie libre et le serveur invite à choisir une suggestion. #}
+<script type="module" src="{{ asset('widget_adresse.js') }}"></script>
 </body>
 </html>

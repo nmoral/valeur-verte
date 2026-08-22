@@ -26,6 +26,7 @@ final readonly class PlafondWidget
         private RateLimiterFactoryInterface $widgetPageLimiter,
         private RateLimiterFactoryInterface $widgetEmissionLimiter,
         private RateLimiterFactoryInterface $widgetEvenementLimiter,
+        private RateLimiterFactoryInterface $widgetAdresseLimiter,
     ) {
     }
 
@@ -65,6 +66,20 @@ final readonly class PlafondWidget
     public function verifierEvenement(?string $ip): void
     {
         if (!$this->widgetEvenementLimiter->create($ip ?? '')->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException();
+        }
+    }
+
+    /**
+     * Plafond de l'autocomplétion d'adresse (#287), par IP : l'endpoint suit la
+     * frappe mais sort du réseau à chaque appel — le plafond borne le moissonnage
+     * de la BAN à travers nous, sans gêner une saisie d'adresse normale.
+     *
+     * @throws TooManyRequestsHttpException au dépassement du plafond d'adresses
+     */
+    public function verifierAdresse(?string $ip): void
+    {
+        if (!$this->widgetAdresseLimiter->create($ip ?? '')->consume(1)->isAccepted()) {
             throw new TooManyRequestsHttpException();
         }
     }

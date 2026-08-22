@@ -66,6 +66,7 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#42](../../../issues/42) Capture de lead → mail pro + back-office (consentement RGPD)
 - [#43](../../../issues/43) Sécurité widget : token signé par domaine + CSP + rotation
 - [#44](../../../issues/44) Rate limiting (token/IP) + notification admin
+- [#287](../../../issues/287) Autocomplétion d'adresse BAN (proxy serveur) → code INSEE
 
 ### [#7](../../../issues/7) Admin interne & exploitation — `jalon: transverse`
 - [#45](../../../issues/45) Supervision des coefficients + flag valeurs aberrantes

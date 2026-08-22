@@ -117,6 +117,14 @@ final class PagePubliqueController extends AbstractController
             'dpe_apres' => $request->request->getString('dpe_apres'),
         ];
 
+        // Sans code INSEE, la commune n'a pas été résolue : l'adresse a été tapée
+        // sans être choisie dans les suggestions (#287). On le dit — un « hors
+        // couverture » ferait porter au moteur un défaut de saisie, et compterait
+        // une estimation affichée qui n'a jamais eu lieu (#90).
+        if ('' === $valeurs['code_insee']) {
+            return $this->rendreFormulaire($branding, $token, $valeurs, ['adresse' => 'Choisissez votre adresse dans la liste des suggestions.'], $jetons->emettre(), $session, $defiVisible, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $dpeAvant = Dpe::tryFrom($valeurs['dpe_avant']);
         $dpeApres = Dpe::tryFrom($valeurs['dpe_apres']);
         if (null === $dpeAvant || null === $dpeApres) {
@@ -191,10 +199,6 @@ final class PagePubliqueController extends AbstractController
      */
     private function estimation(EstimateurValeurVerte $estimateur, string $codeInsee, SaisieAudit $saisie): ?Restitution
     {
-        if ('' === $codeInsee) {
-            return null;
-        }
-
         try {
             return $estimateur->estimer($codeInsee, $saisie)->restitution();
         } catch (EstimationIndisponible|ClasseNonPubliee) {
