@@ -2,10 +2,12 @@
 
 {% block contenu %}
     {# Parcours particulier (#41, §4) : adresse → surfaces → DPE. L'autocomplétion
-       BAN (côté JS) renseignera le champ caché `code_insee`. Le mur de contact ne
-       vient jamais ici : d'abord le premier chiffre. #}
+       (#287) renseigne le champ caché `code_insee` depuis l'adresse choisie dans
+       la liste — sans lui, aucune commune, donc aucun chiffre. Le mur de contact
+       ne vient jamais ici : d'abord le premier chiffre. #}
     <form data-widget="estimation" method="post" action="/{{ token }}/estimation"
-          data-parcours-url="/{{ token }}/evenement">
+          data-parcours-url="/{{ token }}/evenement"
+          data-adresse-url="/{{ token }}/adresses">
         {{ include('widget/_piege.html.twig') }}
         {{ include('widget/_turnstile.html.twig') }}
         <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
@@ -14,9 +16,14 @@
         <input type="hidden" name="session_parcours" value="{{ session_parcours }}">
         <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
-        <label>Adresse du bien
-            <input type="text" name="adresse" data-parcours="adresse" autocomplete="off" value="{{ valeurs.adresse|default('') }}" required>
-        </label>
+        <label for="adresse">Adresse du bien</label>
+        {# Combobox : la liste est peuplée par `widget_adresse.js`, et reste vide
+           (donc masquée) sans JavaScript. #}
+        <input type="text" id="adresse" name="adresse" data-parcours="adresse" data-adresse="champ"
+               autocomplete="off" role="combobox" aria-autocomplete="list"
+               aria-controls="adresse-suggestions" aria-expanded="false"
+               value="{{ valeurs.adresse|default('') }}" required>
+        <ul id="adresse-suggestions" data-adresse="suggestions" role="listbox" hidden></ul>
 
         <label>Surface habitable (m²)
             <input type="number" name="surface_batie" min="20" max="400" value="{{ valeurs.surface_batie|default('') }}" required>

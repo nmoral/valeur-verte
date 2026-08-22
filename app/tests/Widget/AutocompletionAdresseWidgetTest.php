@@ -87,7 +87,7 @@ final class AutocompletionAdresseWidgetTest extends WebTestCase
         self::assertStringContainsString(
             'widget_adresse',
             (string) $client->getResponse()->getContent(),
-            "Sans son module, le champ adresse ne résout aucune commune : pas de chiffre possible.",
+            'Sans son module, le champ adresse ne résout aucune commune : pas de chiffre possible.',
         );
     }
 
