@@ -88,6 +88,65 @@ final class PagePubliqueControllerTest extends WebTestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->pageDuTenant($tenantId)->token());
     }
 
+    public function testLeProRenommeLeSlugDeSonLien(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-slug@example.com');
+        $jeton = $this->pageDuTenant($tenantId)->token();
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', ['slug' => 'Agence Durand']);
+
+        self::assertResponseRedirects('/page-publique');
+        $page = $this->pageDuTenant($tenantId);
+        // Le slug voyage dans une URL : ce que le pro saisit y est rendu lisible.
+        self::assertSame('agence-durand', $page->slug());
+        // Renommer n'est pas déménager : le jeton, lui, ne bouge pas.
+        self::assertSame($jeton, $page->token());
+    }
+
+    public function testUnSlugVideEstRefuseAvecUnMessageEtNeCasseRienDuLien(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-slug-vide@example.com');
+        $avant = $this->pageDuTenant($tenantId)->slug();
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', ['slug' => '   ']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('[data-erreur]', 'slug');
+        self::assertSame($avant, $this->pageDuTenant($tenantId)->slug(), 'Rien n\'a été enregistré.');
+    }
+
+    public function testUnSlugTropLongEstRefuseAuLieuDePartirEnErreurSql(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-slug-long@example.com');
+        $avant = $this->pageDuTenant($tenantId)->slug();
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', [
+            'slug' => str_repeat('a', PagePublique::LONGUEUR_MAX_SLUG + 1),
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame($avant, $this->pageDuTenant($tenantId)->slug());
+    }
+
+    public function testDeuxProsPeuventPorterLeMemeSlug(): void
+    {
+        // Le slug est décoratif : il n'entre pas dans la résolution (#40), donc
+        // rien n'oblige deux agences homonymes à se disputer un nom.
+        $client = static::createClient();
+        $premier = $this->connecterArtisan($client, 'artisan-page-homonyme-1@example.com');
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', ['slug' => 'agence-durand']);
+
+        $second = $this->connecterArtisan($client, 'artisan-page-homonyme-2@example.com');
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', ['slug' => 'agence-durand']);
+
+        self::assertResponseRedirects('/page-publique');
+        self::assertSame('agence-durand', $this->pageDuTenant($premier)->slug());
+        self::assertSame('agence-durand', $this->pageDuTenant($second)->slug());
+    }
+
     private function connecterArtisan(KernelBrowser $client, string $email): int
     {
         $createur = self::getContainer()->get(CreateurDeCompte::class);
