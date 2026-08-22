@@ -120,6 +120,21 @@ final class TrackingParcoursWidgetTest extends WebTestCase
         self::assertSame($session, $this->sessionDuFormulaire($client));
     }
 
+    public function testUneAdresseNonResolueNeJournalisePasDEstimationAffichee(): void
+    {
+        // Sans code INSEE (#287), rien n'a été estimé : compter l'étape ferait lire
+        // le tunnel comme un échec de couverture, alors que l'adresse n'a pas été
+        // choisie dans la liste.
+        [$client, $token] = $this->preparer();
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.'/'.$token.'/agence-durand');
+        $session = $this->sessionDuFormulaire($client);
+
+        $this->estimer($client, $token, $session, codeInsee: '');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([TypeEvenementWidget::WidgetCharge], $this->typesDeLaSession($session));
+    }
+
     public function testLaSoumissionDuLeadEstJournaliseeDansLaMemeVisite(): void
     {
         [$client, $token] = $this->preparer(avecPro: true);
@@ -228,10 +243,11 @@ final class TrackingParcoursWidgetTest extends WebTestCase
         string $token,
         string $session,
         string $surfaceBatie = '90',
+        string $codeInsee = self::CODE_INSEE,
     ): void {
         $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', [
             'adresse' => self::ADRESSE,
-            'code_insee' => self::CODE_INSEE,
+            'code_insee' => $codeInsee,
             'surface_batie' => $surfaceBatie,
             'surface_terrain' => '500',
             'dpe_avant' => 'E',
