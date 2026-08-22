@@ -51,6 +51,7 @@ class DemandeLeadRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
     /**
      * Supprime les demandes confirmées avant la borne (#292) : le lead vit
      * désormais dans son Rapport, la ligne d'origine n'est plus qu'un doublon.
