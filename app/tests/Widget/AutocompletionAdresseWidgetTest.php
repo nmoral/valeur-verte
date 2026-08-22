@@ -62,6 +62,35 @@ final class AutocompletionAdresseWidgetTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'application/json');
     }
 
+    public function testLaPageBrancheLeChampAdresseSurSonEndpoint(): void
+    {
+        // Le module d'autocomplétion ne connaît pas les routes : la page lui donne
+        // l'URL de son propre endpoint, jeton compris.
+        [$client, $token] = $this->preparer();
+
+        $crawler = $client->request('GET', 'http://'.self::HOTE_WIDGET.'/'.$token.'/agence-durand');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            '/'.$token.'/adresses',
+            $crawler->filter('form[data-widget="estimation"]')->attr('data-adresse-url'),
+        );
+        self::assertCount(1, $crawler->filter('[data-adresse="suggestions"]'));
+    }
+
+    public function testLaPageChargeLeModuleDAutocompletion(): void
+    {
+        [$client, $token] = $this->preparer();
+
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.'/'.$token.'/agence-durand');
+
+        self::assertStringContainsString(
+            'widget_adresse',
+            (string) $client->getResponse()->getContent(),
+            "Sans son module, le champ adresse ne résout aucune commune : pas de chiffre possible.",
+        );
+    }
+
     public function testUneSaisieTropCourteNInterrogePasLaSource(): void
     {
         // Deux caractères ne discriminent rien : on épargne l'appel réseau plutôt
