@@ -10,6 +10,7 @@ use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
 use App\Tests\Notification\Double\MailerEnMemoire;
+use App\Tests\Notification\Double\NotificationAdminEspionne;
 use App\Widget\DetecteurPicWidget;
 use App\Widget\EvenementWidget;
 use App\Widget\EvenementWidgetRepository;
@@ -269,21 +270,5 @@ final class SurveillanceAntiAbusWidgetTest extends KernelTestCase
         $em->flush();
 
         return $page;
-    }
-}
-
-/**
- * @internal
- */
-final class NotificationAdminEspionne implements NotificationAdmin
-{
-    /**
-     * @var list<array{sujet: string, contexte: string}>
-     */
-    public array $alertes = [];
-
-    public function usageAnormal(string $sujet, string $contexte): void
-    {
-        $this->alertes[] = ['sujet' => $sujet, 'contexte' => $contexte];
     }
 }

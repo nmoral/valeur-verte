@@ -9,6 +9,7 @@ use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
 use App\Tests\Notification\Double\MailerEnMemoire;
+use App\Tests\Notification\Double\NotificationAdminEspionne;
 use App\Widget\DetecteurPicWidget;
 use App\Widget\EvenementWidgetRepository;
 use App\Widget\JetonChargementWidget;

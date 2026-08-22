@@ -13,19 +13,17 @@ use App\BackOffice\Estimation\EstimateurValeurVerte;
 use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
+use App\Widget\GardeAntiAbusWidget;
 use App\Widget\JetonChargementWidget;
 use App\Widget\JournalParcoursWidget;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueRepository;
-use App\Widget\PiegeAntiBotWidget;
 use App\Widget\PlafondWidget;
 use App\Widget\SessionParcoursWidget;
 use App\Widget\TypeEvenementWidget;
-use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -87,19 +85,12 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueRepository $pages,
         BrandingRepository $brandings,
         EstimateurValeurVerte $estimateur,
-        PlafondWidget $plafond,
-        PiegeAntiBotWidget $piege,
+        GardeAntiAbusWidget $garde,
         JetonChargementWidget $jetons,
-        VerificateurTurnstile $turnstile,
         SessionParcoursWidget $sessions,
         JournalParcoursWidget $journal,
     ): Response {
-        $plafond->verifier($request->getClientIp(), $token);
-        $piege->verifier($request);
-        if (!$jetons->estRecevable($request->request->getString('jeton_chargement'))) {
-            throw new UnprocessableEntityHttpException();
-        }
-        $turnstile->verifier($request->request->getString('cf-turnstile-response'), $request->getClientIp());
+        $garde->verifier($request, $token);
 
         $page = $this->pageActive($token, $pages);
         $branding = $brandings->pourTenant($page->tenantIdProprietaire());

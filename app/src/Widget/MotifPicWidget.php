@@ -31,6 +31,7 @@ enum MotifPicWidget: string
             self::Rejets => [
                 TypeEvenementWidget::PlafondAtteint,
                 TypeEvenementWidget::PiegeDeclenche,
+                TypeEvenementWidget::JetonRefuse,
                 TypeEvenementWidget::TurnstileEchoue,
             ],
         };

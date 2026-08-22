@@ -17,7 +17,7 @@ namespace App\Widget;
  * « premier chiffre affiché » que le serveur seul constate.
  *
  * S'y ajoutent les **rejets** des contrôles préventifs (#43) — plafond atteint,
- * honeypot déclenché, Turnstile refusé. Ce ne sont pas des étapes du funnel mais
+ * honeypot déclenché, jeton de chargement refusé, Turnstile refusé. Ce ne sont pas des étapes du funnel mais
  * des parcours refusés : les journaliser ici donne à l'anti-abus réactif (#268) un
  * taux d'échec lisible sur la même fenêtre glissante que le trafic légitime.
  */
@@ -32,6 +32,7 @@ enum TypeEvenementWidget: string
 
     case PlafondAtteint = 'plafond_atteint';
     case PiegeDeclenche = 'piege_declenche';
+    case JetonRefuse = 'jeton_refuse';
     case TurnstileEchoue = 'turnstile_echoue';
 
     /**
@@ -53,8 +54,24 @@ enum TypeEvenementWidget: string
     public function estRejet(): bool
     {
         return match ($this) {
-            self::PlafondAtteint, self::PiegeDeclenche, self::TurnstileEchoue => true,
+            self::PlafondAtteint, self::PiegeDeclenche, self::JetonRefuse, self::TurnstileEchoue => true,
             default => false,
         };
+    }
+
+    /**
+     * Vrai pour les types qu'un motif de pic mesure (#268) : eux seuls valent une
+     * évaluation à l'enregistrement. La liste se **dérive** des motifs plutôt que
+     * de s'y recopier — un motif qui gagne un type ne laisse pas d'angle mort.
+     */
+    public function declencheSurveillance(): bool
+    {
+        foreach (MotifPicWidget::cases() as $motif) {
+            if (\in_array($this, $motif->typesMesures(), true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
