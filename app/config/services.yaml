@@ -162,6 +162,16 @@ services:
         arguments:
             $retentionJours: 90
 
+    # Rétention des rapports (décision D10, #68) : à 24 mois du dernier contact
+    # connu — faute de suivi d'interaction, la production du rapport — le contact
+    # est effacé et l'adresse bornée à la commune ; à 3 ans, le rapport est
+    # supprimé. Les deux durées sont celles publiées dans la politique de
+    # confidentialité. Purge jouée par un cron quotidien (#190).
+    App\BackOffice\Rapport\RetentionRapports:
+        arguments:
+            $anonymisationMois: 24
+            $suppressionMois: 36
+
     # Rétention des demandes de lead (#292) : une demande jamais confirmée porte
     # des données nominatives sans consentement confirmé — elle est supprimée peu
     # après son expiration (grâce, pour un clic tardif). Une demande confirmée est
