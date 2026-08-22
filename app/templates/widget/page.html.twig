@@ -5,58 +5,100 @@
        (#287) renseigne le champ caché `code_insee` depuis l'adresse choisie dans
        la liste — sans lui, aucune commune, donc aucun chiffre. Le mur de contact
        ne vient jamais ici : d'abord le premier chiffre. #}
-    <form data-widget="estimation" method="post" action="/{{ token }}/estimation"
-          data-parcours-url="/{{ token }}/evenement"
-          data-adresse-url="/{{ token }}/adresses">
-        {{ include('widget/_piege.html.twig') }}
-        {{ include('widget/_turnstile.html.twig') }}
-        <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
-        {# Visite en cours (#90) : identifiant anonyme et éphémère, porté par le
-           formulaire — pas de cookie, pas de stockage navigateur. #}
-        <input type="hidden" name="session_parcours" value="{{ session_parcours }}">
-        <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
+    <section class="carte">
+        <p class="surtitre">Estimation de la valeur verte</p>
+        <h1 class="titre">Ce que la rénovation ajoute à la valeur de votre maison</h1>
+        <p class="accroche">
+            Un chiffre fondé sur les ventes réelles de votre commune, en une minute et sans engagement.
+        </p>
 
-        <label for="adresse">Adresse du bien</label>
-        {# Combobox : la liste est peuplée par `widget_adresse.js`, et reste vide
-           (donc masquée) sans JavaScript. #}
-        <input type="text" id="adresse" name="adresse" data-parcours="adresse" data-adresse="champ"
-               autocomplete="off" role="combobox" aria-autocomplete="list"
-               aria-controls="adresse-suggestions" aria-expanded="false"
-               value="{{ valeurs.adresse|default('') }}" required>
-        <ul id="adresse-suggestions" data-adresse="suggestions" role="listbox" hidden></ul>
+        <form data-widget="estimation" method="post" action="/{{ token }}/estimation"
+              data-parcours-url="/{{ token }}/evenement"
+              data-adresse-url="/{{ token }}/adresses">
+            {{ include('widget/_piege.html.twig') }}
+            {{ include('widget/_turnstile.html.twig') }}
+            <input type="hidden" name="jeton_chargement" value="{{ jeton_chargement }}">
+            {# Visite en cours (#90) : identifiant anonyme et éphémère, porté par le
+               formulaire — pas de cookie, pas de stockage navigateur. #}
+            <input type="hidden" name="session_parcours" value="{{ session_parcours }}">
+            <input type="hidden" name="code_insee" value="{{ valeurs.code_insee|default('') }}">
 
-        <label>Surface habitable (m²)
-            <input type="number" name="surface_batie" min="20" max="400" value="{{ valeurs.surface_batie|default('') }}" required>
-        </label>
+            {% if erreurs|default([]) is not empty %}
+                <ul class="erreurs" data-widget="erreurs">
+                    {% for erreur in erreurs %}
+                        <li>{{ erreur }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
 
-        <label>Surface du terrain (m²)
-            <input type="number" name="surface_terrain" min="0" max="10000" value="{{ valeurs.surface_terrain|default('0') }}">
-        </label>
+            <div class="champ">
+                <label for="adresse">Adresse du bien</label>
+                {# Combobox : la liste est peuplée par `widget_adresse.js`, et reste vide
+                   (donc masquée) sans JavaScript. #}
+                {# La liste s'ancre sur le champ lui-même, pas sur le bloc : sinon elle
+                   s'ouvre sous le texte d'aide et recouvre les surfaces. #}
+                <div class="combo">
+                    <input type="text" id="adresse" name="adresse" data-parcours="adresse" data-adresse="champ"
+                           autocomplete="off" role="combobox" aria-autocomplete="list"
+                           aria-controls="adresse-suggestions" aria-expanded="false"
+                           placeholder="12 rue du Taur, Toulouse"
+                           value="{{ valeurs.adresse|default('') }}" required>
+                    <ul class="suggestions" id="adresse-suggestions" data-adresse="suggestions" role="listbox" hidden></ul>
+                </div>
+                <p class="champ-aide">Choisissez votre adresse dans la liste : elle situe le bien dans sa commune.</p>
+            </div>
 
-        <label>DPE actuel
-            <select name="dpe_avant">
-                {% for dpe in dpe_options %}
-                    <option value="{{ dpe.value }}" {{ valeurs.dpe_avant|default('') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
-                {% endfor %}
-            </select>
-        </label>
+            <div class="duo">
+                <div class="champ">
+                    <label for="surface_batie">Surface habitable (m²)</label>
+                    <input type="number" id="surface_batie" name="surface_batie" min="20" max="400"
+                           placeholder="95" value="{{ valeurs.surface_batie|default('') }}" required>
+                </div>
 
-        <label>DPE visé après travaux
-            <select name="dpe_apres">
-                {% for dpe in dpe_options %}
-                    <option value="{{ dpe.value }}" {{ valeurs.dpe_apres|default('C') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
-                {% endfor %}
-            </select>
-        </label>
+                <div class="champ">
+                    <label for="surface_terrain">Surface du terrain (m²)</label>
+                    <input type="number" id="surface_terrain" name="surface_terrain" min="0" max="10000"
+                           value="{{ valeurs.surface_terrain|default('0') }}">
+                </div>
+            </div>
 
-        {% if erreurs|default([]) is not empty %}
-            <ul data-widget="erreurs">
-                {% for erreur in erreurs %}
-                    <li>{{ erreur }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+            {# L'échelle DPE est une image que tout le monde a déjà vue : on la
+               montre en entier plutôt que de la replier dans une liste déroulante
+               — qui, sur mobile, recouvre la page pour afficher sept lettres.
+               Les deux échelles sont alignées colonne par colonne : le saut de
+               l'une à l'autre se lit sans rien déchiffrer. #}
+            <fieldset class="echelle">
+                <legend class="champ-titre">Son étiquette énergétique aujourd'hui</legend>
+                <div class="echelle-crans">
+                    {% for dpe in dpe_options %}
+                        {# Aucun cran pré-coché : l'étiquette actuelle est un fait que
+                           seul le visiteur connaît, et « A » par défaut lui ferait
+                           estimer une dégradation sans qu'il ait rien choisi. #}
+                        <input type="radio" class="echelle-radio" name="dpe_avant"
+                               id="dpe_avant_{{ dpe.value|lower }}" value="{{ dpe.value }}"
+                               {{ valeurs.dpe_avant|default('') == dpe.value ? 'checked' : '' }} required>
+                        <label class="dpe-choix d-{{ dpe.value|lower }}" for="dpe_avant_{{ dpe.value|lower }}">
+                            {{ dpe.value }}<span class="sr">{{ dpe.value == 'A' ? ' (le plus économe)' : (dpe.value == 'G' ? ' (le plus énergivore)' : '') }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
 
-        <button type="submit">Estimer la valeur verte</button>
-    </form>
+            <fieldset class="echelle">
+                <legend class="champ-titre">Son étiquette visée après travaux</legend>
+                <div class="echelle-crans">
+                    {% for dpe in dpe_options %}
+                        {# L'objectif garde le seuil C : c'est l'effet que le
+                           dispositif met en avant (#27), et il se change d'un geste. #}
+                        <input type="radio" class="echelle-radio" name="dpe_apres"
+                               id="dpe_apres_{{ dpe.value|lower }}" value="{{ dpe.value }}"
+                               {{ valeurs.dpe_apres|default('C') == dpe.value ? 'checked' : '' }} required>
+                        <label class="dpe-choix d-{{ dpe.value|lower }}" for="dpe_apres_{{ dpe.value|lower }}">{{ dpe.value }}</label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <button class="bouton" type="submit">Estimer la valeur verte</button>
+        </form>
+    </section>
 {% endblock %}

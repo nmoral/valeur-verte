@@ -60,14 +60,15 @@ final class BrandingHostilePagePubliqueTest extends WebTestCase
 
     public function testLaCouleurDeMarqueResteUnCodeHexadecimalDansLAttributStyle(): void
     {
-        // La couleur part dans un attribut `style` : seul un #RRGGBB validé y entre
-        // (cf. CouleurTest), donc l'attribut ne contient rien d'autre.
+        // La couleur part dans un attribut `style`, avec depuis #290 la couleur de
+        // texte qui s'y lit : seuls des #RRGGBB validés y entrent (cf. CouleurTest),
+        // donc l'attribut ne contient rien d'autre.
         [$client, $token] = $this->preparer();
 
         $crawler = $client->request('GET', 'http://'.self::HOTE_WIDGET.'/'.$token.'/agence-durand');
 
         self::assertMatchesRegularExpression(
-            '/^--marque:\s*#[0-9A-F]{6};?$/',
+            '/^--marque:\s*#[0-9A-F]{6};\s*--marque-texte:\s*#[0-9A-F]{6};\s*--marque-encre:\s*#[0-9A-F]{6};?$/',
             trim((string) $crawler->filter('[data-page="widget"]')->attr('style')),
         );
     }

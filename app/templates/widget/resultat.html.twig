@@ -3,29 +3,68 @@
 {% block contenu %}
     {% if restitution is null %}
         {# On ne fabrique jamais un chiffre par défaut : hors couverture, on le dit. #}
-        <p data-widget="indisponible">
-            L'estimation est indisponible pour cette adresse (commune hors couverture).
-        </p>
+        <section class="carte">
+            <p class="surtitre">Estimation indisponible</p>
+            <h1 class="titre">Nous ne couvrons pas encore cette commune</h1>
+            <p class="indisponible" data-widget="indisponible">
+                L'estimation est indisponible pour cette adresse (commune hors couverture).
+            </p>
+        </section>
     {% else %}
         {# Le premier chiffre : la valeur verte, présentée avec son contexte, sans
            email. Le mur de contact vient ensuite (jamais avant, §4). #}
-        <section data-widget="valeur-verte">
-            <p class="montant">{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
+        <section class="carte" data-widget="valeur-verte">
+            <p class="surtitre">Valeur verte créée par la rénovation</p>
+
+            <p class="bien">
+                {{ valeurs.adresse|default('') }}
+                {% if valeurs.dpe_avant|default('') and valeurs.dpe_apres|default('') %}
+                    <span class="dpe d-{{ valeurs.dpe_avant|lower }}">{{ valeurs.dpe_avant }}</span>
+                    <span aria-hidden="true">→</span>
+                    <span class="dpe d-{{ valeurs.dpe_apres|lower }}">{{ valeurs.dpe_apres }}</span>
+                {% endif %}
+            </p>
+
+            <p class="montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
             <p class="fourchette">
                 Fourchette : {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} €
                 – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €
             </p>
+
+            {% set fiabilite = restitution.fiabilite %}
+            <p class="fiabilite fiabilite-{{ fiabilite.couleur }}">
+                <span class="fiabilite-pastille" aria-hidden="true"></span>Fiabilité {{ fiabilite.libelle|lower }}
+            </p>
+
+            {# Invariant produit : toute restitution affiche n, portée et millésime. #}
             <ul class="stats">
-                <li data-stat="effectif">{{ restitution.n }} transactions</li>
-                <li data-stat="rayon">{{ restitution.intitulePortee }}</li>
-                <li data-stat="millesime">{{ restitution.millesime }}</li>
+                <li data-stat="effectif"><span>Transactions</span><b>{{ restitution.n|number_format(0, ',', ' ') }}</b></li>
+                <li data-stat="rayon"><span>Portée</span><b>{{ restitution.intitulePortee }}</b></li>
+                <li data-stat="millesime"><span>Millésime</span><b>{{ restitution.millesime }}</b></li>
             </ul>
+
+            {# Le dépliant que #90 mesurait déjà sans qu'il existe : `detail_deplie`
+               était une étape du funnel sans écran pour la franchir. #}
+            <details class="methode" data-parcours="detail">
+                <summary>D'où vient ce chiffre&nbsp;?</summary>
+                <p>
+                    La valeur verte est estimée par comparaison avec des ventes réelles
+                    (base DVF) rapprochées de leur diagnostic de performance énergétique
+                    (ADEME), autour de votre bien. Le nombre de transactions retenues, la
+                    portée géographique et le millésime des ventes situent la robustesse
+                    de l'estimation.
+                </p>
+                <p>
+                    Il s'agit d'une estimation statistique, et non d'une évaluation
+                    immobilière : elle ne constitue pas un engagement sur un prix de vente.
+                </p>
+            </details>
         </section>
 
-        {# Mur de contact (#42) : la soumission (lead + double opt-in + PDF) sera
-           câblée en #42 ; ici on présente le formulaire après le premier chiffre. #}
-        <section data-widget="mur-contact">
-            <p>Recevez le détail chiffré et le PDF de votre estimation :</p>
+        {# Mur de contact (#42) : présenté après le premier chiffre, jamais avant. #}
+        <section class="carte mur" data-widget="mur-contact">
+            <h2 class="titre">Recevez le détail chiffré et le PDF</h2>
+            <p class="accroche">Votre estimation complète vous est envoyée par email.</p>
             <form method="post" action="/{{ token }}/contact">
                 {{ include('widget/_piege.html.twig') }}
                 {{ include('widget/_turnstile.html.twig') }}
@@ -41,13 +80,23 @@
                 <input type="hidden" name="dpe_avant" value="{{ valeurs.dpe_avant|default('') }}">
                 <input type="hidden" name="dpe_apres" value="{{ valeurs.dpe_apres|default('') }}">
 
-                <label>Votre nom <input type="text" name="nom" required></label>
-                <label>Votre email <input type="email" name="email" required></label>
-                <label>
+                <div class="duo">
+                    <div class="champ">
+                        <label for="nom">Votre nom</label>
+                        <input type="text" id="nom" name="nom" autocomplete="name" required>
+                    </div>
+                    <div class="champ">
+                        <label for="email">Votre email</label>
+                        <input type="email" id="email" name="email" autocomplete="email" required>
+                    </div>
+                </div>
+
+                <label class="consentement">
                     <input type="checkbox" name="consentement" value="on">
-                    J'accepte d'être recontacté au sujet de mon estimation.
+                    <span>J'accepte d'être recontacté au sujet de mon estimation.</span>
                 </label>
-                <button type="submit">Recevoir mon estimation détaillée</button>
+
+                <button class="bouton" type="submit">Recevoir mon estimation détaillée</button>
             </form>
         </section>
     {% endif %}
