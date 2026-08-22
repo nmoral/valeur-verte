@@ -30,6 +30,7 @@ final class PurgeDemandesLeadWidgetTest extends KernelTestCase
 {
     private const string MAINTENANT = '2026-08-20 12:00:00';
     private const int GRACE_JOURS = 7;
+    private const int GARDE_JOURS = 30;
 
     public function testUneDemandeExpireeNonConfirmeeAuDelaDeLaGraceEstSupprimee(): void
     {
@@ -76,12 +77,49 @@ final class PurgeDemandesLeadWidgetTest extends KernelTestCase
         self::assertNotNull($this->demandes()->trouverParEmpreinte($empreinte));
     }
 
+    public function testUneDemandeConfirmeeAuDelaDeLaGardeEstSupprimee(): void
+    {
+        // Le lead vit désormais dans un Rapport qui porte la même donnée : passé la
+        // garde, la ligne d'origine est un doublon nominatif sans usage.
+        self::bootKernel();
+        $empreinte = $this->demandeConfirmeeLe('2026-07-01 09:00:00');
+
+        $supprimees = $this->purge()->executer();
+
+        self::assertSame(1, $supprimees);
+        self::assertNull($this->demandes()->trouverParEmpreinte($empreinte));
+    }
+
+    public function testUneDemandeConfirmeeDansLeDelaiDeGardeEstConservee(): void
+    {
+        self::bootKernel();
+        $empreinte = $this->demandeConfirmeeLe('2026-08-15 09:00:00');
+
+        $supprimees = $this->purge()->executer();
+
+        self::assertSame(0, $supprimees);
+        self::assertNotNull($this->demandes()->trouverParEmpreinte($empreinte));
+    }
+
+    public function testLaBorneDeGardeEstExacte(): void
+    {
+        self::bootKernel();
+        $limite = new \DateTimeImmutable(self::MAINTENANT.' -'.self::GARDE_JOURS.' days');
+        $gardee = $this->demandeConfirmeeLe($limite->modify('+1 second')->format('Y-m-d H:i:s'));
+        $purgee = $this->demandeConfirmeeLe($limite->modify('-1 second')->format('Y-m-d H:i:s'));
+
+        self::assertSame(1, $this->purge()->executer());
+        self::assertNotNull($this->demandes()->trouverParEmpreinte($gardee));
+        self::assertNull($this->demandes()->trouverParEmpreinte($purgee));
+    }
+
     private function purge(): PurgeDemandesLeadWidget
     {
         return new PurgeDemandesLeadWidget(
             $this->demandes(),
             new MockClock(new \DateTimeImmutable(self::MAINTENANT)),
             self::GRACE_JOURS,
+            self::GARDE_JOURS,
         );
     }
 
@@ -112,6 +150,26 @@ final class PurgeDemandesLeadWidgetTest extends KernelTestCase
             [],
             $expireLe->modify('-1 day'),
         ));
+        $em->flush();
+
+        return $empreinte;
+    }
+
+    /**
+     * Enregistre une demande déjà confirmée à l'instant donné (expiration dans la
+     * foulée de sa création, comme en production), et rend son empreinte.
+     */
+    private function demandeConfirmeeLe(string $confirmation): string
+    {
+        $confirmeLe = new \DateTimeImmutable($confirmation);
+        $empreinte = $this->demandeExpirantLe($confirmeLe->modify('+1 hour')->format('Y-m-d H:i:s'));
+
+        $demande = $this->demandes()->trouverParEmpreinte($empreinte);
+        self::assertNotNull($demande);
+        $demande->marquerUtilise($confirmeLe);
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->flush();
 
         return $empreinte;
