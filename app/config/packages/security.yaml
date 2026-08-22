@@ -11,8 +11,10 @@ security:
                 property: email
 
     # Trois zones, une seule authentification (§10.1) :
-    #  - widget.  : public, stateless (l'authentificateur par token signé viendra
-    #               avec le domaine widget) ;
+    #  - widget.  : public, stateless — la page hébergée est ouvertement accessible
+    #               (D9, docs/PAGE-PUBLIQUE.md) : pas d'authentification, le jeton
+    #               opaque de l'URL désigne le tenant, la sécurité tient aux plafonds,
+    #               au Turnstile et à la CSP, pas à un firewall ;
     #  - app. / admin. : couverts par le firewall « main », login unique, la zone
     #               autorisée est décidée par le rôle (voir access_control).
     firewalls:

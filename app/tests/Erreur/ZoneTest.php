@@ -40,8 +40,9 @@ final class ZoneTest extends TestCase
 
     public function testLHoteWidgetRetombeSurLAccueilPublic(): void
     {
-        // La zone widget (iframe public) n'a pas encore d'accueil propre : elle
-        // retombe sur l'accueil public plutôt que de proposer un retour cassé.
+        // La zone widget (les pages publiques hébergées, D9) n'a pas d'accueil propre
+        // — on n'y entre que par le lien d'un pro : elle retombe sur l'accueil public
+        // plutôt que de proposer un retour cassé.
         $zone = Zone::depuisHote('widget.valeur-verte.fr');
 
         self::assertSame('home', $zone->route());
