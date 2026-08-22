@@ -33,4 +33,22 @@ class DemandeLeadRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['empreinte' => $empreinte]);
     }
+
+    /**
+     * Supprime les demandes jamais confirmées dont l'expiration précède la borne
+     * (#292). Une demande encore utilisable — non expirée — n'est jamais touchée :
+     * la purge ne casse pas un opt-in en cours.
+     *
+     * @return int nombre de demandes supprimées
+     */
+    public function purgerNonConfirmeesExpireesAvant(\DateTimeImmutable $limite): int
+    {
+        return $this->createQueryBuilder('d')
+            ->delete()
+            ->andWhere('d.utiliseLe IS NULL')
+            ->andWhere('d.expireLe < :limite')
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->execute();
+    }
 }
