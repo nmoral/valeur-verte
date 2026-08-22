@@ -18,7 +18,7 @@ import urllib.request
 
 import pytest
 
-from ..conftest import APP_DOCKERFILE, REPO_ROOT
+from ..conftest import APP_DOCKERFILE, CRONTAB, REPO_ROOT
 
 IMAGE = "valeur-verte-app:test"
 CONTENEUR = "vv-app-itest"
@@ -93,4 +93,21 @@ def test_l_image_n_embarque_pas_l_outillage_de_test(image: str) -> None:
     )
     assert resultat.returncode != 0, (
         "L'image de production ne doit pas contenir les dépendances de développement."
+    )
+
+
+def test_l_image_valide_le_crontab_des_taches_planifiees(image: str) -> None:
+    """L'ordonnanceur embarqué relit lui-même le crontab versionné : c'est son propre
+    analyseur qui tranche, pas une expression régulière de test. Un horaire invalide
+    empêcherait le service « cron » de démarrer sur le VPS."""
+    _docker(
+        "run",
+        "--rm",
+        "-v",
+        f"{CRONTAB}:/etc/supercronic/crontab:ro",
+        "--entrypoint",
+        "supercronic",
+        image,
+        "-test",
+        "/etc/supercronic/crontab",
     )

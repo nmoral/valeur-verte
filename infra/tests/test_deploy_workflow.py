@@ -204,3 +204,21 @@ def test_les_migrations_app_sont_jouees_au_deploiement() -> None:
     assert "doctrine:migrations:migrate" in contenu, (
         "Le déploiement doit jouer les migrations Symfony (schéma « app »)."
     )
+
+
+def test_le_crontab_est_televerse() -> None:
+    """Le service « cron » monte `./cron/crontab` depuis le VPS : sans téléversement,
+    Compose crée un répertoire vide à sa place et l'ordonnanceur démarre sans tâche."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert "infra/cron" in contenu, (
+        "Le déploiement doit téléverser les tâches planifiées (infra/cron)."
+    )
+
+
+def test_l_ordonnanceur_est_demarre_au_deploiement() -> None:
+    """Livrer une nouvelle image sans relancer « cron » laisserait l'ordonnanceur sur
+    le code de la version précédente — y compris sur un crontab périmé."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"up -d [^\n&|]*\bcron\b", contenu), (
+        "Le déploiement doit démarrer l'ordonnanceur « cron » (ex. « up -d app caddy cron »)."
+    )
