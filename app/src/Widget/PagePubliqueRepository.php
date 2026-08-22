@@ -26,6 +26,16 @@ class PagePubliqueRepository extends ServiceEntityRepository
      * Les deux verrous doivent être ouverts : l'interrupteur du pro (`active`) et
      * l'absence de suspension admin/automatique (#268).
      */
+    /**
+     * Résout une page **quel que soit son état** — retirée par le pro, suspendue
+     * (#268). Réservé à l'administration : le visiteur, lui, passe par
+     * {@see self::trouverActiveParJeton()}, qui ne rend que ce qui est servi.
+     */
+    public function trouverParJeton(string $token): ?PagePublique
+    {
+        return $this->findOneBy(['token' => $token]);
+    }
+
     public function enregistrer(PagePublique $page): void
     {
         $manager = $this->getEntityManager();
