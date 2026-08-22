@@ -7,17 +7,40 @@
        site n'est pas ouvert (réduit aussi la surface de scraping, épic #6). #}
     <meta name="robots" content="noindex">
     <title>{% block titre %}{{ branding.nom ?? 'Estimation de la valeur verte' }}{% endblock %}</title>
+    {# Feuille servie par nous (#290) : la CSP de la zone est `style-src 'self'`,
+       et une page qui annonce une collecte sans partage tiers ne va pas chercher
+       ses polices ailleurs — d'où la pile système, pas de Google Fonts. #}
+    <link rel="stylesheet" href="{{ asset('css/widget.css') }}">
 </head>
 <body>
-<main data-page="widget" style="--marque: {{ branding.couleurPrincipale.hex }};">
+{# Les deux seules valeurs que le serveur pousse dans du style : la couleur du pro
+   et la couleur de texte qui s'y lit (#290). Toutes deux validées #RRGGBB — c'est
+   ce que vérifie BrandingHostilePagePubliqueTest. #}
+<main class="page" data-page="widget"
+      style="--marque: {{ branding.couleurPrincipale.hex }}; --marque-texte: {{ branding.couleurPrincipale.texteLisible.hex }};">
     <header class="entete">
         {% if branding.logoUrl %}
-            <img data-marque="logo" src="{{ branding.logoUrl }}" alt="{{ branding.nom ?? 'Logo' }}">
+            <img class="entete-logo" data-marque="logo" src="{{ branding.logoUrl }}" alt="{{ branding.nom ?? 'Logo' }}">
         {% endif %}
-        <span data-marque="nom">{{ branding.nom }}</span>
+        <span class="entete-nom" data-marque="nom">{{ branding.nom }}</span>
     </header>
 
     {% block contenu %}{% endblock %}
+
+    {# Identité du pro : ce que le PDF portait déjà et que la page publique
+       passait à la trappe (#290). Rien n'est affiché tant que rien n'est
+       configuré — « un rapport avant toute configuration » vaut aussi ici. #}
+    {% set pied = [] %}
+    {% if branding.nom %}{% set pied = pied|merge([branding.nom]) %}{% endif %}
+    {% if branding.numeroRge %}{% set pied = pied|merge(['RGE ' ~ branding.numeroRge]) %}{% endif %}
+    {% if branding.telephone %}{% set pied = pied|merge(['Tél. ' ~ branding.telephone]) %}{% endif %}
+    <footer class="pied">
+        {% if pied %}<p class="pied-pro" data-marque="pied">{{ pied|join(' · ') }}</p>{% endif %}
+        {% if branding.mentionsLegales %}
+            <p class="pied-mentions" data-marque="mentions">{{ branding.mentionsLegales }}</p>
+        {% endif %}
+        <p class="pied-source">Estimation établie à partir de données publiques : transactions DVF et diagnostics DPE (ADEME).</p>
+    </footer>
 </main>
 {# Mesure du parcours (#90) : module minimal, chargé en direct plutôt que par
    `importmap()`. Il n'importe rien, et l'importmap tirerait sur cette page

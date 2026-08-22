@@ -36,6 +36,7 @@ final class PresentationPagePubliqueTest extends WebTestCase
 
         self::assertNotEmpty($feuilles, 'La page publique doit charger une feuille de style.');
         foreach ($feuilles as $href) {
+            self::assertIsString($href);
             self::assertStringStartsWith(
                 '/',
                 $href,
@@ -60,6 +61,7 @@ final class PresentationPagePubliqueTest extends WebTestCase
         );
 
         foreach ($sources as $source) {
+            self::assertIsString($source);
             if ('' === $source || str_starts_with($source, 'https://challenges.cloudflare.com')) {
                 continue;
             }

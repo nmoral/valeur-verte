@@ -1,10 +1,11 @@
 {% extends 'widget/base.html.twig' %}
 
 {% block contenu %}
-    <section data-widget="lead-confirme">
-        <h2>C'est confirmé&nbsp;!</h2>
-        <p>Votre estimation détaillée est prête. Téléchargez votre document :</p>
-        <a data-widget="pdf" href="/{{ token }}/lead/{{ reference }}/pdf">
+    <section class="carte" data-widget="lead-confirme">
+        <p class="surtitre">Adresse confirmée</p>
+        <h2 class="titre">C'est confirmé&nbsp;!</h2>
+        <p class="confirme">Votre estimation détaillée est prête. Téléchargez votre document :</p>
+        <a class="lien-pdf" data-widget="pdf" href="/{{ token }}/lead/{{ reference }}/pdf">
             Télécharger le PDF de mon estimation
         </a>
     </section>

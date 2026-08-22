@@ -1,5 +1,8 @@
 {% extends 'widget/base.html.twig' %}
 
 {% block contenu %}
-    <p data-widget="erreur">{{ message }}</p>
+    <section class="carte">
+        <h2 class="titre">Votre demande n'a pas pu aboutir</h2>
+        <p class="erreurs" data-widget="erreur">{{ message }}</p>
+    </section>
 {% endblock %}
