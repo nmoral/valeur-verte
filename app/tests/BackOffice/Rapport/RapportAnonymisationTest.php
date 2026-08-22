@@ -53,14 +53,30 @@ final class RapportAnonymisationTest extends TestCase
         self::assertSame('31000 Toulouse', $rapport->instantane()->saisie()->adresse());
     }
 
-    public function testUneAdresseSansCodePostalEstEffaceeDesDeuxCotes(): void
+    public function testUneAdresseSansCodePostalEstRemplaceeParUneMention(): void
     {
+        // On ne peut pas la vider : `SaisieAudit` refuse une adresse vide, et
+        // l'instantané se relit par ce chemin. La mention dit ce qui s'est passé,
+        // sans rien laisser filer de la voie.
         $rapport = $this->rapport(adresse: 'Chez Martin, au bout du chemin');
 
         $rapport->anonymiser(new \DateTimeImmutable(self::QUAND));
 
-        self::assertSame('', $rapport->adresse());
-        self::assertSame('', $rapport->instantane()->saisie()->adresse());
+        self::assertSame('Adresse supprimée', $rapport->adresse());
+        self::assertSame('Adresse supprimée', $rapport->instantane()->saisie()->adresse());
+    }
+
+    public function testLInstantaneResteLisibleApresAnonymisation(): void
+    {
+        // Le PDF se régénère depuis l'instantané : s'il devient illisible,
+        // l'anonymisation casse le rapport au lieu de le dépersonnaliser.
+        foreach ([self::ADRESSE, 'Chez Martin, au bout du chemin'] as $adresse) {
+            $rapport = $this->rapport(adresse: $adresse);
+
+            $rapport->anonymiser(new \DateTimeImmutable(self::QUAND));
+
+            self::assertNotSame('', $rapport->instantane()->saisie()->adresse());
+        }
     }
 
     public function testLesCalculsSurviventAAnonymisation(): void
