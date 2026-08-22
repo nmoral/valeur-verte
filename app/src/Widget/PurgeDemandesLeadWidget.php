@@ -15,6 +15,12 @@ use Symfony\Component\Clock\ClockInterface;
  * délai de grâce après son expiration, elle est supprimée. La grâce laisse le
  * temps d'un clic tardif ; au-delà, la donnée n'a plus de raison d'être.
  *
+ * Une demande **confirmée** a déjà été matérialisée en Rapport(Source::Widget)
+ * (#37) qui porte la même donnée : passé un court délai de garde, la ligne
+ * d'origine n'est plus qu'un doublon nominatif. La supprimer ne rouvre aucun
+ * rejeu — le jeton est consommé, et une empreinte absente rend le même 404
+ * qu'une empreinte inconnue.
+ *
  * Idempotente : à jouer par un cron (sur le VPS, cf. #190).
  */
 final readonly class PurgeDemandesLeadWidget
@@ -23,6 +29,7 @@ final readonly class PurgeDemandesLeadWidget
         private DemandeLeadRepository $demandes,
         private ClockInterface $horloge,
         private int $graceJours,
+        private int $gardeJours,
     ) {
     }
 
@@ -31,8 +38,9 @@ final readonly class PurgeDemandesLeadWidget
      */
     public function executer(): int
     {
-        return $this->demandes->purgerNonConfirmeesExpireesAvant(
-            $this->horloge->now()->modify('-'.$this->graceJours.' days'),
-        );
+        $maintenant = $this->horloge->now();
+
+        return $this->demandes->purgerNonConfirmeesExpireesAvant($maintenant->modify('-'.$this->graceJours.' days'))
+            + $this->demandes->purgerConfirmeesAvant($maintenant->modify('-'.$this->gardeJours.' days'));
     }
 }

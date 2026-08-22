@@ -51,4 +51,19 @@ class DemandeLeadRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+    /**
+     * Supprime les demandes confirmées avant la borne (#292) : le lead vit
+     * désormais dans son Rapport, la ligne d'origine n'est plus qu'un doublon.
+     *
+     * @return int nombre de demandes supprimées
+     */
+    public function purgerConfirmeesAvant(\DateTimeImmutable $limite): int
+    {
+        return $this->createQueryBuilder('d')
+            ->delete()
+            ->andWhere('d.utiliseLe < :limite')
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->execute();
+    }
 }
