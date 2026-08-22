@@ -88,7 +88,7 @@ final class PagePubliqueParDefautTest extends KernelTestCase
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
-        return array_values($em->getRepository(PagePublique::class)->findBy(['tenantId' => $tenantId]));
+        return $em->getRepository(PagePublique::class)->findBy(['tenantId' => $tenantId]);
     }
 
     private function nouveauTenant(): int
