@@ -106,6 +106,16 @@ class PagePublique implements TenantAwareInterface
         $this->slug = $slug->valeur();
     }
 
+    /**
+     * Change l'adresse de la page (#38) : l'ancien jeton cesse aussitôt de
+     * résoudre — c'est tout l'objet du geste, couper un lien qui a fuité ou qui
+     * a cessé d'être légitime. Rien ne rétablit l'ancienne adresse.
+     */
+    public function changerDeJeton(string $jeton): void
+    {
+        $this->token = $jeton;
+    }
+
     public function estActive(): bool
     {
         return $this->active;

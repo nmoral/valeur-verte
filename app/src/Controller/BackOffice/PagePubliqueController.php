@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\BackOffice;
 
 use App\Tenant\TenantContext;
+use App\Widget\GenerateurJetonPagePublique;
 use App\Widget\PagePublique;
 use App\Widget\PagePubliqueDuPro;
 use App\Widget\PagePubliqueRepository;
@@ -57,6 +58,20 @@ final class PagePubliqueController extends AbstractController
     public function remettreEnLigne(TenantContext $tenants, PagePubliqueDuPro $pages, PagePubliqueRepository $depot): Response
     {
         return $this->basculer($tenants, $pages, $depot, enLigne: true);
+    }
+
+    #[Route('/page-publique/regenerer', name: 'back_office_page_publique_regenerer', methods: ['POST'])]
+    public function regenerer(
+        TenantContext $tenants,
+        PagePubliqueDuPro $pages,
+        PagePubliqueRepository $depot,
+        GenerateurJetonPagePublique $jetons,
+    ): Response {
+        $page = $pages->courante($this->tenant($tenants));
+        $page->changerDeJeton($jetons->nouveau());
+        $depot->enregistrer($page);
+
+        return $this->redirectToRoute('back_office_page_publique');
     }
 
     private function basculer(

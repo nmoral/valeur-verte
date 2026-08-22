@@ -56,6 +56,16 @@
         </span>
     </form>
 
+    <form method="post" action="{{ path('back_office_page_publique_regenerer') }}" style="margin-top:14px">
+        <button type="submit" class="btn btn-ghost btn-sm" data-confirmer="Régénérer le lien coupe définitivement l'adresse actuelle : tous les liens déjà partagés cesseront de fonctionner. Continuer ?">
+            Régénérer le lien
+        </button>
+        <span class="pp-note" style="display:inline-block;margin-left:10px">
+            En cas de fuite ou de fin de contrat : l'adresse actuelle est coupée sur-le-champ et
+            ne revient pas.
+        </span>
+    </form>
+
     <p class="pp-note">
         Cette page <strong>ne consomme pas</strong> votre essai : seuls les audits que vous
         réalisez décomptent votre quota. Vous pouvez diffuser ce lien sans compter.
@@ -69,6 +79,14 @@
 
 {% block javascripts %}
 <script>
+    document.querySelectorAll('[data-confirmer]').forEach(function (bouton) {
+        bouton.addEventListener('click', function (evenement) {
+            if (!window.confirm(bouton.dataset.confirmer)) {
+                evenement.preventDefault();
+            }
+        });
+    });
+
     document.querySelectorAll('[data-copier]').forEach(function (bouton) {
         bouton.addEventListener('click', function () {
             navigator.clipboard.writeText(bouton.dataset.lien).then(function () {
