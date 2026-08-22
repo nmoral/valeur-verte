@@ -57,7 +57,7 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#35](../../../issues/35) Bouquets de travaux types (CRUD) — bouquet par défaut actif
 - [#36](../../../issues/36) Branding + prévisualisation du PDF en direct
 - [#37](../../../issues/37) Liste unique rapports & leads
-- [#38](../../../issues/38) Intégration widget (iframe, domaines, compteur d'essai)
+- [#38](../../../issues/38) Écran pro : configurer et partager sa page publique (slug, lien, activation)
 - [#39](../../../issues/39) **ONB-4** Premier rapport avant configuration
 
 ### [#6](../../../issues/6) Widget public — `jalon: J6`
