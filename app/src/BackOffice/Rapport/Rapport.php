@@ -244,7 +244,11 @@ class Rapport implements TenantAwareInterface
         // tient la place.
         $borne = AdresseCommune::borner($this->adresse);
         $this->adresse = '' === $borne ? self::ADRESSE_ABSENTE : $borne;
-        $this->instantane['saisie']['adresse'] = $this->adresse;
+
+        $saisie = $this->instantane['saisie'] ?? null;
+        \assert(\is_array($saisie), 'Tout instantané porte une saisie.');
+        $saisie['adresse'] = $this->adresse;
+        $this->instantane['saisie'] = $saisie;
 
         $this->anonymiseLe = $quand;
     }

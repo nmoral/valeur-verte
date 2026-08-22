@@ -63,4 +63,45 @@ class RapportRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+    /**
+     * Anonymise les rapports produits avant la borne et pas encore traités
+     * (D10, #68) : contact effacé, adresse bornée à la commune, dans la colonne
+     * comme dans l'instantané. Les entités sont chargées — l'écriture passe par
+     * le domaine (`Rapport::anonymiser`), pas par un `UPDATE` en aveugle qui ne
+     * saurait pas borner une adresse ni toucher le JSONB.
+     *
+     * @return int nombre de rapports anonymisés
+     */
+    public function anonymiserProduitsAvant(\DateTimeImmutable $limite, \DateTimeImmutable $quand): int
+    {
+        $rapports = $this->createQueryBuilder('r')
+            ->andWhere('r.creeLe < :limite')
+            ->andWhere('r.anonymiseLe IS NULL')
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->getResult();
+
+        foreach ($rapports as $rapport) {
+            $rapport->anonymiser($quand);
+        }
+        $this->getEntityManager()->flush();
+
+        return \count($rapports);
+    }
+
+    /**
+     * Supprime les rapports produits avant la borne (D10, #68) : au-delà, plus
+     * rien ne justifie de les conserver, anonymisés ou non.
+     *
+     * @return int nombre de rapports supprimés
+     */
+    public function supprimerProduitsAvant(\DateTimeImmutable $limite): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->delete()
+            ->andWhere('r.creeLe < :limite')
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->execute();
+    }
 }
