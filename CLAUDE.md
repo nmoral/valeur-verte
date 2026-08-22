@@ -276,7 +276,12 @@ Ces invariants viennent du cadrage et sont vérifiés par des tests :
   séparée motivée**, en mode audit uniquement.
 - Toute restitution affiche **n, intervalle de confiance, rayon, millésime**.
 - **Aucun `UPDATE` destructif** sur les barèmes/grilles : versionnement `valide_du`/`valide_au`.
-- Un rapport est **reproductible à l'identique** via son instantané JSONB.
+- Un rapport est **reproductible à l'identique** via son instantané JSONB — la
+  reproductibilité porte sur les **calculs** (chiffres, contexte, barèmes), jamais sur
+  les **données personnelles** : celles-ci sont soumises à la rétention (décision D10,
+  [#68](../../../issues/68)) — contact effacé et adresse bornée à la commune à 24 mois,
+  suppression du rapport à 3 ans. Un rapport anonymisé rend les mêmes chiffres ; il ne
+  rend plus l'adresse ni le contact, et c'est voulu.
 - Coefficients **pré-calculés par maille**, jamais à la volée.
 
 ---
