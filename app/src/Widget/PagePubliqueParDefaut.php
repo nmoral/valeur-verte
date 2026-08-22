@@ -16,22 +16,13 @@ use App\Tenant\ConfigurationParDefaut;
  */
 final readonly class PagePubliqueParDefaut implements ConfigurationParDefaut
 {
-    /**
-     * Slug d'attente, purement décoratif : il n'entre pas dans la résolution de
-     * la page et le pro le remplace par le nom qu'il veut voir dans son lien.
-     */
-    public const string SLUG_PAR_DEFAUT = 'estimation';
-
     public function __construct(
-        private PagePubliqueRepository $pages,
-        private GenerateurJetonPagePublique $jetons,
+        private PagePubliqueDuPro $pages,
     ) {
     }
 
     public function provisionner(int $tenantId): void
     {
-        $this->pages->enregistrer(
-            PagePublique::creer($tenantId, $this->jetons->nouveau(), self::SLUG_PAR_DEFAUT),
-        );
+        $this->pages->ouvrirPour($tenantId);
     }
 }
