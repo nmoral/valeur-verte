@@ -29,8 +29,9 @@ décrire le moteur **tel qu'il tourne**, jamais une version périmée.
 |---|---|---|
 | `app/` | PHP 8.4 / Symfony 8.1 | Widget public, mode audit, back-office pro, admin interne (schéma `app`) |
 | `data/` | Python 3.11+ | Ingestion DVF/DPE/BAN, régressions, écriture des coefficients (schéma `data`) |
+| `infra/` | Python + Docker Compose | Image applicative, stack locale, provisionnement VPS, tests d'intégration de l'image |
 
-Contrat entre les deux : `data` est **lecture seule** pour `app` ; chacun gère ses propres migrations.
+Contrat entre `app` et `data` : `data` est **lecture seule** pour `app` ; chacun gère ses propres migrations. `infra/` a sa propre venv (`pip install -e '.[dev]'`) et passe les mêmes portes lint/stan/test (voir §3) ; ses tests d'intégration Docker se *skippent* d'eux-mêmes en l'absence de démon/`DATABASE_URL`.
 
 ### Architecture de `app/` (Symfony)
 
@@ -46,6 +47,42 @@ Organisation **par domaine**, pas par couche technique :
 - `src/Controller/<Domaine>/` — contrôleurs **invokables et fins** (`#[Route]` en attribut, une action
   `__invoke`, quelques lignes de glue) qui délèguent au domaine et rendent un template. Aucune logique métier.
 - `templates/<domaine>/` — Twig en `snake_case`, avec un layout par zone (`back_office/base.html.twig`).
+
+### Architecture de `data/` (pipeline Python)
+
+Le pipeline s'exécute par la CLI `python -m valeur_verte_data.cli <commande>`, **paramétrée
+par département et millésime** — le département est l'unité de travail (#91) : plusieurs
+instances tournent en parallèle sur des départements distincts sans se gêner, chacune ne
+touchant que ses communes. Sous-commandes (voir `cli.py`) :
+
+| Commande | Rôle |
+|---|---|
+| `ingest --departement --millesime` | Ingérer les ventes DVF d'un département |
+| `compute --departement --millesime [--rapport-ecarts CSV]` | Calculer les coefficients ; `--rapport-ecarts` écrit l'écart au millésime précédent (REG-1) |
+| `load-contours` / `load-epci` / `load-communes` | Charger contours (INV-3), appartenance EPCI (#169), référentiel de noms de communes (#220) |
+| `audit (--departement | --tous) [--millesime] [--rapport]` | Contrôler `data.vente` en **lecture seule**, sans effet de bord |
+
+`cli.py` ne fait que l'analyse d'arguments et le câblage de la connexion réelle ; **toute
+l'orchestration vit dans `orchestration.py`** (`ingest_departement`, `compute_departement`,
+`charger_*`). Les modules sont **plats** sous `src/valeur_verte_data/`, groupés par rôle :
+
+- **Sources** (téléchargement / parsing des jeux externes) : `dvf_source`, `dpe_source`,
+  `ban_source`, `decoupage_source`, `schema_source`, plus `http` (fetcher injectable).
+- **Ingestion / rapprochement** : `ingest`, `cleaning`, `dvf`, `dpe`, `ban`, `matching`,
+  `appariement`, `decoupage`, `multi_communes`, `limitrophes`.
+- **Moteur de calcul** (les règles de `docs/MOTEUR-REGLES-CALCUL.md`) : `regression`,
+  `pooling`, `radius`, `trimming`, `bandes`, `distributions`, `cross_validation`, `reg3`,
+  `ruptures`, `degraded`, `invariants`, `fraicheur`, `volumetrie`, `coverage`.
+- **Contrôles qualité** : `controle_qualite` et les portes `dat2` → `dat5` ; sorties `ecarts`
+  (les `ecarts-<dep>-<millesime>.csv`).
+- **Accès base** : `db/` — un repository par agrégat (`vente_`, `coefficient_`, `commune_`,
+  `epci_`, `pool_`, `publication_`, `controle_`, `coverage_`, `limitrophe_`, `sample_`), plus
+  `runner` (DSN/connexion), `migrate`/`migrations` (schéma `data`) et `rapport_batch_repository`
+  (journalisation des runs d'ingestion/calcul).
+
+`data` écrit **uniquement dans le schéma `data`** ; ses migrations lui sont propres et
+indépendantes de celles d'`app`. Les traitements `ingest`/`compute` sont longs → ils tournent
+**sur le VPS en conteneur détaché** (voir §5), jamais à travers le tunnel SSH.
 
 **Deux schémas PostgreSQL dans une base unique** (contrat `app`/`data`) :
 
@@ -116,12 +153,12 @@ Règles :
 
 Pour **chaque** changement, ces cinq portes doivent être vertes. Point d'entrée unique : le `Makefile`.
 
-| Porte | `app/` (PHP) | `data/` (Python) | Commande |
+| Porte | `app/` (PHP) | `data/` + `infra/` (Python) | Commande |
 |---|---|---|---|
 | **Lint / format** | PHP-CS-Fixer (règles `@Symfony`) | Ruff (lint + format) | `make lint` |
 | **Analyse statique** | PHPStan niveau `max` | mypy `--strict` | `make stan` |
 | **Tests** | PHPUnit | pytest | `make test` |
-| **Mutation testing** | Infection (MSI ≥ 80 %) | mutmut | `make mutation` |
+| **Mutation testing** | Infection (MSI ≥ 80 %) | `data/` : mutmut — pas de cible `infra` (aucun code de prod à muter) | `make mutation` |
 
 - **Avant chaque commit `green`/`refactor`** : au minimum `make lint stan test` sur le périmètre touché
   (raccourci : `make check`).
