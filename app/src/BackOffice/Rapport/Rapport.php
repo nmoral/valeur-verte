@@ -23,10 +23,11 @@ use Doctrine\ORM\Mapping as ORM;
 class Rapport implements TenantAwareInterface
 {
     /**
-     * Mention écrite à la place d'une adresse qu'on ne sait pas borner (libellé
-     * sans code postal) : l'instantané doit rester lisible (D10, #68).
+     * Ce qui tient la place d'une adresse qu'on ne sait pas borner (libellé sans
+     * code postal) : l'instantané doit rester lisible — `SaisieAudit` refuse une
+     * adresse vide et le PDF s'en régénère (D10, #68).
      */
-    public const string ADRESSE_SUPPRIMEE = 'Adresse supprimée';
+    public const string ADRESSE_ABSENTE = '-';
 
     use TenantAwareTrait;
 
@@ -239,10 +240,10 @@ class Rapport implements TenantAwareInterface
         $this->contactTelephone = null;
 
         // Une adresse vide rendrait l'instantané illisible (`SaisieAudit` l'interdit)
-        // et casserait la régénération du PDF : sans commune à garder, on écrit la
-        // mention plutôt que rien.
+        // et casserait la régénération du PDF : sans commune à garder, un tiret
+        // tient la place.
         $borne = AdresseCommune::borner($this->adresse);
-        $this->adresse = '' === $borne ? self::ADRESSE_SUPPRIMEE : $borne;
+        $this->adresse = '' === $borne ? self::ADRESSE_ABSENTE : $borne;
         $this->instantane['saisie']['adresse'] = $this->adresse;
 
         $this->anonymiseLe = $quand;
