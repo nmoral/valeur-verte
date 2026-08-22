@@ -77,7 +77,10 @@ button{cursor:pointer}
 .dpe-duo .fleche{padding-bottom:11px;color:var(--mute);font-size:16px}
 
 /* Suggestions d'adresse (#287) : la liste se superpose au reste du formulaire,
-   sinon elle pousserait les champs à chaque frappe. */
+   sinon elle pousserait les champs à chaque frappe. Elle s'ancre sur le champ
+   (`.combo`) et non sur le bloc entier, sans quoi elle s'ouvrirait sous le texte
+   d'aide, décalée d'une ligne. */
+.combo{position:relative}
 .suggestions{
   position:absolute;z-index:5;left:0;right:0;top:100%;margin-top:2px;
   list-style:none;background:#fff;border:1px solid var(--rule-strong);border-radius:3px;
@@ -153,7 +156,9 @@ button{cursor:pointer}
 .indisponible{font-size:14.5px;color:var(--slate)}
 
 /* ---------- mur de contact ---------- */
-.mur{background:var(--sub);border-color:var(--rule-strong)}
+/* Le mur de contact se détache par une teinte de la marque — repli sur un gris
+   neutre pour un navigateur sans `color-mix`. */
+.mur{background:var(--sub);background:color-mix(in srgb, var(--marque) 5%, #fff);border-color:var(--rule-strong)}
 .mur .titre{font-size:16.5px}
 .consentement{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--slate);margin:4px 0 16px}
 .consentement input{margin-top:3px;flex:0 0 auto;width:16px;height:16px;accent-color:var(--marque)}

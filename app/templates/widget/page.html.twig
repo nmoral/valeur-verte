@@ -35,12 +35,16 @@
                 <label for="adresse">Adresse du bien</label>
                 {# Combobox : la liste est peuplée par `widget_adresse.js`, et reste vide
                    (donc masquée) sans JavaScript. #}
-                <input type="text" id="adresse" name="adresse" data-parcours="adresse" data-adresse="champ"
-                       autocomplete="off" role="combobox" aria-autocomplete="list"
-                       aria-controls="adresse-suggestions" aria-expanded="false"
-                       placeholder="12 rue du Taur, Toulouse"
-                       value="{{ valeurs.adresse|default('') }}" required>
-                <ul class="suggestions" id="adresse-suggestions" data-adresse="suggestions" role="listbox" hidden></ul>
+                {# La liste s'ancre sur le champ lui-même, pas sur le bloc : sinon elle
+                   s'ouvre sous le texte d'aide et recouvre les surfaces. #}
+                <div class="combo">
+                    <input type="text" id="adresse" name="adresse" data-parcours="adresse" data-adresse="champ"
+                           autocomplete="off" role="combobox" aria-autocomplete="list"
+                           aria-controls="adresse-suggestions" aria-expanded="false"
+                           placeholder="12 rue du Taur, Toulouse"
+                           value="{{ valeurs.adresse|default('') }}" required>
+                    <ul class="suggestions" id="adresse-suggestions" data-adresse="suggestions" role="listbox" hidden></ul>
+                </div>
                 <p class="champ-aide">Choisissez votre adresse dans la liste : elle situe le bien dans sa commune.</p>
             </div>
 
