@@ -10,8 +10,10 @@ use App\Widget\DemandeLeadRepository;
 use App\Widget\PurgeDemandesLeadWidget;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * Rétention des demandes de lead du widget (#292, épic #6).
@@ -31,6 +33,7 @@ final class PurgeDemandesLeadWidgetTest extends KernelTestCase
     private const string MAINTENANT = '2026-08-20 12:00:00';
     private const int GRACE_JOURS = 7;
     private const int GARDE_JOURS = 30;
+    private const string COMMANDE = 'app:widget:purger-demandes-lead';
 
     public function testUneDemandeExpireeNonConfirmeeAuDelaDeLaGraceEstSupprimee(): void
     {
@@ -111,6 +114,34 @@ final class PurgeDemandesLeadWidgetTest extends KernelTestCase
         self::assertSame(1, $this->purge()->executer());
         self::assertNotNull($this->demandes()->trouverParEmpreinte($gardee));
         self::assertNull($this->demandes()->trouverParEmpreinte($purgee));
+    }
+
+    public function testLaCommandeDePurgeSExecuteEtRendCompte(): void
+    {
+        $application = new Application(self::bootKernel());
+        $tester = new CommandTester($application->find(self::COMMANDE));
+
+        $tester->execute([]);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('demande', $tester->getDisplay());
+    }
+
+    public function testLaCommandeEstIdempotente(): void
+    {
+        // Rejouée dans la foulée, elle ne trouve plus rien à supprimer et sort
+        // quand même en succès : un cron quotidien ne doit jamais rougir à vide.
+        $application = new Application(self::bootKernel());
+        $empreinte = $this->demandeExpirantLe('2020-01-01 09:00:00');
+        $tester = new CommandTester($application->find(self::COMMANDE));
+
+        $tester->execute([]);
+        self::assertNull($this->demandes()->trouverParEmpreinte($empreinte));
+
+        $tester->execute([]);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('0 demande', $tester->getDisplay());
     }
 
     private function purge(): PurgeDemandesLeadWidget
