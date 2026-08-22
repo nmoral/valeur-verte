@@ -79,6 +79,7 @@ services:
             $widgetPageLimiter: '@limiter.widget_page'
             $widgetEmissionLimiter: '@limiter.widget_emission'
             $widgetEvenementLimiter: '@limiter.widget_evenement'
+            $widgetAdresseLimiter: '@limiter.widget_adresse'
 
     # Jeton de chargement du widget (#43) : signé au secret applicatif (timing + anti-rejeu).
     App\Widget\JetonChargementWidget:
@@ -215,6 +216,12 @@ when@test:
             public: true
         App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire'
         App\BackOffice\Estimation\FournisseurPrixMaille: '@App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire'
+
+        # Autocomplétion d'adresse (#287) : double en mémoire, aucun appel BAN
+        # réel sous test. Public pour être configuré et interrogé par le test.
+        App\Tests\Widget\Double\RechercheAdresseEnMemoire:
+            public: true
+        App\Widget\RechercheAdresse: '@App\Tests\Widget\Double\RechercheAdresseEnMemoire'
 
         # Envoi d'email (#108) : double en mémoire, aucun envoi réel sous test.
         App\Tests\Notification\Double\MailerEnMemoire:

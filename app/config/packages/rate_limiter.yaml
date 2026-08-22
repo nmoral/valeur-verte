@@ -29,3 +29,11 @@ framework:
             policy: 'sliding_window'
             limit: 120
             interval: '15 minutes'
+        # Autocomplétion d'adresse (#287) : l'endpoint suit la frappe (anti-rebond
+        # côté navigateur, ~une requête par mot saisi) mais sort du réseau à chaque
+        # appel — plafond plus serré que la collecte d'événements, assez large pour
+        # plusieurs saisies d'adresse d'affilée.
+        widget_adresse:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '15 minutes'
