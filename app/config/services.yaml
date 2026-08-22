@@ -162,6 +162,16 @@ services:
         arguments:
             $retentionJours: 90
 
+    # Rétention des demandes de lead (#292) : une demande jamais confirmée porte
+    # des données nominatives sans consentement confirmé — elle est supprimée peu
+    # après son expiration (grâce, pour un clic tardif). Une demande confirmée est
+    # déjà un Rapport (#37) : sa ligne d'origine ne se garde qu'un mois, le temps
+    # d'un support ou d'une réclamation. Purge jouée par un cron quotidien (#190).
+    App\Widget\PurgeDemandesLeadWidget:
+        arguments:
+            $graceJours: 7
+            $gardeJours: 30
+
     # Capture de lead widget (#42) : lien de confirmation d'opt-in construit sur le
     # sous-domaine widget. ; le jeton expire après cette durée (usage unique).
     App\Widget\CaptureLead:
