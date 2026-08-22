@@ -94,6 +94,7 @@ hébergeons : décision **D9**, [#266](../../../issues/266). Le dispositif tel q
 - [#54](../../../issues/54) Multi-tenant en base unique (filtre Doctrine)
 - [#55](../../../issues/55) Sauvegarde/restauration testée + archivage des PDF
 - [#56](../../../issues/56) **REG-3** Environnement de recette + cas de référence (fourchettes)
+- [#300](../../../issues/300) Ordonnanceur des tâches planifiées (service `cron`) — registre [#190](../../../issues/190)
 
 ### [#9](../../../issues/9) Juridique, RGPD & conformité — `jalon: transverse`
 - [#57](../../../issues/57) Cadrage juridique avec un avocat

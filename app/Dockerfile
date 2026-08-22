@@ -25,6 +25,22 @@ RUN install-php-extensions \
         pdo_pgsql \
         @composer
 
+# Ordonnanceur des tâches planifiées (#300) : le service « cron » du compose de
+# production lance cette même image avec supercronic à la place du serveur. Un
+# cron classique ne conviendrait pas — il veut être PID 1 et tourner en root, or
+# l'image s'exécute sans privilège ; supercronic est prévu pour le conteneur
+# (sans root, journal sur la sortie standard, pas de recouvrement d'exécutions).
+#
+# Version épinglée et somme de contrôle vérifiée : sans elles, l'image dépendrait
+# de ce que sert le réseau le jour du build. Au changement de version, recalculer
+# la somme avec « sha256sum » sur le binaire téléchargé.
+ARG SUPERCRONIC_VERSION=v0.2.49
+ARG SUPERCRONIC_SHA256=a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1
+RUN curl -fsSLo /usr/local/bin/supercronic \
+        "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
+    && echo "${SUPERCRONIC_SHA256}  /usr/local/bin/supercronic" | sha256sum -c - \
+    && chmod 0755 /usr/local/bin/supercronic
+
 WORKDIR /app
 
 # Couche de dépendances : ne dépend que des fichiers de verrouillage, donc mise

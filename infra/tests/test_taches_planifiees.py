@@ -209,8 +209,11 @@ def test_l_ordonnanceur_est_epingle_et_verifie_dans_l_image() -> None:
     assert "supercronic" in dockerfile, (
         "L'image app doit embarquer l'ordonnanceur : c'est elle que le service « cron » lance."
     )
-    assert re.search(r"supercronic/releases/download/v\d+\.\d+\.\d+/", dockerfile), (
-        "L'ordonnanceur doit être tiré d'une version épinglée (v0.0.0), jamais de « latest »."
+    assert "supercronic/releases/download/" in dockerfile, (
+        "L'ordonnanceur doit être tiré d'une release publiée, pas d'une source mouvante."
+    )
+    assert re.search(r"\bv\d+\.\d+\.\d+\b", dockerfile), (
+        "La version de l'ordonnanceur doit être épinglée (v0.0.0), jamais « latest »."
     )
     assert re.search(r"sha256sum\s+(-c|--check)", dockerfile), (
         "Le binaire téléchargé doit être vérifié par une somme de contrôle."

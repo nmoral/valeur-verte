@@ -1,0 +1,25 @@
+# Tâches planifiées de l'application (#190, #300).
+#
+# Lu par supercronic dans le service « cron » du compose de production, qui
+# tourne l'image `app` : les commandes sont donc les commandes Symfony du même
+# code que celui servi aux utilisateurs.
+#
+# Horaires en **UTC** (le conteneur n'a pas de fuseau local) : « 0 3 » se lit
+# 03:00 UTC, soit 04:00 en heure d'hiver française et 05:00 en heure d'été.
+# Les tâches sont décalées de dix minutes pour ne pas balayer la base en même
+# temps, et l'ordonnanceur refuse de son côté qu'une exécution en recouvre une
+# autre : toutes étant idempotentes, aucun verrou applicatif n'est nécessaire.
+#
+# Ajouter une tâche, c'est aussi l'inscrire au registre (#190) et dans la
+# section « Tâches planifiées » d'infra/README.md — un test le vérifie.
+
+# ┌ minute
+# │  ┌ heure (UTC)
+# │  │ ┌ jour du mois
+# │  │ │ ┌ mois
+# │  │ │ │ ┌ jour de la semaine
+# │  │ │ │ │
+  0  3 * * *  php /app/bin/console app:widget:purger-evenements --no-interaction
+ 10  3 * * *  php /app/bin/console app:widget:purger-demandes-lead --no-interaction
+ 20  3 * * *  php /app/bin/console app:rapport:appliquer-retention --no-interaction
+  0  8 * * *  php /app/bin/console app:essai:relancer --no-interaction
