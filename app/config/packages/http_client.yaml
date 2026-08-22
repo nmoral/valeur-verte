@@ -13,3 +13,12 @@ framework:
                 base_uri: 'https://data.ademe.fr/data-fair/api/v1/datasets/liste-des-entreprises-rge-2/'
                 timeout: 3
                 max_duration: 5
+            # Base Adresse Nationale (adresse → code INSEE), source publique et
+            # sans authentification. Appelée depuis notre serveur pour la page
+            # publique (#287) : délais courts, l'autocomplétion est interactive et
+            # une BAN lente ne doit jamais retenir la frappe du visiteur.
+            # Autowiring : « HttpClientInterface $banAdresse ».
+            ban_adresse:
+                base_uri: 'https://api-adresse.data.gouv.fr/'
+                timeout: 2
+                max_duration: 3

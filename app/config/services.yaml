@@ -98,6 +98,10 @@ services:
     # Jeton d'une page publique (#38) : tirage aléatoire, 16 octets hexadécimaux.
     App\Widget\TirageJeton: '@App\Widget\TirageJetonAleatoire'
 
+    # Autocomplétion d'adresse de la page publique (#287) : résolution du code
+    # INSEE côté serveur, pour que le navigateur ne parle qu'à notre origine.
+    App\Widget\RechercheAdresse: '@App\Widget\RechercheAdresseViaBan'
+
     # Vérification Turnstile (#43) : secret Cloudflare depuis l'environnement (vide = inerte).
     App\Widget\VerificateurTurnstile:
         arguments:
