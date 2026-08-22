@@ -207,6 +207,51 @@ final class PagePubliqueControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testRegenererLeLienInvalideImmediatementLAncienneAdresse(): void
+    {
+        // Fuite du lien, fin de contrat avec un apporteur : le pro doit pouvoir
+        // couper l'ancienne adresse sans attendre.
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-regen@example.com');
+        $ancien = $this->cheminPublic($tenantId);
+        $ancienJeton = $this->pageDuTenant($tenantId)->token();
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/regenerer');
+
+        self::assertResponseRedirects('/page-publique');
+        $page = $this->pageDuTenant($tenantId);
+        self::assertNotSame($ancienJeton, $page->token());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $page->token());
+
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.$ancien);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testLaNouvelleAdresseSertLaPageEtGardeLeSlug(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-regen-slug@example.com');
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/slug', ['slug' => 'agence-durand']);
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/regenerer');
+
+        self::assertSame('agence-durand', $this->pageDuTenant($tenantId)->slug());
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.$this->cheminPublic($tenantId));
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testLaRegenerationDemandeUneConfirmation(): void
+    {
+        // Elle casse tous les liens déjà diffusés, et rien ne les rétablit :
+        // elle ne doit pas partir sur un clic distrait.
+        $client = static::createClient();
+        $this->connecterArtisan($client, 'artisan-page-regen-confirm@example.com');
+
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/page-publique');
+
+        self::assertSelectorExists('form[action="/page-publique/regenerer"] [data-confirmer]');
+    }
+
     private function cheminPublic(int $tenantId): string
     {
         $page = $this->pageDuTenant($tenantId);
