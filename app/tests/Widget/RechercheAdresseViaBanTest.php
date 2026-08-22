@@ -61,10 +61,16 @@ final class RechercheAdresseViaBanTest extends TestCase
         self::assertSame([], $recherche->suggerer('lilas'));
     }
 
-    public function testUnStatutNon200DonneUneListeVide(): void
+    public function testUnStatutNon200DonneUneListeVideMemeAvecUnCorpsExploitable(): void
     {
+        // Le corps d'une réponse en erreur peut très bien ressembler à un résultat
+        // (page d'erreur JSON, réponse mise en cache par un intermédiaire) : c'est
+        // le statut qui décide, pas la forme du contenu.
         $recherche = new RechercheAdresseViaBan(new MockHttpClient([
-            new MockResponse('', ['http_code' => 503]),
+            new MockResponse(
+                (string) json_encode(['features' => [$this->feature('12 Rue des Lilas 31000 Toulouse', '31555')]]),
+                ['http_code' => 503],
+            ),
         ]));
 
         self::assertSame([], $recherche->suggerer('lilas'));
@@ -104,6 +110,9 @@ final class RechercheAdresseViaBanTest extends TestCase
         self::assertStringContainsString('/search/', $url);
         self::assertStringContainsString('q=12%20rue%20des%20lilas', $url);
         self::assertStringContainsString('limit=5', $url);
+        // Mode « autocomplétion » de la BAN : classement adapté à une saisie en
+        // cours, pas à une adresse complète.
+        self::assertStringContainsString('autocomplete=1', $url);
     }
 
     /**

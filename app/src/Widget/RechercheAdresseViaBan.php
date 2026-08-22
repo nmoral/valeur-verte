@@ -72,7 +72,7 @@ final readonly class RechercheAdresseViaBan implements RechercheAdresse
             }
 
             $donnees = $reponse->toArray(false);
-        } catch (ExceptionInterface|\JsonException) {
+        } catch (ExceptionInterface) {
             return [];
         }
 
