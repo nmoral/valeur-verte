@@ -90,6 +90,49 @@ final class PresentationPagePubliqueTest extends WebTestCase
         self::assertStringContainsString('#FFFFFF', $style);
     }
 
+    public function testLEtiquetteDpeSeChoisitSurUneEchelleColoreeDeSeptCrans(): void
+    {
+        // Une liste déroulante montre « A » et cache le reste : sur mobile elle
+        // ouvre un sélecteur natif qui masque la page entière pour lire sept
+        // lettres. Le DPE est une **échelle de couleurs** que tout le monde
+        // reconnaît — on la montre, on ne la replie pas.
+        $crawler = $this->afficher();
+
+        self::assertCount(0, $crawler->filter('select[name="dpe_avant"]'));
+        self::assertCount(7, $crawler->filter('input[type="radio"][name="dpe_avant"]'));
+        self::assertCount(7, $crawler->filter('input[type="radio"][name="dpe_apres"]'));
+
+        // Chaque cran porte sa couleur de classe : c'est ce qui rend l'échelle
+        // lisible d'un coup d'œil plutôt que lettre à lettre.
+        foreach (['a', 'b', 'c', 'd', 'e', 'f', 'g'] as $classe) {
+            self::assertCount(
+                1,
+                $crawler->filter('label[for="dpe_avant_'.$classe.'"].d-'.$classe),
+                \sprintf('Le cran %s doit porter sa couleur de classe.', strtoupper($classe)),
+            );
+        }
+    }
+
+    public function testAucuneEtiquetteActuelleNestPreCochee(): void
+    {
+        // L'ancienne liste déroulante arrivait sur « A » — la meilleure classe.
+        // Un visiteur pressé estimait donc une rénovation A → C, c'est-à-dire une
+        // dégradation, sans avoir rien choisi. L'étiquette actuelle est un fait
+        // que seul le visiteur connaît : elle se choisit, elle ne se devine pas.
+        $crawler = $this->afficher();
+
+        self::assertCount(0, $crawler->filter('input[name="dpe_avant"][checked]'));
+    }
+
+    public function testLObjectifEstPreCocheSurC(): void
+    {
+        // L'objectif, lui, a une valeur produit : le seuil C est l'effet que le
+        // dispositif met en avant (#27). Il reste modifiable d'un geste.
+        $crawler = $this->afficher();
+
+        self::assertCount(1, $crawler->filter('input[name="dpe_apres"][value="C"][checked]'));
+    }
+
     public function testLaPagePorteLesMentionsLegalesDuPro(): void
     {
         // Elles sont configurées (#36) et portées par le PDF depuis toujours ; la
