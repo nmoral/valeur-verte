@@ -39,7 +39,8 @@ final class ChallengeRenforceWidgetTest extends WebTestCase
     {
         // Le widget Turnstile n'est rendu que si la clé publique est configurée :
         // sans elle, il n'y a pas de défi à durcir et le test ne dirait rien.
-        $this->cleInitiale = $_SERVER['TURNSTILE_SITE_KEY'] ?? null;
+        $cle = $_SERVER['TURNSTILE_SITE_KEY'] ?? null;
+        $this->cleInitiale = \is_string($cle) ? $cle : null;
         $_SERVER['TURNSTILE_SITE_KEY'] = self::CLE_PUBLIQUE;
         $_ENV['TURNSTILE_SITE_KEY'] = self::CLE_PUBLIQUE;
     }
