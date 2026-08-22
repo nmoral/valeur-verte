@@ -1,9 +1,13 @@
 # Valeur verte
 
-Widget « Valeur verte » en marque blanche : un outil que le professionnel (artisan RGE,
-diagnostiqueur, mandataire MaPrimeRénov') intègre à son site ou utilise en rendez-vous
-pour transformer un devis de rénovation en **valeur patrimoniale mesurée**, à partir de
-transactions réelles (DVF) croisées aux DPE, aux coûts de travaux et aux aides.
+« Valeur verte » en marque blanche : un outil que le professionnel (artisan RGE,
+diagnostiqueur, mandataire MaPrimeRénov') utilise en rendez-vous (mode audit) ou partage
+sous forme de **page publique hébergée à sa marque**, pour transformer un devis de
+rénovation en **valeur patrimoniale mesurée**, à partir de transactions réelles (DVF)
+croisées aux DPE, aux coûts de travaux et aux aides.
+
+Le widget embarqué en iframe chez le pro est abandonné au profit de cette page hébergée
+(décision **D9**) : voir [`docs/PAGE-PUBLIQUE.md`](docs/PAGE-PUBLIQUE.md).
 
 Le cadrage complet est dans le document MVP de référence. Ce dépôt suit le développement
 via un **backlog structuré en issues GitHub**.

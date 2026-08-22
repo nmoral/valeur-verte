@@ -1,8 +1,9 @@
 # Backlog — index des issues
 
 Généré à partir du document de cadrage MVP, complété par
-[Onboarding self-service](ONBOARDING-SELF-SERVICE.md) et
-[Tests d'invariants et qualité des données](QUALITE-DONNEES.md). 14 epics, 81 tâches/décisions.
+[Onboarding self-service](ONBOARDING-SELF-SERVICE.md),
+[Tests d'invariants et qualité des données](QUALITE-DONNEES.md) et
+[Page publique hébergée](PAGE-PUBLIQUE.md). 14 epics, 81 tâches/décisions.
 Les grandeurs statistiques citées ici sont définies dans le
 [glossaire](GLOSSAIRE-STATISTIQUE.md).
 Les numéros renvoient aux [issues](../../../issues) du dépôt.
@@ -19,7 +20,7 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 | **J3 — Mode audit** | [#3](../../../issues/3) [#4](../../../issues/4) | Un pro produit un rapport complet en RDV, sans assistance |
 | **J4 — Admin pro** | [#5](../../../issues/5) [#104](../../../issues/104) | Un pro s'inscrit, produit un rapport et configure son compte seul, dans cet ordre |
 | **J5 — Pilote** | [#64](../../../issues/64) | ≥ 10 rapports/pro sur 2 mois + retour qualitatif |
-| **J6 — Widget public** | [#6](../../../issues/6) | Parcours de bout en bout sur le site d'un pilote |
+| **J6 — Page publique** | [#6](../../../issues/6) | Parcours de bout en bout sur la page hébergée d'un pilote (D9) |
 
 ## Epics et sous-tâches
 
@@ -57,16 +58,26 @@ Les numéros renvoient aux [issues](../../../issues) du dépôt.
 - [#35](../../../issues/35) Bouquets de travaux types (CRUD) — bouquet par défaut actif
 - [#36](../../../issues/36) Branding + prévisualisation du PDF en direct
 - [#37](../../../issues/37) Liste unique rapports & leads
-- [#38](../../../issues/38) Écran pro : configurer et partager sa page publique (slug, lien, activation)
+- [#38](../../../issues/38) Écran pro : configurer et partager sa page publique (slug, lien, activation) — [D9](PAGE-PUBLIQUE.md)
 - [#39](../../../issues/39) **ONB-4** Premier rapport avant configuration
 
-### [#6](../../../issues/6) Widget public — `jalon: J6`
-- [#40](../../../issues/40) Widget JS autonome embarqué en iframe (`/w/{token}`)
-- [#41](../../../issues/41) Parcours particulier : autocomplétion BAN + mur de contact
-- [#42](../../../issues/42) Capture de lead → mail pro + back-office (consentement RGPD)
-- [#43](../../../issues/43) Sécurité widget : token signé par domaine + CSP + rotation
+### [#6](../../../issues/6) Page publique hébergée — `jalon: J6`
+
+Le widget iframe embarqué chez le pro est **abandonné** au profit d'une page que nous
+hébergeons : décision **D9**, [#266](../../../issues/266). Le dispositif tel qu'il tourne
+— routage, anti-abus, CSP, double opt-in, mesure — est décrit dans
+[PAGE-PUBLIQUE.md](PAGE-PUBLIQUE.md), qui fait autorité.
+
+- [#266](../../../issues/266) **D9** La page publique hébergée remplace le widget iframe (abandon de D1)
+- [#40](../../../issues/40) Page hébergée `widget.<domaine>/{token}/{slug}` + rendu marque blanche
+- [#41](../../../issues/41) Parcours particulier : adresse → premier chiffre → mur de contact
+- [#42](../../../issues/42) Capture de lead + double opt-in (mail pro, back-office, RGPD)
+- [#43](../../../issues/43) Anti-abus préventif : plafonds multi-dimensions + Turnstile + honeypot
 - [#44](../../../issues/44) Rate limiting (token/IP) + notification admin
-- [#287](../../../issues/287) Autocomplétion d'adresse BAN (proxy serveur) → code INSEE
+- [#267](../../../issues/267) Branding hébergé : anti-XSS/SSRF de l'URL de logo + CSP de la zone
+- [#268](../../../issues/268) Anti-abus réactif : détection de pics, alerte, kill switch
+- [#90](../../../issues/90) Tracking anonyme du parcours (RGPD) + purge
+- [#287](../../../issues/287) Autocomplétion d'adresse BAN (relais serveur) → code INSEE
 
 ### [#7](../../../issues/7) Admin interne & exploitation — `jalon: transverse`
 - [#45](../../../issues/45) Supervision des coefficients + flag valeurs aberrantes
