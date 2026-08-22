@@ -90,6 +90,14 @@ services:
     App\Widget\SeuilsAntiAbusWidget:
         factory: ['App\Widget\SeuilsAntiAbusWidget', 'parDefaut']
 
+    # Page publique du pro (#38) : le lien partagé est bâti sur le sous-domaine widget.
+    App\Widget\PagePubliqueDuPro:
+        arguments:
+            $appDomaine: '%app.domaine%'
+
+    # Jeton d'une page publique (#38) : tirage aléatoire, 16 octets hexadécimaux.
+    App\Widget\TirageJeton: '@App\Widget\TirageJetonAleatoire'
+
     # Vérification Turnstile (#43) : secret Cloudflare depuis l'environnement (vide = inerte).
     App\Widget\VerificateurTurnstile:
         arguments:

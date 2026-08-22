@@ -32,6 +32,12 @@ class PagePublique implements TenantAwareInterface
 {
     use TenantAwareTrait;
 
+    /**
+     * Borne du slug, celle de la colonne : une saisie plus longue est refusée au
+     * bord (#38) plutôt que tranchée par une erreur SQL à l'insertion.
+     */
+    public const int LONGUEUR_MAX_SLUG = 120;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -91,6 +97,25 @@ class PagePublique implements TenantAwareInterface
         return $this->slug;
     }
 
+    /**
+     * Renommer n'est pas déménager : le slug change, le jeton reste — les liens
+     * déjà partagés continuent de résoudre la page (#40, le slug est décoratif).
+     */
+    public function renommer(SlugPage $slug): void
+    {
+        $this->slug = $slug->valeur();
+    }
+
+    /**
+     * Change l'adresse de la page (#38) : l'ancien jeton cesse aussitôt de
+     * résoudre — c'est tout l'objet du geste, couper un lien qui a fuité ou qui
+     * a cessé d'être légitime. Rien ne rétablit l'ancienne adresse.
+     */
+    public function changerDeJeton(string $jeton): void
+    {
+        $this->token = $jeton;
+    }
+
     public function estActive(): bool
     {
         return $this->active;
@@ -99,6 +124,16 @@ class PagePublique implements TenantAwareInterface
     public function desactiver(): void
     {
         $this->active = false;
+    }
+
+    /**
+     * Remet la page en ligne côté pro. Ne touche pas à la suspension (#268) : un
+     * pro ne lève pas, en rebasculant son interrupteur, le coup d'arrêt prononcé
+     * contre sa page.
+     */
+    public function activer(): void
+    {
+        $this->active = true;
     }
 
     public function estSuspendue(): bool

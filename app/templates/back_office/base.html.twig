@@ -14,7 +14,7 @@
             <a href="{{ path('back_office_couts') }}"{{ nav_active|default('') == 'costs' ? ' class="on"' : '' }}>Coûts de travaux</a>
             <a href="{{ path('back_office_bouquets') }}"{{ nav_active|default('') == 'bouquets' ? ' class="on"' : '' }}>Bouquets types</a>
             <a href="{{ path('back_office_marque') }}"{{ nav_active|default('') == 'branding' ? ' class="on"' : '' }}>Ma marque</a>
-            <span class="lien-off" title="À venir">Page publique</span>
+            <a href="{{ path('back_office_page_publique') }}"{{ nav_active|default('') == 'page_publique' ? ' class="on"' : '' }}>Ma page publique</a>
             <p class="sect">Compte</p>
             <span class="lien-off" title="À venir">Abonnement</span>
             <span class="lien-off" title="À venir">Entreprise</span>
