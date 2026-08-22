@@ -79,6 +79,8 @@ final class PresentationPagePubliqueTest extends WebTestCase
 
         self::assertStringContainsString('#FFD400', $style);
         self::assertStringContainsString('#111820', $style, 'Sur une marque claire, le texte doit passer à l\'encre.');
+        // Et dans l'autre sens : le chiffre héros ne s'écrit pas en jaune sur blanc.
+        self::assertStringContainsString('--marque-encre: #111820', $style);
     }
 
     public function testUneMarqueSombreRendUnTexteBlanc(): void

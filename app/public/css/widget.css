@@ -22,7 +22,7 @@
   --police:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
   /* Replis : la page reste lisible même si l'attribut `style` manque. */
-  --marque:#0E4A5C; --marque-texte:#FFFFFF;
+  --marque:#0E4A5C; --marque-texte:#FFFFFF; --marque-encre:#0E4A5C;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -116,7 +116,9 @@ button{cursor:pointer}
 
 .montant{
   font-size:42px;font-weight:800;letter-spacing:-.03em;line-height:1.05;
-  color:var(--marque);font-variant-numeric:tabular-nums;
+  /* La marque quand elle se lit sur blanc, l'encre sinon : un jaune vif ne doit
+     pas effacer le seul chiffre que le visiteur est venu chercher. */
+  color:var(--marque-encre);font-variant-numeric:tabular-nums;
 }
 .fourchette{font-size:14px;color:var(--slate);margin-top:6px}
 

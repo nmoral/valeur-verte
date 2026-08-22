@@ -13,11 +13,12 @@
     <link rel="stylesheet" href="{{ asset('css/widget.css') }}">
 </head>
 <body>
-{# Les deux seules valeurs que le serveur pousse dans du style : la couleur du pro
-   et la couleur de texte qui s'y lit (#290). Toutes deux validées #RRGGBB — c'est
-   ce que vérifie BrandingHostilePagePubliqueTest. #}
+{# Les seules valeurs que le serveur pousse dans du style (#290) : la couleur du
+   pro, la couleur de texte qui s'y lit, et la couleur dont on peut écrire sur nos
+   cartes blanches. Toutes validées #RRGGBB — c'est ce que vérifie
+   BrandingHostilePagePubliqueTest. #}
 <main class="page" data-page="widget"
-      style="--marque: {{ branding.couleurPrincipale.hex }}; --marque-texte: {{ branding.couleurPrincipale.texteLisible.hex }};">
+      style="--marque: {{ branding.couleurPrincipale.hex }}; --marque-texte: {{ branding.couleurPrincipale.texteLisible.hex }}; --marque-encre: {{ branding.couleurPrincipale.lisibleSurFondClair.hex }};">
     <header class="entete">
         {% if branding.logoUrl %}
             <img class="entete-logo" data-marque="logo" src="{{ branding.logoUrl }}" alt="{{ branding.nom ?? 'Logo' }}">

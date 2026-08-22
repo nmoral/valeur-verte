@@ -19,6 +19,12 @@ final readonly class Couleur
     private const float LUMINANCE_BLANC = 1.0;
     private const float LUMINANCE_ENCRE = 0.008767;
 
+    /**
+     * Rapport de contraste minimal exigé par WCAG pour un **grand texte** (≥ 24 px,
+     * ou ≥ 18,7 px en gras) — le calibre du chiffre héros.
+     */
+    private const float CONTRASTE_GRAND_TEXTE = 3.0;
+
     private function __construct(private string $hex)
     {
     }
@@ -58,6 +64,24 @@ final readonly class Couleur
                 ? self::BLANC
                 : self::ENCRE,
         );
+    }
+
+    /**
+     * Cette couleur si elle s'écrit lisiblement sur fond clair, l'encre sinon (#290).
+     *
+     * Le pendant de {@see self::texteLisible()} : là on posait du texte **sur** la
+     * marque, ici c'est la marque qui **est** le texte — le chiffre héros de la page,
+     * écrit dans la couleur du pro sur une carte blanche. Une marque claire y devient
+     * invisible, et c'est précisément le seul chiffre que le visiteur est venu voir.
+     *
+     * Le seuil est celui de WCAG pour un **grand texte** (3:1) : ce à quoi cette
+     * couleur sert ici est un nombre de 42 px en gras, pas du corps de texte.
+     */
+    public function lisibleSurFondClair(): self
+    {
+        return self::contraste($this->luminanceRelative(), self::LUMINANCE_BLANC) >= self::CONTRASTE_GRAND_TEXTE
+            ? $this
+            : self::depuisHex(self::ENCRE);
     }
 
     /**

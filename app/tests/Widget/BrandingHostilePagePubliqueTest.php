@@ -68,7 +68,7 @@ final class BrandingHostilePagePubliqueTest extends WebTestCase
         $crawler = $client->request('GET', 'http://'.self::HOTE_WIDGET.'/'.$token.'/agence-durand');
 
         self::assertMatchesRegularExpression(
-            '/^--marque:\s*#[0-9A-F]{6};\s*--marque-texte:\s*#[0-9A-F]{6};?$/',
+            '/^--marque:\s*#[0-9A-F]{6};\s*--marque-texte:\s*#[0-9A-F]{6};\s*--marque-encre:\s*#[0-9A-F]{6};?$/',
             trim((string) $crawler->filter('[data-page="widget"]')->attr('style')),
         );
     }
