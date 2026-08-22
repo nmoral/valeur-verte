@@ -49,9 +49,11 @@ final class ParcoursEstimationTest extends WebTestCase
         self::assertSelectorExists('input[name="code_insee"]');
         self::assertSelectorExists('input[name="surface_batie"]');
         self::assertSelectorExists('input[name="surface_terrain"]');
-        self::assertSelectorExists('select[name="dpe_avant"]');
+        // L'étiquette se choisit sur une échelle de sept crans colorés (#290),
+        // plus dans une liste déroulante.
+        self::assertSelectorExists('input[type="radio"][name="dpe_avant"]');
         // DPE cible par défaut : C (§4).
-        self::assertSelectorExists('select[name="dpe_apres"] option[value="C"][selected]');
+        self::assertSelectorExists('input[name="dpe_apres"][value="C"][checked]');
         // Le mur de contact ne vient jamais avant le chiffre : pas d'email ici.
         self::assertSelectorNotExists('input[name="email"]');
     }

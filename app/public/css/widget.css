@@ -71,10 +71,44 @@ button{cursor:pointer}
 
 .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 
-/* Avant → après : deux listes que l'on lit comme une transformation, pas comme
-   deux champs indépendants. */
-.dpe-duo{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
-.dpe-duo .fleche{padding-bottom:11px;color:var(--mute);font-size:16px}
+/* Échelle DPE : sept crans montrés en entier plutôt qu'une liste déroulante.
+   Sur mobile, sept colonnes tiennent dans 375 px en gardant des cibles de ~44 px
+   — la taille minimale d'une cible tactile ; il n'y a donc pas de variante
+   « petit écran » à prévoir, c'est la même échelle qui tient partout. */
+.echelle{border:0;margin-bottom:15px}
+.echelle-crans{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+/* La radio reste focalisable au clavier : on la sort du flux visuel sans la
+   masquer (`display:none` la retirerait de la tabulation). */
+.echelle-radio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.dpe-choix{
+  display:grid;place-items:center;height:44px;border-radius:3px;cursor:pointer;
+  font:700 15px/1 var(--police);color:#fff;
+  transition:background-image .12s,transform .12s,box-shadow .12s;
+}
+/* Non choisi : un voile blanc **sur le fond seul** éclaircit la couleur sans
+   toucher à la lettre — baisser l'opacité du cran entier délaverait aussi le
+   texte, et une échelle dont on ne lit plus les lettres n'est plus une échelle.
+   La lettre passe donc à l'encre, très lisible sur ces pastels.
+   Le sélecteur passe par la radio (et non `.dpe-choix` seul) pour l'emporter sur
+   les `.d-*`, dont le raccourci `background` remettrait l'image à zéro. */
+.echelle-radio:not(:checked) + .dpe-choix{
+  background-image:linear-gradient(rgba(255,255,255,.66),rgba(255,255,255,.66));
+  color:var(--ink);
+}
+.echelle-radio:not(:checked) + .dpe-choix:hover{
+  background-image:linear-gradient(rgba(255,255,255,.40),rgba(255,255,255,.40));
+}
+.echelle-radio:checked + .dpe-choix{
+  transform:translateY(-2px);
+  box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink);
+}
+/* Vert clair et jaune : à pleine couleur, c'est l'encre qui s'y lit, pas le blanc. */
+.echelle-radio:checked + .d-c,.echelle-radio:checked + .d-d{color:#2A2A18}
+.echelle-radio:focus-visible + .dpe-choix{outline:2px solid var(--ink);outline-offset:3px}
+
+/* Réservé aux lecteurs d'écran : « A (le plus économe) » dit l'échelle que la
+   couleur seule ne transmet pas. */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 /* Suggestions d'adresse (#287) : la liste se superpose au reste du formulaire,
    sinon elle pousserait les champs à chaque frappe. Elle s'ancre sur le champ
@@ -187,8 +221,8 @@ button{cursor:pointer}
   .entete{border-radius:0}
   .carte{border-radius:0;border-left:0;border-right:0;padding:18px 16px}
   .entete + .carte{border-radius:0}
-  .duo,.dpe-duo{grid-template-columns:1fr}
-  .dpe-duo .fleche{display:none}
+  .duo{grid-template-columns:1fr}
+  .dpe-choix{height:42px;font-size:14px}
   .montant{font-size:34px}
   .stats{grid-template-columns:1fr}
   .pied{padding:0 16px}
