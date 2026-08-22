@@ -235,6 +235,8 @@ final class PagePubliqueControllerTest extends WebTestCase
 
         $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/regenerer');
 
+        self::assertResponseRedirects('/page-publique');
+        // Régénérer, c'est changer d'adresse, pas de nom : le slug survit.
         self::assertSame('agence-durand', $this->pageDuTenant($tenantId)->slug());
         $client->request('GET', 'http://'.self::HOTE_WIDGET.$this->cheminPublic($tenantId));
         self::assertResponseIsSuccessful();
