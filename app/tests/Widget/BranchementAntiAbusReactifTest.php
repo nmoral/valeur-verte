@@ -91,6 +91,25 @@ final class BranchementAntiAbusReactifTest extends WebTestCase
     }
 
     /**
+     * Le jeton de chargement (#43) est le contrôle le moins cher : rejouer un jeton
+     * périmé ou fabriqué est du matraquage, et doit se voir comme tel.
+     */
+    public function testUnJetonDeChargementRefuseLaisseUnEvenementDeRejet(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $token = $this->creerPage();
+        $this->libererLimiteursWidget($token);
+
+        $client->request('POST', 'http://'.self::HOTE_WIDGET.'/'.$token.'/estimation', $this->saisie([
+            'jeton_chargement' => 'jeton-fabrique',
+        ]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(1, $this->compter($token, TypeEvenementWidget::JetonRefuse));
+    }
+
+    /**
      * La capture de lead partage le même garde-fou : un bot qui vise le mur de
      * contact plutôt que l'estimation doit être aussi visible.
      */
@@ -149,6 +168,7 @@ final class BranchementAntiAbusReactifTest extends WebTestCase
         self::assertTrue(TypeEvenementWidget::EstimationAffichee->declencheSurveillance());
         self::assertTrue(TypeEvenementWidget::LeadSoumis->declencheSurveillance());
         self::assertTrue(TypeEvenementWidget::PiegeDeclenche->declencheSurveillance());
+        self::assertTrue(TypeEvenementWidget::JetonRefuse->declencheSurveillance());
         self::assertFalse(TypeEvenementWidget::WidgetCharge->declencheSurveillance());
         self::assertFalse(TypeEvenementWidget::AdresseSaisie->declencheSurveillance());
         self::assertFalse(TypeEvenementWidget::DetailDeplie->declencheSurveillance());
