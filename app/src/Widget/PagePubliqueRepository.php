@@ -22,9 +22,12 @@ class PagePubliqueRepository extends ServiceEntityRepository
      * n'est connecté : le filtre de cloisonnement est éteint, la recherche par token
      * (unique) porte donc sur l'ensemble des tenants — c'est l'effet recherché. Le
      * slug de l'URL n'entre pas dans la résolution : il est purement décoratif.
+     *
+     * Les deux verrous doivent être ouverts : l'interrupteur du pro (`active`) et
+     * l'absence de suspension admin/automatique (#268).
      */
     public function trouverActiveParJeton(string $token): ?PagePublique
     {
-        return $this->findOneBy(['token' => $token, 'active' => true]);
+        return $this->findOneBy(['token' => $token, 'active' => true, 'suspendueLe' => null]);
     }
 }
