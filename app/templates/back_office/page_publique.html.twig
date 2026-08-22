@@ -45,6 +45,17 @@
         après un renommage.
     </p>
 
+    <form method="post" action="{{ path(page.estActive ? 'back_office_page_publique_retirer' : 'back_office_page_publique_remettre') }}" style="margin-top:14px">
+        <button type="submit" class="btn{{ page.estActive ? ' btn-ghost' : '' }}">
+            {{ page.estActive ? 'Retirer la page' : 'Remettre la page en ligne' }}
+        </button>
+        <span class="pp-note" style="display:inline-block;margin-left:10px">
+            {{ page.estActive
+                ? 'Retirée, votre adresse publique répond « page introuvable ».'
+                : 'Votre adresse publique répond « page introuvable » tant qu\'elle est retirée.' }}
+        </span>
+    </form>
+
     <p class="pp-note">
         Cette page <strong>ne consomme pas</strong> votre essai : seuls les audits que vous
         réalisez décomptent votre quota. Vous pouvez diffuser ce lien sans compter.

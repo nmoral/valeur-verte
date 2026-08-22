@@ -116,6 +116,16 @@ class PagePublique implements TenantAwareInterface
         $this->active = false;
     }
 
+    /**
+     * Remet la page en ligne côté pro. Ne touche pas à la suspension (#268) : un
+     * pro ne lève pas, en rebasculant son interrupteur, le coup d'arrêt prononcé
+     * contre sa page.
+     */
+    public function activer(): void
+    {
+        $this->active = true;
+    }
+
     public function estSuspendue(): bool
     {
         return null !== $this->suspendueLe;

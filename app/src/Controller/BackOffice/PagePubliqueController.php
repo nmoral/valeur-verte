@@ -47,6 +47,31 @@ final class PagePubliqueController extends AbstractController
         return $this->redirectToRoute('back_office_page_publique');
     }
 
+    #[Route('/page-publique/retirer', name: 'back_office_page_publique_retirer', methods: ['POST'])]
+    public function retirer(TenantContext $tenants, PagePubliqueDuPro $pages, PagePubliqueRepository $depot): Response
+    {
+        return $this->basculer($tenants, $pages, $depot, enLigne: false);
+    }
+
+    #[Route('/page-publique/remettre-en-ligne', name: 'back_office_page_publique_remettre', methods: ['POST'])]
+    public function remettreEnLigne(TenantContext $tenants, PagePubliqueDuPro $pages, PagePubliqueRepository $depot): Response
+    {
+        return $this->basculer($tenants, $pages, $depot, enLigne: true);
+    }
+
+    private function basculer(
+        TenantContext $tenants,
+        PagePubliqueDuPro $pages,
+        PagePubliqueRepository $depot,
+        bool $enLigne,
+    ): Response {
+        $page = $pages->courante($this->tenant($tenants));
+        $enLigne ? $page->activer() : $page->desactiver();
+        $depot->enregistrer($page);
+
+        return $this->redirectToRoute('back_office_page_publique');
+    }
+
     private function tenant(TenantContext $tenants): int
     {
         $tenantId = $tenants->actuel();
