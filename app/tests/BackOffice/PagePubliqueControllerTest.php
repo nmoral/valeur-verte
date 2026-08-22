@@ -24,6 +24,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class PagePubliqueControllerTest extends WebTestCase
 {
     private const string HOTE_PRO = 'app.valeurverte.localhost';
+    private const string HOTE_WIDGET = 'widget.valeurverte.localhost';
 
     public function testLEcranAfficheLeLienPartageableDeLaPage(): void
     {
@@ -145,6 +146,83 @@ final class PagePubliqueControllerTest extends WebTestCase
         self::assertResponseRedirects('/page-publique');
         self::assertSame('agence-durand', $this->pageDuTenant($premier)->slug());
         self::assertSame('agence-durand', $this->pageDuTenant($second)->slug());
+    }
+
+    public function testRetirerLaPageLaFaitDisparaitreDuVisiteur(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-retrait@example.com');
+        $lien = $this->cheminPublic($tenantId);
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/retirer');
+
+        self::assertResponseRedirects('/page-publique');
+        self::assertFalse($this->pageDuTenant($tenantId)->estActive());
+
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.$lien);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testLEcranDitQueLaPageEstRetiree(): void
+    {
+        $client = static::createClient();
+        $this->connecterArtisan($client, 'artisan-page-etat-retire@example.com');
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/retirer');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/page-publique');
+
+        self::assertSelectorTextContains('[data-etat]', 'retirée');
+    }
+
+    public function testRemettreEnLigneRendLaPageAuVisiteur(): void
+    {
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-retour@example.com');
+        $lien = $this->cheminPublic($tenantId);
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/retirer');
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/remettre-en-ligne');
+
+        self::assertResponseRedirects('/page-publique');
+        self::assertTrue($this->pageDuTenant($tenantId)->estActive());
+
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.$lien);
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testLeProNeLevePasUneSuspensionAdminEnRebasculantSonInterrupteur(): void
+    {
+        // Les deux verrous sont indépendants (#268) : rebasculer le sien ne doit
+        // pas rendre au visiteur une page coupée par l'admin.
+        $client = static::createClient();
+        $tenantId = $this->connecterArtisan($client, 'artisan-page-suspendue@example.com');
+        $lien = $this->cheminPublic($tenantId);
+        $this->suspendre($tenantId);
+
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/retirer');
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/page-publique/remettre-en-ligne');
+
+        self::assertTrue($this->pageDuTenant($tenantId)->estSuspendue());
+        $client->request('GET', 'http://'.self::HOTE_WIDGET.$lien);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    private function cheminPublic(int $tenantId): string
+    {
+        $page = $this->pageDuTenant($tenantId);
+
+        return \sprintf('/%s/%s', $page->token(), $page->slug());
+    }
+
+    private function suspendre(int $tenantId): void
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $this->pageDuTenant($tenantId);
+        $page = $em->getRepository(PagePublique::class)->findOneBy(['tenantId' => $tenantId]);
+        self::assertInstanceOf(PagePublique::class, $page);
+        $page->suspendre(new \DateTimeImmutable('2026-08-22 10:00:00'));
+        $em->flush();
     }
 
     private function connecterArtisan(KernelBrowser $client, string $email): int
