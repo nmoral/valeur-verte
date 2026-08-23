@@ -6,14 +6,18 @@ namespace App\Tests\BackOffice;
 
 use App\BackOffice\Branding\Branding;
 use App\BackOffice\Branding\BrandingRepository;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class BrandingControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testLEcranAfficheLeFormulaireEtLApercuAvecLaMarqueCourante(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/marque');
+        $this->connecterPro($client);
+        $client->request('GET', self::urlPro('/marque'));
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Votre marque');
@@ -27,7 +31,8 @@ final class BrandingControllerTest extends WebTestCase
     public function testEnregistrerUneMarqueValideLaPersisteEtRedirige(): void
     {
         $client = static::createClient();
-        $client->request('POST', '/marque', [
+        $this->connecterPro($client);
+        $client->request('POST', self::urlPro('/marque'), [
             'couleur' => '#B8480F',
             'numero_rge' => 'QB/54321',
             'telephone' => '05 61 00 00 00',
@@ -46,7 +51,8 @@ final class BrandingControllerTest extends WebTestCase
     {
         // #110 : le nom du pro habille le rapport — il doit être saisi et persisté.
         $client = static::createClient();
-        $client->request('POST', '/marque', [
+        $this->connecterPro($client);
+        $client->request('POST', self::urlPro('/marque'), [
             'couleur' => '#0E4A5C',
             'nom' => 'Rénov Toulouse',
         ]);
@@ -63,7 +69,8 @@ final class BrandingControllerTest extends WebTestCase
         // Sans borne à la frontière, un dépassement partirait en erreur SQL (500) :
         // le pro doit lire ce qu'il doit reprendre.
         $client = static::createClient();
-        $client->request('POST', '/marque', [
+        $this->connecterPro($client);
+        $client->request('POST', self::urlPro('/marque'), [
             'couleur' => '#0E4A5C',
             'nom' => str_repeat('a', Branding::LONGUEUR_MAX_NOM + 1),
         ]);
@@ -79,7 +86,8 @@ final class BrandingControllerTest extends WebTestCase
     public function testUneCouleurInvalideEstRefuseeSansRienEnregistrer(): void
     {
         $client = static::createClient();
-        $client->request('POST', '/marque', ['couleur' => 'pas-une-couleur']);
+        $this->connecterPro($client);
+        $client->request('POST', self::urlPro('/marque'), ['couleur' => 'pas-une-couleur']);
 
         self::assertResponseStatusCodeSame(422);
 

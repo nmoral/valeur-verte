@@ -23,10 +23,10 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\BackOffice\Restitution\Restitution;
 use App\Controller\BackOffice\AuditController;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
-use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 /**
  * Reste à charge sur la restitution (#26). L'écran lit **le même instantané figé**
@@ -35,14 +35,17 @@ use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
  */
 final class AuditResultatResteAChargeTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     private const string REFERENCE = 'VV-20260815-RC9999';
 
     public function testSansCategorieDeclareeLeResteAChargeEstUneFourchette(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Reste à charge');
@@ -54,9 +57,10 @@ final class AuditResultatResteAChargeTest extends WebTestCase
     public function testDeclarerUneCategorieResserreLaFourchetteEnUnMontant(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
         ]);
         $client->followRedirect();
@@ -69,9 +73,10 @@ final class AuditResultatResteAChargeTest extends WebTestCase
     public function testUneRetoucheDeChiffrageChangeLeResteAcharge(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
             'chiffrage' => [Poste::Menuiseries->name => '8400'],
         ]);
@@ -88,7 +93,7 @@ final class AuditResultatResteAChargeTest extends WebTestCase
         $bouquet = Bouquet::creer('Bouquet de test', Poste::Murs, Poste::Menuiseries);
         $periode = PeriodeValidite::depuis(new \DateTimeImmutable('2026-01-01'));
 
-        $this->rapports()->enregistrer(Rapport::creer(
+        $this->rapports()->enregistrer(self::pourLeTenant($this->connecterPro($client), Rapport::creer(
             self::REFERENCE,
             new \DateTimeImmutable('2026-08-15 10:00:00'),
             Source::Audit,
@@ -104,11 +109,9 @@ final class AuditResultatResteAChargeTest extends WebTestCase
                 BaremeAides::parDefautNational($periode),
             ),
             '/rapport/'.self::REFERENCE.'/pdf',
-        ));
+        )));
 
-        $factory = self::getContainer()->get('session.factory');
-        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
-        $session = $factory->createSession();
+        $session = $this->sessionDuClient($client);
         $session->set(AuditController::SESSION_RESULTAT, [
             'saisie' => $saisie,
             'restitution' => $restitution,

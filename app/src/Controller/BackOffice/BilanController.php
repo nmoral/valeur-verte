@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class BilanController extends AbstractController
 {
-    #[Route('/compte/bilan', name: 'back_office_bilan', methods: ['GET'])]
+    #[Route('/compte/bilan', name: 'back_office_bilan', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(SuiviCompte $suivi): Response
     {
         $bilan = $suivi->bilanCourant();

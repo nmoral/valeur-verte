@@ -7,6 +7,7 @@ namespace App\Tests\BackOffice;
 use App\BackOffice\Estimation\CoefficientMaille;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -18,7 +19,9 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final class RapportPdfControllerTest extends WebTestCase
 {
-    private const URL_AUDIT = 'http://valeurverte.localhost/audit';
+    use ConnecteUnPro;
+
+    private const URL_AUDIT = 'http://'.self::HOTE_PRO.'/audit';
     private const CODE_INSEE = '31555';
 
     public function testRegenereLePdfDUnRapportDepuisSaReference(): void
@@ -28,7 +31,7 @@ final class RapportPdfControllerTest extends WebTestCase
         $this->prix($client)->definir(self::CODE_INSEE, 1635.0);
         $reference = $this->produireUnRapport($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/rapport/'.$reference.'/pdf');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/rapport/'.$reference.'/pdf');
 
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Content-Type', 'application/pdf');
@@ -38,8 +41,9 @@ final class RapportPdfControllerTest extends WebTestCase
     public function testUneReferenceInconnueRenvoie404(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/rapport/VV-19990101-ZZZZZZ/pdf');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/rapport/VV-19990101-ZZZZZZ/pdf');
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -66,7 +70,7 @@ final class RapportPdfControllerTest extends WebTestCase
         ]);
         $client->followRedirects(false);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat/pdf');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat/pdf');
         $disposition = (string) $client->getResponse()->headers->get('Content-Disposition');
         if (1 !== preg_match('/rapport-(VV-\d{8}-[0-9A-Z]{6})\.pdf/', $disposition, $correspondance)) {
             self::fail('Le PDF téléchargé doit porter une référence de rapport : '.$disposition);
@@ -78,6 +82,7 @@ final class RapportPdfControllerTest extends WebTestCase
     private function client(): KernelBrowser
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $client->disableReboot();
 
         return $client;

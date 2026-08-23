@@ -26,7 +26,7 @@ final class AuditPdfController extends AbstractController
     ) {
     }
 
-    #[Route('/audit/resultat/pdf', name: 'back_office_audit_pdf', methods: ['GET'])]
+    #[Route('/audit/resultat/pdf', name: 'back_office_audit_pdf', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);

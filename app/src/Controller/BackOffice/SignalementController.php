@@ -21,7 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class SignalementController extends AbstractController
 {
-    #[Route('/audit/resultat/signalement', name: 'back_office_audit_signalement', methods: ['POST'])]
+    #[Route('/audit/resultat/signalement', name: 'back_office_audit_signalement', host: 'app.%app.domaine%', methods: ['POST'])]
     public function __invoke(Request $request, SignalementRepository $signalements, ClockInterface $clock): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);

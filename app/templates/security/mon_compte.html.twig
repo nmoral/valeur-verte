@@ -1,10 +1,13 @@
+{# Page servie dans les deux zones (#306) : les URL se génèrent sur la route
+   effectivement empruntée, sinon le formulaire de l'admin posterait vers app. #}
+{% set route_compte = app.request.attributes.get('_route') %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 {{ include('_seo.html.twig', {
   titre: 'Mon compte · Valeur Verte',
   description: 'Gérez votre compte Valeur Verte et changez votre mot de passe.',
-  canonical: url('mon_compte'),
+  canonical: url(route_compte),
   robots: 'noindex,nofollow',
 }) }}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,7 +32,7 @@
     {% endif %}
 
     <h2>Changer mon mot de passe</h2>
-    <form method="post" action="{{ path('mon_compte') }}" novalidate>
+    <form method="post" action="{{ path(route_compte) }}" novalidate>
       <div class="field-group{{ erreurs.actuel is defined ? ' has-error' : '' }}">
         <label for="actuel">Mot de passe actuel</label>
         <input type="password" id="actuel" name="actuel" autocomplete="current-password" required autofocus>

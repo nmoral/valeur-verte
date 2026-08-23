@@ -99,14 +99,14 @@ final class RegistrationController extends AbstractController
     }
 
     /**
-     * URL absolue de la saisie sur le sous-domaine de l'espace pro : scheme et
-     * host viennent de la route `espace_pro` (portée par ce host), le chemin de la
-     * route de saisie (sans host propre). Robuste en dev comme en prod (https).
+     * URL absolue de la saisie sur le sous-domaine de l'espace pro. Depuis #306 la
+     * route porte son propre host : le générateur produit l'URL complète, scheme
+     * compris (https en prod). Plus rien à recoller — la racine de `espace_pro` était
+     * préfixée à la main tant que la route de saisie n'avait pas de host, ce qui la
+     * doublerait aujourd'hui.
      */
     private function urlSaisie(): string
     {
-        $racineEspacePro = $this->generateUrl('espace_pro', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-        return rtrim($racineEspacePro, '/').$this->generateUrl('back_office_audit');
+        return $this->generateUrl('back_office_audit', [], UrlGeneratorInterface::ABSOLUTE_URL);
     }
 }

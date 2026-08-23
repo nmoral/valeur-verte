@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\BackOffice;
 
+use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Bouquet\BouquetRepository;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -15,10 +17,13 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class BouquetsControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testLEcranListeLeBouquetParDefautAvecSesPostes(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/bouquets');
+        $this->connecterPro($client);
+        $client->request('GET', self::urlPro('/bouquets'));
 
         self::assertResponseIsSuccessful();
 
@@ -36,7 +41,8 @@ final class BouquetsControllerTest extends WebTestCase
     public function testLEcranOffreLeFormulaireDeCompositionDUnBouquet(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/bouquets');
+        $this->connecterPro($client);
+        $client->request('GET', self::urlPro('/bouquets'));
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('form[action="/bouquets"][method="post"] input[name="nom"]');
@@ -48,8 +54,9 @@ final class BouquetsControllerTest extends WebTestCase
     public function testUnBouquetComposeEstEnregistreEtApparaitDansLaListe(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', '/bouquets', [
+        $client->request('POST', self::urlPro('/bouquets'), [
             'nom' => 'Isolation + chauffage',
             'postes' => ['Murs', 'Combles', 'Chauffage'],
         ]);
@@ -59,17 +66,19 @@ final class BouquetsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Isolation + chauffage');
 
-        // Les défauts ont cédé la place aux bouquets du pro.
-        $disponibles = $this->rappels($client)->disponibles();
-        self::assertCount(1, $disponibles);
-        self::assertSame('Isolation + chauffage', $disponibles[0]->nom());
+        // Un compte est provisionné avec les trois bouquets types (#39) : celui que
+        // le pro compose s'y ajoute, il ne les remplace pas.
+        $noms = array_map(static fn (Bouquet $b): string => $b->nom(), $this->rappels($client)->disponibles());
+        self::assertCount(4, $noms);
+        self::assertContains('Isolation + chauffage', $noms);
     }
 
     public function testUnBouquetSansNomEstRefuse(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', '/bouquets', [
+        $client->request('POST', self::urlPro('/bouquets'), [
             'nom' => '   ',
             'postes' => ['Murs'],
         ]);
@@ -82,8 +91,9 @@ final class BouquetsControllerTest extends WebTestCase
     public function testUnBouquetSansAucunPosteEstRefuse(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', '/bouquets', [
+        $client->request('POST', self::urlPro('/bouquets'), [
             'nom' => 'Vide',
         ]);
 
@@ -94,9 +104,10 @@ final class BouquetsControllerTest extends WebTestCase
     public function testUnBouquetPeutEtreSupprime(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', '/bouquets', ['nom' => 'À jeter', 'postes' => ['Murs']]);
-        $client->request('POST', '/bouquets/supprimer', ['nom' => 'À jeter']);
+        $client->request('POST', self::urlPro('/bouquets'), ['nom' => 'À jeter', 'postes' => ['Murs']]);
+        $client->request('POST', self::urlPro('/bouquets/supprimer'), ['nom' => 'À jeter']);
 
         self::assertResponseStatusCodeSame(302);
         // Plus aucun bouquet du pro : retour aux défauts.

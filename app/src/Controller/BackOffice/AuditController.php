@@ -41,7 +41,7 @@ final class AuditController extends AbstractController
     ) {
     }
 
-    #[Route('/audit', name: 'back_office_audit', methods: ['GET', 'POST'])]
+    #[Route('/audit', name: 'back_office_audit', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         // Essai terminé (quota consommé OU période écoulée, #108) : la création
