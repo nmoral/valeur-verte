@@ -1,0 +1,79 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}État des imports · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}État des imports{% endblock %}
+
+{% block admin_subtitle %}<p>La dernière ingestion de chaque département, telle qu'elle a été archivée. Deux signaux décident d'un regard : l'appariement DVF ↔ DPE sous 60 % (DAT-3) et une source de plus de 12 mois (DAT-5). L'historique complet des exécutions est dans les <a href="{{ path('admin_rapports_batch') }}">rapports de batch</a>.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if synthese.departementsCouverts == 0 %}
+        <p class="banner banner-warn" role="status">Aucune ingestion archivée. Soit la base n'a jamais été chargée, soit les imports sont antérieurs à l'archivage des rapports de batch — dans ce dernier cas, la prochaine ingestion peuplera cet écran.</p>
+    {% else %}
+        {% set alertes = synthese.departementsEnAlerte(maintenant) %}
+        <div class="kpis">
+            <div class="kpi"><b>{{ synthese.dernierImport|date('d/m/Y') }}</b><span>Dernier import</span></div>
+            <div class="kpi"><b>{{ synthese.departementsCouverts }}</b><span>Départements couverts</span></div>
+            <div class="kpi"><b>{{ synthese.tauxAppariement is null ? '—' : (synthese.tauxAppariement * 100)|round ~ ' %' }}</b><span>Appariement DVF ↔ DPE</span></div>
+            <div class="kpi"><b>{{ alertes|length }}</b><span>Départements à regarder</span></div>
+        </div>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2>Par département</h2>
+                <span class="hint">{{ synthese.mutationsInserees|number_format(0, ',', ' ') }} ventes insérées · {{ synthese.communesEnEchec }} commune(s) en échec</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Dépt</th>
+                        <th scope="col">Millésime</th>
+                        <th scope="col">Importé le</th>
+                        <th scope="col">Ventes insérées</th>
+                        <th scope="col">Appariement</th>
+                        <th scope="col">Source</th>
+                        <th scope="col">Communes en échec</th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for etat in synthese.departements %}
+                    <tr{{ etat.enAlerte(maintenant) ? ' class="est-alerte"' : '' }}>
+                        <td class="mono">{{ etat.departement }}</td>
+                        <td class="num">{{ etat.millesime }}</td>
+                        <td class="mono">{{ etat.importeLe|date('d/m/Y') }}</td>
+                        <td class="num">{{ etat.mutationsInserees|number_format(0, ',', ' ') }}</td>
+                        <td>
+                            {% if etat.tauxAppariement is null %}
+                                <span class="muted">aucune vente</span>
+                            {% elseif etat.appariementInsuffisant %}
+                                <span class="rel r-low"><i></i>{{ (etat.tauxAppariement * 100)|round }} %</span>
+                            {% else %}
+                                <span class="rel r-ok"><i></i>{{ (etat.tauxAppariement * 100)|round }} %</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if etat.mutationLaPlusRecente is null %}
+                                <span class="muted">inconnue</span>
+                            {% elseif etat.sourcePerimee(maintenant) %}
+                                <span class="rel r-low"><i></i>périmée — {{ etat.mutationLaPlusRecente|date('m/Y') }}</span>
+                            {% else %}
+                                <span class="mono">{{ etat.mutationLaPlusRecente|date('m/Y') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if etat.communesEnEchec is empty %}
+                                <span class="muted">aucune</span>
+                            {% else %}
+                                <span class="num">{{ etat.communesEnEchec|length }}</span>
+                                <span class="mono muted">{{ etat.communesEnEchec|slice(0, 3)|join(', ') }}{{ etat.communesEnEchec|length > 3 ? '…' : '' }}</span>
+                            {% endif %}
+                        </td>
+                        <td><a href="{{ path('admin_rapport_batch', {id: etat.rapport.id}) }}">Rapport</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+{% endblock %}

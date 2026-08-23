@@ -14,6 +14,7 @@
             <p class="sect">Modèle</p>
             <a href="{{ path('admin_coefficients') }}"{{ route == 'admin_coefficients' ? ' class="on"' : '' }}>Coefficients</a>
             <a href="{{ path('admin_millesimes') }}"{{ route starts with 'admin_millesime' ? ' class="on"' : '' }}>Millésimes</a>
+            <a href="{{ path('admin_ingestion') }}"{{ route == 'admin_ingestion' ? ' class="on"' : '' }}>État des imports</a>
             <a href="{{ path('admin_rapports_batch') }}"{{ route starts with 'admin_rapport' ? ' class="on"' : '' }}>Rapports de batch</a>
             <p class="sect">Comptes</p>
             <a href="{{ path('admin_comptes') }}"{{ route == 'admin_comptes' ? ' class="on"' : '' }}>Comptes pro</a>
