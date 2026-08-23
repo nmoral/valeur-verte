@@ -42,6 +42,7 @@ final readonly class RapportBatch
         private ?int $ecartsBlocages = null,
         private ?int $ecartsAlertes = null,
         private ?string $ordreCanonique = null,
+        private ?\DateTimeImmutable $mutationLaPlusRecente = null,
     ) {
     }
 
@@ -62,6 +63,7 @@ final readonly class RapportBatch
         int $epciCharges,
         int $sansDonnees,
         array $echecs,
+        ?\DateTimeImmutable $mutationLaPlusRecente = null,
     ): self {
         return new self(
             phase: self::PHASE_INGESTION,
@@ -78,6 +80,7 @@ final readonly class RapportBatch
             contoursCharges: $contoursCharges,
             epciCharges: $epciCharges,
             sansDonnees: $sansDonnees,
+            mutationLaPlusRecente: $mutationLaPlusRecente,
         );
     }
 
@@ -213,6 +216,16 @@ final readonly class RapportBatch
     public function sansDonnees(): ?int
     {
         return $this->sansDonnees;
+    }
+
+    /**
+     * Date de mutation la plus récente du département à l'ingestion (DAT-5, #128) :
+     * la source de vérité de la fraîcheur des sources. Nulle hors ingestion, et nulle
+     * pour une ingestion antérieure à DAT-5.
+     */
+    public function mutationLaPlusRecente(): ?\DateTimeImmutable
+    {
+        return $this->mutationLaPlusRecente;
     }
 
     public function communesCalculees(): ?int
