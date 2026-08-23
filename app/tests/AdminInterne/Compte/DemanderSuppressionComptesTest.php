@@ -36,7 +36,9 @@ final class DemanderSuppressionComptesTest extends KernelTestCase
 
         self::assertStringContainsString('1', $message);
 
-        self::getContainer()->get(EntityManagerInterface::class)->clear();
+        $manager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $manager);
+        $manager->clear();
         self::assertTrue($comptes->pourTenant(55)?->estEnAttenteDeSuppression());
     }
 }

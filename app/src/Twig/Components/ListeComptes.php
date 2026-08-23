@@ -47,6 +47,7 @@ final class ListeComptes
             ['cle' => 'comptes.suspendre', 'libelle' => 'Suspendre', 'confirmation' => 'Suspendre les comptes sélectionnés ?'],
             ['cle' => 'comptes.reactiver', 'libelle' => 'Réactiver'],
             ['cle' => 'comptes.prolonger', 'libelle' => 'Prolonger l\'essai (+14 j)'],
+            ['cle' => 'comptes.supprimer', 'libelle' => 'Supprimer (RGPD)', 'confirmation' => 'Programmer l\'effacement définitif des comptes sélectionnés ? Les données (compte, rapports, contacts) seront supprimées après un délai de grâce.'],
         ];
     }
 
