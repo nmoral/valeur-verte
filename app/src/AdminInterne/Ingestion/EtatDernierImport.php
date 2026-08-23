@@ -109,12 +109,17 @@ final readonly class EtatDernierImport
      * date de plus de 12 mois. Une fraîcheur inconnue (ingestion antérieure à DAT-5)
      * n'est pas une source périmée — on ne transforme pas une absence de mesure en
      * verdict.
+     *
+     * La comparaison se fait **au jour**, jamais à l'instant : la date de mutation
+     * est une date, l'horloge un instant, et les confronter tels quels périmerait la
+     * source dès la première heure du jour anniversaire.
      */
     public function sourcePerimee(\DateTimeImmutable $maintenant): bool
     {
         $mutation = $this->mutationLaPlusRecente();
+        $limite = $maintenant->setTime(0, 0)->modify(\sprintf('-%d months', self::FRAICHEUR_MAX_MOIS));
 
-        return null !== $mutation && $mutation < $maintenant->modify(\sprintf('-%d months', self::FRAICHEUR_MAX_MOIS));
+        return null !== $mutation && $mutation->setTime(0, 0) < $limite;
     }
 
     public function enAlerte(\DateTimeImmutable $maintenant): bool
