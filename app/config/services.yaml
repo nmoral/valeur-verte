@@ -204,6 +204,15 @@ services:
             $anonymisationMois: 24
             $suppressionMois: 36
 
+    # Effacement de compte (#308, RGPD droit à l'effacement) : à la demande — en
+    # self-service par le pro ou honorée par l'admin — le compte est marqué, puis
+    # effacé définitivement après un délai de grâce, une suppression accidentelle
+    # ne se rattrapant pas. Choix produit #308 : rapports et leads partent avec le
+    # compte. Finaliseur joué par un cron quotidien (#190).
+    App\AdminInterne\Compte\EffacementCompte:
+        arguments:
+            $delaiDeGraceJours: 30
+
     # Rétention des demandes de lead (#292) : une demande jamais confirmée porte
     # des données nominatives sans consentement confirmé — elle est supprimée peu
     # après son expiration (grâce, pour un clic tardif). Une demande confirmée est
