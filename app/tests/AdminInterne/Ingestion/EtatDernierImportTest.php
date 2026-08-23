@@ -85,6 +85,16 @@ final class EtatDernierImportTest extends TestCase
         self::assertFalse($etat->sourcePerimee(new \DateTimeImmutable('2026-08-01')));
     }
 
+    public function testLHeureDeLaJourneeNePerimePasUneSource(): void
+    {
+        $etat = new EtatDernierImport(self::ingestion(
+            departement: '31',
+            mutationLaPlusRecente: new \DateTimeImmutable('2025-08-01'),
+        ));
+
+        self::assertFalse($etat->sourcePerimee(new \DateTimeImmutable('2026-08-01 14:35:00')));
+    }
+
     public function testUneFraicheurInconnueNEstPasUneSourcePerimee(): void
     {
         $etat = new EtatDernierImport(self::ingestion(departement: '31'));
