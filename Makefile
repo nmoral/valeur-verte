@@ -89,18 +89,31 @@ check: lint stan test
 
 # ---- Stack locale (PostGIS partagé + app FrankenPHP) ----
 # Lance la base et l'application dans Docker, applique les migrations, et expose
-# l'app sur http://127.0.0.1:8000. Ne nécessite ni PHP ni Composer sur le poste :
+# l'app sur http://127.0.0.1:$(APP_PORT). Ne nécessite ni PHP ni Composer sur le poste :
 # l'image se construit toute seule. La base prépare aussi valeur_verte_test.
+#
+# Un jeu de conteneurs PAR WORKTREE (§2 du CLAUDE.md) : nom de projet compose et
+# ports d'hôte dérivés du worktree courant, pour que deux tâches menées en
+# parallèle ne se partagent ni base ni port. `make stack-info` affiche l'adresse
+# de la stack du worktree ; `make stack-purge` la supprime avant d'effacer le
+# worktree. La dérivation vit dans scripts/worktree-env.sh (source unique,
+# partagée avec scripts/app-dev.sh).
+RACINE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+export COMPOSE_PROJECT_NAME := $(shell $(RACINE)scripts/worktree-env.sh COMPOSE_PROJECT_NAME)
+export APP_PORT := $(shell $(RACINE)scripts/worktree-env.sh APP_PORT)
+export POSTGRES_PORT := $(shell $(RACINE)scripts/worktree-env.sh POSTGRES_PORT)
+
 COMPOSE := docker compose -f $(INFRA)/docker-compose.yml
 # Variante dev : monte le code (pas de rebuild à chaque changement), APP_ENV=dev.
 COMPOSE_DEV := docker compose -f $(INFRA)/docker-compose.yml -f $(INFRA)/docker-compose.dev.yml
 
-.PHONY: stack-up stack-dev stack-image stack-down stack-reset stack-migrate stack-seed stack-logs
+.PHONY: stack-up stack-dev stack-image stack-down stack-reset stack-migrate stack-seed stack-logs \
+        stack-info stack-purge
 
 stack-up:
 	$(COMPOSE) up -d --build
 	$(COMPOSE) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
-	@echo "App disponible sur http://127.0.0.1:8000 (back-office : /back-office/couts, /back-office/bouquets, /back-office/rapports, /back-office/marque)"
+	@echo "App disponible sur http://127.0.0.1:$(APP_PORT) (back-office : /back-office/couts, /back-office/bouquets, /back-office/rapports, /back-office/marque)"
 
 # Stack de développement : le code app/ est monté dans le conteneur, donc un
 # changement de code est reflété sans reconstruire l'image (APP_ENV=dev). L'image
@@ -110,7 +123,7 @@ stack-up:
 stack-dev:
 	$(COMPOSE_DEV) up -d
 	$(COMPOSE_DEV) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
-	@echo "App (dev) sur http://app.valeurverte.localhost:8000 et http://admin.valeurverte.localhost:8000"
+	@echo "App (dev) sur http://app.valeurverte.localhost:$(APP_PORT) et http://admin.valeurverte.localhost:$(APP_PORT)"
 
 # Construit (ou reconstruit) l'image applicative seule.
 stack-image:
@@ -127,6 +140,14 @@ stack-seed:
 stack-logs:
 	$(COMPOSE) logs -f app
 
+# Où tourne la stack de CE worktree (nom de projet, ports).
+stack-info:
+	@echo "worktree        : $(notdir $(patsubst %/,%,$(RACINE)))"
+	@echo "projet compose  : $(COMPOSE_PROJECT_NAME)"
+	@echo "app             : http://app.valeurverte.localhost:$(APP_PORT) (admin. / widget. sur le même port)"
+	@echo "postgres        : 127.0.0.1:$(POSTGRES_PORT)"
+	@docker compose ls --filter name=^$(COMPOSE_PROJECT_NAME)$$
+
 # Arrête la stack en conservant les données.
 stack-down:
 	$(COMPOSE) down
@@ -134,3 +155,13 @@ stack-down:
 # Arrête la stack ET efface la base (repart de zéro).
 stack-reset:
 	$(COMPOSE) down -v
+
+# Efface TOUT ce que ce worktree a créé dans Docker : conteneurs, réseau,
+# volumes (base comprise) et image applicative du projet.
+# À jouer AVANT « git worktree remove » : une fois le worktree effacé, plus rien
+# ne rattache ces conteneurs à quoi que ce soit — ils survivent, occupent leurs
+# ports et redémarrent au boot (« restart: unless-stopped »).
+stack-purge:
+	$(COMPOSE_DEV) down -v --remove-orphans
+	-@docker image rm $(COMPOSE_PROJECT_NAME)-app 2>/dev/null || true
+	@echo "Stack $(COMPOSE_PROJECT_NAME) supprimée (conteneurs, réseau, volumes, image)."

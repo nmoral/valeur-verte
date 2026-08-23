@@ -9,6 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-valeur_verte}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-valeur_verte}
       POSTGRES_DB: ${POSTGRES_DB:-valeur_verte}
+    # Idem pour la base — voir scripts/worktree-env.sh pour la dérivation.
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -36,12 +37,15 @@ services:
       # Rôle applicatif « app » sur la base partagée : écrit le schéma app, lit
       # seulement data. L'hôte est le service « db » du réseau interne du compose.
       DATABASE_URL: "postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
+    # Port d'hôte propre au worktree (scripts/worktree-env.sh) : deux stacks
+    # lancées en parallèle depuis deux worktrees ne se disputent pas le 8000.
     ports:
-      - "127.0.0.1:8000:80"
+      - "127.0.0.1:${APP_PORT:-8000}:80"
     # Même sonde qu'en production (#313) : la stack locale exerce l'artefact du VPS,
     # sa santé doit vouloir dire la même chose. Sans elle, le conteneur héritait de
     # la sonde d'administration de FrankenPHP et s'affichait « unhealthy » en
-    # permanence, sans rien dire de l'application.
+    # permanence, sans rien dire de l'application. La sonde interroge le port 80 du
+    # conteneur, pas le port d'hôte : elle est indifférente au décalage par worktree.
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:80/sante"]
       interval: 30s

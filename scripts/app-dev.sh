@@ -13,6 +13,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_ENV="${APP_ENV:-test}"
 
+# Stack du worktree courant : sans nom de projet explicite, compose retomberait
+# sur « infra » (le nom du répertoire du fichier compose) et cette commande
+# irait taper la base d'un AUTRE worktree. Voir scripts/worktree-env.sh.
+eval "$("$ROOT/scripts/worktree-env.sh" --export)"
+
 # En environnement test, Doctrine ajoute le suffixe « _test » (dbname_suffix) :
 # on pointe donc toujours la base de base « valeur_verte », jamais « _test » en dur.
 DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
@@ -22,7 +27,13 @@ DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset
 # recopier le SQL — la copie dériverait sans que rien ne le signale. Monté sur
 # /pipeline et non /data, qui est le répertoire de travail de Caddy dans l'image.
 # VV_DATA_DIR dit où le trouver ; à défaut c'est la disposition du dépôt (CI).
-exec docker compose -f "$ROOT/infra/docker-compose.yml" run --rm --no-deps \
+# Chaque worktree a SA base : celle du projet doit tourner avant de lancer une
+# commande qui l'interroge. `up -d --wait db` est idempotent — sans effet si elle
+# est déjà debout, et attend qu'elle soit saine à la première fois.
+docker compose -p "$COMPOSE_PROJECT_NAME" -f "$ROOT/infra/docker-compose.yml" \
+    up -d --wait db >/dev/null
+
+exec docker compose -p "$COMPOSE_PROJECT_NAME" -f "$ROOT/infra/docker-compose.yml" run --rm --no-deps \
     -v "$ROOT/app:/app" -v "$ROOT/data:/pipeline:ro" -w /app \
     -u "$(id -u):$(id -g)" \
     -e APP_ENV="$APP_ENV" \
