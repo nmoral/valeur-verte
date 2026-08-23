@@ -22,6 +22,10 @@ class Entreprise implements TenantAwareInterface
 {
     use TenantAwareTrait;
 
+    /** Bornes des colonnes : un dépassement doit se lire, pas partir en erreur SQL. */
+    public const int LONGUEUR_MAX_RAISON_SOCIALE = 255;
+    public const int LONGUEUR_MAX_ADRESSE = 255;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -85,6 +89,37 @@ class Entreprise implements TenantAwareInterface
         );
     }
 
+    /**
+     * Correction par le pro (#311) de ce qu'il connaît mieux que la source : sa
+     * raison sociale d'usage, son adresse. Le SIRET, le code NAF, l'effectif et les
+     * qualifications RGE ne sont pas touchés — ils viennent des sources publiques,
+     * et une qualification RGE auto-déclarée n'aurait aucune valeur.
+     */
+    public function corriger(string $raisonSociale, string $adresse): void
+    {
+        $this->raisonSociale = self::exigerTexte(
+            $raisonSociale,
+            'La raison sociale',
+            self::LONGUEUR_MAX_RAISON_SOCIALE,
+        );
+        $this->adresse = self::exigerTexte($adresse, "L'adresse", self::LONGUEUR_MAX_ADRESSE);
+    }
+
+    /**
+     * Changement de SIRET re-vérifié (#311) : l'établissement n'est plus le même,
+     * toute l'identité issue de la source le suit.
+     */
+    public function remplacerPar(FicheEntreprise $fiche): void
+    {
+        $this->siret = $fiche->siret()->valeur();
+        $this->raisonSociale = $fiche->raisonSociale();
+        $this->adresse = $fiche->adresse();
+        $this->codeNaf = '' === $fiche->codeNaf() ? null : $fiche->codeNaf();
+        $this->effectif = $fiche->effectif();
+        $this->statutRge = $fiche->statutRge();
+        $this->domainesRge = $fiche->domainesRge();
+    }
+
     public function siret(): string
     {
         return $this->siret;
@@ -121,5 +156,20 @@ class Entreprise implements TenantAwareInterface
     public function domainesRge(): array
     {
         return $this->domainesRge;
+    }
+
+    private static function exigerTexte(string $valeur, string $libelle, int $longueurMax): string
+    {
+        $normalise = trim($valeur);
+
+        if ('' === $normalise) {
+            throw new \InvalidArgumentException(\sprintf('%s est obligatoire.', $libelle));
+        }
+
+        if (mb_strlen($normalise) > $longueurMax) {
+            throw new \InvalidArgumentException(\sprintf('%s ne peut pas dépasser %d caractères.', $libelle, $longueurMax));
+        }
+
+        return $normalise;
     }
 }
