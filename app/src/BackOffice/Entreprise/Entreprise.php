@@ -97,12 +97,17 @@ class Entreprise implements TenantAwareInterface
      */
     public function corriger(string $raisonSociale, string $adresse): void
     {
-        $this->raisonSociale = self::exigerTexte(
+        // Les deux champs sont validés **avant** d'en écrire un seul : un refus
+        // laisse la fiche exactement dans l'état où elle était.
+        $raisonSocialeValidee = self::exigerTexte(
             $raisonSociale,
             'La raison sociale',
             self::LONGUEUR_MAX_RAISON_SOCIALE,
         );
-        $this->adresse = self::exigerTexte($adresse, "L'adresse", self::LONGUEUR_MAX_ADRESSE);
+        $adresseValidee = self::exigerTexte($adresse, "L'adresse", self::LONGUEUR_MAX_ADRESSE);
+
+        $this->raisonSociale = $raisonSocialeValidee;
+        $this->adresse = $adresseValidee;
     }
 
     /**
