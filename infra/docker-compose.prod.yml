@@ -120,9 +120,16 @@ services:
       # Sauvegarde de la base (#55, §9.11), portée par le seul ordonnanceur. Le dump
       # va dans le volume monté ci-dessous ; il tourne sous le rôle **superutilisateur**
       # (POSTGRES_USER), car « app » ne peut pas dumper le schéma « data » ni
-      # public.schema_migrations. Ce DSN privilégié reste confiné au service cron.
+      # public.schema_migrations. Ces identifiants privilégiés restent confinés au
+      # service cron. Le mot de passe passe par PGPASSWORD (l'app le lit et le donne à
+      # pg_dump par l'environnement, jamais par la ligne de commande) : un mot de passe
+      # quelconque reste correct, sans encodage d'URL.
       VV_SAUVEGARDE_DIR: /sauvegardes
-      VV_SAUVEGARDE_DATABASE_URL: "postgresql://${POSTGRES_USER:?POSTGRES_USER est requis}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}@db:5432/${POSTGRES_DB:?POSTGRES_DB est requis}"
+      VV_SAUVEGARDE_DB_HOST: db
+      VV_SAUVEGARDE_DB_PORT: "5432"
+      VV_SAUVEGARDE_DB_USER: ${POSTGRES_USER:?POSTGRES_USER est requis}
+      VV_SAUVEGARDE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}
+      VV_SAUVEGARDE_DB_NAME: ${POSTGRES_DB:?POSTGRES_DB est requis}
     volumes:
       # Crontab versionné (infra/cron/crontab), téléversé par le workflow de
       # déploiement. Sans lui, Compose créerait un répertoire vide à sa place et
