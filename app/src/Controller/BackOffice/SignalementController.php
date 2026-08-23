@@ -8,6 +8,7 @@ use App\AdminInterne\Signalement\Signalement;
 use App\AdminInterne\Signalement\SignalementRepository;
 use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Restitution\Restitution;
+use App\Compte\SuiviCompte;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,8 +23,12 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SignalementController extends AbstractController
 {
     #[Route('/audit/resultat/signalement', name: 'back_office_audit_signalement', host: 'app.%app.domaine%', methods: ['POST'])]
-    public function __invoke(Request $request, SignalementRepository $signalements, ClockInterface $clock): Response
+    public function __invoke(Request $request, SignalementRepository $signalements, ClockInterface $clock, SuiviCompte $suivi): Response
     {
+        if ($suivi->estSuspendu()) {
+            return $this->json(['ok' => false, 'erreur' => 'Compte suspendu.'], Response::HTTP_FORBIDDEN);
+        }
+
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
         $saisie = \is_array($resultat) ? ($resultat['saisie'] ?? null) : null;
         if (!$saisie instanceof SaisieAudit) {
