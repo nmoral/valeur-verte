@@ -67,6 +67,39 @@ final readonly class AdministrationComptes
     }
 
     /**
+     * Demande d'effacement du compte (#308, RGPD) : ouvre le délai de grâce. La
+     * suppression définitive est finalisée plus tard par le service dédié, jamais
+     * ici. Idempotent : une demande déjà en cours n'est pas ré-ouverte.
+     */
+    public function demanderSuppression(int $tenantId, string $auteur): bool
+    {
+        $compte = $this->comptes->pourTenant($tenantId);
+        if (null === $compte || $compte->estEnAttenteDeSuppression()) {
+            return false;
+        }
+
+        $compte->demanderSuppression($this->clock->now());
+        $this->comptes->enregistrer($compte);
+        $this->tracer($auteur, 'compte.suppression_demandee', $tenantId);
+
+        return true;
+    }
+
+    public function annulerSuppression(int $tenantId, string $auteur): bool
+    {
+        $compte = $this->comptes->pourTenant($tenantId);
+        if (null === $compte || !$compte->estEnAttenteDeSuppression()) {
+            return false;
+        }
+
+        $compte->annulerSuppression();
+        $this->comptes->enregistrer($compte);
+        $this->tracer($auteur, 'compte.suppression_annulee', $tenantId);
+
+        return true;
+    }
+
+    /**
      * @param array<string, mixed> $contexte
      */
     private function tracer(string $auteur, string $action, int $tenantId, array $contexte = []): void

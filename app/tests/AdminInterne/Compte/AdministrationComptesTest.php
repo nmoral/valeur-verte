@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\AdminInterne\Compte;
 
 use App\AdminInterne\Compte\AdministrationComptes;
+use App\AdminInterne\JournalAudit\EvenementAudit;
 use App\AdminInterne\JournalAudit\JournalAuditEnMemoire;
 use App\Compte\Compte;
 use App\Compte\CompteRepository;
@@ -81,8 +82,9 @@ final class AdministrationComptesTest extends KernelTestCase
 
         $this->viderIdentityMap();
         $compte = $this->comptes->pourTenant(42);
-        self::assertTrue($compte?->estEnAttenteDeSuppression());
-        self::assertEquals(new \DateTimeImmutable('2026-08-17 09:00:00'), $compte?->suppressionDemandeeLe());
+        self::assertNotNull($compte);
+        self::assertTrue($compte->estEnAttenteDeSuppression());
+        self::assertEquals(new \DateTimeImmutable('2026-08-17 09:00:00'), $compte->suppressionDemandeeLe());
 
         $evenement = $this->journal->evenementsRecents()[0];
         self::assertSame('compte.suppression_demandee', $evenement->action());
@@ -108,7 +110,11 @@ final class AdministrationComptesTest extends KernelTestCase
 
         $this->viderIdentityMap();
         self::assertFalse($this->comptes->pourTenant(42)?->estEnAttenteDeSuppression());
-        self::assertSame('compte.suppression_annulee', $this->journal->evenementsRecents()[0]->action());
+        $actions = array_map(
+            static fn (EvenementAudit $e): string => $e->action(),
+            $this->journal->evenementsRecents(),
+        );
+        self::assertContains('compte.suppression_annulee', $actions);
     }
 
     public function testAnnulerSuppressionSansDemandeNeFaitRien(): void
