@@ -36,6 +36,15 @@ security:
                 success_handler: App\Security\RedirectionSelonRole
             logout:
                 path: /logout
+            # Force brute (#307) : plafond par couple (IP, identifiant), plus un
+            # plafond global par IP à cinq fois ce nombre (Symfony). Plafonner la
+            # seule IP laisserait passer une attaque distribuée ; plafonner le seul
+            # identifiant permettrait de verrouiller à distance le compte de
+            # n'importe qui. Une fenêtre de 15 minutes rend la force brute
+            # impraticable sans punir la faute de frappe.
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
 
     # Seule la première règle qui matche s'applique : /login d'abord (publique
     # sur tout host), puis l'exigence de rôle par sous-domaine.
