@@ -4,29 +4,36 @@ declare(strict_types=1);
 
 namespace App\Tests\BackOffice;
 
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Twig\Environment;
+use App\Tests\Support\ConnecteUnPro;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class LayoutTest extends KernelTestCase
+/**
+ * Coquille applicative de l'espace pro (mockup back-office). Le gabarit se vérifie
+ * **servi par une vraie requête** et non rendu à sec : depuis #306 les routes de la
+ * zone sont épinglées sur `app.`, et `path()` ne rend des liens relatifs que si le
+ * contexte de requête est celui de la zone. Rendre le gabarit hors requête produirait
+ * des URL absolues et testerait autre chose que ce qu'un pro voit.
+ */
+final class LayoutTest extends WebTestCase
 {
-    public function testBackOfficeBaseTemplateRendersTheApplicationShell(): void
+    use ConnecteUnPro;
+
+    public function testLaCoquilleDeLEspaceProPorteMarqueNavigationEtContenu(): void
     {
-        self::bootKernel();
-        $twig = self::getContainer()->get(Environment::class);
-        self::assertInstanceOf(Environment::class, $twig);
+        $client = static::createClient();
+        $this->connecterPro($client);
 
-        $html = $twig->render('back_office/base.html.twig', [
-            'page_title' => 'Tableau de bord',
-        ]);
+        $client->request('GET', self::urlPro('/rapports'));
 
-        // Coquille applicative (mockup back-office) : marque, navigation, zone principale.
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+
+        // Coquille : marque, navigation, zone principale.
         self::assertStringContainsString('Valeur Verte', $html);
         self::assertStringContainsString('<aside', $html);
         self::assertStringContainsString('<main', $html);
         self::assertStringContainsString('Configuration', $html);
         self::assertStringContainsString('Compte', $html);
-        // Titre de page injecté par le bloc.
-        self::assertStringContainsString('Tableau de bord', $html);
         // Feuille de style du design system reliée.
         self::assertStringContainsString('back-office.css', $html);
 

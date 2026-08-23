@@ -15,13 +15,19 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Page « Mon compte » (#206, AUTH-3) : changement de mot de passe d'un compte
- * connecté. Servie sur les deux zones (espace pro app. et admin interne admin.) —
- * la route n'impose pas d'hôte, chaque zone la protège par son rôle (access_control).
- * Même contrôleur, même page : aucune duplication.
+ * connecté. Servie sur les deux zones (espace pro app. et admin interne admin.),
+ * chacune la protégeant par son rôle (access_control). Même contrôleur, même page :
+ * aucune duplication — mais **deux routes épinglées** plutôt qu'une route sans hôte,
+ * qui répondrait aussi sur l'apex et sur `widget.` (#306).
  */
 final class MonCompteController extends AbstractController
 {
-    #[Route('/mon-compte', name: 'mon_compte', methods: ['GET', 'POST'])]
+    // Deux déclarations plutôt qu'une route sans hôte : la page vit dans les deux
+    // zones authentifiées, et nulle part ailleurs. Le nom diffère pour que la
+    // génération d'URL reste explicite dans chaque gabarit ; la redirection après
+    // POST repart sur la route effectivement empruntée.
+    #[Route('/mon-compte', name: 'mon_compte', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
+    #[Route('/mon-compte', name: 'mon_compte_admin', host: 'admin.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request, ChangementMotDePasse $changement, Security $security): Response
     {
         $user = $this->getUser();
@@ -44,7 +50,7 @@ final class MonCompteController extends AbstractController
                 $security->login($user);
                 $this->addFlash('mon_compte', 'Votre mot de passe a été mis à jour.');
 
-                return $this->redirectToRoute('mon_compte');
+                return $this->redirectToRoute($request->attributes->getString('_route', 'mon_compte'));
             } catch (MotDePasseActuelInvalide) {
                 $erreurs['actuel'] = 'Mot de passe actuel incorrect.';
             }

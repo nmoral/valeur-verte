@@ -25,7 +25,7 @@ final class RapportPdfController extends AbstractController
     ) {
     }
 
-    #[Route('/rapport/{reference}/pdf', name: 'back_office_rapport_pdf', methods: ['GET'])]
+    #[Route('/rapport/{reference}/pdf', name: 'back_office_rapport_pdf', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(string $reference): Response
     {
         $rapport = $this->rapports->parReference($reference);

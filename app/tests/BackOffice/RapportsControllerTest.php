@@ -10,24 +10,28 @@ use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\Tests\BackOffice\Rapport\InstantaneRapportMother;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class RapportsControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testLaListeUniqueAfficheRapportsEtLeadsAvecContactEventuel(): void
     {
         $client = static::createClient();
+        $tenantId = $this->connecterPro($client);
         $repository = self::getContainer()->get(RapportRepository::class);
         self::assertInstanceOf(RapportRepository::class, $repository);
 
-        $repository->enregistrer(Rapport::creer(
+        $repository->enregistrer(self::pourLeTenant($tenantId, Rapport::creer(
             '2026-0841',
             new \DateTimeImmutable('2026-08-01 09:00:00'),
             Source::Audit,
             InstantaneRapportMother::creer(),
             '/rapports/2026-0841.pdf',
-        ));
-        $repository->enregistrer(Rapport::creer(
+        )));
+        $repository->enregistrer(self::pourLeTenant($tenantId, Rapport::creer(
             '2026-0900',
             new \DateTimeImmutable('2026-08-10 09:00:00'),
             Source::Widget,
@@ -39,9 +43,9 @@ final class RapportsControllerTest extends WebTestCase
             ),
             '/rapports/2026-0900.pdf',
             Contact::creer('Mme Cazeneuve', 'cazeneuve@example.com', null),
-        ));
+        )));
 
-        $client->request('GET', '/rapports');
+        $client->request('GET', self::urlPro('/rapports'));
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Rapports & leads');
@@ -63,7 +67,8 @@ final class RapportsControllerTest extends WebTestCase
         // La rétention D10 (#68) rend « consultable indéfiniment » faux : le
         // contact et l'adresse précise s'effacent à 24 mois, le rapport part à 3 ans.
         $client = static::createClient();
-        $client->request('GET', '/rapports');
+        $this->connecterPro($client);
+        $client->request('GET', self::urlPro('/rapports'));
 
         self::assertResponseIsSuccessful();
         $html = (string) $client->getResponse()->getContent();

@@ -10,20 +10,23 @@ use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
 use App\Controller\BackOffice\AuditController;
+use App\Tests\Support\ConnecteUnPro;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
-use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 final class SignalementControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testSignalerEnregistreLeRetourAvecLeContexteDeLaSession(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserResultatEnSession($client);
 
-        $client->xmlHttpRequest('POST', 'http://valeurverte.localhost/audit/resultat/signalement', [
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/signalement', [
             'message' => 'Le gain me paraît trop élevé pour ce quartier.',
         ]);
 
@@ -49,8 +52,9 @@ final class SignalementControllerTest extends WebTestCase
     public function testSansResultatEnSessionLeSignalementEstRefuse(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->xmlHttpRequest('POST', 'http://valeurverte.localhost/audit/resultat/signalement', [
+        $client->xmlHttpRequest('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/signalement', [
             'message' => 'test',
         ]);
 
@@ -60,9 +64,7 @@ final class SignalementControllerTest extends WebTestCase
 
     private function poserResultatEnSession(KernelBrowser $client): void
     {
-        $factory = self::getContainer()->get('session.factory');
-        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
-        $session = $factory->createSession();
+        $session = $this->sessionDuClient($client);
         $saisie = SaisieAudit::depuis('12 rue des Lilas, 31000 Toulouse', 90, 300, Dpe::E, Dpe::C);
         $restitution = Restitution::depuis(15000, 12000, 18000, 134, 10, 2024, 200000, false);
         $session->set(AuditController::SESSION_RESULTAT, [

@@ -22,13 +22,13 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class PagePubliqueController extends AbstractController
 {
-    #[Route('/page-publique', name: 'back_office_page_publique', methods: ['GET'])]
+    #[Route('/page-publique', name: 'back_office_page_publique', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(TenantContext $tenants, PagePubliqueDuPro $pages): Response
     {
         return $this->ecran($pages->courante($this->tenant($tenants)), $pages);
     }
 
-    #[Route('/page-publique/slug', name: 'back_office_page_publique_slug', methods: ['POST'])]
+    #[Route('/page-publique/slug', name: 'back_office_page_publique_slug', host: 'app.%app.domaine%', methods: ['POST'])]
     public function renommer(
         Request $request,
         TenantContext $tenants,
@@ -48,19 +48,19 @@ final class PagePubliqueController extends AbstractController
         return $this->redirectToRoute('back_office_page_publique');
     }
 
-    #[Route('/page-publique/retirer', name: 'back_office_page_publique_retirer', methods: ['POST'])]
+    #[Route('/page-publique/retirer', name: 'back_office_page_publique_retirer', host: 'app.%app.domaine%', methods: ['POST'])]
     public function retirer(TenantContext $tenants, PagePubliqueDuPro $pages, PagePubliqueRepository $depot): Response
     {
         return $this->basculer($tenants, $pages, $depot, enLigne: false);
     }
 
-    #[Route('/page-publique/remettre-en-ligne', name: 'back_office_page_publique_remettre', methods: ['POST'])]
+    #[Route('/page-publique/remettre-en-ligne', name: 'back_office_page_publique_remettre', host: 'app.%app.domaine%', methods: ['POST'])]
     public function remettreEnLigne(TenantContext $tenants, PagePubliqueDuPro $pages, PagePubliqueRepository $depot): Response
     {
         return $this->basculer($tenants, $pages, $depot, enLigne: true);
     }
 
-    #[Route('/page-publique/regenerer', name: 'back_office_page_publique_regenerer', methods: ['POST'])]
+    #[Route('/page-publique/regenerer', name: 'back_office_page_publique_regenerer', host: 'app.%app.domaine%', methods: ['POST'])]
     public function regenerer(
         TenantContext $tenants,
         PagePubliqueDuPro $pages,

@@ -18,10 +18,10 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\BackOffice\Restitution\Restitution;
 use App\Controller\BackOffice\AuditController;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
-use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 /**
  * Déclarations du pro sur la restitution (#26) : situation de revenus du ménage et
@@ -32,14 +32,17 @@ use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
  */
 final class AuditResultatDeclarationsTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     private const string REFERENCE = 'VV-20260815-DC9999';
 
     public function testLaRestitutionOffreLeChoixDeLaSituationDuMenage(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('form[action="/audit/resultat/declarations"] [name="categorie_revenu"]');
@@ -51,9 +54,10 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testDeclarerUneCategorieLaPersisteSurLeRapport(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
         ]);
 
@@ -66,9 +70,10 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testRetoucherUnPosteDeChiffrageLePersiste(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
             'chiffrage' => [Poste::Menuiseries->name => '8400'],
         ]);
@@ -82,9 +87,10 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testUneCategorieInconnueEstRefuseeSansRienEcrire(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => 'Fortune',
         ]);
 
@@ -97,9 +103,10 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testUneRetoucheNegativeEstRefuseeSansRienEcrire(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
             'chiffrage' => [Poste::Menuiseries->name => '-1'],
         ]);
@@ -113,9 +120,10 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testDeclarerNAlterePasLaMesureFigee(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::TresModeste->name,
         ]);
 
@@ -128,8 +136,9 @@ final class AuditResultatDeclarationsTest extends WebTestCase
     public function testSansResultatEnSessionOnRenvoieVersLaSaisie(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat/declarations', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat/declarations', [
             'categorie_revenu' => CategorieRevenu::Modeste->name,
         ]);
 
@@ -144,7 +153,7 @@ final class AuditResultatDeclarationsTest extends WebTestCase
         $restitution = Restitution::depuis(40700, 30000, 51000, 476, 25, 2024, 200000, false);
         $bouquet = Bouquet::creer('Bouquet de test', Poste::Murs, Poste::Menuiseries, Poste::Chauffage);
 
-        $this->rapports()->enregistrer(Rapport::creer(
+        $this->rapports()->enregistrer(self::pourLeTenant($this->connecterPro($client), Rapport::creer(
             self::REFERENCE,
             new \DateTimeImmutable('2026-08-15 10:00:00'),
             Source::Audit,
@@ -158,11 +167,9 @@ final class AuditResultatDeclarationsTest extends WebTestCase
                 $bouquet,
             ),
             '/rapport/'.self::REFERENCE.'/pdf',
-        ));
+        )));
 
-        $factory = self::getContainer()->get('session.factory');
-        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
-        $session = $factory->createSession();
+        $session = $this->sessionDuClient($client);
         $session->set(AuditController::SESSION_RESULTAT, [
             'saisie' => $saisie,
             'restitution' => $restitution,

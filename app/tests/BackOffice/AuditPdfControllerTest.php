@@ -7,6 +7,7 @@ namespace App\Tests\BackOffice;
 use App\BackOffice\Estimation\CoefficientMaille;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
+use App\Tests\Support\ConnecteUnPro;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -20,8 +21,10 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final class AuditPdfControllerTest extends WebTestCase
 {
-    private const URL_AUDIT = 'http://valeurverte.localhost/audit';
-    private const URL_PDF = 'http://valeurverte.localhost/audit/resultat/pdf';
+    use ConnecteUnPro;
+
+    private const URL_AUDIT = 'http://'.self::HOTE_PRO.'/audit';
+    private const URL_PDF = 'http://'.self::HOTE_PRO.'/audit/resultat/pdf';
     private const CODE_INSEE = '31555';
 
     public function testTelechargeUnPdfApresUneSaisieValide(): void
@@ -70,6 +73,7 @@ final class AuditPdfControllerTest extends WebTestCase
     public function testAccesDirectSansResultatRenvoieVersLaSaisie(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $client->request('GET', self::URL_PDF);
 
@@ -92,6 +96,7 @@ final class AuditPdfControllerTest extends WebTestCase
     private function client(): KernelBrowser
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $client->disableReboot();
 
         return $client;

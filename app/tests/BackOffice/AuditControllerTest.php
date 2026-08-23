@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\BackOffice;
 
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 
 final class AuditControllerTest extends WebTestCase
 {
-    private const URL = 'http://valeurverte.localhost/audit';
+    use ConnecteUnPro;
+
+    private const URL = 'http://'.self::HOTE_PRO.'/audit';
 
     public function testLaPagePorteLeFormulaireDeSaisie(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $client->request('GET', self::URL);
 
@@ -37,6 +41,7 @@ final class AuditControllerTest extends WebTestCase
     public function testUneSaisieValideMeneAUneConfirmation(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $this->soumettre($client, [
             'adresse' => '12 rue des Lilas, Toulouse',
@@ -57,6 +62,7 @@ final class AuditControllerTest extends WebTestCase
     public function testUneSaisieHorsBorneEstBloquee(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $this->soumettre($client, [
             'adresse' => '12 rue des Lilas',
@@ -77,6 +83,7 @@ final class AuditControllerTest extends WebTestCase
     public function testUnRatioSurfacePiecesDouteuxAvertitSansBloquer(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $this->soumettre($client, [
             'adresse' => '12 rue des Lilas',
@@ -97,6 +104,7 @@ final class AuditControllerTest extends WebTestCase
     public function testUnDpeManquantEstBloque(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $crawler = $client->request('GET', self::URL);
         self::assertInstanceOf(Crawler::class, $crawler);
         $token = $crawler->filter('input[name="_csrf_token"]')->attr('value');

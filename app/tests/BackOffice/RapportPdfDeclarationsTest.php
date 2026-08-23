@@ -24,9 +24,8 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\BackOffice\Restitution\DeclarationsPro;
 use App\BackOffice\Restitution\Restitution;
-use App\Security\User;
-use App\Security\UserRepository;
 use App\Tests\BackOffice\Pdf\Double\ConvertisseurPdfEspion;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -40,18 +39,20 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class RapportPdfDeclarationsTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     private const string REFERENCE = 'VV-20260815-PD9999';
 
     public function testLePdfTelechargeRefleteLaCategorieDeclaree(): void
     {
         $client = static::createClient();
+        $tenantId = $this->connecterPro($client);
         $espion = $this->espionner($client);
-        $this->connecterPro($client);
-        $rapport = $this->archiver();
+        $rapport = $this->archiver($tenantId);
         $rapport->declarerPar(DeclarationsPro::depuis(CategorieRevenu::Modeste, []));
         $this->rapports()->enregistrer($rapport);
 
-        $client->request('GET', 'http://valeurverte.localhost/rapport/'.self::REFERENCE.'/pdf');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/rapport/'.self::REFERENCE.'/pdf');
 
         self::assertResponseIsSuccessful();
         // 17 760 € de travaux, gain E→C, ménage modeste : reste 7 104 €.
@@ -61,11 +62,11 @@ final class RapportPdfDeclarationsTest extends WebTestCase
     public function testSansDeclarationLePdfAfficheLaFourchette(): void
     {
         $client = static::createClient();
+        $tenantId = $this->connecterPro($client);
         $espion = $this->espionner($client);
-        $this->connecterPro($client);
-        $this->archiver();
+        $this->archiver($tenantId);
 
-        $client->request('GET', 'http://valeurverte.localhost/rapport/'.self::REFERENCE.'/pdf');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/rapport/'.self::REFERENCE.'/pdf');
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('3 552', $espion->dernierHtml);
@@ -80,7 +81,7 @@ final class RapportPdfDeclarationsTest extends WebTestCase
         return $espion;
     }
 
-    private function archiver(): Rapport
+    private function archiver(int $tenantId): Rapport
     {
         $saisie = SaisieAudit::depuis('12 rue des Lilas, Toulouse', 100, 0, Dpe::E, Dpe::C, 5);
         $bouquet = Bouquet::creer('Bouquet de test', Poste::Murs, Poste::Menuiseries);
@@ -103,18 +104,9 @@ final class RapportPdfDeclarationsTest extends WebTestCase
             ),
             '/rapport/'.self::REFERENCE.'/pdf',
         );
-        $this->rapports()->enregistrer($rapport);
+        $this->rapports()->enregistrer(self::pourLeTenant($tenantId, $rapport));
 
         return $rapport;
-    }
-
-    private function connecterPro(KernelBrowser $client): void
-    {
-        $repository = self::getContainer()->get(UserRepository::class);
-        self::assertInstanceOf(UserRepository::class, $repository);
-        $pro = new User('pro.pdf@example.com', ['ROLE_PRO']);
-        $repository->enregistrer($pro);
-        $client->loginUser($pro);
     }
 
     private function rapports(): RapportRepository

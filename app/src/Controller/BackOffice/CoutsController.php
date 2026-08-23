@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class CoutsController extends AbstractController
 {
-    #[Route('/couts', name: 'back_office_couts', methods: ['GET'])]
+    #[Route('/couts', name: 'back_office_couts', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(GrilleCoutRepository $grilles): Response
     {
         return $this->render('back_office/couts.html.twig', [

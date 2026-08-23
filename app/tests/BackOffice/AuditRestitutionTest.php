@@ -9,6 +9,7 @@ use App\BackOffice\Restitution\PalierFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
 use App\Tests\BackOffice\Estimation\Double\FournisseurCoefficientMailleEnMemoire;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -20,7 +21,9 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final class AuditRestitutionTest extends WebTestCase
 {
-    private const URL = 'http://valeurverte.localhost/audit';
+    use ConnecteUnPro;
+
+    private const URL = 'http://'.self::HOTE_PRO.'/audit';
     private const CODE_INSEE = '31555';
 
     public function testUneSaisieValideAfficheLeChiffreEtSonContexte(): void
@@ -224,6 +227,7 @@ final class AuditRestitutionTest extends WebTestCase
     private function client(): KernelBrowser
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         // Sans reboot entre GET (jeton) et POST, le conteneur — donc les doubles
         // configurés en mémoire — survit d'une requête à l'autre.
         $client->disableReboot();

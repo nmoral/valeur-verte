@@ -19,7 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class BouquetsController extends AbstractController
 {
-    #[Route('/bouquets', name: 'back_office_bouquets', methods: ['GET', 'POST'])]
+    #[Route('/bouquets', name: 'back_office_bouquets', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request, BouquetRepository $bouquets): Response
     {
         if ($request->isMethod('POST')) {
@@ -37,7 +37,7 @@ final class BouquetsController extends AbstractController
         return $this->rendre($bouquets);
     }
 
-    #[Route('/bouquets/supprimer', name: 'back_office_bouquets_supprimer', methods: ['POST'])]
+    #[Route('/bouquets/supprimer', name: 'back_office_bouquets_supprimer', host: 'app.%app.domaine%', methods: ['POST'])]
     public function supprimer(Request $request, BouquetRepository $bouquets): Response
     {
         $bouquets->supprimer($request->request->getString('nom'));

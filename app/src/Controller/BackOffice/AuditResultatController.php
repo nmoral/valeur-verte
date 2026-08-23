@@ -35,7 +35,7 @@ final class AuditResultatController extends AbstractController
     ) {
     }
 
-    #[Route('/audit/resultat', name: 'back_office_audit_resultat', methods: ['GET', 'POST'])]
+    #[Route('/audit/resultat', name: 'back_office_audit_resultat', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
@@ -55,7 +55,7 @@ final class AuditResultatController extends AbstractController
      * chiffrage. Écrit dans le champ dédié du rapport, jamais dans l'instantané
      * figé — le pro peut y revenir sans réémettre de rapport.
      */
-    #[Route('/audit/resultat/declarations', name: 'back_office_audit_resultat_declarations', methods: ['POST'])]
+    #[Route('/audit/resultat/declarations', name: 'back_office_audit_resultat_declarations', host: 'app.%app.domaine%', methods: ['POST'])]
     public function declarer(Request $request): Response
     {
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);

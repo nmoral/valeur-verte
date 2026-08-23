@@ -8,10 +8,10 @@ use App\BackOffice\Audit\SaisieAudit;
 use App\BackOffice\Rapport\Dpe;
 use App\BackOffice\Restitution\Restitution;
 use App\Controller\BackOffice\AuditController;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
-use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 /**
  * Page de restitution dédiée (§5.3, #31) : elle ne s'atteint qu'après une saisie
@@ -19,11 +19,14 @@ use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
  */
 final class AuditResultatControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testSansResultatEnSessionRenvoieVersLaSaisie(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseStatusCodeSame(302);
         $location = (string) $client->getResponse()->headers->get('Location');
@@ -33,9 +36,10 @@ final class AuditResultatControllerTest extends WebTestCase
     public function testLaRestitutionPorteLeCanalDeRetour(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserResultatEnSession($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         // Bouton « ce chiffre me semble faux » (#49) posté vers la route de signalement.
@@ -46,9 +50,10 @@ final class AuditResultatControllerTest extends WebTestCase
     public function testLaRestitutionInviteAPersonnaliserApresLeRapport(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserResultatEnSession($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         // ONB-4 : invitation à personnaliser (marque, coûts), jamais un mur — on
@@ -65,9 +70,10 @@ final class AuditResultatControllerTest extends WebTestCase
         // dans le produit ». n, rayon et la fourchette (forme visible de l'erreur
         // médiane) portent une infobulle qui en explique le sens, sans jargon.
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserResultatEnSession($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         // Chaque indicateur du bloc stats porte un marqueur d'infobulle.
@@ -85,9 +91,10 @@ final class AuditResultatControllerTest extends WebTestCase
         // ONB-8 (#110) : chasse au jargon. « médiane de la commune » est le seul terme
         // technique exposé au pro ; une infobulle l'explique en clair.
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserResultatEnSession($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.resultat-prix .infobulle');
@@ -96,9 +103,7 @@ final class AuditResultatControllerTest extends WebTestCase
 
     private function poserResultatEnSession(KernelBrowser $client): void
     {
-        $factory = self::getContainer()->get('session.factory');
-        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
-        $session = $factory->createSession();
+        $session = $this->sessionDuClient($client);
         $saisie = SaisieAudit::depuis('12 rue des Lilas, 31000 Toulouse', 90, 300, Dpe::E, Dpe::C);
         $restitution = Restitution::depuis(15000, 12000, 18000, 134, 10, 2024, 200000, false);
         $session->set(AuditController::SESSION_RESULTAT, [

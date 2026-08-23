@@ -6,6 +6,7 @@ namespace App\Tests\BackOffice;
 
 use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Rapport\RapportRepository;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -18,11 +19,14 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final class AuditBouquetTest extends WebTestCase
 {
-    private const URL = 'http://valeurverte.localhost/audit';
+    use ConnecteUnPro;
+
+    private const URL = 'http://'.self::HOTE_PRO.'/audit';
 
     public function testLeFormulaireProposeLesBouquetsTypes(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $client->request('GET', self::URL);
 
@@ -37,6 +41,7 @@ final class AuditBouquetTest extends WebTestCase
     public function testLeBouquetChoisiEstFigeDansLeRapportEtRestitue(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
         $this->soumettre($client, [
             'adresse' => '12 rue des Lilas, Toulouse',

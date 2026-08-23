@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class BrandingController extends AbstractController
 {
-    #[Route('/marque', name: 'back_office_marque', methods: ['GET', 'POST'])]
+    #[Route('/marque', name: 'back_office_marque', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request, BrandingRepository $brandings): Response
     {
         if ($request->isMethod('POST')) {

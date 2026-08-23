@@ -15,10 +15,10 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\BackOffice\Restitution\Restitution;
 use App\Controller\BackOffice\AuditController;
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
-use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
 
 /**
  * Ligne d'ajustement du professionnel sur la restitution (#30, §4). Le pro pose
@@ -28,15 +28,18 @@ use Symfony\Component\HttpFoundation\Session\SessionFactoryInterface;
  */
 final class AuditResultatAjustementTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     private const REFERENCE = 'VV-20260814-AJ9999';
     private const MESURE = 40700;
 
     public function testLaRestitutionOffreLeFormulaireDAjustement(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('form[action="/audit/resultat"][method="post"]');
@@ -47,9 +50,10 @@ final class AuditResultatAjustementTest extends WebTestCase
     public function testUnAjustementValideEstEnregistreEtAfficheLaLigneSeparee(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $crawler = $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $crawler = $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
         $formulaire = $crawler->filter('form[action="/audit/resultat"]')->form([
             'montant' => '-5000',
             'motif' => 'État général du bien',
@@ -79,9 +83,10 @@ final class AuditResultatAjustementTest extends WebTestCase
     public function testUnMotifVideEstRefuseEtNeTouchePasLeRapport(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $crawler = $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $crawler = $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
         $formulaire = $crawler->filter('form[action="/audit/resultat"]')->form([
             'montant' => '-5000',
             'motif' => '   ',
@@ -99,9 +104,10 @@ final class AuditResultatAjustementTest extends WebTestCase
     public function testUnAjustementNulEstRefuse(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
         $this->poserContexte($client);
 
-        $crawler = $client->request('GET', 'http://valeurverte.localhost/audit/resultat');
+        $crawler = $client->request('GET', 'http://'.self::HOTE_PRO.'/audit/resultat');
         $formulaire = $crawler->filter('form[action="/audit/resultat"]')->form([
             'montant' => '0',
             'motif' => 'Sans effet',
@@ -117,8 +123,9 @@ final class AuditResultatAjustementTest extends WebTestCase
     public function testSansResultatEnSessionLAjustementRenvoieVersLaSaisie(): void
     {
         $client = static::createClient();
+        $this->connecterPro($client);
 
-        $client->request('POST', 'http://valeurverte.localhost/audit/resultat', [
+        $client->request('POST', 'http://'.self::HOTE_PRO.'/audit/resultat', [
             'montant' => '-5000',
             'motif' => 'État général du bien',
         ]);
@@ -133,7 +140,7 @@ final class AuditResultatAjustementTest extends WebTestCase
         $saisie = SaisieAudit::depuis('12 rue des Lilas, 31000 Toulouse', 90, 300, Dpe::E, Dpe::C, 4);
         $restitution = Restitution::depuis(self::MESURE, 30000, 51000, 476, 25, 2024, 200000, false);
 
-        $this->rapports()->enregistrer(Rapport::creer(
+        $this->rapports()->enregistrer(self::pourLeTenant($this->connecterPro($client), Rapport::creer(
             self::REFERENCE,
             new \DateTimeImmutable('2026-08-14 10:00:00'),
             Source::Audit,
@@ -146,11 +153,9 @@ final class AuditResultatAjustementTest extends WebTestCase
                 new \DateTimeImmutable('2026-08-14 10:00:00'),
             ),
             '/rapport/'.self::REFERENCE.'/pdf',
-        ));
+        )));
 
-        $factory = self::getContainer()->get('session.factory');
-        self::assertInstanceOf(SessionFactoryInterface::class, $factory);
-        $session = $factory->createSession();
+        $session = $this->sessionDuClient($client);
         $session->set(AuditController::SESSION_RESULTAT, [
             'saisie' => $saisie,
             'restitution' => $restitution,

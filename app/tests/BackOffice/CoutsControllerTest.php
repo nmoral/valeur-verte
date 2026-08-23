@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\BackOffice;
 
+use App\Tests\Support\ConnecteUnPro;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class CoutsControllerTest extends WebTestCase
 {
+    use ConnecteUnPro;
+
     public function testLEcranAfficheLaGrilleParDefautPreRemplie(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/couts');
+        $this->connecterPro($client);
+        $client->request('GET', self::urlPro('/couts'));
 
         self::assertResponseIsSuccessful();
 
