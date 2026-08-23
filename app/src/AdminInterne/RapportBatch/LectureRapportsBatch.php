@@ -41,6 +41,26 @@ final readonly class LectureRapportsBatch
         return array_map(self::depuisLigne(...), $lignes);
     }
 
+    /**
+     * La **dernière ingestion de chaque département** (#46) : une ligne par
+     * département, la plus récente, rangée par code. C'est l'état courant de la
+     * base — l'archive complète, elle, se lit par ``recents``.
+     *
+     * ``DISTINCT ON`` plutôt qu'une agrégation : PostgreSQL rend la ligne entière du
+     * premier tuple de chaque département, sans re-jointure sur la table.
+     *
+     * @return list<RapportBatch>
+     */
+    public function dernieresIngestions(): array
+    {
+        $lignes = $this->connexion->fetchAllAssociative(
+            'SELECT DISTINCT ON (departement) '.self::COLONNES.' FROM data.rapport_batch '
+            ."WHERE phase = 'ingestion' ORDER BY departement, debut DESC, id DESC",
+        );
+
+        return array_map(self::depuisLigne(...), $lignes);
+    }
+
     public function parId(int $id): ?RapportBatch
     {
         $ligne = $this->connexion->fetchAssociative(
