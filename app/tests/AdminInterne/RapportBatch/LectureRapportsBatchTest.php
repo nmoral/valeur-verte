@@ -76,6 +76,24 @@ final class LectureRapportsBatchTest extends KernelTestCase
         self::assertSame(12000, $retrouve->mutationsInserees());
     }
 
+    public function testIlLitLaDateDeMutationLaPlusRecenteArchiveeParDat5(): void
+    {
+        $lecture = new LectureRapportsBatch($this->app);
+
+        $ingestion = $lecture->recents(50)[1];
+
+        self::assertEquals(new \DateTimeImmutable('2026-06-30'), $ingestion->mutationLaPlusRecente());
+    }
+
+    public function testUneIngestionAnterieureADat5NAPasDeDateDeMutation(): void
+    {
+        $lecture = new LectureRapportsBatch($this->app);
+
+        $calcul = $lecture->recents(50)[0];
+
+        self::assertNull($calcul->mutationLaPlusRecente());
+    }
+
     public function testUnIdentifiantInconnuNeRendRien(): void
     {
         $lecture = new LectureRapportsBatch($this->app);
@@ -91,6 +109,9 @@ final class LectureRapportsBatchTest extends KernelTestCase
         $migration = file_get_contents($racine.'/src/valeur_verte_data/db/migrations/014_create_rapport_batch.sql');
         self::assertIsString($migration, 'La migration 014 doit être lisible depuis les tests.');
         $this->prive->executeStatement(str_replace('valeur_verte_app', 'app', $migration));
+        $dat5 = file_get_contents($racine.'/src/valeur_verte_data/db/migrations/016_rapport_batch_fraicheur.sql');
+        self::assertIsString($dat5, 'La migration 016 doit être lisible depuis les tests.');
+        $this->prive->executeStatement($dat5);
         $this->prive->executeStatement('GRANT USAGE ON SCHEMA data TO app');
         $this->prive->executeStatement('GRANT SELECT ON ALL TABLES IN SCHEMA data TO app');
         $this->prive->executeStatement('DELETE FROM data.rapport_batch');
@@ -99,10 +120,10 @@ final class LectureRapportsBatchTest extends KernelTestCase
             "INSERT INTO data.rapport_batch
                 (phase, departement, millesime, debut, fin,
                  communes_traitees, communes_referencees, mutations_inserees, ventes_appariees,
-                 contours_charges, epci_charges, sans_donnees, echecs)
+                 contours_charges, epci_charges, sans_donnees, echecs, mutation_la_plus_recente)
              VALUES
                 ('ingestion', '31', 2024, '2026-08-17 03:00:00', '2026-08-17 04:30:00',
-                 580, 586, 12000, 9000, 585, 40, 35, '[\"31999\"]')",
+                 580, 586, 12000, 9000, 585, 40, 35, '[\"31999\"]', '2026-06-30')",
         );
         $this->prive->executeStatement(
             "INSERT INTO data.rapport_batch
