@@ -58,6 +58,14 @@
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('mon_compte') }}">
       <button type="submit" class="btn-primary">Changer le mot de passe</button>
     </form>
+
+    {# Résiliation self-service (#308) : réservée au pro (l'admin interne, sans
+       tenant, honore une demande d'effacement depuis /comptes, pas ici). #}
+    {% if app.user.tenantId is not null %}
+      <h2>Supprimer mon compte</h2>
+      <p>Vous pouvez résilier et faire effacer votre compte sans contact humain.</p>
+      <p><a href="{{ path('compte_suppression') }}">Supprimer mon compte</a></p>
+    {% endif %}
   </div>
 
   <p class="auth-alt"><a href="{{ path(is_granted('ROLE_ADMIN') ? 'admin' : 'espace_pro') }}">Retour à mon espace</a></p>
