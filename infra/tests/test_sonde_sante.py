@@ -14,9 +14,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .conftest import REPO_ROOT, services
+from .conftest import COMPOSE_PROD, REPO_ROOT, load_yaml, services
 
 CADDYFILE = REPO_ROOT / "infra" / "caddy" / "Caddyfile"
+COMPOSE_LOCAL = REPO_ROOT / "infra" / "docker-compose.yml"
 
 CHEMIN_SANTE = "/sante"
 PORT_ADMIN_FRANKENPHP = "2019"
@@ -113,3 +114,15 @@ def test_la_sonde_publique_ne_signe_pas_la_pile_technique() -> None:
             f"Le bloc de la sonde doit retirer l'en-tête « {entete} » "
             "(version de la pile technique exposée publiquement)."
         )
+
+
+def test_la_stack_locale_exerce_la_meme_sonde_que_la_production() -> None:
+    """La stack locale sert à exercer l'artefact de production : si sa sonde diffère,
+    le « unhealthy » qu'on y voit (ou qu'on n'y voit pas) n'apprend rien sur le VPS.
+    Le conteneur local héritait de la sonde FrankenPHP et s'affichait « unhealthy »
+    en permanence — un signal permanent est un signal qu'on apprend à ignorer (#302).
+    """
+    locale = load_yaml(COMPOSE_LOCAL)
+    assert _commande_sonde(services(locale)["app"]) == _commande_sonde(
+        services(load_yaml(COMPOSE_PROD))["app"]
+    ), "La stack locale et la production doivent sonder l'application de la même façon."
