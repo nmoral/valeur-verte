@@ -44,6 +44,12 @@ final class AuditController extends AbstractController
     #[Route('/audit', name: 'back_office_audit', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
+        // Compte suspendu (#47/#322) : accès en lecture conservé mais production
+        // fermée. On renvoie vers l'espace pro, où le bandeau explique la suspension.
+        if ($this->suivi->estSuspendu()) {
+            return $this->redirectToRoute('espace_pro');
+        }
+
         // Essai terminé (quota consommé OU période écoulée, #108) : la création
         // d'audit est fermée, on renvoie vers l'écran de bilan (la bascule).
         if ($this->suivi->essaiCourant()?->termine() ?? false) {
