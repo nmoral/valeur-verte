@@ -31,6 +31,10 @@ valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte
 	# pas de trace. Placé avant la porte : Caddy évalue les « handle » dans l'ordre.
 	@sante path /sante
 	handle @sante {
+		# Le runtime signe ses réponses (« FrankenPHP Caddy », version exacte de PHP) :
+		# on les retire ici, la route étant la seule ouverte sans authentification.
+		header -Server
+		header -X-Powered-By
 		reverse_proxy app:80
 	}
 
