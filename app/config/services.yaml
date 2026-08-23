@@ -21,6 +21,11 @@ parameters:
     app.sauvegarde.pass_defaut: 'app'
     app.sauvegarde.base_defaut: 'valeur_verte'
 
+    # Effacement de compte (#308, RGPD) : délai de grâce entre la demande de
+    # suppression et l'effacement définitif. Partagé par le finaliseur (cron) et
+    # l'écran de self-service, pour que la date annoncée au pro soit celle appliquée.
+    app.suppression_compte.delai_grace_jours: 30
+
     # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
     # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
     # siège ou de statut ne doit pas passer par une modification de HTML.
@@ -203,6 +208,22 @@ services:
         arguments:
             $anonymisationMois: 24
             $suppressionMois: 36
+
+    # Effacement de compte (#308, RGPD droit à l'effacement) : à la demande — en
+    # self-service par le pro ou honorée par l'admin — le compte est marqué, puis
+    # effacé définitivement après un délai de grâce, une suppression accidentelle
+    # ne se rattrapant pas. Choix produit #308 : rapports et leads partent avec le
+    # compte. Finaliseur joué par un cron quotidien (#190).
+    App\AdminInterne\Compte\EffacementCompte:
+        arguments:
+            $delaiDeGraceJours: '%app.suppression_compte.delai_grace_jours%'
+
+    # Écran de résiliation self-service (#308) : le même délai de grâce, pour que
+    # la date d'effacement montrée au pro soit exactement celle que le cron applique.
+    App\Controller\Compte\SuppressionCompteController:
+        arguments:
+            $delaiDeGraceJours: '%app.suppression_compte.delai_grace_jours%'
+        tags: ['controller.service_arguments']
 
     # Rétention des demandes de lead (#292) : une demande jamais confirmée porte
     # des données nominatives sans consentement confirmé — elle est supprimée peu

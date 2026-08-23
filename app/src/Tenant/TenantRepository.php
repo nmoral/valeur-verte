@@ -26,4 +26,19 @@ class TenantRepository extends ServiceEntityRepository
 
         return $tenant;
     }
+
+    /**
+     * Supprime l'espace du tenant (#308, effacement de compte) : l'identifiant du
+     * tenant est l'`id` de cette entité, que portent toutes les données pro.
+     * Renvoie le nombre supprimé (0 ou 1).
+     */
+    public function supprimerParId(int $tenantId): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->delete()
+            ->andWhere('t.id = :id')
+            ->setParameter('id', $tenantId)
+            ->getQuery()
+            ->execute();
+    }
 }

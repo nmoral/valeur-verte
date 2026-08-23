@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Supprimer mon compte · Valeur Verte',
+  description: 'Résiliez et faites effacer votre compte Valeur Verte.',
+  canonical: url('compte_suppression'),
+  robots: 'noindex,nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Supprimer mon compte</h1>
+
+    {% for message in app.flashes('mon_compte') %}
+      <p class="alert-ok" role="status">{{ message }}</p>
+    {% endfor %}
+
+    {% if en_attente %}
+      <p class="auth-lead">
+        La suppression de votre compte est <strong>programmée</strong>.
+        {% if effacement_le %}
+          Sans annulation de votre part, votre compte et vos données (rapports et
+          contacts compris) seront <strong>définitivement effacés le
+          {{ effacement_le|date('d/m/Y') }}</strong>.
+        {% endif %}
+      </p>
+      <form method="post" action="{{ path('compte_suppression_annuler') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('annuler_suppression_compte') }}">
+        <button type="submit" class="btn-primary">Annuler la suppression</button>
+      </form>
+    {% else %}
+      <p class="auth-lead">
+        Cette action programme l'effacement <strong>définitif</strong> de votre
+        compte et de toutes vos données — vos rapports et les contacts qu'ils
+        portent seront supprimés. Un délai de grâce de {{ delai_de_grace_jours }} jours
+        vous laisse revenir en arrière ; passé ce délai, l'effacement est irréversible.
+      </p>
+
+      {% if erreur %}
+        <p class="alert" role="alert">{{ erreur }}</p>
+      {% endif %}
+
+      <form method="post" action="{{ path('compte_suppression') }}" novalidate>
+        <div class="field-group{{ erreur ? ' has-error' : '' }}">
+          <label for="motdepasse">Confirmez avec votre mot de passe</label>
+          <input type="password" id="motdepasse" name="motdepasse" autocomplete="current-password" required autofocus>
+          {% if erreur %}<span class="form-error">{{ erreur }}</span>{% endif %}
+        </div>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('suppression_compte') }}">
+        <button type="submit" class="btn-primary">Supprimer mon compte</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <p class="auth-alt"><a href="{{ path('mon_compte') }}">Retour à mon compte</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>

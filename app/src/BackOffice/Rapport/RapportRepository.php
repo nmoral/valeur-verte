@@ -51,6 +51,21 @@ class RapportRepository extends ServiceEntityRepository
     }
 
     /**
+     * Supprime tous les rapports d'un tenant (#308, effacement de compte). Le
+     * filtre multi-tenant ne portant pas sur le DELETE DQL, le tenant est
+     * contraint explicitement. Renvoie le nombre supprimé.
+     */
+    public function supprimerParTenant(int $tenantId): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->delete()
+            ->andWhere('r.tenantId = :tenant')
+            ->setParameter('tenant', $tenantId)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * Liste unique des rapports et leads, les plus récents d'abord (§9.2).
      *
      * @return list<Rapport>

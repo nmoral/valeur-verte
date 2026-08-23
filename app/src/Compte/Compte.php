@@ -71,6 +71,17 @@ class Compte
     #[ORM\Column(name: 'essai_prolonge_jusquau', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $essaiProlongeJusquau = null;
 
+    /**
+     * Date de la demande d'effacement du compte (#308, RGPD droit à l'effacement).
+     * Nulle = pas de demande ; renseignée, le compte est en attente d'effacement
+     * définitif, qui n'intervient qu'après le délai de grâce (une suppression
+     * accidentelle ne se rattrape pas). Réversible via annulerSuppression() tant
+     * que l'effacement n'a pas été finalisé. La date porte le point de départ du
+     * délai de grâce : demanderSuppression() ne la recule pas.
+     */
+    #[ORM\Column(name: 'suppression_demandee_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $suppressionDemandeeLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -184,5 +195,30 @@ class Compte
         if (null === $this->essaiProlongeJusquau || $date > $this->essaiProlongeJusquau) {
             $this->essaiProlongeJusquau = $date;
         }
+    }
+
+    public function estEnAttenteDeSuppression(): bool
+    {
+        return null !== $this->suppressionDemandeeLe;
+    }
+
+    public function suppressionDemandeeLe(): ?\DateTimeImmutable
+    {
+        return $this->suppressionDemandeeLe;
+    }
+
+    /**
+     * Enregistre une demande d'effacement. Idempotent sur la première date : une
+     * demande déjà posée n'est pas repoussée, le délai de grâce court depuis le
+     * premier appel.
+     */
+    public function demanderSuppression(\DateTimeImmutable $quand): void
+    {
+        $this->suppressionDemandeeLe ??= $quand;
+    }
+
+    public function annulerSuppression(): void
+    {
+        $this->suppressionDemandeeLe = null;
     }
 }
