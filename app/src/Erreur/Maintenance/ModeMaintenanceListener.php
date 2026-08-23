@@ -24,6 +24,13 @@ final readonly class ModeMaintenanceListener
 {
     private const DELAI_REESSAI_SECONDES = 120;
 
+    /**
+     * Santé applicative (#313) : la maintenance est une décision d'exploitation,
+     * pas une panne. La couper rendrait le conteneur « unhealthy » pendant toute
+     * l'intervention, au moment précis où l'état réel de l'application compte.
+     */
+    private const CHEMIN_SANTE = '/sante';
+
     public function __construct(
         private bool $maintenanceActive,
     ) {
@@ -35,7 +42,13 @@ final readonly class ModeMaintenanceListener
             return;
         }
 
-        if (Zone::Admin === Zone::depuisHote($event->getRequest()->getHost())) {
+        $requete = $event->getRequest();
+
+        if (self::CHEMIN_SANTE === $requete->getPathInfo()) {
+            return;
+        }
+
+        if (Zone::Admin === Zone::depuisHote($requete->getHost())) {
             return;
         }
 

@@ -38,6 +38,16 @@ services:
       DATABASE_URL: "postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8"
     ports:
       - "127.0.0.1:8000:80"
+    # Même sonde qu'en production (#313) : la stack locale exerce l'artefact du VPS,
+    # sa santé doit vouloir dire la même chose. Sans elle, le conteneur héritait de
+    # la sonde d'administration de FrankenPHP et s'affichait « unhealthy » en
+    # permanence, sans rien dire de l'application.
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:80/sante"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   db_data:

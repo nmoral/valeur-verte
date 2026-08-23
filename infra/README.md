@@ -101,6 +101,37 @@ locale. Le tunnel meurt avec la session SSH ; le relancer au besoin, ou ajouter
 Le mot de passe est celui du secret `POSTGRES_PASSWORD` ; il se lit aussi dans
 `/opt/valeur-verte/.env` sur le serveur.
 
+### Santé applicative ([#313](../../../issues/313))
+
+Le conteneur `app` ne se contente plus de dire que son serveur web est debout : sa
+sonde interroge la route `/sante`, qui vérifie **ce qui tue le produit** — la base
+répond, les migrations sont toutes jouées, `var/` est inscriptible. Elle rend `200`
+si tout va bien, `503` sinon, avec le détail par contrôle :
+
+```bash
+ssh vps 'cd /opt/valeur-verte && docker compose exec app curl -s http://127.0.0.1:80/sante'
+# {"statut":"ok","controles":{"base":"ok","ecriture":"ok","migrations":"ok"}}
+
+# État vu par Docker, et le journal des derniers passages de la sonde :
+ssh vps 'cd /opt/valeur-verte && docker compose ps app'
+ssh vps 'cd /opt/valeur-verte && docker inspect -f "{{json .State.Health}}" $(docker compose ps -q app)'
+```
+
+Une base injoignable ou une migration manquante fait donc passer le conteneur en
+`unhealthy` (30 s d'intervalle, 3 échecs, 30 s de grâce au démarrage) au lieu de le
+laisser passer pour un service en bonne santé.
+
+La route est **ouverte sans authentification** — la sonde n'a pas de session — et
+reste donc **muette** : un `ok`/`ko` par contrôle, aucune version, aucune trace, et
+le proxy retire même la signature du runtime (`Server`, `X-Powered-By`). Elle
+traverse aussi le basic auth de la préversion et la bascule maintenance : une
+surveillance externe doit pouvoir constater la panne pendant une intervention, et
+**seule** une surveillance externe voit le VPS tomber en entier.
+
+```bash
+curl -si https://valeur-verte.fr/sante | head -1      # sans identifiants
+```
+
 ### Tâches planifiées
 
 Le service `cron` tourne l'image `app` avec [supercronic](https://github.com/aptible/supercronic)
@@ -221,6 +252,10 @@ base ; ils se skippent d'eux-mêmes sans Docker ou sans `DATABASE_URL`.
   restreint, donc un workflow lancé depuis une autre branche pourrait lire
   `SSH_KEY`. Le déclencheur du workflow est limité à `main`, mais une protection
   d'environnement serait la défense en profondeur.
+- **Surveillance externe non branchée** : `/sante` est exposée pour elle
+  ([#313](../../../issues/313)), mais aucun service tiers ne l'interroge encore —
+  tant que personne ne la sonde de l'extérieur, une panne du VPS entier reste
+  invisible jusqu'à ce qu'un humain regarde.
 - **Sauvegardes** : non couvertes ici, voir [#55](../../../issues/55).
 - **Ingestion planifiée** : le déploiement n'applique que les migrations ; les
   CLI `ingest` / `compute` par département arrivent avec

@@ -93,6 +93,16 @@ services:
             $base: '%env(default:app.sauvegarde.base_defaut:VV_SAUVEGARDE_DB_NAME)%'
     App\Exploitation\Sauvegarde\LanceurProcessus: '@App\Exploitation\Sauvegarde\LanceurProcessusSymfony'
 
+    # Santé applicative (#313) : les sondes de l'endpoint /sante. Écriture dans
+    # var/ (cache, journaux, PDF) et état des migrations — cette dernière n'est pas
+    # autowirable, le bundle ne publie sa fabrique que sous son identifiant.
+    App\Exploitation\Sante\SondeEcriture:
+        arguments:
+            $repertoire: '%kernel.project_dir%/var'
+    App\Exploitation\Sante\SondeMigrations:
+        arguments:
+            $fabrique: '@doctrine.migrations.dependency_factory'
+
     # Cache-busting des assets : versionne par hash du fichier servi.
     App\Asset\VersionParContenu:
         arguments:
