@@ -42,6 +42,23 @@ final readonly class EffacementCompte
     }
 
     /**
+     * Finaliseur de grâce (cron) : efface tout compte dont la demande a dépassé
+     * le délai de grâce (`delaiDeGraceJours`). Idempotent et rejouable — un compte
+     * déjà effacé n'apparaît plus comme exigible. Renvoie le bilan du passage.
+     */
+    public function effacerLesComptesExigibles(string $auteur): BilanEffacement
+    {
+        $borne = $this->clock->now()->sub(new \DateInterval('P'.$this->delaiDeGraceJours.'D'));
+        $exigibles = $this->comptes->exigiblesPourEffacement($borne);
+
+        foreach ($exigibles as $compte) {
+            $this->effacer($compte->tenantId(), $auteur);
+        }
+
+        return new BilanEffacement(\count($exigibles));
+    }
+
+    /**
      * Efface ici et maintenant tout le périmètre d'un tenant, puis trace l'acte.
      * Idempotent : sur un tenant déjà vide, chaque suppression compte 0 et la
      * trace n'en est pas moins écrite (l'acte a bien été demandé).
