@@ -89,6 +89,21 @@ final class EntrepriseTest extends TestCase
         $entreprise->corriger('Rénov Habitat', str_repeat('a', Entreprise::LONGUEUR_MAX_ADRESSE + 1));
     }
 
+    public function testUneAdresseRefuseeNeLaissePasLaRaisonSocialeAMoitieChangee(): void
+    {
+        // L'écran réaffiche la fiche telle qu'elle est après un refus : si la
+        // raison sociale avait déjà bougé, le pro lirait un état qui n'existe
+        // nulle part — ni en base, ni dans ce qu'il a tapé.
+        $entreprise = self::fiche();
+
+        try {
+            $entreprise->corriger('Rénov Habitat SARL', '');
+        } catch (\InvalidArgumentException) {
+        }
+
+        self::assertSame('Renov Habitat', $entreprise->raisonSociale());
+    }
+
     public function testRemplacerParUneFicheVerifieeRepriseToutLIdentite(): void
     {
         // Changement de SIRET (passage en société, reprise) : l'établissement n'est
