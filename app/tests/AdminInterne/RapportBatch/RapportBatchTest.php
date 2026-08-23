@@ -39,6 +39,49 @@ final class RapportBatchTest extends TestCase
         self::assertSame(['31999'], $rapport->echecs());
     }
 
+    public function testUnRapportDIngestionPorteLaDateDeMutationLaPlusRecente(): void
+    {
+        $rapport = RapportBatch::ingestion(
+            id: 9,
+            departement: '31',
+            millesime: 2024,
+            debut: new \DateTimeImmutable('2026-08-17 03:00:00'),
+            fin: new \DateTimeImmutable('2026-08-17 04:30:00'),
+            communesTraitees: 580,
+            mutationsInserees: 12000,
+            ventesAppariees: 9000,
+            communesReferencees: 586,
+            contoursCharges: 585,
+            epciCharges: 40,
+            sansDonnees: 35,
+            echecs: [],
+            mutationLaPlusRecente: new \DateTimeImmutable('2026-06-30'),
+        );
+
+        self::assertEquals(new \DateTimeImmutable('2026-06-30'), $rapport->mutationLaPlusRecente());
+    }
+
+    public function testUneIngestionAnterieureADat5NAPasDeDateDeMutation(): void
+    {
+        $rapport = RapportBatch::ingestion(
+            id: 10,
+            departement: '09',
+            millesime: 2024,
+            debut: new \DateTimeImmutable('2026-08-17 03:00:00'),
+            fin: new \DateTimeImmutable('2026-08-17 03:10:00'),
+            communesTraitees: 300,
+            mutationsInserees: 4000,
+            ventesAppariees: 2600,
+            communesReferencees: 330,
+            contoursCharges: 330,
+            epciCharges: 20,
+            sansDonnees: 30,
+            echecs: [],
+        );
+
+        self::assertNull($rapport->mutationLaPlusRecente());
+    }
+
     public function testLeTauxDAppariementEstNulSansAucuneVente(): void
     {
         $rapport = RapportBatch::ingestion(

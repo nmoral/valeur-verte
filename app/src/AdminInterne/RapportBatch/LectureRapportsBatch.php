@@ -20,7 +20,7 @@ final readonly class LectureRapportsBatch
         .'communes_traitees, communes_referencees, mutations_inserees, ventes_appariees, '
         .'contours_charges, epci_charges, sans_donnees, '
         .'communes_calculees, refus, rejets_invariants, alertes_bord, inversions_dpe, '
-        .'ecarts_blocages, ecarts_alertes, ordre_canonique, echecs';
+        .'ecarts_blocages, ecarts_alertes, ordre_canonique, echecs, mutation_la_plus_recente';
 
     public function __construct(
         private Connection $connexion,
@@ -39,6 +39,58 @@ final readonly class LectureRapportsBatch
         );
 
         return array_map(self::depuisLigne(...), $lignes);
+    }
+
+    /**
+     * La **dernière ingestion de chaque département** (#46) : une ligne par
+     * département, la plus récente, rangée par code. C'est l'état courant de la
+     * base — l'archive complète, elle, se lit par ``recents``.
+     *
+     * ``DISTINCT ON`` plutôt qu'une agrégation : PostgreSQL rend la ligne entière du
+     * premier tuple de chaque département, sans re-jointure sur la table.
+     *
+     * @return list<RapportBatch>
+     */
+    public function dernieresIngestions(): array
+    {
+        $lignes = $this->connexion->fetchAllAssociative(
+            'SELECT DISTINCT ON (departement) '.self::COLONNES.' FROM data.rapport_batch '
+            ."WHERE phase = 'ingestion' ORDER BY departement, debut DESC, id DESC",
+        );
+
+        return array_map(self::depuisLigne(...), $lignes);
+    }
+
+    /**
+     * La volumétrie du **millésime précédent** de chaque département (#46, DAT-2) :
+     * la référence contre laquelle l'écart ± 30 % se mesure. Même définition que la
+     * porte côté pipeline (``lire_volumetrie_precedent``) — le millésime le plus
+     * récent strictement antérieur à celui du dernier import, dernière exécution.
+     *
+     * Absent de la table de retour quand le département n'a jamais été ingéré
+     * qu'une fois : il n'y a alors rien à comparer.
+     *
+     * @return array<string, int>
+     */
+    public function volumetriesPrecedentes(): array
+    {
+        $lignes = $this->connexion->fetchAllAssociative(
+            'SELECT DISTINCT ON (precedent.departement) precedent.departement, precedent.mutations_inserees '
+            .'FROM data.rapport_batch precedent '
+            .'JOIN (SELECT DISTINCT ON (departement) departement, millesime FROM data.rapport_batch '
+            ."WHERE phase = 'ingestion' ORDER BY departement, debut DESC, id DESC) courant "
+            .'ON courant.departement = precedent.departement AND precedent.millesime < courant.millesime '
+            ."WHERE precedent.phase = 'ingestion' "
+            .'ORDER BY precedent.departement, precedent.millesime DESC, precedent.debut DESC, precedent.id DESC',
+        );
+
+        $volumetries = [];
+        foreach ($lignes as $ligne) {
+            $departement = \is_string($ligne['departement']) ? trim($ligne['departement']) : '';
+            $volumetries[$departement] = self::entier($ligne['mutations_inserees']);
+        }
+
+        return $volumetries;
     }
 
     public function parId(int $id): ?RapportBatch
@@ -97,7 +149,18 @@ final readonly class LectureRapportsBatch
             epciCharges: self::entier($ligne['epci_charges']),
             sansDonnees: self::entier($ligne['sans_donnees']),
             echecs: $echecs,
+            mutationLaPlusRecente: self::jour($ligne['mutation_la_plus_recente']),
         );
+    }
+
+    /**
+     * Date seule (DAT-5) : nulle pour une ingestion antérieure à la migration 016,
+     * qu'on ne remplace surtout pas par « aujourd'hui » — une fraîcheur inconnue
+     * n'est pas une fraîcheur parfaite.
+     */
+    private static function jour(mixed $valeur): ?\DateTimeImmutable
+    {
+        return \is_string($valeur) ? new \DateTimeImmutable($valeur) : null;
     }
 
     private static function horodatage(mixed $valeur): \DateTimeImmutable

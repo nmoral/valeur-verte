@@ -79,6 +79,10 @@ th{
 td{padding:12px 16px;border-bottom:1px solid var(--rule);font-size:14px;vertical-align:middle}
 tr:last-child td{border-bottom:0}
 tbody tr:hover{background:var(--sub)}
+/* Ligne de tableau qui demande un regard (#46) : même fond ambre que le bandeau
+   d'essai en alerte, le rouge restant réservé aux erreurs. */
+tbody tr.est-alerte{background:#FCF2DF}
+tbody tr.est-alerte:hover{background:#F8EAD0}
 .mono{font:400 12.5px/1 'JetBrains Mono',monospace}
 .num{font:500 13.5px/1 'JetBrains Mono',monospace;font-feature-settings:"tnum"}
 .muted{color:var(--mute)}
