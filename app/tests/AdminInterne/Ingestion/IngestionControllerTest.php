@@ -93,6 +93,22 @@ final class IngestionControllerTest extends WebTestCase
         self::assertSelectorTextContains('tbody tr:first-child', 'périmée');
     }
 
+    public function testElleSitueLaVolumetrieFaceAuMillesimePrecedent(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+        $this->semer();
+
+        $client->request('GET', 'http://'.self::HOTE_ADMIN.'/ingestion');
+
+        // 31 : 12 000 ventes en 2024 contre 10 000 en 2023, soit +20 % — dans la
+        // fourchette de DAT-2, donc affiché sans alerte.
+        self::assertSelectorTextContains('tbody tr:last-child', '+20');
+        self::assertCount(1, $client->getCrawler()->filter('tbody tr.est-alerte'));
+        // 09 n'a pas de millésime antérieur : rien à comparer.
+        self::assertSelectorTextContains('tbody tr:first-child', 'premier import');
+    }
+
     public function testElleListeLesCommunesEnEchec(): void
     {
         $client = static::createClient();
@@ -186,7 +202,7 @@ final class IngestionControllerTest extends WebTestCase
                  contours_charges, epci_charges, sans_donnees, echecs, mutation_la_plus_recente)
              VALUES
                 ('ingestion', '31', 2023, '2025-08-17 03:00:00', '2025-08-17 04:30:00',
-                 580, 586, 9000, 6000, 585, 40, 35, '[]', '2025-06-30'),
+                 580, 586, 10000, 6000, 585, 40, 35, '[]', '2025-06-30'),
                 ('ingestion', '31', 2024, '2026-08-17 03:00:00', '2026-08-17 04:30:00',
                  580, 586, 12000, 9000, 585, 40, 35, '[\"31999\"]', '".$recent."'),
                 ('ingestion', '09', 2024, '2026-08-16 03:00:00', '2026-08-16 03:40:00',

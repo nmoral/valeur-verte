@@ -60,6 +60,16 @@ final class DernieresIngestionsTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-06-30'), $imports[1]->mutationLaPlusRecente());
     }
 
+    public function testIlRapatrieLaVolumetrieDuMillesimePrecedentParDepartement(): void
+    {
+        $lecture = new LectureRapportsBatch($this->app);
+
+        $precedentes = $lecture->volumetriesPrecedentes();
+
+        // 31 a un millésime 2023 (9 000 ventes) avant son 2024 ; 09 n'en a pas.
+        self::assertSame(['31' => 9000], $precedentes);
+    }
+
     public function testUnRapportDeCalculNEstPasUnImport(): void
     {
         $lecture = new LectureRapportsBatch($this->app);
