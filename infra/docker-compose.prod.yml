@@ -7,6 +7,47 @@
 #
 # La base n'expose aucun port : seuls les services du réseau interne l'atteignent.
 # Pour une session psql d'exploitation, passer par un tunnel SSH.
+
+# Environnement applicatif, partagé par le service web et l'ordonnanceur des
+# tâches planifiées (#300) : les deux tournent la même image et doivent voir
+# exactement la même configuration. L'ancre YAML l'assure — une variable
+# ajoutée pour l'un ne peut pas manquer à l'autre.
+x-environnement-app: &environnement_app
+  APP_ENV: prod
+  # Bascule maintenance (#197) : passe-plat depuis le .env du VPS pour couper
+  # en 503 (page habillée) sans redéployer. Volontairement sans « :? » : une
+  # variable absente laisse le service ouvert (défaut off dans le .env écrit
+  # par ecrire-env.sh), jamais fermé par accident. 1 = maintenance active.
+  APP_MAINTENANCE: ${APP_MAINTENANCE}
+  # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
+  # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
+  # exiger explicitement, jamais de repli.
+  APP_SECRET: ${APP_SECRET:?APP_SECRET est requis}
+  # L'app partage la base PostGIS : écriture sur le schéma « app », lecture
+  # seule sur « data » (schema_filter Doctrine + rôle « app » provisionné au
+  # déploiement). DSN en format URL assemblée ici à partir du mot de passe
+  # atomique du rôle (URL-safe, garanti par ecrire-env.sh).
+  DATABASE_URL: "postgresql://app:${APP_DB_PASSWORD:?APP_DB_PASSWORD est requis}@db:5432/valeur_verte?serverVersion=16&charset=utf8"
+  # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP et doit
+  # honorer X-Forwarded-Proto pour générer des URLs https. N'étant publiée que
+  # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
+  # proxy : « REMOTE_ADDR » le désigne sans dépendre de l'IP du conteneur Caddy.
+  TRUSTED_PROXIES: REMOTE_ADDR
+  # Domaine de production : les zones de l'app vivent sur ses sous-domaines
+  # (app./admin./widget.). Sans cette variable, les routes restent sur le
+  # défaut de l'image (*.valeurverte.localhost) et tout *.valeur-verte.fr
+  # tombe en 404 derrière le proxy. Doit vivre ici (versionné) et non
+  # seulement sur le VPS, sinon chaque redéploiement fait retomber le site.
+  APP_DOMAINE: valeur-verte.fr
+  # URLs générées hors contexte HTTP (commandes CLI, envois asynchrones) : sans
+  # ça, elles retombent sur http://localhost (défaut de l'image).
+  DEFAULT_URI: https://app.valeur-verte.fr
+  # Email transactionnel (Brevo, #105/#108) : clé (secret), adresse expéditrice
+  # et adresse de réponse des emails non transactionnels (#109/#195).
+  BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY est requis}
+  BREVO_EXPEDITEUR: no-reply@valeur-verte.fr
+  CONTACT_REPONSE: contact@valeur-verte.fr
+
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -56,45 +97,31 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      APP_ENV: prod
-      # Bascule maintenance (#197) : passe-plat depuis le .env du VPS pour couper
-      # en 503 (page habillée) sans redéployer. Volontairement sans « :? » : une
-      # variable absente laisse le service ouvert (défaut off dans le .env écrit
-      # par ecrire-env.sh), jamais fermé par accident. 1 = maintenance active.
-      APP_MAINTENANCE: ${APP_MAINTENANCE}
-      # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
-      # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
-      # exiger explicitement, jamais de repli.
-      APP_SECRET: ${APP_SECRET:?APP_SECRET est requis}
-      # L'app partage la base PostGIS : écriture sur le schéma « app », lecture
-      # seule sur « data » (schema_filter Doctrine + rôle « app » provisionné au
-      # déploiement). DSN en format URL assemblée ici à partir du mot de passe
-      # atomique du rôle (URL-safe, garanti par ecrire-env.sh).
-      DATABASE_URL: "postgresql://app:${APP_DB_PASSWORD:?APP_DB_PASSWORD est requis}@db:5432/valeur_verte?serverVersion=16&charset=utf8"
-      # TLS terminé par le reverse proxy (Caddy) : l'app dialogue en HTTP et doit
-      # honorer X-Forwarded-Proto pour générer des URLs https. N'étant publiée que
-      # sur 127.0.0.1 (jamais exposée en direct), son seul émetteur possible est le
-      # proxy : « REMOTE_ADDR » le désigne sans dépendre de l'IP du conteneur Caddy.
-      TRUSTED_PROXIES: REMOTE_ADDR
-      # Domaine de production : les zones de l'app vivent sur ses sous-domaines
-      # (app./admin./widget.). Sans cette variable, les routes restent sur le
-      # défaut de l'image (*.valeurverte.localhost) et tout *.valeur-verte.fr
-      # tombe en 404 derrière le proxy. Doit vivre ici (versionné) et non
-      # seulement sur le VPS, sinon chaque redéploiement fait retomber le site.
-      APP_DOMAINE: valeur-verte.fr
-      # URLs générées hors contexte HTTP (commandes CLI, envois asynchrones) : sans
-      # ça, elles retombent sur http://localhost (défaut de l'image).
-      DEFAULT_URI: https://app.valeur-verte.fr
-      # Email transactionnel (Brevo, #105/#108) : clé (secret), adresse expéditrice
-      # et adresse de réponse des emails non transactionnels (#109/#195).
-      BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY est requis}
-      BREVO_EXPEDITEUR: no-reply@valeur-verte.fr
-      CONTACT_REPONSE: contact@valeur-verte.fr
+    environment: *environnement_app
     # TLS terminé par le proxy de l'hôte : publié sur la boucle locale du VPS,
     # jamais directement sur Internet (même règle que la base).
     ports:
       - "127.0.0.1:8000:80"
+
+  # Ordonnanceur des tâches planifiées (#190, #300) : rétention des rapports (D10),
+  # purges du widget, relance de fin d'essai. Même image et même environnement que
+  # l'app — ce sont ses commandes Symfony —, mais aucun port : il ne sert rien.
+  # supercronic est déjà dans l'image (voir app/Dockerfile) ; il journalise chaque
+  # exécution sur la sortie standard (« docker compose logs cron ») et n'en démarre
+  # jamais une seconde tant que la précédente tourne.
+  cron:
+    image: ghcr.io/nmoral/valeur-verte-app:${APP_IMAGE_TAG:?APP_IMAGE_TAG est requis}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *environnement_app
+    volumes:
+      # Crontab versionné (infra/cron/crontab), téléversé par le workflow de
+      # déploiement. Sans lui, Compose créerait un répertoire vide à sa place et
+      # l'ordonnanceur démarrerait sans aucune tâche, sans erreur.
+      - ./cron/crontab:/etc/supercronic/crontab:ro
+    command: ["supercronic", "/etc/supercronic/crontab"]
 
   # Reverse proxy (point d'entrée public unique) : termine TLS (certificats
   # Let's Encrypt automatiques), redirige HTTP→HTTPS, gate le site par basic auth

@@ -139,6 +139,11 @@ jobs:
           # service « caddy ». Sans elle, le proxy démarrerait sans sa config.
           scp -i ~/.ssh/deploiement -r infra/caddy \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/caddy"
+          # Tâches planifiées (#190) montées par le service « cron ». Sans elles,
+          # Compose crée un répertoire à la place du crontab et l'ordonnanceur
+          # démarre sans tâche — panne silencieuse, aucune purge ne tourne.
+          scp -i ~/.ssh/deploiement -r infra/cron \
+            "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/cron"
 
       - name: Tirer l'image, provisionner l'app et appliquer les migrations
         env:
@@ -165,7 +170,7 @@ jobs:
              && docker compose run --rm -T migrate \
              && set -a && . ./.env && set +a \
              && docker compose exec -T db psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v mot_de_passe=\"\$APP_DB_PASSWORD\" -v superutilisateur=\"\$POSTGRES_USER\" < provisionner-app.sql \
-             && docker compose up -d app caddy \
+             && docker compose up -d app caddy cron \
              && docker compose exec -T app php bin/console doctrine:migrations:migrate --no-interaction \
              && docker compose exec -T app php bin/console cache:clear --env=prod \
              && docker logout ghcr.io"

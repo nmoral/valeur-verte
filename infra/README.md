@@ -101,6 +101,40 @@ locale. Le tunnel meurt avec la session SSH ; le relancer au besoin, ou ajouter
 Le mot de passe est celui du secret `POSTGRES_PASSWORD` ; il se lit aussi dans
 `/opt/valeur-verte/.env` sur le serveur.
 
+### Tâches planifiées
+
+Le service `cron` tourne l'image `app` avec [supercronic](https://github.com/aptible/supercronic)
+et lit `infra/cron/crontab`, versionné dans le dépôt et téléversé à chaque
+déploiement. Ajouter une tâche, c'est donc modifier ce fichier — jamais un
+`crontab -e` sur le serveur, qui serait effacé par la première reconstruction de
+l'hôte. Le registre des tâches vit dans l'issue [#190](../../../issues/190).
+
+| Commande | Fréquence (UTC) | Rôle |
+|---|---|---|
+| `app:widget:purger-evenements` | 03:00 | Purge des événements de parcours de la page publique au-delà de 90 jours ([#90](../../../issues/90)) |
+| `app:widget:purger-demandes-lead` | 03:10 | Purge des demandes de lead non confirmées ou expirées ([#292](../../../issues/292)) |
+| `app:rapport:appliquer-retention` | 03:20 | Rétention D10 : anonymisation à 24 mois, suppression à 3 ans ([#294](../../../issues/294)) |
+| `app:essai:relancer` | — | Email de relance de fin d'essai ([#108](../../../issues/108)) — **ligne commentée, pas encore activée** : elle écrit à de vraies personnes, elle ne s'allume pas comme effet de bord de la mise en place de l'ordonnanceur |
+
+Toutes sont **idempotentes** : les rejouer ne fait rien de plus. Elles sont
+décalées de dix minutes pour ne pas balayer la base en même temps, et
+supercronic refuse de lui-même de démarrer une exécution tant que la précédente
+tourne — aucun verrou applicatif n'est nécessaire.
+
+Suivre les exécutions, et en déclencher une à la main sans attendre son heure :
+
+```bash
+ssh vps 'cd /opt/valeur-verte && docker compose logs -f cron'
+ssh vps 'cd /opt/valeur-verte && docker compose exec cron php bin/console app:rapport:appliquer-retention'
+```
+
+Vérifier ce que l'ordonnanceur a réellement chargé (il journalise chaque tâche et
+sa prochaine échéance à son démarrage) :
+
+```bash
+ssh vps 'cd /opt/valeur-verte && docker compose logs cron | head -20'
+```
+
 **Revenir en arrière** — l'image est taguée par le SHA, donc :
 
 ```bash

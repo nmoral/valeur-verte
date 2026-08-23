@@ -19,6 +19,9 @@ COMPOSE_PROD = REPO_ROOT / "infra" / "docker-compose.prod.yml"
 DEPLOY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "deploy.yml"
 DATA_DOCKERFILE = REPO_ROOT / "data" / "Dockerfile"
 APP_DOCKERFILE = REPO_ROOT / "app" / "Dockerfile"
+CRONTAB = REPO_ROOT / "infra" / "cron" / "crontab"
+INFRA_README = REPO_ROOT / "infra" / "README.md"
+APP_SOURCES = REPO_ROOT / "app" / "src"
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -67,3 +70,11 @@ def compose_prod() -> dict[str, Any]:
 @pytest.fixture(scope="session")
 def deploy_workflow() -> dict[str, Any]:
     return load_yaml(DEPLOY_WORKFLOW)
+
+
+@pytest.fixture(scope="session")
+def crontab() -> str:
+    """Contenu du crontab des tâches planifiées, avec un échec lisible s'il manque."""
+    if not CRONTAB.exists():
+        raise AssertionError(f"Crontab absent : {CRONTAB.relative_to(REPO_ROOT)}")
+    return CRONTAB.read_text(encoding="utf-8")
