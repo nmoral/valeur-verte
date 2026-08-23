@@ -115,12 +115,30 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment: *environnement_app
+    environment:
+      <<: *environnement_app
+      # Sauvegarde de la base (#55, §9.11), portée par le seul ordonnanceur. Le dump
+      # va dans le volume monté ci-dessous ; il tourne sous le rôle **superutilisateur**
+      # (POSTGRES_USER), car « app » ne peut pas dumper le schéma « data » ni
+      # public.schema_migrations. Ces identifiants privilégiés restent confinés au
+      # service cron. Le mot de passe passe par PGPASSWORD (l'app le lit et le donne à
+      # pg_dump par l'environnement, jamais par la ligne de commande) : un mot de passe
+      # quelconque reste correct, sans encodage d'URL.
+      VV_SAUVEGARDE_DIR: /sauvegardes
+      VV_SAUVEGARDE_DB_HOST: db
+      VV_SAUVEGARDE_DB_PORT: "5432"
+      VV_SAUVEGARDE_DB_USER: ${POSTGRES_USER:?POSTGRES_USER est requis}
+      VV_SAUVEGARDE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}
+      VV_SAUVEGARDE_DB_NAME: ${POSTGRES_DB:?POSTGRES_DB est requis}
     volumes:
       # Crontab versionné (infra/cron/crontab), téléversé par le workflow de
       # déploiement. Sans lui, Compose créerait un répertoire vide à sa place et
       # l'ordonnanceur démarrerait sans aucune tâche, sans erreur.
       - ./cron/crontab:/etc/supercronic/crontab:ro
+      # Dumps de sauvegarde (#55) : volume nommé, persistant, propre au VPS. Pas de
+      # copie hors-site (choix assumé, faute d'hébergement second) : protège d'une
+      # migration ratée ou d'un effacement, pas d'une perte de l'hôte.
+      - db_backups:/sauvegardes
     command: ["supercronic", "/etc/supercronic/crontab"]
     # L'image porte le contrôle de santé de FrankenPHP (son endpoint d'administration
     # sur :2019). Ce service ne lance aucun serveur web : la sonde échouerait à chaque
@@ -159,5 +177,6 @@ services:
 
 volumes:
   db_data:
+  db_backups:
   caddy_data:
   caddy_config:

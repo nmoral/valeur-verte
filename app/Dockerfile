@@ -25,6 +25,21 @@ RUN install-php-extensions \
         pdo_pgsql \
         @composer
 
+# Client PostgreSQL 16 pour la sauvegarde (#55, §9.11) : la commande
+# « app:sauvegarde:executer » appelle pg_dump. La version du client doit être **au
+# moins** celle du serveur (PostGIS 16) — le client 15 de Debian bookworm refuserait
+# de dumper un serveur 16 —, d'où le dépôt officiel PGDG épinglé à la version 16.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Ordonnanceur des tâches planifiées (#300) : le service « cron » du compose de
 # production lance cette même image avec supercronic à la place du serveur. Un
 # cron classique ne conviendrait pas — il veut être PID 1 et tourner en root, or
