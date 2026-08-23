@@ -62,6 +62,25 @@ final class SupervisionComptesTest extends KernelTestCase
         self::assertTrue($c2->essai()->enEssai());
     }
 
+    public function testLeBilanPorteLEtatDeSuspension(): void
+    {
+        self::bootKernel();
+        $t1 = $this->tenants()->nouveau()->id();
+        $t2 = $this->tenants()->nouveau()->id();
+        self::assertNotNull($t1);
+        self::assertNotNull($t2);
+
+        $suspendu = Compte::creer($t1, new \DateTimeImmutable());
+        $suspendu->suspendre(new \DateTimeImmutable('2026-08-20 10:00:00'));
+        $this->comptes()->enregistrer($suspendu);
+        $this->comptes()->enregistrer(Compte::creer($t2, new \DateTimeImmutable()));
+
+        [$c1, $c2] = $this->supervision()->comptes();
+
+        self::assertTrue($c1->suspendu(), 'Le compte suspendu doit être signalé.');
+        self::assertFalse($c2->suspendu());
+    }
+
     private function supervision(): SupervisionComptes
     {
         $supervision = self::getContainer()->get(SupervisionComptes::class);

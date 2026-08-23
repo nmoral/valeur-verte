@@ -38,6 +38,14 @@
             </p>
         {% endif %}
 
+        {% if compte_suspendu() %}
+            <p class="compte-suspendu-bandeau" role="alert">
+                Votre compte est suspendu. Vous gardez l'accès en lecture, mais la
+                production et la modification de rapports, comme la configuration,
+                sont indisponibles. Contactez le support pour le réactiver.
+            </p>
+        {% endif %}
+
         {% set essai = essai_courant() %}
         {% if essai %}
             <a class="essai-bandeau{{ essai.termine ? ' est-termine' : (essai.quotaConsommeAuMoins(80) ? ' est-alerte' : '') }}" href="{{ path('back_office_bilan') }}">

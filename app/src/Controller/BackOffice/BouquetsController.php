@@ -7,6 +7,7 @@ namespace App\Controller\BackOffice;
 use App\BackOffice\Bouquet\Bouquet;
 use App\BackOffice\Bouquet\BouquetRepository;
 use App\BackOffice\GrilleCout\Poste;
+use App\Compte\SuiviCompte;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,9 +21,13 @@ use Symfony\Component\Routing\Attribute\Route;
 final class BouquetsController extends AbstractController
 {
     #[Route('/bouquets', name: 'back_office_bouquets', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
-    public function __invoke(Request $request, BouquetRepository $bouquets): Response
+    public function __invoke(Request $request, BouquetRepository $bouquets, SuiviCompte $suivi): Response
     {
         if ($request->isMethod('POST')) {
+            if ($suivi->estSuspendu()) {
+                return $this->redirectToRoute('espace_pro');
+            }
+
             try {
                 $bouquet = $this->composer($request);
             } catch (\InvalidArgumentException $erreur) {
@@ -38,8 +43,12 @@ final class BouquetsController extends AbstractController
     }
 
     #[Route('/bouquets/supprimer', name: 'back_office_bouquets_supprimer', host: 'app.%app.domaine%', methods: ['POST'])]
-    public function supprimer(Request $request, BouquetRepository $bouquets): Response
+    public function supprimer(Request $request, BouquetRepository $bouquets, SuiviCompte $suivi): Response
     {
+        if ($suivi->estSuspendu()) {
+            return $this->redirectToRoute('espace_pro');
+        }
+
         $bouquets->supprimer($request->request->getString('nom'));
 
         return $this->redirectToRoute('back_office_bouquets');

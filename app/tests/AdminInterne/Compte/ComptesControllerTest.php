@@ -12,6 +12,8 @@ use App\BackOffice\Entreprise\StatutRge;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
+use App\Compte\Compte;
+use App\Compte\CompteRepository;
 use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
@@ -48,6 +50,23 @@ final class ComptesControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Comptes');
         self::assertSelectorTextContains('tbody', 'SARL Toiture Occitane');
         self::assertSelectorTextContains('tbody tr:first-child', '2');
+    }
+
+    public function testUnCompteSuspenduEstSignaleDansLaListe(): void
+    {
+        $client = static::createClient();
+        $this->connecterAdmin($client);
+        $tenantId = $this->tenants()->nouveau()->id();
+        self::assertNotNull($tenantId);
+        $this->seedEntreprise('SARL Toiture Occitane', $tenantId);
+        $compte = Compte::creer($tenantId, new \DateTimeImmutable());
+        $compte->suspendre(new \DateTimeImmutable('2026-08-20 10:00:00'));
+        $this->comptesPro()->enregistrer($compte);
+
+        $client->request('GET', 'http://'.self::HOTE_ADMIN.'/comptes');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('tbody .badge-suspendu');
     }
 
     public function testLaNavigationAdminRelieLesPagesEtMarqueLaCourante(): void
@@ -110,6 +129,14 @@ final class ComptesControllerTest extends WebTestCase
     {
         $repository = self::getContainer()->get(TenantRepository::class);
         self::assertInstanceOf(TenantRepository::class, $repository);
+
+        return $repository;
+    }
+
+    private function comptesPro(): CompteRepository
+    {
+        $repository = self::getContainer()->get(CompteRepository::class);
+        self::assertInstanceOf(CompteRepository::class, $repository);
 
         return $repository;
     }

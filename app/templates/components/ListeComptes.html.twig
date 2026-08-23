@@ -11,7 +11,10 @@
         vide_message: 'Aucun compte pour le moment.'
     } %}
         {% block ligne %}
-            <td>{{ element.identite }}</td>
+            <td>
+                {{ element.identite }}
+                {% if element.suspendu %}<span class="badge-suspendu" title="Compte suspendu">Suspendu</span>{% endif %}
+            </td>
             <td>{{ element.creeLe|date('d/m/Y') }}</td>
             <td>{{ element.formule.libelle }}</td>
             <td>{{ element.essai.rapportsConsommes }}</td>

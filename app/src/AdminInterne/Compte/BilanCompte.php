@@ -20,6 +20,7 @@ final readonly class BilanCompte
         private \DateTimeImmutable $creeLe,
         private Formule $formule,
         private EtatEssai $essai,
+        private bool $suspendu = false,
     ) {
     }
 
@@ -46,5 +47,14 @@ final readonly class BilanCompte
     public function essai(): EtatEssai
     {
         return $this->essai;
+    }
+
+    /**
+     * Le compte est-il suspendu par l'admin (#47/#322) ? Pilote le badge de la
+     * liste : l'éditeur voit d'un coup d'œil ce qu'il a suspendu.
+     */
+    public function suspendu(): bool
+    {
+        return $this->suspendu;
     }
 }

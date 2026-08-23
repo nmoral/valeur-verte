@@ -13,6 +13,7 @@ use App\BackOffice\Restitution\AjustementInvalide;
 use App\BackOffice\Restitution\AjustementProfessionnel;
 use App\BackOffice\Restitution\DeclarationsPro;
 use App\BackOffice\Restitution\Restitution;
+use App\Compte\SuiviCompte;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,12 +33,19 @@ final class AuditResultatController extends AbstractController
 {
     public function __construct(
         private readonly RapportRepository $rapports,
+        private readonly SuiviCompte $suivi,
     ) {
     }
 
     #[Route('/audit/resultat', name: 'back_office_audit_resultat', host: 'app.%app.domaine%', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
+        // Compte suspendu (#322) : l'écriture (ligne d'ajustement) est fermée, la
+        // lecture de la restitution reste ouverte. On garde donc le seul POST.
+        if ($request->isMethod('POST') && $this->suivi->estSuspendu()) {
+            return $this->redirectToRoute('espace_pro');
+        }
+
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
         if (!\is_array($resultat) || !(($resultat['saisie'] ?? null) instanceof SaisieAudit)) {
             return $this->redirectToRoute('back_office_audit');
@@ -58,6 +66,10 @@ final class AuditResultatController extends AbstractController
     #[Route('/audit/resultat/declarations', name: 'back_office_audit_resultat_declarations', host: 'app.%app.domaine%', methods: ['POST'])]
     public function declarer(Request $request): Response
     {
+        if ($this->suivi->estSuspendu()) {
+            return $this->redirectToRoute('espace_pro');
+        }
+
         $resultat = $request->getSession()->get(AuditController::SESSION_RESULTAT);
         if (!\is_array($resultat) || !(($resultat['saisie'] ?? null) instanceof SaisieAudit)) {
             return $this->redirectToRoute('back_office_audit');

@@ -53,6 +53,16 @@ final readonly class SuiviCompte
         );
     }
 
+    /**
+     * Le compte courant est-il suspendu (#47/#322) ? Faux s'il n'y a pas de compte
+     * courant (admin sans tenant, ou compte non frappé) : la suspension ne
+     * concerne qu'un compte pro existant.
+     */
+    public function estSuspendu(): bool
+    {
+        return $this->compteCourant()?->estSuspendu() ?? false;
+    }
+
     private function compteCourant(): ?Compte
     {
         $tenantId = $this->tenant->actuel();

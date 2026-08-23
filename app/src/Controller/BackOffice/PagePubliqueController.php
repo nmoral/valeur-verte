@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\BackOffice;
 
+use App\Compte\SuiviCompte;
 use App\Tenant\TenantContext;
 use App\Widget\GenerateurJetonPagePublique;
 use App\Widget\PagePublique;
@@ -22,6 +23,10 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class PagePubliqueController extends AbstractController
 {
+    public function __construct(private readonly SuiviCompte $suivi)
+    {
+    }
+
     #[Route('/page-publique', name: 'back_office_page_publique', host: 'app.%app.domaine%', methods: ['GET'])]
     public function __invoke(TenantContext $tenants, PagePubliqueDuPro $pages): Response
     {
@@ -35,6 +40,10 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueDuPro $pages,
         PagePubliqueRepository $depot,
     ): Response {
+        if (null !== $refus = $this->refuseSiSuspendu()) {
+            return $refus;
+        }
+
         $page = $pages->courante($this->tenant($tenants));
 
         try {
@@ -67,6 +76,10 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueRepository $depot,
         GenerateurJetonPagePublique $jetons,
     ): Response {
+        if (null !== $refus = $this->refuseSiSuspendu()) {
+            return $refus;
+        }
+
         $page = $pages->courante($this->tenant($tenants));
         $page->changerDeJeton($jetons->nouveau());
         $depot->enregistrer($page);
@@ -80,11 +93,24 @@ final class PagePubliqueController extends AbstractController
         PagePubliqueRepository $depot,
         bool $enLigne,
     ): Response {
+        if (null !== $refus = $this->refuseSiSuspendu()) {
+            return $refus;
+        }
+
         $page = $pages->courante($this->tenant($tenants));
         $enLigne ? $page->activer() : $page->desactiver();
         $depot->enregistrer($page);
 
         return $this->redirectToRoute('back_office_page_publique');
+    }
+
+    /**
+     * Compte suspendu (#322) : toute écriture sur la page publique est fermée
+     * (renvoi vers l'espace pro) ; la lecture (GET) reste ouverte.
+     */
+    private function refuseSiSuspendu(): ?Response
+    {
+        return $this->suivi->estSuspendu() ? $this->redirectToRoute('espace_pro') : null;
     }
 
     private function tenant(TenantContext $tenants): int
