@@ -73,6 +73,52 @@ final class AdministrationComptesTest extends KernelTestCase
         self::assertSame('compte.essai_prolonge', $this->journal->evenementsRecents()[0]->action());
     }
 
+    public function testDemanderSuppressionMarqueLeCompteEtTrace(): void
+    {
+        $this->comptes->enregistrer(Compte::creer(42, new \DateTimeImmutable('2026-01-01')));
+
+        self::assertTrue($this->administration->demanderSuppression(42, 'admin@example.com'));
+
+        $this->viderIdentityMap();
+        $compte = $this->comptes->pourTenant(42);
+        self::assertTrue($compte?->estEnAttenteDeSuppression());
+        self::assertEquals(new \DateTimeImmutable('2026-08-17 09:00:00'), $compte?->suppressionDemandeeLe());
+
+        $evenement = $this->journal->evenementsRecents()[0];
+        self::assertSame('compte.suppression_demandee', $evenement->action());
+        self::assertSame('compte#42', $evenement->cible());
+        self::assertSame('admin@example.com', $evenement->acteur());
+    }
+
+    public function testDemanderSuppressionSurCompteDejaEnAttenteNeFaitRien(): void
+    {
+        $this->comptes->enregistrer(Compte::creer(42, new \DateTimeImmutable('2026-01-01')));
+        $this->administration->demanderSuppression(42, 'admin@example.com');
+
+        self::assertFalse($this->administration->demanderSuppression(42, 'admin@example.com'));
+        self::assertCount(1, $this->journal->evenementsRecents());
+    }
+
+    public function testAnnulerSuppressionLeveLaDemandeEtTrace(): void
+    {
+        $this->comptes->enregistrer(Compte::creer(42, new \DateTimeImmutable('2026-01-01')));
+        $this->administration->demanderSuppression(42, 'pro@example.com');
+
+        self::assertTrue($this->administration->annulerSuppression(42, 'pro@example.com'));
+
+        $this->viderIdentityMap();
+        self::assertFalse($this->comptes->pourTenant(42)?->estEnAttenteDeSuppression());
+        self::assertSame('compte.suppression_annulee', $this->journal->evenementsRecents()[0]->action());
+    }
+
+    public function testAnnulerSuppressionSansDemandeNeFaitRien(): void
+    {
+        $this->comptes->enregistrer(Compte::creer(42, new \DateTimeImmutable('2026-01-01')));
+
+        self::assertFalse($this->administration->annulerSuppression(42, 'admin@example.com'));
+        self::assertCount(0, $this->journal->evenementsRecents());
+    }
+
     private function viderIdentityMap(): void
     {
         $manager = self::getContainer()->get(EntityManagerInterface::class);
