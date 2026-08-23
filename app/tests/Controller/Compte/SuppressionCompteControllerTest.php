@@ -71,6 +71,31 @@ final class SuppressionCompteControllerTest extends WebTestCase
         self::assertFalse($this->comptes()->pourTenant(7004)?->estEnAttenteDeSuppression());
     }
 
+    public function testLaPageMonCompteProposeLaSuppressionAuPro(): void
+    {
+        $client = static::createClient();
+        $this->seedProAvecCompte($client, 'pro-lien@example.com', 7005);
+
+        $client->request('GET', self::APP.'/mon-compte');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/mon-compte/suppression"]');
+    }
+
+    public function testLAdminNeVoitPasLaSuppressionSurMonCompte(): void
+    {
+        $client = static::createClient();
+        $admin = new User('admin-suppr@example.com', ['ROLE_ADMIN']);
+        $admin->definirMotDePasse($this->hasher()->hashPassword($admin, self::MOT_DE_PASSE));
+        $this->users()->enregistrer($admin);
+        $client->loginUser($admin);
+
+        $client->request('GET', 'http://admin.valeurverte.localhost/mon-compte');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('a[href="/mon-compte/suppression"]');
+    }
+
     public function testLaPageExigeUneAuthentification(): void
     {
         $client = static::createClient();
