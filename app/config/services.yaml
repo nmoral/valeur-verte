@@ -15,6 +15,7 @@ parameters:
     # VV_SAUVEGARDE_DIR (volume monté) et, au besoin, VV_SAUVEGARDE_RETENTION_JOURS.
     app.sauvegarde.repertoire_defaut: '%kernel.project_dir%/var/sauvegardes'
     app.sauvegarde.retention_defaut: 30
+    app.sauvegarde.dsn_defaut: '%env(DATABASE_URL)%'
 
     # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
     # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
@@ -71,7 +72,12 @@ services:
     App\Exploitation\Sauvegarde\ExecuteurDump: '@App\Exploitation\Sauvegarde\ExecuteurDumpPgDump'
     App\Exploitation\Sauvegarde\ExecuteurDumpPgDump:
         arguments:
-            $databaseUrl: '%env(DATABASE_URL)%'
+            # Connexion **privilégiée** : pg_dump de la base entière (schémas app +
+            # data + PostGIS) exige un rôle qui possède tout — le rôle applicatif « app »
+            # (moindre privilège, lecture seule sur data) ne peut pas dumper data.* ni
+            # public.schema_migrations. En production, le cron fixe VV_SAUVEGARDE_DATABASE_URL
+            # sur le rôle superutilisateur (POSTGRES_USER). À défaut, DATABASE_URL.
+            $databaseUrl: '%env(default:app.sauvegarde.dsn_defaut:VV_SAUVEGARDE_DATABASE_URL)%'
     App\Exploitation\Sauvegarde\LanceurProcessus: '@App\Exploitation\Sauvegarde\LanceurProcessusSymfony'
 
     # Cache-busting des assets : versionne par hash du fichier servi.
