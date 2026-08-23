@@ -22,4 +22,11 @@
   0  3 * * *  php /app/bin/console app:widget:purger-evenements --no-interaction
  10  3 * * *  php /app/bin/console app:widget:purger-demandes-lead --no-interaction
  20  3 * * *  php /app/bin/console app:rapport:appliquer-retention --no-interaction
-  0  8 * * *  php /app/bin/console app:essai:relancer --no-interaction
+
+# Relance de fin d'essai (#108) — **volontairement pas encore activée**. Les trois
+# tâches ci-dessus ne font qu'effacer des données à nous ; celle-ci écrit à de
+# vraies personnes (« Votre essai Valeur Verte se termine bientôt », une fois par
+# compte). Elle ne s'allume pas comme effet de bord de la mise en place de
+# l'ordonnanceur : la décoller demande de savoir quels comptes sont concernés.
+# Décommenter le jour où c'est établi, et basculer #190 en conséquence.
+#  0  8 * * *  php /app/bin/console app:essai:relancer --no-interaction

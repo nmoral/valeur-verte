@@ -114,7 +114,7 @@ l'hôte. Le registre des tâches vit dans l'issue [#190](../../../issues/190).
 | `app:widget:purger-evenements` | 03:00 | Purge des événements de parcours de la page publique au-delà de 90 jours ([#90](../../../issues/90)) |
 | `app:widget:purger-demandes-lead` | 03:10 | Purge des demandes de lead non confirmées ou expirées ([#292](../../../issues/292)) |
 | `app:rapport:appliquer-retention` | 03:20 | Rétention D10 : anonymisation à 24 mois, suppression à 3 ans ([#294](../../../issues/294)) |
-| `app:essai:relancer` | 08:00 | Email de relance de fin d'essai ([#108](../../../issues/108)) |
+| `app:essai:relancer` | — | Email de relance de fin d'essai ([#108](../../../issues/108)) — **ligne commentée, pas encore activée** : elle écrit à de vraies personnes, elle ne s'allume pas comme effet de bord de la mise en place de l'ordonnanceur |
 
 Toutes sont **idempotentes** : les rejouer ne fait rien de plus. Elles sont
 décalées de dix minutes pour ne pas balayer la base en même temps, et
