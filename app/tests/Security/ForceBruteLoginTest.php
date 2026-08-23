@@ -57,7 +57,9 @@ final class ForceBruteLoginTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         self::assertStringContainsString('/login', $client->getRequest()->getUri());
-        self::assertSelectorExists('.alert');
+        // L'utilisateur doit savoir combien de temps il est bloqué : un refus sans
+        // horizon se lit comme un compte cassé.
+        self::assertSelectorTextContains('.alert', '15');
     }
 
     public function testSousLePlafondLaConnexionResteNormale(): void
