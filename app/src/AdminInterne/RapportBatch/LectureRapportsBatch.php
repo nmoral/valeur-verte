@@ -20,7 +20,7 @@ final readonly class LectureRapportsBatch
         .'communes_traitees, communes_referencees, mutations_inserees, ventes_appariees, '
         .'contours_charges, epci_charges, sans_donnees, '
         .'communes_calculees, refus, rejets_invariants, alertes_bord, inversions_dpe, '
-        .'ecarts_blocages, ecarts_alertes, ordre_canonique, echecs';
+        .'ecarts_blocages, ecarts_alertes, ordre_canonique, echecs, mutation_la_plus_recente';
 
     public function __construct(
         private Connection $connexion,
@@ -97,7 +97,18 @@ final readonly class LectureRapportsBatch
             epciCharges: self::entier($ligne['epci_charges']),
             sansDonnees: self::entier($ligne['sans_donnees']),
             echecs: $echecs,
+            mutationLaPlusRecente: self::jour($ligne['mutation_la_plus_recente']),
         );
+    }
+
+    /**
+     * Date seule (DAT-5) : nulle pour une ingestion antérieure à la migration 016,
+     * qu'on ne remplace surtout pas par « aujourd'hui » — une fraîcheur inconnue
+     * n'est pas une fraîcheur parfaite.
+     */
+    private static function jour(mixed $valeur): ?\DateTimeImmutable
+    {
+        return \is_string($valeur) ? new \DateTimeImmutable($valeur) : null;
     }
 
     private static function horodatage(mixed $valeur): \DateTimeImmutable
