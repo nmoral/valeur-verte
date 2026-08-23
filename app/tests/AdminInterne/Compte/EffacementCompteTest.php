@@ -80,6 +80,42 @@ final class EffacementCompteTest extends KernelTestCase
         self::assertSame('admin@example.com', $this->journal->evenementsRecents()[0]->acteur());
     }
 
+    public function testEffacerLesComptesExigiblesNeToucheQueCeuxHorsDelaiDeGrace(): void
+    {
+        // Grâce de 30 j, horloge au 2026-08-23 → borne d'exigibilité au 2026-07-24.
+        $horsDelai = $this->semerCompteAvecDemande(new \DateTimeImmutable('2026-07-14 09:00:00'));
+        $dansDelai = $this->semerCompteAvecDemande(new \DateTimeImmutable('2026-08-13 09:00:00'));
+        $sansDemande = $this->repo(TenantRepository::class)->nouveau()->id();
+        self::assertNotNull($sansDemande);
+        $this->repo(CompteRepository::class)->enregistrer(Compte::creer($sansDemande, new \DateTimeImmutable('2026-01-01')));
+
+        $bilan = $this->effacement->effacerLesComptesExigibles('systeme');
+        $this->viderIdentityMap();
+
+        self::assertSame(1, $bilan->comptesEffaces());
+        self::assertSame(0, $this->compter('compte', $horsDelai), 'le compte hors délai de grâce doit être effacé');
+        self::assertSame(1, $this->compter('compte', $dansDelai), 'le compte encore dans le délai de grâce doit rester');
+        self::assertSame(1, $this->compter('compte', $sansDemande), 'un compte sans demande ne doit jamais être effacé');
+
+        $actions = array_map(
+            static fn (EvenementAudit $e): string => $e->action(),
+            $this->journal->evenementsRecents(),
+        );
+        self::assertSame(['compte.efface'], $actions);
+        self::assertSame('compte#'.$horsDelai, $this->journal->evenementsRecents()[0]->cible());
+    }
+
+    private function semerCompteAvecDemande(\DateTimeImmutable $demandeLe): int
+    {
+        $tenantId = $this->repo(TenantRepository::class)->nouveau()->id();
+        self::assertNotNull($tenantId);
+        $compte = Compte::creer($tenantId, new \DateTimeImmutable('2026-01-01'));
+        $compte->demanderSuppression($demandeLe);
+        $this->repo(CompteRepository::class)->enregistrer($compte);
+
+        return $tenantId;
+    }
+
     private function semerTenantComplet(string $slug): int
     {
         $tenantId = $this->repo(TenantRepository::class)->nouveau()->id();
