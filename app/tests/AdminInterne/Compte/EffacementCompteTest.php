@@ -130,15 +130,21 @@ final class EffacementCompteTest extends KernelTestCase
 
     private function compter(string $table, int $tenantId): int
     {
-        return (int) $this->connection()->fetchOne(
+        $valeur = $this->connection()->fetchOne(
             'SELECT COUNT(*) FROM '.$table.' WHERE tenant_id = ?',
             [$tenantId],
         );
+        self::assertIsNumeric($valeur);
+
+        return (int) $valeur;
     }
 
     private function compterTenant(int $tenantId): int
     {
-        return (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM tenant WHERE id = ?', [$tenantId]);
+        $valeur = $this->connection()->fetchOne('SELECT COUNT(*) FROM tenant WHERE id = ?', [$tenantId]);
+        self::assertIsNumeric($valeur);
+
+        return (int) $valeur;
     }
 
     /**

@@ -59,6 +59,39 @@ class CompteRepository extends ServiceEntityRepository
     }
 
     /**
+     * Comptes dont la demande d'effacement a dépassé le délai de grâce (#308) :
+     * `suppression_demandee_le` non nulle et antérieure ou égale à la borne. Les
+     * plus anciens d'abord. Sert au finaliseur (cron).
+     *
+     * @return list<Compte>
+     */
+    public function exigiblesPourEffacement(\DateTimeImmutable $borne): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.suppressionDemandeeLe IS NOT NULL')
+            ->andWhere('c.suppressionDemandeeLe <= :borne')
+            ->setParameter('borne', $borne)
+            ->orderBy('c.suppressionDemandeeLe', 'ASC')
+            ->addOrderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Supprime le compte d'un tenant (#308, effacement). Renvoie le nombre
+     * supprimé (0 ou 1, le tenant étant unique).
+     */
+    public function supprimerParTenant(int $tenantId): int
+    {
+        return (int) $this->createQueryBuilder('c')
+            ->delete()
+            ->andWhere('c.tenantId = :tenant')
+            ->setParameter('tenant', $tenantId)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * Nombre de comptes déjà passés fondateurs — sert à faire respecter le plafond
      * de la formule avant une validation (#61).
      */
