@@ -99,3 +99,17 @@ def test_la_sonde_est_atteignable_par_une_surveillance_externe() -> None:
         "Le matcher de la sonde doit précéder la porte basic auth : Caddy évalue les "
         "blocs « handle » dans l'ordre écrit."
     )
+
+
+def test_la_sonde_publique_ne_signe_pas_la_pile_technique() -> None:
+    """Seule route ouverte sans authentification sur Internet, /sante ne doit pas
+    annoncer ce qui tourne derrière : l'application ne livre qu'un « ok »/« ko »,
+    mais le runtime ajoute de lui-même « Server » et « X-Powered-By » (version de
+    PHP exacte). Le proxy les retire sur cette route."""
+    bloc = re.search(r"handle\s+@sante\s*\{(.*?)\n\t\}", _caddyfile(), re.DOTALL)
+    assert bloc, "Le Caddyfile doit déclarer un bloc « handle @sante »."
+    for entete in ("Server", "X-Powered-By"):
+        assert re.search(rf"header\s+-{entete}\b", bloc.group(1)), (
+            f"Le bloc de la sonde doit retirer l'en-tête « {entete} » "
+            "(version de la pile technique exposée publiquement)."
+        )
