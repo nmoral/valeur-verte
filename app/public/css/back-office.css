@@ -45,6 +45,7 @@ main{padding:22px 26px 60px;max-width:1100px}
 .essai-bandeau{display:block;margin:0 0 18px;padding:9px 14px;border-radius:8px;text-decoration:none;font:500 13.5px/1.4 'Public Sans',sans-serif;background:var(--brand-soft);color:var(--brand);border:1px solid transparent}
 .essai-bandeau.est-alerte{background:#FCF2DF;color:#8A5712;border-color:#F0DBAE}
 .essai-bandeau.est-termine{background:#FBECEA;color:var(--bad);border-color:#F0C9C3}
+.compte-suspendu-bandeau{margin:0 0 18px;padding:9px 14px;border-radius:8px;font:500 13.5px/1.4 'Public Sans',sans-serif;background:#FBECEA;color:var(--bad);border:1px solid #F0C9C3}
 .rappel-verif-email{margin:0 0 18px;padding:9px 14px;border-radius:8px;font:500 13.5px/1.4 'Public Sans',sans-serif;background:#FCF2DF;color:#8A5712;border:1px solid #F0DBAE}
 .rappel-verif-email a{color:inherit;font-weight:600}
 .flash-verif-email{margin:0 0 18px;padding:9px 14px;border-radius:8px;font:500 13.5px/1.4 'Public Sans',sans-serif;background:var(--brand-soft);color:var(--brand);border:1px solid transparent}

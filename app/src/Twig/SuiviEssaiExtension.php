@@ -27,11 +27,21 @@ final class SuiviEssaiExtension extends AbstractExtension
     {
         return [
             new TwigFunction('essai_courant', $this->essaiCourant(...)),
+            new TwigFunction('compte_suspendu', $this->compteSuspendu(...)),
         ];
     }
 
     public function essaiCourant(): ?EtatEssai
     {
         return $this->suivi->essaiCourant();
+    }
+
+    /**
+     * Le compte courant est-il suspendu (#322) ? Pilote le bandeau permanent qui
+     * explique, sur l'espace pro, pourquoi les actions sont fermées.
+     */
+    public function compteSuspendu(): bool
+    {
+        return $this->suivi->estSuspendu();
     }
 }
