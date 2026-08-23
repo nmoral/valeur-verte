@@ -32,8 +32,12 @@ final class IngestionController extends AbstractController
     #[Route('/ingestion', name: 'admin_ingestion', host: 'admin.%app.domaine%', methods: ['GET'])]
     public function __invoke(): Response
     {
+        $precedentes = $this->lecture->volumetriesPrecedentes();
         $synthese = SyntheseIngestion::depuis(array_map(
-            static fn (RapportBatch $rapport): EtatDernierImport => new EtatDernierImport($rapport),
+            static fn (RapportBatch $rapport): EtatDernierImport => new EtatDernierImport(
+                $rapport,
+                $precedentes[$rapport->departement()] ?? null,
+            ),
             $this->lecture->dernieresIngestions(),
         ));
 

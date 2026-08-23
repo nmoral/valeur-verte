@@ -4,7 +4,7 @@
 
 {% block admin_title %}État des imports{% endblock %}
 
-{% block admin_subtitle %}<p>La dernière ingestion de chaque département, telle qu'elle a été archivée. Deux signaux décident d'un regard : l'appariement DVF ↔ DPE sous 60 % (DAT-3) et une source de plus de 12 mois (DAT-5). L'historique complet des exécutions est dans les <a href="{{ path('admin_rapports_batch') }}">rapports de batch</a>.</p>{% endblock %}
+{% block admin_subtitle %}<p>La dernière ingestion de chaque département, telle qu'elle a été archivée. Trois signaux décident d'un regard : une volumétrie qui s'écarte de plus de 30 % du millésime précédent (DAT-2), un appariement DVF ↔ DPE sous 60 % (DAT-3) et une source de plus de 12 mois (DAT-5). L'historique complet des exécutions est dans les <a href="{{ path('admin_rapports_batch') }}">rapports de batch</a>.</p>{% endblock %}
 
 {% block admin_content %}
     {% if synthese.departementsCouverts == 0 %}
@@ -30,6 +30,7 @@
                         <th scope="col">Millésime</th>
                         <th scope="col">Importé le</th>
                         <th scope="col">Ventes insérées</th>
+                        <th scope="col">vs millésime précédent</th>
                         <th scope="col">Appariement</th>
                         <th scope="col">Source</th>
                         <th scope="col">Communes en échec</th>
@@ -43,6 +44,14 @@
                         <td class="num">{{ etat.millesime }}</td>
                         <td class="mono">{{ etat.importeLe|date('d/m/Y') }}</td>
                         <td class="num">{{ etat.mutationsInserees|number_format(0, ',', ' ') }}</td>
+                        <td>
+                            {% if etat.evolutionVolumetrie is null %}
+                                <span class="muted">premier import</span>
+                            {% else %}
+                                {% set evolution = (etat.evolutionVolumetrie * 100)|round %}
+                                <span class="rel {{ etat.volumetrieAberrante ? 'r-low' : 'r-ok' }}"><i></i>{{ evolution > 0 ? '+' : '' }}{{ evolution }} %</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if etat.tauxAppariement is null %}
                                 <span class="muted">aucune vente</span>

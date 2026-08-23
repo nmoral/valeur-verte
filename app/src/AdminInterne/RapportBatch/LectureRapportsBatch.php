@@ -61,6 +61,38 @@ final readonly class LectureRapportsBatch
         return array_map(self::depuisLigne(...), $lignes);
     }
 
+    /**
+     * La volumétrie du **millésime précédent** de chaque département (#46, DAT-2) :
+     * la référence contre laquelle l'écart ± 30 % se mesure. Même définition que la
+     * porte côté pipeline (``lire_volumetrie_precedent``) — le millésime le plus
+     * récent strictement antérieur à celui du dernier import, dernière exécution.
+     *
+     * Absent de la table de retour quand le département n'a jamais été ingéré
+     * qu'une fois : il n'y a alors rien à comparer.
+     *
+     * @return array<string, int>
+     */
+    public function volumetriesPrecedentes(): array
+    {
+        $lignes = $this->connexion->fetchAllAssociative(
+            'SELECT DISTINCT ON (precedent.departement) precedent.departement, precedent.mutations_inserees '
+            .'FROM data.rapport_batch precedent '
+            .'JOIN (SELECT DISTINCT ON (departement) departement, millesime FROM data.rapport_batch '
+            ."WHERE phase = 'ingestion' ORDER BY departement, debut DESC, id DESC) courant "
+            .'ON courant.departement = precedent.departement AND precedent.millesime < courant.millesime '
+            ."WHERE precedent.phase = 'ingestion' "
+            .'ORDER BY precedent.departement, precedent.millesime DESC, precedent.debut DESC, precedent.id DESC',
+        );
+
+        $volumetries = [];
+        foreach ($lignes as $ligne) {
+            $departement = \is_string($ligne['departement']) ? trim($ligne['departement']) : '';
+            $volumetries[$departement] = self::entier($ligne['mutations_inserees']);
+        }
+
+        return $volumetries;
+    }
+
     public function parId(int $id): ?RapportBatch
     {
         $ligne = $this->connexion->fetchAssociative(
