@@ -55,7 +55,7 @@ final class MessagesEnFrancaisTest extends WebTestCase
         }
         $client->followRedirect();
 
-        self::assertSelectorTextContains('.alert', 'Plusieurs tentatives de connexion ont échoué');
+        self::assertSelectorTextContains('.alert', 'Trop de tentatives de connexion échouées');
         self::assertSelectorTextContains('.alert', '15 minutes');
     }
 

@@ -1,0 +1,11 @@
+framework:
+    # Application francophone (#318). Le translator sert d'abord à rendre les messages
+    # d'échec d'authentification en français : leurs clés sont des libellés anglais
+    # (exceptions de sécurité Symfony), traduits par le catalogue « security.fr »
+    # fourni avec le composant Security. Sans translator, un « identity translator »
+    # renvoyait la clé brute — d'où l'anglais sur l'écran de connexion.
+    default_locale: fr
+    translator:
+        default_path: '%kernel.project_dir%/translations'
+        fallbacks:
+            - fr
