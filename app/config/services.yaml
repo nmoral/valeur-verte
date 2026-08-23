@@ -202,6 +202,15 @@ services:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
 
+    # Changement d'adresse email (#310) : lien de confirmation sur le sous-domaine
+    # app., à durée de vie courte. Plus courte que la réinitialisation de mot de
+    # passe (60 min) n'aurait pas de sens — c'est le même geste, relever une boîte ;
+    # plus longue laisserait vivre une bascule qu'on a pu vouloir annuler.
+    App\Security\ChangementEmail\EnvoiDemandeChangementEmail:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $dureeValiditeMinutes: 60
+
     # Rétention des événements de parcours (#90) : durée de conservation courte,
     # cohérente avec la finalité déclarée (mesure d'audience et de conversion).
     # La purge est jouée par un cron quotidien (registre #190).

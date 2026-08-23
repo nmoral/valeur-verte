@@ -1,6 +1,11 @@
 {# Page servie dans les deux zones (#306) : les URL se génèrent sur la route
-   effectivement empruntée, sinon le formulaire de l'admin posterait vers app. #}
-{% set route_compte = app.request.attributes.get('_route') %}
+   effectivement empruntée, sinon le formulaire de l'admin posterait vers app.
+   Une réponse 422 rendue depuis une action POST (changement d'adresse, #310)
+   passe la route explicitement : l'attribut de requête désigne alors l'action,
+   pas la page. #}
+{% set route_compte = route_compte|default(app.request.attributes.get('_route')) %}
+{% set route_email = route_compte == 'mon_compte_admin' ? 'mon_compte_email_admin' : 'mon_compte_email' %}
+{% set erreursEmail = erreursEmail|default({}) %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -31,6 +36,10 @@
       <p class="alert" role="alert">{{ erreurs.global }}</p>
     {% endif %}
 
+    {% if erreursEmail.global is defined %}
+      <p class="alert" role="alert">{{ erreursEmail.global }}</p>
+    {% endif %}
+
     <h2>Changer mon mot de passe</h2>
     <form method="post" action="{{ path(route_compte) }}" novalidate>
       <div class="field-group{{ erreurs.actuel is defined ? ' has-error' : '' }}">
@@ -57,6 +66,27 @@
 
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('mon_compte') }}">
       <button type="submit" class="btn-primary">Changer le mot de passe</button>
+    </form>
+
+    {# Changement d'adresse (#310) : l'adresse est l'identifiant de connexion et
+       le canal de récupération — elle ne bascule qu'après confirmation sur la
+       nouvelle boîte, et l'ancienne en est avertie. #}
+    <h2>Changer mon adresse email</h2>
+    <p>
+      Votre adresse actuelle reste active tant que vous n'avez pas cliqué le lien
+      de confirmation envoyé à la nouvelle.
+    </p>
+    <form method="post" action="{{ path(route_email) }}" novalidate>
+      <div class="field-group{{ erreursEmail.nouvel_email is defined ? ' has-error' : '' }}">
+        <label for="nouvel_email">Nouvelle adresse email</label>
+        <input type="email" id="nouvel_email" name="nouvel_email" autocomplete="email" required>
+        {% if erreursEmail.nouvel_email is defined %}
+          <span class="form-error">{{ erreursEmail.nouvel_email }}</span>
+        {% endif %}
+      </div>
+
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('mon_compte_email') }}">
+      <button type="submit" class="btn-primary">Envoyer le lien de confirmation</button>
     </form>
 
     {# Résiliation self-service (#308) : réservée au pro (l'admin interne, sans
