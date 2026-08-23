@@ -17,6 +17,16 @@ class EntrepriseRepository extends ServiceEntityRepository
         parent::__construct($registry, Entreprise::class);
     }
 
+    /**
+     * Fiche du pro courant (#311), ou null s'il n'en a pas — SIRET inconnu de
+     * l'API à l'inscription (#106). Le cloisonnement par tenant est porté par le
+     * filtre Doctrine : la requête n'a pas à le répéter.
+     */
+    public function courante(): ?Entreprise
+    {
+        return $this->findOneBy([], ['id' => 'ASC']);
+    }
+
     public function enregistrer(Entreprise $entreprise): void
     {
         $manager = $this->getEntityManager();

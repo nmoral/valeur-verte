@@ -17,7 +17,7 @@
             <a href="{{ path('back_office_page_publique') }}"{{ nav_active|default('') == 'page_publique' ? ' class="on"' : '' }}>Ma page publique</a>
             <p class="sect">Compte</p>
             <span class="lien-off" title="À venir">Abonnement</span>
-            <span class="lien-off" title="À venir">Entreprise</span>
+            <a href="{{ path('back_office_entreprise') }}"{{ nav_active|default('') == 'entreprise' ? ' class="on"' : '' }}>Entreprise</a>
         </nav>
         {% block sidebar_footer %}{% endblock %}
         <div class="side-footer">

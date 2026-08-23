@@ -11,8 +11,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
  * Suspension (#322) : un compte suspendu ne peut plus modifier sa configuration —
- * marque (#34), bouquets (#35), page publique (#38). Chaque écriture (POST) est
- * refusée et renvoyée vers l'espace pro ; la lecture (GET) reste ouverte.
+ * marque (#34), bouquets (#35), page publique (#38), fiche entreprise (#311).
+ * Chaque écriture (POST) est refusée et renvoyée vers l'espace pro ; la lecture
+ * (GET) reste ouverte.
  */
 final class EcrituresConfigBloqueesSiSuspenduTest extends WebTestCase
 {
@@ -30,6 +31,11 @@ final class EcrituresConfigBloqueesSiSuspenduTest extends WebTestCase
         yield 'page retirer' => ['/page-publique/retirer', []];
         yield 'page remettre' => ['/page-publique/remettre-en-ligne', []];
         yield 'page regenerer' => ['/page-publique/regenerer', []];
+        yield 'fiche entreprise' => ['/entreprise', [
+            'siret' => '12345678901234',
+            'raison_sociale' => 'Renov Habitat',
+            'adresse' => '12 rue des Lilas, 31000 Toulouse',
+        ]];
     }
 
     /**
