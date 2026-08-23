@@ -103,6 +103,38 @@ final class EtatDernierImportTest extends TestCase
         self::assertFalse($etat->sourcePerimee(new \DateTimeImmutable('2026-08-01')));
     }
 
+    public function testIlSitueLaVolumetrieFaceAuMillesimePrecedent(): void
+    {
+        $etat = new EtatDernierImport(self::ingestion(departement: '31', mutationsInserees: 1300), 1000);
+
+        self::assertEqualsWithDelta(0.30, $etat->evolutionVolumetrie(), 0.0001);
+        self::assertFalse($etat->volumetrieAberrante());
+    }
+
+    public function testUneVolumetrieQuiDecrocheDePlusDeTrenteePourCentEstSignalee(): void
+    {
+        $etat = new EtatDernierImport(self::ingestion(departement: '31', mutationsInserees: 550), 1000);
+
+        self::assertEqualsWithDelta(-0.45, $etat->evolutionVolumetrie(), 0.0001);
+        self::assertTrue($etat->volumetrieAberrante());
+    }
+
+    public function testUnPremierChargementNAPasDEvolutionAJuger(): void
+    {
+        $etat = new EtatDernierImport(self::ingestion(departement: '31', mutationsInserees: 1300));
+
+        self::assertNull($etat->evolutionVolumetrie());
+        self::assertFalse($etat->volumetrieAberrante());
+    }
+
+    public function testUnPrecedentAZeroNeDonnePasUneEvolutionInfinie(): void
+    {
+        $etat = new EtatDernierImport(self::ingestion(departement: '31', mutationsInserees: 1300), 0);
+
+        self::assertNull($etat->evolutionVolumetrie());
+        self::assertFalse($etat->volumetrieAberrante());
+    }
+
     public function testUnDepartementEstEnAlerteDesQuUnSignalEstAuRouge(): void
     {
         $sain = new EtatDernierImport(self::ingestion(
@@ -123,11 +155,18 @@ final class EtatDernierImportTest extends TestCase
             ventesAppariees: 900,
             mutationLaPlusRecente: new \DateTimeImmutable('2024-01-01'),
         ));
+        $volumetrie = new EtatDernierImport(self::ingestion(
+            departement: '32',
+            mutationsInserees: 400,
+            ventesAppariees: 360,
+            mutationLaPlusRecente: new \DateTimeImmutable('2026-06-30'),
+        ), 1000);
         $maintenant = new \DateTimeImmutable('2026-08-23');
 
         self::assertFalse($sain->enAlerte($maintenant));
         self::assertTrue($appariement->enAlerte($maintenant));
         self::assertTrue($fraicheur->enAlerte($maintenant));
+        self::assertTrue($volumetrie->enAlerte($maintenant));
     }
 
     public function testIlRenvoieVersLeRapportDeBatchArchive(): void
