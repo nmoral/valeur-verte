@@ -19,7 +19,7 @@ final class EcrituresConfigBloqueesSiSuspenduTest extends WebTestCase
     private const HOTE_PRO = 'app.valeurverte.localhost';
 
     /**
-     * @return iterable<string, array{string, array<string, string>}>
+     * @return iterable<string, array{string, array<string, mixed>}>
      */
     public static function ecritures(): iterable
     {
