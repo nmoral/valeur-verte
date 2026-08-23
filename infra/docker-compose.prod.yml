@@ -102,6 +102,20 @@ services:
     # jamais directement sur Internet (même règle que la base).
     ports:
       - "127.0.0.1:8000:80"
+    # Santé applicative (#313), à la place de la sonde héritée de l'image : celle-ci
+    # interroge l'endpoint d'administration de FrankenPHP, qui répond tant que le
+    # binaire tourne — base injoignable, migration à moitié appliquée ou disque plein
+    # la laissaient verte. /sante vérifie ce qui compte et rend 503 sinon ; « --fail »
+    # est indispensable, sans lui curl sort en 0 sur une 503 et le conteneur resterait
+    # « healthy » dans le cas précis que la sonde doit détecter. start_period couvre le
+    # démarrage (warmup du cache, attente de la base) sans afficher « unhealthy » à
+    # chaque déploiement.
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:80/sante"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # Ordonnanceur des tâches planifiées (#190, #300) : rétention des rapports (D10),
   # purges du widget, relance de fin d'essai. Même image et même environnement que

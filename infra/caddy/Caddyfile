@@ -24,6 +24,16 @@ valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte
 		file_server
 	}
 
+	# Santé applicative (#313) : servie **sans** basic auth. Le VPS peut tomber en
+	# entier — la sonde du conteneur ne le verra jamais, seule une surveillance
+	# externe le voit, et derrière un 401 elle ne mesurerait que le 401. L'endpoint
+	# ne livre rien d'exploitable : un « ok »/« ko » par contrôle, pas de version,
+	# pas de trace. Placé avant la porte : Caddy évalue les « handle » dans l'ordre.
+	@sante path /sante
+	handle @sante {
+		reverse_proxy app:80
+	}
+
 	# Tout le reste : gate basic auth (équivalent htaccess) -> proxy vers app.
 	# Hash bcrypt inline (pas via env : Compose interpole les $ du hash et le casse).
 	# Gate de preview privé (mot de passe aléatoire fort, bcrypt coût 14) sur dépôt
