@@ -1,0 +1,75 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Identité de votre entreprise : elle alimentera vos factures.</p>{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .erreur{margin:0 16px 12px;padding:10px 12px;border:1px solid var(--bad);border-radius:2px;color:var(--bad);font-size:13px}
+    .ok{margin:0 16px 12px;padding:10px 12px;border:1px solid var(--rule);border-radius:2px;font-size:13px}
+    .faits{margin:0;padding:0;list-style:none;font-size:13px;color:var(--slate)}
+    .faits li{display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-bottom:1px solid var(--rule)}
+    .faits b{font-weight:600;text-align:right}
+</style>
+{% endblock %}
+
+{% block bo_content %}
+{% set saisie = saisie|default({}) %}
+<div class="panel">
+    <div class="panel-head">
+        <h2>Votre entreprise</h2>
+        <span class="hint">le SIRET est re-vérifié avant d'être accepté</span>
+    </div>
+
+    {% if erreur is defined %}<p class="erreur">{{ erreur }}</p>{% endif %}
+    {% for message in app.flashes('entreprise') %}<p class="ok">{{ message }}</p>{% endfor %}
+
+    <form method="post" action="{{ path('back_office_entreprise') }}" class="cfg" id="form-entreprise">
+        <div>
+            {% if entreprise is null %}
+                <p class="hint" style="margin:0 0 12px">
+                    Aucune fiche n'est rattachée à votre compte : votre SIRET n'a pas pu être
+                    retrouvé à l'inscription. Saisissez-le pour la créer.
+                </p>
+            {% endif %}
+            <div class="row">
+                <label for="champ-siret">SIRET</label>
+                <span class="inp"><input type="text" id="champ-siret" name="siret" inputmode="numeric"
+                    value="{{ saisie.siret|default(entreprise ? entreprise.siret : '') }}" style="width:180px"></span>
+            </div>
+            <div class="row">
+                <label for="champ-raison-sociale">Raison sociale</label>
+                <span class="inp"><input type="text" id="champ-raison-sociale" name="raison_sociale"
+                    value="{{ saisie.raison_sociale|default(entreprise ? entreprise.raisonSociale : '') }}" style="width:260px"></span>
+            </div>
+            <div class="row">
+                <label for="champ-adresse">Adresse</label>
+                <span class="inp"><input type="text" id="champ-adresse" name="adresse"
+                    value="{{ saisie.adresse|default(entreprise ? entreprise.adresse : '') }}" style="width:300px"></span>
+            </div>
+            <div style="padding-top:14px"><button type="submit" class="btn">Enregistrer la fiche</button></div>
+            <p class="hint" style="margin-top:12px">
+                Changer de SIRET (passage en société, reprise) reprend l'identité de
+                l'établissement vérifié : raison sociale et adresse sont alors réécrites.
+            </p>
+        </div>
+
+        <div>
+            <p class="mono muted" style="font-size:11px;margin-bottom:10px">CE QUE DISENT LES ANNUAIRES</p>
+            {% if entreprise is null %}
+                <p class="hint">Renseignez votre SIRET pour voir ce que les annuaires publics en disent.</p>
+            {% else %}
+                <ul class="faits">
+                    <li><span>Code NAF</span><b>{{ entreprise.codeNaf ?? '—' }}</b></li>
+                    <li><span>Effectif</span><b>{{ entreprise.effectif ?? '—' }}</b></li>
+                    <li><span>Statut RGE</span><b>{{ entreprise.statutRge.libelle }}</b></li>
+                    <li><span>Domaines RGE</span><b>{{ entreprise.domainesRge is empty ? '—' : entreprise.domainesRge|join(', ') }}</b></li>
+                </ul>
+                <p class="hint" style="margin-top:12px">
+                    Ces informations viennent de l'annuaire des entreprises et de l'ADEME :
+                    elles se mettent à jour avec le SIRET, elles ne se saisissent pas.
+                </p>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
