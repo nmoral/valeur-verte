@@ -26,8 +26,17 @@ final readonly class EtatDernierImport
     /** DAT-5 (#128) : borne stricte — à 12 mois pile la source est encore fraîche. */
     private const int FRAICHEUR_MAX_MOIS = 12;
 
+    /** DAT-2 (#125) : borne stricte — ± 30 % pile reste dans la fourchette. */
+    private const float ECART_VOLUMETRIE_MAX = 0.30;
+
+    /**
+     * @param ?int $volumetriePrecedente ventes insérées au dernier millésime
+     *                                   **antérieur** — la référence de DAT-2 ; nulle
+     *                                   au premier chargement du département
+     */
     public function __construct(
         private RapportBatch $rapport,
+        private ?int $volumetriePrecedente = null,
     ) {
         if (!$rapport->estIngestion()) {
             throw new \InvalidArgumentException("L'état du dernier import se lit sur une ingestion, pas sur un calcul.");
@@ -122,8 +131,37 @@ final readonly class EtatDernierImport
         return null !== $mutation && $mutation->setTime(0, 0) < $limite;
     }
 
+    public function volumetriePrecedente(): ?int
+    {
+        return $this->volumetriePrecedente;
+    }
+
+    /**
+     * Écart relatif de volumétrie au millésime précédent (DAT-2). Nul quand il n'y a
+     * pas de précédent (premier chargement) ou qu'il est à zéro : l'écart relatif est
+     * alors indéfini, pas infini — même verdict neutre que la porte côté pipeline.
+     */
+    public function evolutionVolumetrie(): ?float
+    {
+        $precedente = $this->volumetriePrecedente;
+        if (null === $precedente || 0 === $precedente) {
+            return null;
+        }
+
+        return ($this->mutationsInserees() - $precedente) / $precedente;
+    }
+
+    public function volumetrieAberrante(): bool
+    {
+        $evolution = $this->evolutionVolumetrie();
+
+        return null !== $evolution && abs($evolution) > self::ECART_VOLUMETRIE_MAX;
+    }
+
     public function enAlerte(\DateTimeImmutable $maintenant): bool
     {
-        return $this->appariementInsuffisant() || $this->sourcePerimee($maintenant);
+        return $this->appariementInsuffisant()
+            || $this->sourcePerimee($maintenant)
+            || $this->volumetrieAberrante();
     }
 }
