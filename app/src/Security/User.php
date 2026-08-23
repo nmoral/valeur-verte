@@ -73,6 +73,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->email;
     }
 
+    /**
+     * Bascule l'identifiant de connexion (#310). Réservée à une confirmation
+     * prouvée : l'appelant a la charge de vérifier que l'adresse est libre et
+     * qu'elle est bien relevée par le titulaire, sinon le compte devient
+     * injoignable — donc irrécupérable, l'adresse étant aussi le canal du mot de
+     * passe oublié (#194).
+     */
+    public function changerEmail(string $email): void
+    {
+        \assert('' !== $email);
+
+        $this->email = $email;
+    }
+
     public function emailEstVerifie(): bool
     {
         return null !== $this->emailVerifieLe;

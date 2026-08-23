@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Security\ChangementEmail\ChangementEmailInvalide;
+use App\Security\ChangementEmail\ConfirmationChangementEmail;
 use App\Security\ChangementEmail\EnvoiDemandeChangementEmail;
 use App\Security\EmailDejaUtilise;
 use App\Security\EmailInvalide;
 use App\Security\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -57,6 +60,38 @@ final class ChangementEmailController extends AbstractController
         ));
 
         return $this->redirectToRoute($routeCompte);
+    }
+
+    /**
+     * Confirmation par lien. Route **publique** : le lien est cliqué depuis la
+     * nouvelle boîte, souvent sur un autre appareil, sans session — exiger une
+     * session ici reviendrait à demander de se connecter avec l'adresse qu'on
+     * n'a pas encore. Le jeton fait toute la sécurité, comme pour la
+     * réinitialisation de mot de passe (#194).
+     */
+    #[Route('/mon-compte/email/confirmer', name: 'mon_compte_email_confirmer', methods: ['GET'])]
+    public function confirmer(
+        Request $request,
+        ConfirmationChangementEmail $confirmation,
+        Security $security,
+    ): Response {
+        try {
+            $user = $confirmation->confirmer((string) $request->query->get('jeton', ''));
+        } catch (ChangementEmailInvalide) {
+            return $this->render('security/changement_email_refuse.html.twig', [], new Response('', Response::HTTP_NOT_FOUND));
+        }
+
+        // Le pro déjà connecté sur l'ancien identifiant garde sa session : sans
+        // ce rafraîchissement, le firewall ne retrouverait plus le compte au
+        // rechargement et le déconnecterait — au moment précis où il vient de
+        // prouver que le compte est le sien. Les autres sessions, elles, tombent.
+        if ($this->getUser() instanceof User) {
+            $security->login($user);
+        }
+
+        return $this->render('security/changement_email_confirme.html.twig', [
+            'nouvelEmail' => $user->getEmail(),
+        ]);
     }
 
     /**

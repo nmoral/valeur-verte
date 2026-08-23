@@ -66,6 +66,13 @@ security:
         # Désabonnement par lien signé depuis l'email (#108/#109) : public sur
         # tout host, la signature du jeton fait la sécurité — avant l'exigence de rôle.
         - { path: ^/desabonnement, roles: PUBLIC_ACCESS }
+        # Confirmation d'un changement d'adresse (#310) : le lien est cliqué depuis
+        # la NOUVELLE boîte, souvent sur un autre appareil et sans session — exiger
+        # le rôle du sous-domaine reviendrait à demander de se connecter avec
+        # l'adresse qu'on cherche justement à faire reconnaître. Le jeton à usage
+        # unique fait la sécurité. Chemin exact : la demande (/mon-compte/email),
+        # elle, reste protégée par la règle de rôle qui suit.
+        - { path: ^/mon-compte/email/confirmer$, roles: PUBLIC_ACCESS }
         - { host: '^admin\.', roles: ROLE_ADMIN }
         - { host: '^app\.', roles: ROLE_PRO }
 

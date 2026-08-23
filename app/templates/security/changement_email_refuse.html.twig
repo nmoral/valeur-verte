@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Lien expiré · Valeur Verte',
+  description: 'Ce lien de changement d\'adresse n\'est plus valable.',
+  canonical: url('login'),
+  robots: 'noindex,nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Lien expiré ou invalide</h1>
+    {# Un seul message pour tous les motifs (inconnu, expiré, déjà cliqué, adresse
+       prise entre-temps) : la route est publique, détailler y ferait un oracle sur
+       l'existence des comptes. #}
+    <p class="auth-lead">
+      Ce lien de confirmation n'est plus valable. Votre adresse email n'a pas été
+      modifiée : elle reste celle avec laquelle vous vous connectez aujourd'hui.
+    </p>
+    <p class="auth-lead">Reconnectez-vous et redemandez le changement depuis « Mon compte ».</p>
+  </div>
+
+  <p class="auth-alt"><a href="{{ path('login') }}">Retour à la connexion</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>
