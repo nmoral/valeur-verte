@@ -59,7 +59,10 @@ class Compte
 
     /**
      * Date de suspension du compte par l'admin (#47). Nulle = actif ; renseignée,
-     * le compte est suspendu (accès coupé). Réversible via reactiver().
+     * le compte est suspendu : la **session reste ouverte et la lecture conservée**,
+     * mais toute écriture est fermée (#322) — production et modification de rapport,
+     * configuration (marque, bouquets, page publique). Un bandeau l'explique sur
+     * l'espace pro. Réversible via reactiver().
      */
     #[ORM\Column(name: 'suspendu_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $suspenduLe = null;
