@@ -76,6 +76,14 @@ Point de friction principal : on a besoin de qualifier l'entreprise, l'artisan n
 - Entreprise non RGE → ne pas bloquer, mais noter le statut (segment à observer)
 - Plusieurs établissements → laisser choisir
 
+**Après l'inscription** ([#311](../../../issues/311)) : la fiche n'est plus figée. L'écran
+« Entreprise » de l'espace pro la donne à consulter et à corriger — raison sociale et adresse
+librement, le SIRET seulement après une **re-vérification** par les mêmes API (c'est lui qui
+identifie le redevable, et une facture au mauvais nom se corrige mal). Un pro dont le SIRET
+était inconnu à l'inscription y trouve son chemin de rattrapage. Ce que disent les annuaires
+— code NAF, effectif, qualifications RGE — s'affiche mais ne se saisit pas : un RGE
+auto-déclaré n'aurait aucune valeur. Chaque changement est inscrit au journal d'audit (#50).
+
 **Critère d'acceptation** : depuis un SIRET valide, la fiche entreprise est complète sans autre saisie.
 
 ---
