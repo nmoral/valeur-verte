@@ -218,3 +218,18 @@ def test_l_ordonnanceur_est_epingle_et_verifie_dans_l_image() -> None:
     assert re.search(r"sha256sum\s+(-c|--check)", dockerfile), (
         "Le binaire téléchargé doit être vérifié par une somme de contrôle."
     )
+
+
+def test_l_ordonnanceur_ne_porte_pas_la_sonde_du_serveur_web(
+    compose_prod: dict[str, Any],
+) -> None:
+    """L'image porte le contrôle de santé de FrankenPHP (son endpoint d'administration).
+    L'ordonnanceur ne sert pas HTTP : la sonde échouerait à chaque passage et le service
+    s'afficherait « unhealthy » pour toujours. Un unhealthy permanent apprend à ignorer
+    les unhealthy — le jour où un service tombe vraiment, le signal est déjà du bruit."""
+    cron = _service_cron(compose_prod)
+    sante: object = cron.get("healthcheck", {})
+    assert isinstance(sante, dict) and sante.get("disable") is True, (
+        "Le service « cron » doit désactiver explicitement le contrôle de santé hérité "
+        "de l'image (healthcheck: disable: true) : il ne lance aucun serveur web."
+    )
