@@ -114,6 +114,7 @@ l'hôte. Le registre des tâches vit dans l'issue [#190](../../../issues/190).
 | `app:widget:purger-evenements` | 03:00 | Purge des événements de parcours de la page publique au-delà de 90 jours ([#90](../../../issues/90)) |
 | `app:widget:purger-demandes-lead` | 03:10 | Purge des demandes de lead non confirmées ou expirées ([#292](../../../issues/292)) |
 | `app:rapport:appliquer-retention` | 03:20 | Rétention D10 : anonymisation à 24 mois, suppression à 3 ans ([#294](../../../issues/294)) |
+| `app:sauvegarde:executer` | dim. 02:00 | Dump complet hebdomadaire de la base, élagage au-delà de 30 j ([#55](../../../issues/55)) |
 | `app:essai:relancer` | — | Email de relance de fin d'essai ([#108](../../../issues/108)) — **ligne commentée, pas encore activée** : elle écrit à de vraies personnes, elle ne s'allume pas comme effet de bord de la mise en place de l'ordonnanceur |
 
 Toutes sont **idempotentes** : les rejouer ne fait rien de plus. Elles sont
@@ -145,6 +146,60 @@ docker compose pull && docker compose up -d db
 
 Les migrations, elles, ne se rejouent pas à l'envers : un retour arrière de
 schéma demande une migration correctrice.
+
+## Sauvegarde et restauration ([#55](../../../issues/55), §9.11)
+
+> « Une perte de base n'est pas un incident technique, c'est la fin du produit. »
+
+**Ce qui est sauvegardé.** Un **dump complet** de la base (schémas `app` + `data` +
+PostGIS) au format custom (`pg_dump -Fc`), **une fois par semaine** (dimanche 02:00
+UTC), écrit par l'ordonnanceur dans le volume nommé `db_backups`. Le dump tourne sous
+le rôle **superutilisateur** (`POSTGRES_USER`) : le rôle applicatif `app`, en lecture
+seule sur `data`, ne peut pas dumper la base entière.
+
+**Pourquoi un dump complet et pas seulement `app`.** Restaurer `app` sans `data`
+laisserait une base que l'application ne peut pas lire (elle lit `data` en SELECT).
+Le schéma `data` est reconstructible depuis les sources, mais le re-générer prend des
+heures : le garder dans le dump ramène le produit en une passe.
+
+**Rétention et disque.** Les dumps de plus de `VV_SAUVEGARDE_RETENTION_JOURS` jours
+(30 par défaut) sont élagués à chaque exécution → environ **4 dumps de ~400 Mo**
+conservés, soit ~1,6 Go. Ajuster la variable sur le service `cron` si le disque du VPS
+est contraint. L'élagage ne touche **jamais** un fichier qu'il ne sait pas dater comme
+un dump à nous, et un `pg_dump` qui échoue n'élague rien (on ne grignote pas la
+dernière copie).
+
+**Pas de copie hors-site** (choix assumé, faute d'hébergement second) : ces dumps
+protègent d'une migration ratée ou d'un effacement, **pas d'une perte de l'hôte**. Le
+jour où un stockage objet est disponible, y recopier `db_backups` est la suite
+naturelle.
+
+**Déclencher un dump à la main :**
+
+```bash
+ssh vps 'cd /opt/valeur-verte && docker compose exec cron php bin/console app:sauvegarde:executer'
+ssh vps 'cd /opt/valeur-verte && docker volume ls | grep db_backups'
+```
+
+### Test de restauration réel
+
+Un dump jamais restauré n'est pas une sauvegarde, c'est une hypothèse. À jouer
+**avant la première mise en production, puis tous les six mois**. Le script
+`infra/restauration-test.sh` restaure un dump dans une base **jetable**, y vérifie que
+les tables clés portent des lignes, puis la supprime — il n'écrit jamais dans la base
+de production.
+
+```bash
+# Sur le VPS : l'image app porte pg_restore/psql, monter le script et le volume.
+ssh vps 'cd /opt/valeur-verte && source .env && docker compose -f infra/docker-compose.prod.yml \
+  run --rm --no-deps \
+  -v ./infra:/infra:ro -v db_backups:/sauvegardes:ro \
+  -e PGHOST=db -e PGUSER="$POSTGRES_USER" -e PGPASSWORD="$POSTGRES_PASSWORD" -e PGDATABASE="$POSTGRES_DB" \
+  --entrypoint bash cron /infra/restauration-test.sh /sauvegardes/valeur-verte-AAAAMMJJ-HHMMSS.dump'
+```
+
+Le script sort en erreur si la restauration échoue ou si `data.vente` est vide après
+coup — un vert signifie que le dump est réellement restaurable.
 
 ## Développement local
 

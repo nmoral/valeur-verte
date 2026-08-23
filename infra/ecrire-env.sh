@@ -53,6 +53,17 @@ case "$APP_DB_PASSWORD" in
         ;;
 esac
 
+# POSTGRES_PASSWORD (rôle superutilisateur) est désormais lui aussi injecté dans une
+# DSN URL — celle de la sauvegarde (#55) : « app:sauvegarde:executer » dump la base
+# entière, ce que seul ce rôle privilégié peut faire. Même exigence URL-safe.
+case "$POSTGRES_PASSWORD" in
+    *[!A-Za-z0-9_.~-]*)
+        echo "POSTGRES_PASSWORD doit être URL-safe (A-Z a-z 0-9 _ . ~ -) : il est injecté" \
+             "dans la DSN de sauvegarde (#55). Générer par ex. « openssl rand -hex 24 »." >&2
+        exit 1
+        ;;
+esac
+
 printf "POSTGRES_USER='%s'\n" "$POSTGRES_USER"
 printf "POSTGRES_DB='%s'\n" "$POSTGRES_DB"
 printf "POSTGRES_PASSWORD='%s'\n" "$POSTGRES_PASSWORD"
