@@ -72,12 +72,23 @@ final class ModeMaintenanceListenerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    private function ecouter(bool $active, string $hote): void
+    public function testLaSanteApplicativeRepondPendantLaMaintenance(): void
+    {
+        // La maintenance est une décision d'exploitation, pas une panne : elle
+        // coupe le produit pour les visiteurs, elle ne doit pas aveugler la
+        // sonde (#313). Sinon la bascule rend le conteneur « unhealthy » et
+        // l'exploitant perd l'état réel de l'application pendant l'intervention.
+        $this->ecouter(active: true, hote: 'valeur-verte.fr', chemin: '/sante');
+
+        $this->addToAssertionCount(1);
+    }
+
+    private function ecouter(bool $active, string $hote, string $chemin = '/'): void
     {
         $listener = new ModeMaintenanceListener($active);
         $event = new RequestEvent(
             $this->createMock(HttpKernelInterface::class),
-            Request::create('https://'.$hote.'/'),
+            Request::create('https://'.$hote.$chemin),
             HttpKernelInterface::MAIN_REQUEST,
         );
 
