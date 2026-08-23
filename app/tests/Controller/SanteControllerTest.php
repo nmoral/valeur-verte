@@ -31,7 +31,7 @@ final class SanteControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         self::assertSame(
-            ['statut' => 'ok', 'controles' => ['base' => 'ok', 'migrations' => 'ok', 'ecriture' => 'ok']],
+            ['statut' => 'ok', 'controles' => ['base' => 'ok', 'ecriture' => 'ok', 'migrations' => 'ok']],
             json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR),
         );
     }
@@ -40,8 +40,9 @@ final class SanteControllerTest extends WebTestCase
     {
         // La sonde du conteneur et la surveillance externe n'ont pas de session :
         // sur app. et admin., l'endpoint doit répondre, pas rediriger vers /login.
+        $client = static::createClient();
+
         foreach ([self::APP, self::ADMIN] as $zone) {
-            $client = static::createClient();
             $client->request('GET', $zone.'/sante');
 
             self::assertResponseStatusCodeSame(Response::HTTP_OK, $zone.' doit répondre sans session.');

@@ -49,6 +49,10 @@ security:
     # Seule la première règle qui matche s'applique : /login d'abord (publique
     # sur tout host), puis l'exigence de rôle par sous-domaine.
     access_control:
+        # Santé applicative (#313) : la sonde du conteneur et la surveillance
+        # externe n'ont pas de session. Ouverte, mais muette sur le détail
+        # (un « ok »/« ko » par contrôle, rien d'exploitable).
+        - { path: ^/sante$, roles: PUBLIC_ACCESS }
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/inscription$, roles: PUBLIC_ACCESS }
         # Mot de passe oublié (#194) : demande et réinitialisation publiques —
