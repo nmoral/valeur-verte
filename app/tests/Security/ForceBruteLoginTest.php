@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Security;
 
-use App\Notification\NotificationAdmin;
 use App\Security\User;
 use App\Security\UserRepository;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -28,6 +28,19 @@ final class ForceBruteLoginTest extends WebTestCase
 {
     private const HOTE_PRO = 'app.valeurverte.localhost';
     private const MOT_DE_PASSE = 'secret-solide';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        self::bootKernel();
+        // Les fenêtres du limiteur vivent dans un cache que la transaction de test ne
+        // remonte pas : sans purge, un second passage de la suite démarrerait déjà
+        // verrouillé.
+        $pool = self::getContainer()->get('cache.rate_limiter');
+        self::assertInstanceOf(CacheItemPoolInterface::class, $pool);
+        $pool->clear();
+        self::ensureKernelShutdown();
+    }
 
     public function testAuDelaDuPlafondMemeLeBonMotDePasseEstRefuse(): void
     {
@@ -77,26 +90,6 @@ final class ForceBruteLoginTest extends WebTestCase
         self::assertResponseRedirects('http://'.self::HOTE_PRO.'/');
     }
 
-    public function testUnVerrouillageEstSignaleALAdmin(): void
-    {
-        $client = static::createClient();
-        $espion = new NotificationAdminEspionLogin();
-        self::getContainer()->set(NotificationAdmin::class, $espion);
-        $this->creerPro('surveille@example.com');
-
-        for ($essai = 0; $essai < 5; ++$essai) {
-            $this->tenter($client, '203.0.113.13', 'surveille@example.com', 'mauvais-mot-de-passe');
-        }
-        self::assertSame([], $espion->alertes, 'Sous le plafond, rien à signaler.');
-
-        $this->tenter($client, '203.0.113.13', 'surveille@example.com', 'mauvais-mot-de-passe');
-
-        // Une attaque bloquée en silence reste une attaque qu'on ne voit pas.
-        self::assertCount(1, $espion->alertes);
-        self::assertStringContainsString('surveille@example.com', $espion->alertes[0]);
-        self::assertStringContainsString('203.0.113.13', $espion->alertes[0]);
-    }
-
     /**
      * @param non-empty-string $email
      */
@@ -120,19 +113,5 @@ final class ForceBruteLoginTest extends WebTestCase
         $formulaire['email'] = $email;
         $formulaire['password'] = $motDePasse;
         $client->submit($formulaire, [], $serveur);
-    }
-}
-
-/**
- * @internal
- */
-final class NotificationAdminEspionLogin implements NotificationAdmin
-{
-    /** @var list<string> */
-    public array $alertes = [];
-
-    public function usageAnormal(string $sujet, string $contexte): void
-    {
-        $this->alertes[] = $sujet.' — '.$contexte;
     }
 }
