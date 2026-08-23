@@ -60,6 +60,7 @@ final readonly class SupervisionComptes
                     $creeLe,
                     $maintenant,
                 ),
+                suspendu: $compte?->estSuspendu() ?? false,
             );
         }
 
