@@ -9,15 +9,18 @@ use App\AdminInterne\JournalAudit\JournalAuditDoctrine;
 use App\BackOffice\Entreprise\Entreprise;
 use App\BackOffice\Entreprise\EntrepriseRepository;
 use App\BackOffice\Entreprise\FicheEntreprise;
+use App\BackOffice\Entreprise\FicheEntrepriseParSiret;
 use App\BackOffice\Entreprise\MiseAJourFicheEntreprise;
 use App\BackOffice\Entreprise\Siret;
 use App\BackOffice\Entreprise\SiretInvalide;
 use App\BackOffice\Entreprise\SiretNonVerifie;
 use App\BackOffice\Entreprise\StatutRge;
 use App\Tenant\TenantContext;
+use App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire;
 use App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 
 /**
  * Mise à jour de la fiche entreprise par le pro (#311).
@@ -177,12 +180,24 @@ final class MiseAJourFicheEntrepriseTest extends KernelTestCase
         return $repository;
     }
 
+    /**
+     * Assemblé à la main sur les vraies collaborations (dépôt Doctrine, journal
+     * persistant) et les doubles d'API déjà en place : le câblage du conteneur est
+     * l'affaire du test d'écran, celui-ci porte sur la règle.
+     */
     private function miseAJour(): MiseAJourFicheEntreprise
     {
-        $service = self::getContainer()->get(MiseAJourFicheEntreprise::class);
-        self::assertInstanceOf(MiseAJourFicheEntreprise::class, $service);
+        $recherche = self::getContainer()->get(RechercheEntrepriseEnMemoire::class);
+        self::assertInstanceOf(RechercheEntrepriseEnMemoire::class, $recherche);
+        $qualifications = self::getContainer()->get(QualificationsRgeEnMemoire::class);
+        self::assertInstanceOf(QualificationsRgeEnMemoire::class, $qualifications);
 
-        return $service;
+        return new MiseAJourFicheEntreprise(
+            $this->entreprises(),
+            new FicheEntrepriseParSiret($recherche, $qualifications),
+            $this->journal(),
+            new MockClock('2026-08-24 09:00:00'),
+        );
     }
 
     private function contexteTenant(): TenantContext
