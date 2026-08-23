@@ -236,9 +236,25 @@ coup — un vert signifie que le dump est réellement restaurable.
 ## Développement local
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d db   # PostGIS de développement
+make stack-info                                       # projet compose et ports de CE worktree
+make stack-dev                                        # base + app du worktree
 make infra-test                                       # invariants + image
 ```
+
+La stack locale est **isolée par worktree** (§2 du `CLAUDE.md`) : `scripts/worktree-env.sh`
+dérive du répertoire courant le nom de projet compose et les ports d'hôte, si bien que deux
+worktrees ne partagent ni base ni port. Un `docker compose -f infra/docker-compose.yml`
+lancé à la main **court-circuite cette dérivation** (compose retombe sur le projet `infra`,
+celui du worktree principal) : passer par les cibles `make stack-*` et `scripts/app-dev.sh`,
+ou fixer `COMPOSE_PROJECT_NAME` soi-même.
+
+Le port d'hôte de la base du worktree principal (`15432`) est celui du tunnel SSH vers la
+base de prod documenté plus haut : les deux ne peuvent pas être ouverts en même temps.
+Fermer le tunnel avant de démarrer la stack, ou lui donner un autre port local.
+
+**Avant de supprimer un worktree**, effacer sa stack : `make stack-purge` (conteneurs,
+réseau, volumes et image du projet). Sinon les conteneurs survivent au worktree, gardent
+leurs ports et redémarrent au boot.
 
 Les tests d'intégration construisent réellement l'image et l'exercent contre la
 base ; ils se skippent d'eux-mêmes sans Docker ou sans `DATABASE_URL`.

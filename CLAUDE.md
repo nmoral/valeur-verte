@@ -133,14 +133,37 @@ Règles :
   `git fetch origin main && git worktree add -b issue-<num>-<slug> ../<repo>-issue-<num> origin/main`
   (ex. `../valeur-verte-issue-20`). Travailler **dans ce worktree** jusqu'au bout.
 - La branche reste **focalisée sur son issue** : pas de changements hors périmètre.
+- **Un jeu de conteneurs par worktree.** La stack locale (base + app) est isolée par
+  worktree : nom de projet compose et ports d'hôte dérivés du répertoire courant par
+  `scripts/worktree-env.sh`, que le `Makefile` et `scripts/app-dev.sh` consultent tous
+  les deux. Deux tâches menées en parallèle ont donc chacune **leur base** — une
+  migration jouée d'un côté ne s'applique pas au travail de l'autre — et **leurs
+  ports**, sans se disputer le 8000. `make stack-info` affiche l'adresse de la stack du
+  worktree courant. Le worktree principal garde le projet `infra` et les ports
+  historiques (8000 / 15432) : sa base porte le dump de prod restauré, la renommer
+  l'orphelinerait.
 - **Avant chaque PR (ouverture ou mise à jour)** : `git fetch origin main` puis
   `git rebase origin/main`. On rejoue les portes qualité après le rebase, on ne pousse
   que sur une base à jour — la revue et la CI portent alors sur l'écart réel avec `main`,
   et on évite les conflits de merge tardifs.
 - Ouvrir une **Pull Request vers `main`** ; le corps contient `Closes #<num>`.
-- **Une fois la tâche terminée** (PR mergée ou abandonnée), **supprimer le worktree** :
-  `git worktree remove ../<repo>-issue-<num>` (puis `git worktree prune` au besoin). On
-  ne laisse pas s'accumuler des worktrees dormants.
+- **Une fois la tâche terminée** (PR mergée ou abandonnée), **supprimer la stack Docker
+  du worktree, puis le worktree** — dans cet ordre :
+
+  ```bash
+  make stack-purge                        # depuis le worktree : conteneurs, réseau, volumes, image
+  cd ../valeur-verte                      # worktree principal
+  git worktree remove ../<repo>-issue-<num>   # puis « git worktree prune » au besoin
+  ```
+
+  L'ordre n'est pas cosmétique : `stack-purge` dérive le nom du projet compose du
+  répertoire du worktree. Le worktree effacé d'abord, plus rien ne rattache ses
+  conteneurs à quoi que ce soit — ils continuent de tourner, gardent leurs ports et
+  **redémarrent au boot** (`restart: unless-stopped`), et leur volume de base (plusieurs
+  Go) reste sur le disque. Ni worktrees ni stacks dormantes ne s'accumulent.
+  `docker compose ls` liste les stacks vivantes avec leur worktree d'origine : une ligne
+  dont le chemin n'existe plus est une stack orpheline, à supprimer avec
+  `docker compose -p <nom> down -v`.
 - Faire évoluer le **label de statut** de l'issue au fil de l'eau :
   `statut: à faire` → `statut: en cours` → `statut: en revue` → (fermeture) `statut: fini`.
   `statut: bloqué` si dépendance non satisfaite.
@@ -196,12 +219,19 @@ Cibles par sous-projet également disponibles : `make app-test`, `make data-stan
 
 Les cibles `make app-*` supposent PHP 8.4 + Composer **sur le poste** (comme en CI, via
 `setup-php`). En leur absence, on joue les portes `app/` **dans l'image de la stack**
-(`infra-app`, qui porte `intl` + `pdo_pgsql`), en montant le code local (le `vendor/`
-local contient déjà les dev-deps) et en tournant sous l'uid de l'hôte pour que
-`var/cache` reste inscriptible :
+(qui porte `intl` + `pdo_pgsql`), via le script dédié :
 
 ```bash
-docker compose -f infra/docker-compose.yml run --rm --no-deps \
+scripts/app-dev.sh vendor/bin/phpunit
+```
+
+Le script fixe le **projet compose du worktree** (sans quoi la commande irait taper la base
+d'un autre worktree, cf. §2), démarre sa base si besoin, monte le code local et `data/`, et
+tourne sous l'uid de l'hôte pour que `var/cache` reste inscriptible. Sous le capot :
+
+```bash
+docker compose -p "$(scripts/worktree-env.sh COMPOSE_PROJECT_NAME)" \
+  -f infra/docker-compose.yml run --rm --no-deps \
   -v "$PWD/app:/app" -w /app -u "$(id -u):$(id -g)" \
   -e APP_ENV=test \
   -e DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset=utf8" \
@@ -212,7 +242,8 @@ En environnement `test`, Doctrine **ajoute le suffixe `_test`** (`dbname_suffix`
 l'URL pointe donc toujours la base `valeur_verte`, jamais `valeur_verte_test` en dur.
 Remplacer la dernière commande par `vendor/bin/phpstan analyse`,
 `vendor/bin/php-cs-fixer fix --dry-run --diff` ou `php bin/console …` selon la porte.
-La base de test doit être migrée une fois : `… php bin/console doctrine:migrations:migrate`.
+La base de test doit être migrée une fois **par worktree** (chacun a la sienne) :
+`scripts/app-dev.sh php bin/console doctrine:migrations:migrate --no-interaction`.
 
 **Lancer un seul test** : `vendor/bin/phpunit --filter testNomDuTest`
 (ou `vendor/bin/phpunit tests/BackOffice/Rapport/RapportTest.php`).
@@ -223,14 +254,24 @@ Le `Makefile` porte une stack Docker (PostGIS partagé + app FrankenPHP) — voi
 « Stack locale » du fichier :
 
 ```bash
-make stack-up      # build + démarre db & app (image prod), migrations → http://127.0.0.1:8000
+make stack-info    # où tourne la stack de CE worktree (projet compose, ports)
+make stack-up      # build + démarre db & app (image prod), migrations → http://127.0.0.1:$APP_PORT
 make stack-dev     # itération : code app/ monté (pas de rebuild), APP_ENV=dev, sous-domaines
 make stack-migrate # rejoue les migrations sur la base en cours
 make stack-seed    # insère quelques rapports de démo (dont un lead)
 make stack-logs    # suit les logs de l'app
 make stack-down    # arrête (conserve les données)
 make stack-reset   # arrête ET efface la base (repart de zéro)
+make stack-purge   # efface TOUT (conteneurs, réseau, volumes, image) — avant « git worktree remove »
 ```
+
+**La stack appartient au worktree, pas au dépôt.** Chaque worktree a son projet compose,
+donc ses conteneurs, son réseau, ses volumes et ses ports — `make stack-info` les donne,
+et le port n'est **pas** 8000 hors du worktree principal. Commencer par `stack-info` avant
+de pointer un navigateur ou Playwright sur la stack : viser 8000 depuis un worktree lié,
+c'est regarder l'application d'une autre tâche. En contrepartie, chaque worktree part
+d'une **base vide** qu'il faut migrer (`make stack-migrate`) : la base porteuse du dump de
+prod est celle du worktree principal, et elle n'est pas partagée.
 
 `stack-up` exerce l'artefact de prod (le même qu'au VPS). `stack-dev` monte `app/` en
 bind-mount et bascule en `APP_ENV=dev` : les changements de code sont pris sans
