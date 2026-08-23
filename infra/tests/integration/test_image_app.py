@@ -18,11 +18,15 @@ import urllib.request
 
 import pytest
 
-from ..conftest import APP_DOCKERFILE, CRONTAB, REPO_ROOT
+from ..conftest import APP_DOCKERFILE, COMPOSE_PROD, CRONTAB, REPO_ROOT, load_yaml, services
 
 IMAGE = "valeur-verte-app:test"
 CONTENEUR = "vv-app-itest"
+CONTENEUR_SANTE = "vv-app-itest-sante"
 PORT = 8901
+
+# Base volontairement introuvable : le nom d'hôte ne résout pas dans le conteneur.
+DSN_SANS_BASE = "postgresql://app:app@base-absente:5432/valeur_verte?serverVersion=16&charset=utf8"
 
 pytestmark = [
     pytest.mark.integration,
@@ -111,3 +115,75 @@ def test_l_image_valide_le_crontab_des_taches_planifiees(image: str) -> None:
         "-test",
         "/etc/supercronic/crontab",
     )
+
+
+def _sonde_de_production() -> str:
+    """La commande de santé réellement déclarée par le compose de production.
+
+    On exerce celle-là, pas une variante écrite pour le test : c'est le couple
+    (commande, endpoint) qui doit tenir, et une sonde qui ne détecte rien ne se
+    voit pas autrement qu'en la jouant sur une panne réelle.
+    """
+    sonde: object = services(load_yaml(COMPOSE_PROD))["app"].get("healthcheck", {})
+    assert isinstance(sonde, dict), "Le service « app » doit déclarer un healthcheck."
+    test: object = sonde.get("test")
+    assert isinstance(test, list), "Le healthcheck doit déclarer sa commande sous forme de liste."
+    arguments = [str(part) for part in test]
+    if arguments and arguments[0] in {"CMD", "CMD-SHELL"}:
+        arguments = arguments[1:]
+    return " ".join(arguments)
+
+
+def _etat_de_sante(conteneur: str, attendu: str, tentatives: int = 40) -> str:
+    dernier = ""
+    for _ in range(tentatives):
+        dernier = _docker("inspect", "-f", "{{.State.Health.Status}}", conteneur).stdout.strip()
+        if dernier == attendu:
+            return dernier
+        time.sleep(1)
+    return dernier
+
+
+def test_une_base_injoignable_rend_le_conteneur_malade(image: str) -> None:
+    """Le critère d'acceptation de #313, joué sur l'artefact de production.
+
+    Avec la sonde héritée de l'image (l'endpoint d'administration de FrankenPHP),
+    ce conteneur — application debout, base injoignable, aucune requête servie —
+    restait « healthy ». C'est précisément ce qu'on refuse.
+    """
+    subprocess.run(
+        ["docker", "rm", "-f", CONTENEUR_SANTE], capture_output=True, text=True, check=False
+    )
+    _docker(
+        "run",
+        "-d",
+        "--name",
+        CONTENEUR_SANTE,
+        "--health-cmd",
+        _sonde_de_production(),
+        "--health-interval",
+        "2s",
+        "--health-timeout",
+        "3s",
+        "--health-retries",
+        "2",
+        "--health-start-period",
+        "1s",
+        "-e",
+        "APP_SECRET=integration",
+        "-e",
+        f"DATABASE_URL={DSN_SANS_BASE}",
+        image,
+    )
+    try:
+        assert _etat_de_sante(CONTENEUR_SANTE, "unhealthy") == "unhealthy", (
+            "Une base injoignable doit rendre le conteneur « unhealthy »."
+        )
+        reponse = _docker("exec", CONTENEUR_SANTE, "curl", "-s", "http://127.0.0.1:80/sante").stdout
+        assert '"base":"ko"' in reponse, (
+            f"L'endpoint doit nommer le contrôle en cause, reçu : {reponse}."
+        )
+    finally:
+        subprocess.run(
+            ["docker", "rm", "-f", CONTENEUR_SANTE], capture_output=True, text=True, check=False
+        )
