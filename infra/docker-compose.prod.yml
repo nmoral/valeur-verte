@@ -122,6 +122,13 @@ services:
       # l'ordonnanceur démarrerait sans aucune tâche, sans erreur.
       - ./cron/crontab:/etc/supercronic/crontab:ro
     command: ["supercronic", "/etc/supercronic/crontab"]
+    # L'image porte le contrôle de santé de FrankenPHP (son endpoint d'administration
+    # sur :2019). Ce service ne lance aucun serveur web : la sonde échouerait à chaque
+    # passage et l'ordonnanceur s'afficherait « unhealthy » pour toujours (#302). Il
+    # n'y a rien de sensé à sonder à la place — supercronic est PID 1, sa mort fait
+    # sortir le conteneur, ce dont « restart: unless-stopped » se charge déjà.
+    healthcheck:
+      disable: true
 
   # Reverse proxy (point d'entrée public unique) : termine TLS (certificats
   # Let's Encrypt automatiques), redirige HTTP→HTTPS, gate le site par basic auth
