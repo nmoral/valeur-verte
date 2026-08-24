@@ -102,11 +102,7 @@ final readonly class EnrolementSecondFacteur
         $maintenant = $this->horloge->now();
 
         $enAttente = $this->secretAPresenter($jetonBrut);
-        // Le vérificateur exige un facteur actif — c'est ce qui empêche un
-        // enrôlement abandonné d'ouvrir une session. On l'active donc en mémoire
-        // pour éprouver le code, et on ne persiste qu'en cas de succès.
-        $enAttente->activer($maintenant);
-        if (!$this->verificateur->verifier($enAttente, $codeSaisi, $maintenant)) {
+        if (!$this->verificateur->verifierPourEnrolement($enAttente, $codeSaisi, $maintenant)) {
             // Le lien survit à la faute de frappe : sans cela, il faudrait
             // retourner en SSH pour en émettre un autre.
             throw new CodeIncorrect();

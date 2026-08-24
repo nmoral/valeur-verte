@@ -32,6 +32,26 @@ final readonly class VerificateurSecondFacteur
             return false;
         }
 
+        return $this->correspond($facteur, $codeSaisi, $maintenant);
+    }
+
+    /**
+     * Éprouve le code d'un facteur **encore en attente**, pendant l'enrôlement.
+     *
+     * Une méthode à part plutôt qu'une activation provisoire de l'entité : celle-ci
+     * est gérée par Doctrine, et l'activer « juste pour vérifier » ferait persister
+     * au premier flush venu un second facteur qui n'a jamais été confirmé. Le
+     * garde-fou de {@see verifier()} — un facteur inactif n'ouvre rien — resterait
+     * en place, mais le compte se retrouverait protégé par un téléphone dont
+     * personne n'a prouvé la possession.
+     */
+    public function verifierPourEnrolement(SecondFacteur $enAttente, string $codeSaisi, \DateTimeImmutable $maintenant): bool
+    {
+        return $this->correspond($enAttente, $codeSaisi, $maintenant);
+    }
+
+    private function correspond(SecondFacteur $facteur, string $codeSaisi, \DateTimeImmutable $maintenant): bool
+    {
         $totp = new CodeTotp($facteur->secret());
         $pasCourant = $totp->pas($maintenant);
 
