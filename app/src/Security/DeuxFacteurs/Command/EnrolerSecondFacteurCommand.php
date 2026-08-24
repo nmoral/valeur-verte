@@ -49,7 +49,8 @@ final class EnrolerSecondFacteurCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $style = new SymfonyStyle($input, $output);
-        $email = (string) $input->getArgument('email');
+        $email = $input->getArgument('email');
+        \assert(\is_string($email));
 
         $user = $this->utilisateurs->findOneBy(['email' => $email]);
         if (null === $user) {
