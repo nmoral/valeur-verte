@@ -44,6 +44,26 @@ final class AdresseEmailTest extends TestCase
         self::assertSame('pro@googlemail.com', $adresse->valeur());
     }
 
+    public function testLesPointsSontIgnoresChezGmailSeulement(): void
+    {
+        self::assertSame('pro@gmail.com', AdresseEmail::depuis('p.r.o@gmail.com')->canonique());
+        // La réécriture du domaine passe avant : un googlemail bénéficie de la même règle.
+        self::assertSame('pro@gmail.com', AdresseEmail::depuis('p.r.o@googlemail.com')->canonique());
+        // Les deux règles se composent.
+        self::assertSame('pro@gmail.com', AdresseEmail::depuis('p.r.o+devis@gmail.com')->canonique());
+    }
+
+    public function testLesPointsSontConservesAilleursQueChezGmail(): void
+    {
+        // Sur un domaine d'entreprise, « jean.dupont » et « jeandupont » sont deux
+        // personnes : les confondre empêcherait un collègue de s'inscrire.
+        self::assertSame('jean.dupont@societe.fr', AdresseEmail::depuis('jean.dupont@societe.fr')->canonique());
+        self::assertNotSame(
+            AdresseEmail::depuis('jean.dupont@societe.fr')->canonique(),
+            AdresseEmail::depuis('jeandupont@societe.fr')->canonique(),
+        );
+    }
+
     #[DataProvider('saisiesInvalides')]
     public function testUneSaisieQuiNEstPasUneAdresseEstRefusee(string $saisie): void
     {
