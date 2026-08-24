@@ -11,8 +11,11 @@ use App\Security\DeuxFacteurs\VerificateurSecondFacteur;
 use App\Security\User;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -32,6 +35,8 @@ final class SecondFacteurController extends AbstractController
         VerificateurSecondFacteur $verificateur,
         CodesDeSecours $codesDeSecours,
         ClockInterface $horloge,
+        #[Autowire(service: 'limiter.second_facteur_compte')]
+        RateLimiterFactoryInterface $secondFacteurCompteLimiter,
     ): Response {
         $user = $this->getUser();
         \assert($user instanceof User);
@@ -45,6 +50,14 @@ final class SecondFacteurController extends AbstractController
                 'facteurEnrole' => null !== $facteur,
                 'erreur' => null,
             ]);
+        }
+
+        // Le plafond est consommé AVANT d'éprouver le code, et sans exception pour
+        // le bon : sans quoi il suffirait de le trouver pour que la borne n'ait
+        // servi à rien.
+        $limite = $secondFacteurCompteLimiter->create((string) $userId)->consume(1);
+        if (!$limite->isAccepted()) {
+            throw new TooManyRequestsHttpException(max(1, $limite->getRetryAfter()->getTimestamp() - time()), 'Trop de tentatives. Merci de réessayer plus tard.');
         }
 
         $saisie = trim((string) $request->request->get('code', ''));
