@@ -37,3 +37,14 @@ framework:
             policy: 'sliding_window'
             limit: 60
             interval: '15 minutes'
+        # Défi du second facteur de l'admin (#312), plafonné PAR COMPTE : six
+        # chiffres avec 90 secondes de tolérance, ça s'énumère si rien ne le borne.
+        # Cinq essais par quart d'heure — le même réglage que le plafond de
+        # connexion (#307), pour la même raison : impraticable pour une
+        # énumération, indolore pour une faute de frappe. La clé est le compte et
+        # non l'IP : borner l'IP permettrait de verrouiller à distance l'admin
+        # d'à côté.
+        second_facteur_compte:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'

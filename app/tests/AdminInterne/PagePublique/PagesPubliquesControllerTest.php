@@ -7,6 +7,7 @@ namespace App\Tests\AdminInterne\PagePublique;
 use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use App\Widget\PagePublique;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -21,6 +22,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class PagesPubliquesControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const string HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLaPageExigeUneAuthentification(): void
@@ -58,6 +61,7 @@ final class PagesPubliquesControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $utilisateurs->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function em(): EntityManagerInterface

@@ -8,6 +8,7 @@ use App\Compte\Compte;
 use App\Compte\CompteRepository;
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -19,6 +20,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  */
 final class SuppressionCompteControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const APP = 'http://app.valeurverte.localhost';
     private const MOT_DE_PASSE = 'MotDePasseActuel1';
 
@@ -89,6 +92,7 @@ final class SuppressionCompteControllerTest extends WebTestCase
         $admin->definirMotDePasse($this->hasher()->hashPassword($admin, self::MOT_DE_PASSE));
         $this->users()->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
 
         $client->request('GET', 'http://admin.valeurverte.localhost/mon-compte');
 

@@ -18,11 +18,14 @@ use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
 use App\Tests\BackOffice\Rapport\InstantaneRapportMother;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class ComptesControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLaPageComptesExigeUneAuthentification(): void
@@ -91,6 +94,7 @@ final class ComptesControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $repository->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function seedEntreprise(string $raisonSociale, int $tenantId): void

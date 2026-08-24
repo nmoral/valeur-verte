@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Enrôlement du second facteur · Valeur Verte',
+  description: 'Enrôlement de la vérification en deux étapes.',
+  canonical: url('second_facteur_enrolement'),
+  robots: 'noindex,nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Enrôler votre second facteur</h1>
+    <p class="auth-lead">
+      Scannez ce code avec votre application d'authentification (Google
+      Authenticator, Aegis, 1Password…), puis saisissez le code affiché pour
+      confirmer.
+    </p>
+
+    {# SVG inline : rien à charger, donc rien à autoriser dans la CSP. #}
+    <div class="qr-enrolement" aria-hidden="true">{{ qr|raw }}</div>
+
+    <p>
+      Si vous ne pouvez pas scanner, saisissez cette clé à la main dans votre
+      application :
+    </p>
+    <p class="secret-totp"><code>{{ secretGroupe }}</code></p>
+
+    {% if erreur %}<p class="alert" role="alert">{{ erreur }}</p>{% endif %}
+
+    <form method="post" action="{{ path('second_facteur_enrolement', {jeton: jeton}) }}" novalidate>
+      <div class="field-group{{ erreur ? ' has-error' : '' }}">
+        <label for="code">Code affiché par l'application</label>
+        <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+               autofocus required spellcheck="false" pattern="[0-9]{6}">
+        <span class="hint">Six chiffres. Rien n'est activé tant que ce code n'est pas confirmé.</span>
+      </div>
+
+      <button type="submit" class="btn-primary">Activer</button>
+    </form>
+  </div>
+
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>

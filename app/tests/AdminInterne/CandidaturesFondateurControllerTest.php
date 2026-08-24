@@ -9,6 +9,7 @@ use App\Compte\CompteRepository;
 use App\Compte\Formule;
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -19,6 +20,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class CandidaturesFondateurControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLaPageExigeUneAuthentification(): void
@@ -62,6 +65,7 @@ final class CandidaturesFondateurControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $this->users()->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function seedCandidat(string $email, int $tenantId): void

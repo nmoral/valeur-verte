@@ -8,12 +8,15 @@ use App\AdminInterne\Signalement\Signalement;
 use App\AdminInterne\Signalement\SignalementRepository;
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class SignalementsControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLaPageSignalementsExigeUneAuthentification(): void
@@ -51,6 +54,7 @@ final class SignalementsControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $repository->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function signalements(): SignalementRepository
