@@ -77,10 +77,15 @@ final class AdresseEmail implements \Stringable
         return mb_strtolower(trim($saisie));
     }
 
+    /**
+     * Retire la sous-adresse « +tag ». Une partie locale qui n'est **que** l'alias
+     * (« +tag@… », adresse valide) est laissée telle quelle : la vider ferait
+     * collisionner toutes les adresses du domaine sur une même identité.
+     */
     private static function sansAlias(string $locale): string
     {
         $plus = strpos($locale, '+');
 
-        return false === $plus ? $locale : substr($locale, 0, $plus);
+        return false === $plus || 0 === $plus ? $locale : substr($locale, 0, $plus);
     }
 }
