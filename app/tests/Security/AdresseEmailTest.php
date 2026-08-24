@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Security;
 
 use App\Security\AdresseEmail;
+use App\Security\AdresseEmailInvalide;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class AdresseEmailTest extends TestCase
@@ -24,5 +26,31 @@ final class AdresseEmailTest extends TestCase
         self::assertSame('pro@exemple.fr', $adresse->canonique());
         // L'alias reste l'adresse de connexion : c'est bien là que le pro relève son courrier.
         self::assertSame('pro+devis@exemple.fr', $adresse->valeur());
+    }
+
+    #[DataProvider('saisiesInvalides')]
+    public function testUneSaisieQuiNEstPasUneAdresseEstRefusee(string $saisie): void
+    {
+        $this->expectException(AdresseEmailInvalide::class);
+
+        AdresseEmail::depuis($saisie);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function saisiesInvalides(): iterable
+    {
+        yield 'vide' => [''];
+        yield 'sans arobase' => ['pro.exemple.fr'];
+        yield 'sans domaine' => ['pro@'];
+        yield 'sans partie locale' => ['@exemple.fr'];
+        yield 'espace au milieu' => ['pro pro@exemple.fr'];
+    }
+
+    public function testUneSaisieInvalideNeLeveRienAvecEstValide(): void
+    {
+        self::assertTrue(AdresseEmail::estValide('  Pro@Exemple.fr '));
+        self::assertFalse(AdresseEmail::estValide('pro.exemple.fr'));
     }
 }
