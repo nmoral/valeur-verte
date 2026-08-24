@@ -6,6 +6,7 @@ namespace App\Tests\FrontSocle;
 
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -16,6 +17,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class BaseTemplateTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLeLayoutEmetLImportmapPourDemarrerStimulus(): void
@@ -49,5 +52,6 @@ final class BaseTemplateTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $repository->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 }

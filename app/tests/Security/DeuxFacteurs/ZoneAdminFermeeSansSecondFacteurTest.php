@@ -6,7 +6,6 @@ namespace App\Tests\Security\DeuxFacteurs;
 
 use App\Security\User;
 use App\Security\UserRepository;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
@@ -28,7 +27,10 @@ final class ZoneAdminFermeeSansSecondFacteurTest extends WebTestCase
         $client = static::createClient();
         $client->loginUser($this->seedAdmin('zone-admin@example.com'));
 
-        foreach (['/', '/comptes', '/journal-audit', '/millesimes'] as $chemin) {
+        // Des chemins réels de la zone (debug:router) : l'écouteur tourne APRÈS le
+        // routage — il lui faut le pare-feu, donc l'authentification — et un chemin
+        // inexistant échouerait en 404 avant de l'atteindre.
+        foreach (['/', '/comptes', '/journal', '/millesimes'] as $chemin) {
             $client->request('GET', self::ADMIN.$chemin);
             self::assertResponseRedirects(
                 self::ADMIN.'/second-facteur',

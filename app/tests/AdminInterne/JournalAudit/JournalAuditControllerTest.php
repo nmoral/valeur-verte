@@ -8,12 +8,15 @@ use App\AdminInterne\JournalAudit\EvenementAudit;
 use App\AdminInterne\JournalAudit\JournalAuditDoctrine;
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class JournalAuditControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     public function testLeJournalExigeUneAuthentification(): void
@@ -48,6 +51,7 @@ final class JournalAuditControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $repository->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function enregistrer(EvenementAudit $evenement): void

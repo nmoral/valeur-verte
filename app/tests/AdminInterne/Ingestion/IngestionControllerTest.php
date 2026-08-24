@@ -6,6 +6,7 @@ namespace App\Tests\AdminInterne\Ingestion;
 
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\DsnParser;
@@ -24,6 +25,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class IngestionControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const HOTE_ADMIN = 'admin.valeurverte.localhost';
 
     private ?Connection $prive = null;
@@ -152,6 +155,7 @@ final class IngestionControllerTest extends WebTestCase
         $admin = new User('admin@example.com', ['ROLE_ADMIN']);
         $repository->enregistrer($admin);
         $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
     }
 
     private function prive(): Connection

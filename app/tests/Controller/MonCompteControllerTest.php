@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Security\User;
 use App\Security\UserRepository;
+use App\Tests\Security\DeuxFacteurs\Double\PasseLeSecondFacteur;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -16,6 +17,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  */
 final class MonCompteControllerTest extends WebTestCase
 {
+    use PasseLeSecondFacteur;
+
     private const APP = 'http://app.valeurverte.localhost';
     private const ADMIN = 'http://admin.valeurverte.localhost';
     private const ACTUEL = 'MotDePasseActuel1';
@@ -32,7 +35,9 @@ final class MonCompteControllerTest extends WebTestCase
 
         self::ensureKernelShutdown();
         $clientAdmin = static::createClient();
-        $clientAdmin->loginUser($this->seedUser('admin-compte@example.com', ['ROLE_ADMIN']));
+        $admin = $this->seedUser('admin-compte@example.com', ['ROLE_ADMIN']);
+        $clientAdmin->loginUser($admin);
+        $this->passerLeSecondFacteur($clientAdmin, $admin);
         $clientAdmin->request('GET', self::ADMIN.'/mon-compte');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('input[name="nouveau"]');
@@ -104,7 +109,9 @@ final class MonCompteControllerTest extends WebTestCase
     public function testLaSidebarAdminPointeVersMonCompte(): void
     {
         $client = static::createClient();
-        $client->loginUser($this->seedUser('admin-nav@example.com', ['ROLE_ADMIN']));
+        $admin = $this->seedUser('admin-nav@example.com', ['ROLE_ADMIN']);
+        $client->loginUser($admin);
+        $this->passerLeSecondFacteur($client, $admin);
 
         $client->request('GET', self::ADMIN.'/');
 
