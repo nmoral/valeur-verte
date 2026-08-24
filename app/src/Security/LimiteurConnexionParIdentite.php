@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Security;
 
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
-use Symfony\Component\HttpFoundation\RateLimiter\RequestRateLimiterInterface;
+use Symfony\Component\HttpFoundation\RateLimiter\PeekableRequestRateLimiterInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\RateLimiter\RateLimit;
-use Symfony\Component\Security\Http\RateLimiter\DefaultLoginRateLimiter;
 use Symfony\Component\Security\Http\SecurityRequestAttributes;
 
 /**
@@ -30,17 +29,30 @@ use Symfony\Component\Security\Http\SecurityRequestAttributes;
  * Ce décorateur ramène l'identifiant à sa forme canonique **avant** de déléguer.
  * Une saisie qui n'est pas une adresse est laissée telle quelle : elle ne désigne
  * aucun compte, elle mérite son propre compteur.
+ *
+ * ⚠️ Il doit rester **peekable** : le listener de Symfony choisit sa stratégie sur
+ * ce seul critère. Peekable, il consulte le compteur et ne consomme qu'en cas
+ * d'échec ; sinon il consomme à chaque tentative et **remet le compteur à zéro à
+ * la moindre connexion réussie** — un attaquant disposant d'un compte valide
+ * réarmerait alors le plafond global par IP à volonté, ce que ce plafond existe
+ * précisément pour empêcher. Décorer en ne gardant que RequestRateLimiterInterface
+ * échange donc un trou contre un autre.
  */
 #[AsDecorator('security.login_throttling.main.limiter')]
-final readonly class LimiteurConnexionParIdentite implements RequestRateLimiterInterface
+final readonly class LimiteurConnexionParIdentite implements PeekableRequestRateLimiterInterface
 {
-    public function __construct(private DefaultLoginRateLimiter $interne)
+    public function __construct(private PeekableRequestRateLimiterInterface $interne)
     {
     }
 
     public function consume(Request $request): RateLimit
     {
         return $this->interne->consume(self::parIdentite($request));
+    }
+
+    public function peek(Request $request): RateLimit
+    {
+        return $this->interne->peek(self::parIdentite($request));
     }
 
     public function reset(Request $request): void
