@@ -24,7 +24,9 @@ final class Base32
         // Le dernier quintet incomplet est complété par des zéros — le décodeur
         // ignore les bits en trop, qui ne forment pas un octet.
         foreach (str_split($bits, 5) as $quintet) {
-            $encode .= self::ALPHABET[bindec(str_pad($quintet, 5, '0', \STR_PAD_RIGHT))];
+            // bindec rend int|float — float seulement au-delà de PHP_INT_MAX,
+            // impossible sur cinq bits. Le cast le dit à l'analyse statique.
+            $encode .= self::ALPHABET[(int) bindec(str_pad($quintet, 5, '0', \STR_PAD_RIGHT))];
         }
 
         return $encode;
@@ -52,7 +54,7 @@ final class Base32
         // Le dernier groupe incomplet est du remplissage : il ne porte pas d'octet.
         foreach (str_split($bits, 8) as $octet) {
             if (8 === \strlen($octet)) {
-                $binaire .= \chr(bindec($octet));
+                $binaire .= \chr((int) bindec($octet));
             }
         }
 
