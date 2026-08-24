@@ -209,6 +209,11 @@ services:
         arguments:
             $dureeValiditeMinutes: 30
 
+    App\Security\DeuxFacteurs\Command\EnrolerSecondFacteurCommand:
+        arguments:
+            $appDomaine: '%app.domaine%'
+            $dureeValiditeMinutes: 30
+
     # Changement d'adresse email (#310) : lien de confirmation sur le sous-domaine
     # app., à durée de vie courte. Plus courte que la réinitialisation de mot de
     # passe (60 min) n'aurait pas de sens — c'est le même geste, relever une boîte ;
