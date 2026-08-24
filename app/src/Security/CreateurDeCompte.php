@@ -36,7 +36,9 @@ final class CreateurDeCompte
      */
     public function creer(string $email, string $motDePasse, string $versionConditions, ?Siret $siret = null): User
     {
-        if (null !== $this->utilisateurs->findOneBy(['email' => $email])) {
+        // Unicité sur l'**identité**, pas sur la chaîne saisie (#331) : sans quoi
+        // un seul pro s'offre autant d'essais gratuits qu'il a d'alias.
+        if (null !== $this->utilisateurs->parAdresse($email)) {
             throw new EmailDejaUtilise($email);
         }
 
