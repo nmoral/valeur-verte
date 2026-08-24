@@ -37,6 +37,18 @@ final class AdresseEmail implements \Stringable
      */
     private const array DOMAINES_ALIAS = ['googlemail.com' => 'gmail.com'];
 
+    /**
+     * Domaines qui **ignorent les points** de la partie locale. La règle n'est
+     * surtout pas générique : sur un domaine d'entreprise, « jean.dupont@ » et
+     * « jeandupont@ » sont deux personnes, et les confondre empêcherait un
+     * collègue de s'inscrire. Liste explicite, donc, et en dur pour la même
+     * raison que {@see DOMAINES_ALIAS} — elle s'applique **après** la réécriture
+     * des alias de domaine, si bien qu'un « googlemail » en bénéficie aussi.
+     *
+     * @var list<string>
+     */
+    private const array DOMAINES_SANS_POINTS = ['gmail.com'];
+
     private function __construct(
         private readonly string $locale,
         private readonly string $domaine,
@@ -75,8 +87,13 @@ final class AdresseEmail implements \Stringable
     public function canonique(): string
     {
         $domaine = self::DOMAINES_ALIAS[$this->domaine] ?? $this->domaine;
+        $locale = self::sansAlias($this->locale);
 
-        return self::sansAlias($this->locale).'@'.$domaine;
+        if (\in_array($domaine, self::DOMAINES_SANS_POINTS, true)) {
+            $locale = str_replace('.', '', $locale);
+        }
+
+        return $locale.'@'.$domaine;
     }
 
     public function __toString(): string
