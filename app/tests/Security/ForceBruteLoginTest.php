@@ -102,8 +102,9 @@ final class ForceBruteLoginTest extends WebTestCase
         }
 
         // Autre écriture, même compte (#331) : depuis que la connexion résout
-        // l'identité, un alias ouvrirait sinon un compteur neuf — et le plafond de
-        // cinq essais se multiplierait par le nombre d'alias imaginables.
+        // l'identité, un alias ouvrirait sinon un compteur neuf — l'attaquant
+        // échapperait au plafond par identifiant (5) pour n'être plus retenu que
+        // par le plafond global par IP, que Symfony fixe à cinq fois celui-ci.
         $this->tenter($client, '203.0.113.13', 'A.S.S.A.I.L.L.I+Bis@GoogleMail.com', self::MOT_DE_PASSE);
 
         self::assertResponseRedirects();

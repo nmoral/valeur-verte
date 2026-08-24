@@ -17,8 +17,15 @@ use Symfony\Component\Security\Http\SecurityRequestAttributes;
  * Le limiteur de Symfony construit sa clé sur l'identifiant saisi (minusculé).
  * Depuis que la connexion résout l'identité — casse, alias « +tag », points Gmail
  * —, cet identifiant n'est plus unique : `pro+1@`, `pro+2@`… désignent le même
- * compte mais ouvrent chacun un compteur neuf. Le plafond de cinq essais se
- * multiplierait alors par le nombre d'alias imaginables, c'est-à-dire par l'infini.
+ * compte mais ouvrent chacun un compteur neuf.
+ *
+ * Avant cette résolution, faire varier l'alias ne testait **rien** : la recherche
+ * exacte ne trouvait aucun compte, donc aucun mot de passe n'était comparé. Depuis,
+ * chaque variante teste réellement le mot de passe du compte visé. Sans ce
+ * décorateur, un attaquant échappe donc au plafond par identifiant (5 essais) et
+ * n'est plus retenu que par le plafond global par IP, que Symfony fixe à
+ * `5 × max_attempts` (25) : cinq fois plus d'essais depuis une IP, et cinq fois
+ * plus de débit pour une attaque distribuée.
  *
  * Ce décorateur ramène l'identifiant à sa forme canonique **avant** de déléguer.
  * Une saisie qui n'est pas une adresse est laissée telle quelle : elle ne désigne
