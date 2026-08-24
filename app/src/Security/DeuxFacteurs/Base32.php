@@ -13,6 +13,23 @@ final class Base32
 {
     private const string ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
+    public static function encoder(string $binaire): string
+    {
+        $bits = '';
+        foreach (str_split($binaire) as $octet) {
+            $bits .= str_pad(decbin(\ord($octet)), 8, '0', \STR_PAD_LEFT);
+        }
+
+        $encode = '';
+        // Le dernier quintet incomplet est complété par des zéros — le décodeur
+        // ignore les bits en trop, qui ne forment pas un octet.
+        foreach (str_split($bits, 5) as $quintet) {
+            $encode .= self::ALPHABET[bindec(str_pad($quintet, 5, '0', \STR_PAD_RIGHT))];
+        }
+
+        return $encode;
+    }
+
     /**
      * @throws \InvalidArgumentException si l'entrée n'est pas du base32
      */
