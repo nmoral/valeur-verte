@@ -16,4 +16,13 @@ final class AdresseEmailTest extends TestCase
         self::assertSame('jean.dupont@exemple.fr', $adresse->valeur());
         self::assertSame('jean.dupont@exemple.fr', (string) $adresse);
     }
+
+    public function testLaFormeCanoniqueIgnoreLAliasApresLePlus(): void
+    {
+        $adresse = AdresseEmail::depuis('Pro+Devis@Exemple.fr');
+
+        self::assertSame('pro@exemple.fr', $adresse->canonique());
+        // L'alias reste l'adresse de connexion : c'est bien là que le pro relève son courrier.
+        self::assertSame('pro+devis@exemple.fr', $adresse->valeur());
+    }
 }
