@@ -41,6 +41,23 @@ final class DemandeReinitialisationTest extends KernelTestCase
         self::assertNotNull($this->jetons()->trouverParEmpreinte($empreinte));
     }
 
+    public function testUneVarianteDeLAdresseRetrouveLeCompteEtEcritALAdresseInscrite(): void
+    {
+        self::bootKernel();
+        $this->seedUser('p.r.o@gmail.com');
+
+        // Le pro tape son adresse de travers — casse, alias, points, googlemail.
+        // Le mot de passe oublié est justement le moment où il ne s'en souvient
+        // plus exactement (#331) : lui répondre « compte inconnu » serait absurde.
+        $this->demande()->pour('P.R.O+Perdu@GoogleMail.com');
+
+        $emails = $this->mailer()->envoyes();
+        self::assertCount(1, $emails);
+        // Le lien part à l'adresse **inscrite**, jamais à la chaîne saisie : c'est
+        // le compte qui désigne où il se récupère.
+        self::assertSame('p.r.o@gmail.com', $emails[0]->destinataire());
+    }
+
     public function testUnCompteInconnuNeDeclencheAucunEmail(): void
     {
         self::bootKernel();
