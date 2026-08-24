@@ -89,6 +89,24 @@ final class EnvoiDemandeChangementEmailTest extends KernelTestCase
         }
     }
 
+    public function testUneVarianteDUneAdresseDejaUtiliseeEstRefusee(): void
+    {
+        self::bootKernel();
+        $user = $this->seedUser('artisan-variante@example.com');
+        $this->seedUser('p.r.o@gmail.com');
+
+        // Même boîte que le compte d'autrui, autre écriture (#331) : le
+        // changement d'adresse est la troisième porte d'entrée, elle doit
+        // appliquer la même règle d'identité que l'inscription.
+        $this->expectException(EmailDejaUtilise::class);
+
+        try {
+            $this->envoi()->pour($user, 'P.R.O+Autre@GoogleMail.com');
+        } finally {
+            self::assertCount(0, $this->mailer()->envoyes());
+        }
+    }
+
     public function testSaProprePresenteAdresseEstRefusee(): void
     {
         self::bootKernel();
