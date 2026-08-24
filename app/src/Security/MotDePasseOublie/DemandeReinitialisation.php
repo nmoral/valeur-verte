@@ -36,7 +36,10 @@ final readonly class DemandeReinitialisation
 
     public function pour(string $email): void
     {
-        $user = $this->utilisateurs->findOneBy(['email' => $email]);
+        // Retrouvé par son **identité** (#331) : le mot de passe oublié est
+        // justement le moment où le pro ne se souvient plus de l'écriture exacte
+        // de son adresse.
+        $user = $this->utilisateurs->parAdresse($email);
         if (null === $user) {
             return;
         }
@@ -56,8 +59,10 @@ final readonly class DemandeReinitialisation
             $maintenant->add(new \DateInterval('PT'.$this->dureeValiditeMinutes.'M')),
         ));
 
+        // Le lien part à l'adresse **inscrite**, jamais à la chaîne saisie : c'est
+        // le compte qui désigne où il se récupère.
         $this->mailer->envoyer(new Email(
-            $email,
+            $user->getEmail(),
             'Réinitialisation de votre mot de passe',
             $this->corps($jetonBrut),
         ));
