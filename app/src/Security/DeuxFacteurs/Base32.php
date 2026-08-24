@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Security\DeuxFacteurs;
+
+/**
+ * Base32 (RFC 4648) — l'encodage sous lequel un secret TOTP voyage vers
+ * l'application d'authentification (#312). PHP n'en fournit pas d'implémentation
+ * native, contrairement à base64.
+ */
+final class Base32
+{
+    private const string ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+    /**
+     * @throws \InvalidArgumentException si l'entrée n'est pas du base32
+     */
+    public static function decoder(string $base32): string
+    {
+        // Le remplissage « = » et la casse sont tolérés : un secret recopié à la
+        // main depuis un gestionnaire de mots de passe arrive sous des formes
+        // variées. Tout le reste est un secret invalide, pas un secret à deviner.
+        $normalise = strtoupper(rtrim($base32, '='));
+        if ('' === $normalise || 1 !== preg_match('/^[A-Z2-7]+$/', $normalise)) {
+            throw new \InvalidArgumentException('Secret base32 invalide.');
+        }
+
+        $bits = '';
+        foreach (str_split($normalise) as $caractere) {
+            $bits .= str_pad(decbin((int) strpos(self::ALPHABET, $caractere)), 5, '0', \STR_PAD_LEFT);
+        }
+
+        $binaire = '';
+        // Le dernier groupe incomplet est du remplissage : il ne porte pas d'octet.
+        foreach (str_split($bits, 8) as $octet) {
+            if (8 === \strlen($octet)) {
+                $binaire .= \chr(bindec($octet));
+            }
+        }
+
+        return $binaire;
+    }
+}
