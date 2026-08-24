@@ -35,6 +35,15 @@ final class AdresseEmailTest extends TestCase
         self::assertSame('+tag@exemple.fr', AdresseEmail::depuis('+Tag@Exemple.fr')->canonique());
     }
 
+    public function testGooglemailEstUnAliasDeGmail(): void
+    {
+        $adresse = AdresseEmail::depuis('pro@googlemail.com');
+
+        self::assertSame('pro@gmail.com', $adresse->canonique());
+        // Le domaine de connexion, lui, n'est pas réécrit : c'est celui que le pro a saisi.
+        self::assertSame('pro@googlemail.com', $adresse->valeur());
+    }
+
     #[DataProvider('saisiesInvalides')]
     public function testUneSaisieQuiNEstPasUneAdresseEstRefusee(string $saisie): void
     {
