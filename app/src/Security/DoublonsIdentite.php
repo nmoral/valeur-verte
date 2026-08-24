@@ -24,16 +24,16 @@ final class DoublonsIdentite
     {
         $parIdentite = [];
 
-        foreach ($adressesParId as $id => $adresse) {
+        foreach ($adressesParId as $id => $saisie) {
             // Une adresse que la règle ne sait pas lire est groupée sur elle-même,
             // jamais écartée : elle bloquerait la migration en silence.
-            $identite = AdresseEmail::estValide($adresse)
-                ? AdresseEmail::depuis($adresse)->canonique()
-                : $adresse;
+            if (!AdresseEmail::estValide($saisie)) {
+                $parIdentite[$saisie][$id] = $saisie;
+                continue;
+            }
 
-            $parIdentite[$identite][$id] = AdresseEmail::estValide($adresse)
-                ? AdresseEmail::depuis($adresse)->valeur()
-                : $adresse;
+            $adresse = AdresseEmail::depuis($saisie);
+            $parIdentite[$adresse->canonique()][$id] = $adresse->valeur();
         }
 
         return array_filter($parIdentite, static fn (array $comptes): bool => \count($comptes) > 1);
