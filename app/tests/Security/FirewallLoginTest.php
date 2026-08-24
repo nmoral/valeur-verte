@@ -76,6 +76,19 @@ final class FirewallLoginTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testLaConnexionAccepteUneVarianteDeLaMemeAdresse(): void
+    {
+        $client = static::createClient();
+        $this->creerUtilisateur('pro.variante@gmail.com', 'secret-pro', ['ROLE_PRO']);
+
+        // Casse, alias « +tag », points Gmail et googlemail : quatre écritures
+        // d'une seule et même identité (#331). Un pro qui retape son adresse de
+        // travers doit retrouver son compte, pas se voir refuser la porte.
+        $this->seConnecter($client, self::HOTE_PRO, 'Pro.Variante+Devis@GoogleMail.com', 'secret-pro');
+
+        self::assertResponseRedirects('http://'.self::HOTE_PRO.'/');
+    }
+
     /**
      * @param non-empty-string $email
      * @param list<string>     $roles
