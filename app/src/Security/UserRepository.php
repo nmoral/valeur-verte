@@ -45,6 +45,29 @@ class UserRepository extends ServiceEntityRepository implements UserLoaderInterf
         return $this->parAdresse($identifier);
     }
 
+    /**
+     * Adresses de tous les comptes, indexées par identifiant. Sert au contrôle
+     * préalable des collisions (#331) : il porte sur la **totalité** de la table,
+     * qui compte quelques comptes — pas de pagination à prévoir ici.
+     *
+     * @return array<int, string>
+     */
+    public function adressesParId(): array
+    {
+        $lignes = $this->createQueryBuilder('u')
+            ->select('u.id', 'u.email')
+            ->getQuery()
+            ->getScalarResult();
+
+        $adresses = [];
+        foreach ($lignes as $ligne) {
+            \assert(\is_array($ligne) && \is_int($ligne['id']) && \is_string($ligne['email']));
+            $adresses[$ligne['id']] = $ligne['email'];
+        }
+
+        return $adresses;
+    }
+
     public function enregistrer(User $user): void
     {
         $manager = $this->getEntityManager();
