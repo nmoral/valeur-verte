@@ -3,12 +3,17 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
-    # Les comptes vivent en base (schéma app), identifiés par l'email.
+    # Les comptes vivent en base (schéma app), identifiés par l'email — plus
+    # précisément par sa forme **canonique** (#331) : casse, alias « +tag » et
+    # points Gmail ne distinguent pas deux comptes. Pas de « property » ici : sans
+    # elle, le provider passe par UserRepository::loadUserByIdentifier, qui porte
+    # cette règle. La rétablir ferait retomber la connexion sur une comparaison
+    # exacte, et un pro inscrit sous une écriture se verrait refuser la porte sous
+    # une autre.
     providers:
         app_user_provider:
             entity:
                 class: App\Security\User
-                property: email
 
     # Trois zones, une seule authentification (§10.1) :
     #  - widget.  : public, stateless — la page hébergée est ouvertement accessible

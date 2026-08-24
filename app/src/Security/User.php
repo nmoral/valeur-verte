@@ -27,6 +27,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private string $email;
 
     /**
+     * Forme **canonique** de l'adresse (#331) : c'est elle qui porte l'identité,
+     * donc l'unicité. `email` reste l'adresse de connexion et d'envoi — celle que
+     * le pro a saisie, à la casse près. Les deux sont dérivées de la même
+     * {@see AdresseEmail} et ne peuvent pas diverger : seule {@see definirEmail()}
+     * les écrit, toujours ensemble.
+     */
+    #[ORM\Column(name: 'email_canonique', length: 180, unique: true)]
+    private string $emailCanonique;
+
+    /**
      * @var list<string>
      */
     #[ORM\Column(type: Types::JSON)]
@@ -59,7 +69,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function __construct(string $email, array $roles = [])
     {
-        $this->email = $email;
+        $this->definirEmail($email);
         $this->roles = $roles;
     }
 
@@ -82,9 +92,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function changerEmail(string $email): void
     {
-        \assert('' !== $email);
+        $this->definirEmail($email);
+    }
 
-        $this->email = $email;
+    public function emailCanonique(): string
+    {
+        return $this->emailCanonique;
+    }
+
+    private function definirEmail(string $email): void
+    {
+        $adresse = AdresseEmail::depuis($email);
+
+        $this->email = $adresse->valeur();
+        $this->emailCanonique = $adresse->canonique();
     }
 
     public function emailEstVerifie(): bool

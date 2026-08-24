@@ -112,6 +112,26 @@ final class ConfirmationChangementEmailTest extends KernelTestCase
         }
     }
 
+    public function testUneVarianteDeLAdresseViseePriseEntreTempsEstRefusee(): void
+    {
+        self::bootKernel();
+        $user = $this->seedUser('avant-variante@example.com');
+        $jetonBrut = $this->seedDemande($user, 'convoitee.variante@gmail.com');
+        // L'adresse prise entre-temps n'est pas la même chaîne, c'est la même
+        // boîte (#331) : sans la règle d'identité, l'index unique renverrait une
+        // erreur 500 au visage du pro.
+        $this->seedUser('convoiteevariante+x@googlemail.com');
+
+        try {
+            $this->confirmation()->confirmer($jetonBrut);
+            self::fail('Une variante prise entre-temps doit être refusée.');
+        } catch (ChangementEmailInvalide) {
+            $recharge = $this->users()->find($user->getId());
+            self::assertNotNull($recharge);
+            self::assertSame('avant-variante@example.com', $recharge->getEmail());
+        }
+    }
+
     public function testLaConfirmationEstTraceeAuJournalDAudit(): void
     {
         self::bootKernel();

@@ -67,7 +67,9 @@ final readonly class EnvoiDemandeChangementEmail
         // Couvre aussi l'adresse actuelle du demandeur : demander sa propre
         // adresse n'est pas une bascule, et l'accepter enverrait un avertissement
         // pour un changement qui n'en est pas un.
-        if (null !== $this->utilisateurs->findOneBy(['email' => $nouvelEmail])) {
+        // Unicité sur l'**identité** (#331) : un alias de l'adresse d'autrui est
+        // la même boîte, et un alias de la sienne le même compte.
+        if (null !== $this->utilisateurs->parAdresse($nouvelEmail)) {
             throw new EmailDejaUtilise($nouvelEmail);
         }
 

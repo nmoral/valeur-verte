@@ -8,6 +8,12 @@
     "mutators": {
         "@default": true,
     },
+    // Budget d'exécution par processus, en secondes (défaut : 10). La suite
+    // complète dépasse dix secondes sous pcov : au défaut, le run initial est
+    // tué (SIGTERM) et plus de la moitié des mutants sont écartés en « timeout »
+    // — comptés comme tués, donc un MSI flatteur qui ne prouve rien. Un budget
+    // large rend la porte plus stricte, pas moins.
+    "timeout": 120,
     "minMsi": 70,
     "minCoveredMsi": 80,
     "logs": {
