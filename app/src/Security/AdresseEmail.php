@@ -27,6 +27,16 @@ namespace App\Security;
  */
 final class AdresseEmail implements \Stringable
 {
+    /**
+     * Domaines qui n'en sont qu'un seul, du point de vue de la boîte servie.
+     * Liste **en dur** et non configurable : elle bouge à l'échelle de la
+     * décennie, et une règle d'identité rangée en base est une règle qu'on ne
+     * relit plus jamais.
+     *
+     * @var array<string, string>
+     */
+    private const array DOMAINES_ALIAS = ['googlemail.com' => 'gmail.com'];
+
     private function __construct(
         private readonly string $locale,
         private readonly string $domaine,
@@ -64,7 +74,9 @@ final class AdresseEmail implements \Stringable
 
     public function canonique(): string
     {
-        return self::sansAlias($this->locale).'@'.$this->domaine;
+        $domaine = self::DOMAINES_ALIAS[$this->domaine] ?? $this->domaine;
+
+        return self::sansAlias($this->locale).'@'.$domaine;
     }
 
     public function __toString(): string
