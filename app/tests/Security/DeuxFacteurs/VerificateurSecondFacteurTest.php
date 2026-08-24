@@ -74,17 +74,23 @@ final class VerificateurSecondFacteurTest extends TestCase
         self::assertFalse($this->verificateur()->verifier($facteur, $code, $instant));
     }
 
-    public function testAccepterUnCodeEnRetardBrulzAussiLesFenetresPrecedentes(): void
+    public function testUnCodeAccepteBruleLesFenetresAnterieuresMaisPasLesSuivantes(): void
     {
         $facteur = $this->facteurActif();
         $instant = new \DateTimeImmutable('@1755990000');
 
-        // On accepte le code de la fenêtre précédente…
+        // On accepte le code de la fenêtre précédente (saisie lente)…
         self::assertTrue($this->verificateur()->verifier($facteur, $this->code($instant->modify('-30 seconds')), $instant));
-        // …et celui de la fenêtre courante devient inutilisable : accepter en
-        // arrière puis en avant permettrait deux connexions avec deux codes captés
-        // dans la même minute.
-        self::assertFalse($this->verificateur()->verifier($facteur, $this->code($instant), $instant));
+
+        // …ce qui condamne définitivement cette fenêtre et toutes celles d'avant.
+        self::assertFalse($this->verificateur()->verifier($facteur, $this->code($instant->modify('-30 seconds')), $instant));
+
+        // Le code COURANT, lui, reste bon : c'est un code plus récent, pas un
+        // rejeu. Le refuser punirait une seconde connexion légitime dans la
+        // minute sans rien retirer à un attaquant, qui n'aurait qu'à lire la
+        // fenêtre suivante sur l'écran qu'il regarde déjà (RFC 6238 §5.2 :
+        // l'unicité porte sur le pas, pas sur la session).
+        self::assertTrue($this->verificateur()->verifier($facteur, $this->code($instant), $instant));
     }
 
     public function testUnCodeFauxEstRefuse(): void
