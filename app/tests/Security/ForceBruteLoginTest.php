@@ -92,6 +92,26 @@ final class ForceBruteLoginTest extends WebTestCase
         self::assertResponseRedirects('http://'.self::HOTE_PRO.'/');
     }
 
+    public function testChangerDAliasNeRouvrePasUneFenetreFermee(): void
+    {
+        $client = static::createClient();
+        $this->creerPro('assailli@gmail.com');
+
+        for ($essai = 0; $essai < 5; ++$essai) {
+            $this->tenter($client, '203.0.113.13', 'assailli@gmail.com', 'mauvais-mot-de-passe');
+        }
+
+        // Autre écriture, même compte (#331) : depuis que la connexion résout
+        // l'identité, un alias ouvrirait sinon un compteur neuf — l'attaquant
+        // échapperait au plafond par identifiant (5) pour n'être plus retenu que
+        // par le plafond global par IP, que Symfony fixe à cinq fois celui-ci.
+        $this->tenter($client, '203.0.113.13', 'A.S.S.A.I.L.L.I+Bis@GoogleMail.com', self::MOT_DE_PASSE);
+
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertStringContainsString('/login', $client->getRequest()->getUri());
+    }
+
     /**
      * @param non-empty-string $email
      */

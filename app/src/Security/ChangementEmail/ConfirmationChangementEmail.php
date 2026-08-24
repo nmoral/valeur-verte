@@ -57,7 +57,7 @@ final readonly class ConfirmationChangementEmail
         }
 
         $nouvelEmail = $demande->nouvelEmail();
-        if (null !== $this->utilisateurs->findOneBy(['email' => $nouvelEmail])) {
+        if (null !== $this->utilisateurs->parAdresse($nouvelEmail)) {
             throw new ChangementEmailInvalide();
         }
 

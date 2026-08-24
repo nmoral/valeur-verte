@@ -123,6 +123,19 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertSelectorExists('.form-error');
     }
 
+    public function testUneVarianteDUnEmailDejaUtiliseEstRefusee(): void
+    {
+        $client = static::createClient();
+        $this->soumettreInscription($client, 'p.r.o@gmail.com', 'motdepasse-solide', '12345678901234');
+
+        // Même boîte, quatre écritures : casse, alias « +tag », points et googlemail.
+        // Sans quoi un seul pro s'offre autant d'essais gratuits qu'il a d'alias (#331).
+        $this->soumettreInscription($client, 'P.R.O+Essai2@GoogleMail.com', 'un-autre-mot-de-passe', '12345678901234');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('.form-error');
+    }
+
     public function testUnMotDePasseTropCourtEstRefuse(): void
     {
         $client = static::createClient();

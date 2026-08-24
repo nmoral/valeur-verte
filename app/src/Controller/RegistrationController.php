@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\BackOffice\Entreprise\Siret;
+use App\Security\AdresseEmail;
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
 use App\Security\LimiteurInscription;
@@ -82,7 +83,7 @@ final class RegistrationController extends AbstractController
         if (!$this->isCsrfTokenValid('inscription', (string) $request->request->get('_csrf_token'))) {
             $erreurs['global'] = 'Session expirée, merci de réessayer.';
         }
-        if (false === filter_var($email, \FILTER_VALIDATE_EMAIL)) {
+        if (!AdresseEmail::estValide($email)) {
             $erreurs['email'] = 'Adresse email invalide.';
         }
         if (mb_strlen($motDePasse) < 8) {
