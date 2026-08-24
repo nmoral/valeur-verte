@@ -294,6 +294,16 @@ when@test:
             alias: security.user_password_hasher
             public: true
 
+        # Second facteur (#312) : exposé pour les tests tant que la commande
+        # d'enrôlement ne l'injecte pas — sans consommateur, le service est élagué
+        # du conteneur compilé et introuvable côté test.
+        # Le bloc when@test n'hérite pas des _defaults : sans autowire explicite,
+        # la redéclaration écraserait la définition autowirée et le service
+        # arriverait sans ses arguments.
+        App\Security\DeuxFacteurs\CodesDeSecours:
+            autowire: true
+            public: true
+
         # Recherche SIRET (#106) : doubles en mémoire, aucun appel réseau réel.
         App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire: ~
         App\Tests\BackOffice\Entreprise\Double\QualificationsRgeEnMemoire: ~
