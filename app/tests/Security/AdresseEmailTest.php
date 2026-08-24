@@ -28,6 +28,13 @@ final class AdresseEmailTest extends TestCase
         self::assertSame('pro+devis@exemple.fr', $adresse->valeur());
     }
 
+    public function testUnePartieLocaleEntierementAliasResteIntacte(): void
+    {
+        // « +tag@… » est une adresse valide dont la partie locale EST « +tag ».
+        // La vider ferait collisionner toutes les adresses du domaine sur « @… ».
+        self::assertSame('+tag@exemple.fr', AdresseEmail::depuis('+Tag@Exemple.fr')->canonique());
+    }
+
     #[DataProvider('saisiesInvalides')]
     public function testUneSaisieQuiNEstPasUneAdresseEstRefusee(string $saisie): void
     {
