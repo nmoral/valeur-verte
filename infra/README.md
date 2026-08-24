@@ -233,6 +233,27 @@ ssh vps 'cd /opt/valeur-verte && source .env && docker compose -f infra/docker-c
 Le script sort en erreur si la restauration échoue ou si `data.vente` est vide après
 coup — un vert signifie que le dump est réellement restaurable.
 
+### Restaurer un dump ailleurs qu'en production : purger le second facteur
+
+Le secret TOTP du second facteur (#312) est stocké **en clair**, et ne peut pas en
+être autrement : il est rejoué, pas comparé — le serveur recalcule le code
+qu'affiche le téléphone. Un dump de production restauré sur un poste de
+développement y dépose donc le secret de l'admin de production. Celui qui met la
+main sur le dump n'a pas le mot de passe, mais il détient la moitié du second
+facteur, et un second facteur à moitié connu n'est plus qu'un facteur.
+
+À jouer **après toute restauration hors production** :
+
+```bash
+VV_PURGE_CONFIRME=oui infra/purger-second-facteur.sh
+```
+
+Il efface le secret, les codes de secours et les liens d'enrôlement encore vivants.
+La confirmation explicite est délibérée : jouée sur la production, cette purge
+verrouillerait l'admin dehors, et il n'y a personne au-dessus pour le rouvrir.
+L'admin local se réenrôle ensuite sur sa propre base :
+`php bin/console app:admin:second-facteur:enroler <email>`.
+
 ## Développement local
 
 ```bash
