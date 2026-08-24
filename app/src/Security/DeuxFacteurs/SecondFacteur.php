@@ -16,13 +16,15 @@ use Doctrine\ORM\Mapping as ORM;
  * hors production, sans quoi le secret de l'admin de prod se promènerait sur les
  * postes de développement.
  *
- * Un compte n'a qu'un second facteur à la fois : réenrôler un téléphone remplace
- * le secret plutôt que d'en ajouter un — deux appareils valides dont un seul est
- * connu de son propriétaire, c'est la définition d'une porte dérobée.
+ * Un compte porte **au plus un facteur actif**, mais peut en porter un second en
+ * attente le temps d'un réenrôlement : détruire l'actif avant que le nouveau soit
+ * prouvé enfermerait l'admin dehors sur un onglet refermé. C'est la confirmation
+ * qui condamne l'ancien — deux appareils valides dont un seul est connu du
+ * titulaire, c'est la définition d'une porte dérobée.
  */
 #[ORM\Entity(repositoryClass: SecondFacteurRepository::class)]
 #[ORM\Table(name: 'second_facteur')]
-#[ORM\UniqueConstraint(name: 'uniq_second_facteur_user', columns: ['user_id'])]
+#[ORM\Index(name: 'idx_second_facteur_user', columns: ['user_id'])]
 class SecondFacteur
 {
     #[ORM\Id]

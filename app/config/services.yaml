@@ -202,6 +202,13 @@ services:
             $appDomaine: '%app.domaine%'
             $dureeValiditeMinutes: 60
 
+    # Enrôlement du second facteur (#312) : lien émis en ligne de commande sur le
+    # VPS et utilisé dans la foulée. Trente minutes — un lien qui traîne une heure
+    # dans un historique de terminal est une porte ouverte sur l'admin.
+    App\Security\DeuxFacteurs\EnrolementSecondFacteur:
+        arguments:
+            $dureeValiditeMinutes: 30
+
     # Changement d'adresse email (#310) : lien de confirmation sur le sous-domaine
     # app., à durée de vie courte. Plus courte que la réinitialisation de mot de
     # passe (60 min) n'aurait pas de sens — c'est le même geste, relever une boîte ;
@@ -303,6 +310,11 @@ when@test:
         App\Security\DeuxFacteurs\CodesDeSecours:
             autowire: true
             public: true
+        App\Security\DeuxFacteurs\EnrolementSecondFacteur:
+            autowire: true
+            public: true
+            arguments:
+                $dureeValiditeMinutes: 30
 
         # Recherche SIRET (#106) : doubles en mémoire, aucun appel réseau réel.
         App\Tests\BackOffice\Entreprise\Double\RechercheEntrepriseEnMemoire: ~

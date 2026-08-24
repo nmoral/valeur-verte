@@ -138,9 +138,11 @@ final class EnrolementSecondFacteurTest extends KernelTestCase
         // sur un simple onglet refermé.
         $actif = $this->facteurs()->actifPourUtilisateur($userId);
         self::assertNotNull($actif);
-        $maintenant = new \DateTimeImmutable();
+        // Une fenêtre plus tard : le code de la confirmation vient d'être consommé
+        // (garde anti-rejeu), le rejouer ici ne prouverait rien.
+        $plusTard = (new \DateTimeImmutable())->modify('+5 minutes');
         self::assertTrue(
-            (new VerificateurSecondFacteur())->verifier($actif, $this->code($secretEnService), $maintenant),
+            (new VerificateurSecondFacteur())->verifier($actif, $this->code($secretEnService, $plusTard), $plusTard),
         );
     }
 
@@ -165,9 +167,9 @@ final class EnrolementSecondFacteurTest extends KernelTestCase
         self::assertCount(1, $this->facteurs()->findBy(['userId' => $userId]));
     }
 
-    private function code(string $secret): string
+    private function code(string $secret, ?\DateTimeImmutable $instant = null): string
     {
-        return (new CodeTotp($secret))->pour(new \DateTimeImmutable());
+        return (new CodeTotp($secret))->pour($instant ?? new \DateTimeImmutable());
     }
 
     private function seedAdmin(string $email): User
