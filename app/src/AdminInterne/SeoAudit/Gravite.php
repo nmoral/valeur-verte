@@ -19,4 +19,18 @@ enum Gravite: string
     case Ok = 'ok';
     case Alerte = 'alerte';
     case Erreur = 'erreur';
+
+    /**
+     * Poids du défaut dans le score technique (#345) : un `Ok` ne coûte rien, une
+     * `Alerte` compte pour un, une `Erreur` pour trois. L'écart 1↔3 traduit qu'une
+     * erreur (page morte, noindex) pèse plus lourd qu'un défaut cosmétique.
+     */
+    public function penalite(): int
+    {
+        return match ($this) {
+            self::Ok => 0,
+            self::Alerte => 1,
+            self::Erreur => 3,
+        };
+    }
 }
