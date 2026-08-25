@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Exporter mes données · Valeur Verte',
+  description: 'Téléchargez l\'intégralité des données de votre compte Valeur Verte.',
+  canonical: url('compte_export'),
+  robots: 'noindex,nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/auth.css') }}">
+</head>
+<body>
+<main class="auth">
+  <a href="/" class="auth-brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
+
+  <div class="auth-card">
+    <h1>Exporter mes données</h1>
+
+    <p class="auth-lead">
+      Téléchargez l'intégralité des données de votre compte dans un fichier
+      <strong>JSON</strong> lisible et réutilisable : votre compte et vos identifiants,
+      votre fiche entreprise, vos réglages (grille de coûts, bouquets, marque, page
+      publique), ainsi que vos rapports et les contacts qu'ils portent.
+    </p>
+    <p class="auth-note">
+      La portabilité de vos données s'exerce sans intermédiaire. Le fichier vous est
+      remis immédiatement ; confirmez avec votre mot de passe.
+    </p>
+
+    {% if erreur %}
+      <p class="alert" role="alert">{{ erreur }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ path('compte_export') }}" novalidate>
+      <div class="field-group{{ erreur ? ' has-error' : '' }}">
+        <label for="motdepasse">Confirmez avec votre mot de passe</label>
+        <input type="password" id="motdepasse" name="motdepasse" autocomplete="current-password" required autofocus>
+        {% if erreur %}<span class="form-error">{{ erreur }}</span>{% endif %}
+      </div>
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('export_compte') }}">
+      <button type="submit" class="btn-primary">Télécharger mes données</button>
+    </form>
+  </div>
+
+  <p class="auth-alt"><a href="{{ path('mon_compte') }}">Retour à mon compte</a></p>
+  <p class="auth-legal">Estimation statistique — ne constitue pas une évaluation immobilière.</p>
+</main>
+</body>
+</html>

@@ -66,6 +66,18 @@ class RapportRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tous les rapports d'un tenant, tenant contraint explicitement (#309,
+     * export RGPD) — les plus récents d'abord. Contrairement à `recents()` qui
+     * s'appuie sur le filtre du pro connecté, l'export admin lit un tenant tiers.
+     *
+     * @return list<Rapport>
+     */
+    public function parTenant(int $tenantId): array
+    {
+        return $this->findBy(['tenantId' => $tenantId], ['creeLe' => 'DESC', 'id' => 'DESC']);
+    }
+
+    /**
      * Liste unique des rapports et leads, les plus récents d'abord (§9.2).
      *
      * @return list<Rapport>

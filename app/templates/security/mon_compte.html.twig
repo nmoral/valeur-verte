@@ -89,6 +89,13 @@
       <button type="submit" class="btn-primary">Envoyer le lien de confirmation</button>
     </form>
 
+    {# Portabilité self-service (#309) : le pro télécharge toutes ses données. #}
+    {% if app.user.tenantId is not null %}
+      <h2>Exporter mes données</h2>
+      <p>Téléchargez l'intégralité des données de votre compte au format JSON.</p>
+      <p><a href="{{ path('compte_export') }}">Exporter mes données</a></p>
+    {% endif %}
+
     {# Résiliation self-service (#308) : réservée au pro (l'admin interne, sans
        tenant, honore une demande d'effacement depuis /comptes, pas ici). #}
     {% if app.user.tenantId is not null %}

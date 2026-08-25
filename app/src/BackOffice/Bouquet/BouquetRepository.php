@@ -35,6 +35,22 @@ class BouquetRepository extends ServiceEntityRepository
         return array_map(static fn (BouquetEnregistre $b): Bouquet => $b->versBouquet(), $enregistres);
     }
 
+    /**
+     * Les bouquets réellement enregistrés par un tenant, tenant contraint
+     * explicitement (#309, export RGPD). À la différence de `disponibles()`, ne
+     * retombe pas sur les défauts : l'export porte ce que le pro possède vraiment,
+     * et lit un tenant tiers (export admin) sans dépendre du filtre du connecté.
+     *
+     * @return list<Bouquet>
+     */
+    public function parTenant(int $tenantId): array
+    {
+        return array_map(
+            static fn (BouquetEnregistre $b): Bouquet => $b->versBouquet(),
+            $this->findBy(['tenantId' => $tenantId], ['id' => 'ASC']),
+        );
+    }
+
     public function parNom(string $nom): ?Bouquet
     {
         foreach ($this->disponibles() as $bouquet) {

@@ -82,4 +82,15 @@ class DemandeLeadRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    /**
+     * Tous les leads widget d'un tenant, tenant contraint explicitement (#309,
+     * export RGPD) : l'export admin lit un tenant qui n'est pas celui connecté.
+     *
+     * @return list<DemandeLead>
+     */
+    public function parTenant(int $tenantId): array
+    {
+        return $this->findBy(['tenantId' => $tenantId], ['id' => 'ASC']);
+    }
 }

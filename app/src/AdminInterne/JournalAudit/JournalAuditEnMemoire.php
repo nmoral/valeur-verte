@@ -30,4 +30,18 @@ final class JournalAuditEnMemoire implements JournalAudit
 
         return \array_slice($evenements, 0, $limite);
     }
+
+    public function evenementsParPrefixe(string $prefixe, int $limite = 50): array
+    {
+        $evenements = array_values(array_filter(
+            $this->evenements,
+            static fn (EvenementAudit $e): bool => str_starts_with($e->action(), $prefixe),
+        ));
+        usort(
+            $evenements,
+            static fn (EvenementAudit $a, EvenementAudit $b): int => $b->survenuLe() <=> $a->survenuLe(),
+        );
+
+        return \array_slice($evenements, 0, $limite);
+    }
 }

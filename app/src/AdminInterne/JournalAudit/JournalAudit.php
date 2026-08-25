@@ -18,4 +18,13 @@ interface JournalAudit
      * @return list<EvenementAudit>
      */
     public function evenementsRecents(int $limite = 50): array;
+
+    /**
+     * Les événements dont l'action commence par $prefixe, les plus récents
+     * d'abord, bornés par $limite. Sert le suivi des demandes RGPD (#309), qui
+     * s'adosse au journal (`rgpd.*`) plutôt qu'à un registre dédié.
+     *
+     * @return list<EvenementAudit>
+     */
+    public function evenementsParPrefixe(string $prefixe, int $limite = 50): array;
 }

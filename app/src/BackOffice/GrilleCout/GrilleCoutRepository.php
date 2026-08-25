@@ -33,6 +33,17 @@ class GrilleCoutRepository extends ServiceEntityRepository
     }
 
     /**
+     * Grille réellement enregistrée par un tenant (#309, export RGPD), ou null
+     * s'il n'en a pas configuré : à la différence de `courant()`, ne retombe pas
+     * sur la grille nationale par défaut — l'export porte ce que le pro possède —
+     * et lit un tenant tiers (export admin) sans dépendre du filtre du connecté.
+     */
+    public function parTenant(int $tenantId): ?GrilleCout
+    {
+        return $this->findOneBy(['tenantId' => $tenantId], ['valideDu' => 'DESC', 'id' => 'DESC'])?->versGrille();
+    }
+
+    /**
      * Matérialise une grille pour un tenant, tenant attribué **explicitement** :
      * au provisionnement d'un compte, le contexte tenant n'est pas encore posé
      * (cf. EnregistreurFicheEntreprise).
