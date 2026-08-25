@@ -56,7 +56,9 @@ final class SearchConsoleViaGoogleApiTest extends TestCase
         self::assertSame('POST', $capture['methode']);
         self::assertStringContainsString(rawurlencode('sc-domain:valeur-verte.fr'), $capture['url']);
         self::assertStringContainsString('searchAnalytics/query', $capture['url']);
-        self::assertSame('ya29.test', $capture['options']['auth_bearer'] ?? null);
+        $entetes = $capture['options']['headers'] ?? [];
+        self::assertIsArray($entetes);
+        self::assertStringContainsStringIgnoringCase('authorization: Bearer ya29.test', implode("\n", array_map(strval(...), $entetes)));
     }
 
     public function testMetriquesNonConfigureRendNull(): void

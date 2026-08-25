@@ -20,7 +20,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * son absence ne doit jamais faire échouer quoi que ce soit (patron
  * {@see \App\Widget\VerificateurTurnstile}). Toute erreur réseau/HTTP se dégrade en `null`.
  */
-final class JetonCompteServiceGoogle
+final class JetonCompteServiceGoogle implements JetonAcces
 {
     private const string AUD = 'https://oauth2.googleapis.com/token';
     private const string SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
