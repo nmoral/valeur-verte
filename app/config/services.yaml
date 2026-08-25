@@ -26,6 +26,11 @@ parameters:
     # l'écran de self-service, pour que la date annoncée au pro soit celle appliquée.
     app.suppression_compte.delai_grace_jours: 30
 
+    # Anti-abus de recréation (#332) : durée de rétention de l'empreinte d'un compte
+    # effacé. Au-delà, priver un compte recréé de son essai n'est plus proportionné
+    # (RGPD) — le cron de purge (registre #190) l'efface.
+    app.trace_effacement.retention_mois: 12
+
     # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
     # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
     # siège ou de statut ne doit pas passer par une modification de HTML.
@@ -189,6 +194,17 @@ services:
     App\Security\VerificationEmail\JetonVerificationEmail:
         arguments:
             $secret: '%kernel.secret%'
+
+    # Empreinte d'effacement (#332) : signe l'adresse canonique avec le secret
+    # applicatif pour reconnaître une réinscription sans conserver l'adresse en clair.
+    App\Compte\EmpreinteEffacement:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    # Purge des traces d'effacement (#332) : rétention bornée, jouée par le cron.
+    App\Compte\PurgeTracesEffacement:
+        arguments:
+            $retentionMois: '%app.trace_effacement.retention_mois%'
 
     # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
     App\Security\VerificationEmail\EnvoiVerificationEmail:

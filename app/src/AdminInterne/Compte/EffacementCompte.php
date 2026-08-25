@@ -8,10 +8,16 @@ use App\AdminInterne\JournalAudit\EvenementAudit;
 use App\AdminInterne\JournalAudit\JournalAudit;
 use App\BackOffice\Entreprise\EntrepriseRepository;
 use App\BackOffice\Rapport\RapportRepository;
+use App\Compte\Compte;
 use App\Compte\CompteRepository;
+use App\Compte\EmpreinteEffacement;
+use App\Compte\ReglagesFormuleRepository;
+use App\Compte\TraceEffacement;
+use App\Compte\TraceEffacementRepository;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
 use App\Widget\DemandeLeadRepository;
+use Doctrine\DBAL\Connection;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -38,6 +44,10 @@ final readonly class EffacementCompte
         private JournalAudit $journal,
         private ClockInterface $clock,
         private int $delaiDeGraceJours,
+        private TraceEffacementRepository $traces,
+        private EmpreinteEffacement $empreintes,
+        private ReglagesFormuleRepository $reglages,
+        private Connection $connexion,
     ) {
     }
 
@@ -65,19 +75,59 @@ final readonly class EffacementCompte
      */
     public function effacer(int $tenantId, string $auteur): void
     {
-        $rapports = $this->rapports->supprimerParTenant($tenantId);
-        $leads = $this->leads->supprimerParTenant($tenantId);
-        $this->entreprises->supprimerParTenant($tenantId);
-        $this->utilisateurs->supprimerParTenant($tenantId);
-        $this->comptes->supprimerParTenant($tenantId);
-        $this->tenants->supprimerParId($tenantId);
+        // La trace anti-abus (#332) doit vivre et mourir avec la suppression :
+        // écrites dans la même transaction, elles ne peuvent pas se contredire (une
+        // trace sans effacement, ou l'inverse). Le journal prod flushe via l'ORM,
+        // d'où les savepoints — sa transaction imbriquée s'annule seule au besoin.
+        $this->connexion->setNestTransactionsWithSavepoints(true);
+        $this->connexion->transactional(function () use ($tenantId, $auteur): void {
+            // Lu AVANT la suppression : après, l'adresse et le compte n'existent plus.
+            $emailsCanoniques = $this->utilisateurs->emailsCanoniquesParTenant($tenantId);
+            $compte = $this->comptes->pourTenant($tenantId);
+            $effaceLe = $this->clock->now();
 
-        $this->journal->enregistrer(new EvenementAudit(
-            acteur: $auteur,
-            action: 'compte.efface',
-            cible: 'compte#'.$tenantId,
-            contexte: ['tenant_id' => $tenantId, 'rapports_supprimes' => $rapports, 'leads_supprimes' => $leads],
-            survenuLe: $this->clock->now(),
-        ));
+            $rapports = $this->rapports->supprimerParTenant($tenantId);
+            $leads = $this->leads->supprimerParTenant($tenantId);
+            $this->entreprises->supprimerParTenant($tenantId);
+            $this->utilisateurs->supprimerParTenant($tenantId);
+            $this->comptes->supprimerParTenant($tenantId);
+            $this->tenants->supprimerParId($tenantId);
+
+            $this->tracer($emailsCanoniques, $compte, $rapports, $effaceLe);
+
+            $this->journal->enregistrer(new EvenementAudit(
+                acteur: $auteur,
+                action: 'compte.efface',
+                cible: 'compte#'.$tenantId,
+                contexte: ['tenant_id' => $tenantId, 'rapports_supprimes' => $rapports, 'leads_supprimes' => $leads],
+                survenuLe: $effaceLe,
+            ));
+        });
+    }
+
+    /**
+     * Écrit une trace d'effacement par adresse canonique du compte : son empreinte
+     * (jamais l'adresse) et l'état d'essai consommé (rapports produits, fin
+     * d'essai). Sans compte (tenant déjà vide), rien à tracer.
+     *
+     * @param list<string> $emailsCanoniques
+     */
+    private function tracer(array $emailsCanoniques, ?Compte $compte, int $rapportsConsommes, \DateTimeImmutable $effaceLe): void
+    {
+        if (null === $compte) {
+            return;
+        }
+
+        $dureeEssaiJours = $this->reglages->pour($compte->formule())->dureeEssaiJours();
+        $finEssai = $compte->creeLe()->modify(\sprintf('+%d days', $dureeEssaiJours));
+
+        foreach ($emailsCanoniques as $emailCanonique) {
+            $this->traces->enregistrer(TraceEffacement::creer(
+                $this->empreintes->pour($emailCanonique),
+                $effaceLe,
+                $rapportsConsommes,
+                $finEssai,
+            ));
+        }
     }
 }

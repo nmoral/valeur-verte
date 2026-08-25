@@ -6,6 +6,7 @@ namespace App\Tests\Compte;
 
 use App\Compte\Compte;
 use App\Compte\Formule;
+use App\Compte\ParametresFormule;
 use App\Compte\StatutCandidatureFondateur;
 use PHPUnit\Framework\TestCase;
 
@@ -43,5 +44,62 @@ final class CompteTest extends TestCase
 
         self::assertSame(Formule::Classique, $compte->formule());
         self::assertSame(StatutCandidatureFondateur::Refusee, $compte->candidatureFondateur());
+    }
+
+    public function testUnCompteNeufNAPasDEssaiNeutralise(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        self::assertNull($compte->essaiNeutraliseLe());
+    }
+
+    public function testNeutraliserLEssaiEnMarqueLaDate(): void
+    {
+        // Compte recréé après effacement (#332) : il naît sans essai, pour ne pas
+        // rendre un second essai à une adresse déjà passée par la porte.
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-02-01 09:00:00'), $compte->essaiNeutraliseLe());
+    }
+
+    public function testNeutraliserLEssaiEstIdempotentSurLaPremiereDate(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-02-01 09:00:00'));
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-03-01 09:00:00'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-02-01 09:00:00'), $compte->essaiNeutraliseLe());
+    }
+
+    public function testLEssaiDUnCompteNeufCourt(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $etat = $compte->etatEssai(
+            new ParametresFormule(60, 10, null),
+            0,
+            new \DateTimeImmutable('2026-02-10 09:00:00'),
+        );
+
+        self::assertTrue($etat->enEssai());
+    }
+
+    public function testLEssaiDUnCompteNeutraliseEstTermine(): void
+    {
+        // Compte recréé après effacement (#332) : neutralisé, il n'ouvre aucun
+        // essai — le calcul le porte, quel que soit le site qui le consulte.
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $etat = $compte->etatEssai(
+            new ParametresFormule(60, 10, null),
+            0,
+            new \DateTimeImmutable('2026-02-10 09:00:00'),
+        );
+
+        self::assertTrue($etat->termine());
     }
 }

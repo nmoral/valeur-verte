@@ -85,6 +85,16 @@ class Compte
     #[ORM\Column(name: 'suppression_demandee_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $suppressionDemandeeLe = null;
 
+    /**
+     * Date de neutralisation de l'essai (#332). Nulle = essai normal ; renseignée,
+     * le compte naît **sans essai** — c'est le compte recréé après un effacement
+     * (#308) dont l'adresse est déjà passée par la porte : lui rendre un second
+     * essai serait le contournement le plus propre. La date porte le moment de la
+     * neutralisation (à la recréation), pas la fin d'essai héritée.
+     */
+    #[ORM\Column(name: 'essai_neutralise_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $essaiNeutraliseLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -223,5 +233,30 @@ class Compte
     public function annulerSuppression(): void
     {
         $this->suppressionDemandeeLe = null;
+    }
+
+    public function essaiNeutraliseLe(): ?\DateTimeImmutable
+    {
+        return $this->essaiNeutraliseLe;
+    }
+
+    /**
+     * Neutralise l'essai (#332). Idempotent sur la première date : un compte déjà
+     * neutralisé ne repousse pas sa date.
+     */
+    public function neutraliserEssai(\DateTimeImmutable $quand): void
+    {
+        $this->essaiNeutraliseLe ??= $quand;
+    }
+
+    /**
+     * État d'essai du compte à un instant donné (#108), en tenant compte d'une
+     * neutralisation éventuelle (#332). Le compte portant sa propre neutralisation,
+     * tous les sites qui lisent l'essai passent par ici plutôt que par
+     * {@see EtatEssai::calculer} directement, pour ne jamais l'oublier.
+     */
+    public function etatEssai(ParametresFormule $parametres, int $rapportsConsommes, \DateTimeImmutable $maintenant): EtatEssai
+    {
+        return EtatEssai::calculer($rapportsConsommes, $parametres, $this->creeLe, $maintenant, $this->essaiNeutraliseLe);
     }
 }

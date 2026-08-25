@@ -17,6 +17,10 @@ use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
 use App\Compte\Compte;
 use App\Compte\CompteRepository;
+use App\Compte\EmpreinteEffacement;
+use App\Compte\ReglagesFormuleRepository;
+use App\Compte\TraceEffacementRepository;
+use App\Security\AdresseEmail;
 use App\Security\User;
 use App\Security\UserRepository;
 use App\Tenant\TenantRepository;
@@ -36,13 +40,17 @@ use Symfony\Component\Clock\MockClock;
  */
 final class EffacementCompteTest extends KernelTestCase
 {
+    private const SECRET = 'secret-test-332';
+
     private JournalAuditEnMemoire $journal;
+    private EmpreinteEffacement $empreintes;
     private EffacementCompte $effacement;
 
     protected function setUp(): void
     {
         self::bootKernel();
         $this->journal = new JournalAuditEnMemoire();
+        $this->empreintes = new EmpreinteEffacement(self::SECRET);
         $this->effacement = new EffacementCompte(
             $this->repo(RapportRepository::class),
             $this->repo(DemandeLeadRepository::class),
@@ -53,7 +61,52 @@ final class EffacementCompteTest extends KernelTestCase
             $this->journal,
             new MockClock(new \DateTimeImmutable('2026-08-23 10:00:00')),
             30,
+            $this->repo(TraceEffacementRepository::class),
+            $this->empreintes,
+            $this->repo(ReglagesFormuleRepository::class),
+            $this->connection(),
         );
+    }
+
+    public function testEffacerEcritLaTraceDansLaMemeTransactionSansAdresseEnClair(): void
+    {
+        // « victime@example.com » : la forme canonique est identique (pas d'alias,
+        // domaine hors Gmail). Le compte est créé le 2026-01-01 en formule Classique
+        // (60 jours d'essai), avec 1 rapport produit.
+        $tenantId = $this->semerTenantComplet('victime');
+
+        $this->effacement->effacer($tenantId, 'admin@example.com');
+        $this->viderIdentityMap();
+
+        $empreinte = $this->empreintes->pour(AdresseEmail::depuis('victime@example.com')->canonique());
+        $trace = $this->repo(TraceEffacementRepository::class)->parEmpreinte($empreinte);
+
+        self::assertNotNull($trace, 'une trace doit être écrite à l\'effacement');
+        self::assertSame(1, $trace->rapportsConsommes());
+        self::assertEquals(new \DateTimeImmutable('2026-03-02 00:00:00'), $trace->finEssai());
+        self::assertSame($empreinte, $trace->empreinte());
+        self::assertStringNotContainsString('victime@example.com', $trace->empreinte());
+    }
+
+    public function testReeffacerLaMemeAdresseMetAJourLaTraceSansCasser(): void
+    {
+        // Compte effacé, adresse libérée, réinscrite sur un nouveau tenant, puis
+        // ré-effacée : la trace (unique par empreinte) est mise à jour, pas dupliquée.
+        $premier = $this->semerTenantComplet('victime');
+        $this->effacement->effacer($premier, 'admin@example.com');
+        $this->viderIdentityMap();
+
+        $second = $this->semerTenantComplet('victime');
+        $this->effacement->effacer($second, 'admin@example.com');
+        $this->viderIdentityMap();
+
+        $empreinte = $this->empreintes->pour(AdresseEmail::depuis('victime@example.com')->canonique());
+        $lignes = $this->connection()->fetchOne(
+            'SELECT COUNT(*) FROM trace_effacement WHERE empreinte = ?',
+            [$empreinte],
+        );
+        self::assertIsNumeric($lignes);
+        self::assertSame(1, (int) $lignes, 'une seule trace par empreinte');
     }
 
     public function testEffacerSupprimeToutLePerimetreDuTenantEtLaisseLesAutresIntacts(): void
