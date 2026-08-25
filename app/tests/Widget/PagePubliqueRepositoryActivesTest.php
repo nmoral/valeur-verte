@@ -43,7 +43,9 @@ final class PagePubliqueRepositoryActivesTest extends KernelTestCase
     {
         $tenants = static::getContainer()->get(TenantRepository::class);
         self::assertInstanceOf(TenantRepository::class, $tenants);
-        $page = PagePublique::creer($tenants->nouveau()->id(), bin2hex(random_bytes(5)), $slug);
+        $tenantId = $tenants->nouveau()->id();
+        self::assertIsInt($tenantId);
+        $page = PagePublique::creer($tenantId, bin2hex(random_bytes(5)), $slug);
         $this->em()->persist($page);
         $this->em()->flush();
 
