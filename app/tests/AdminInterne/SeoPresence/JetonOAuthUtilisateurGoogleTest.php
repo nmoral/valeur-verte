@@ -94,6 +94,42 @@ final class JetonOAuthUtilisateurGoogleTest extends TestCase
         self::assertSame(2, $appels);
     }
 
+    public function testLeJetonResteValideJusteAvantLaMarge(): void
+    {
+        $appels = 0;
+        $client = new MockHttpClient(static function () use (&$appels): MockResponse {
+            ++$appels;
+
+            return new MockResponse('{"access_token":"ya29.oauth","expires_in":3600}');
+        });
+        $horloge = new MockClock('2026-08-25 04:00:00');
+
+        $service = $this->service($client, horloge: $horloge);
+        $service->jeton();
+        $horloge->sleep(3500); // < 3600 - 60 : encore valide
+        $service->jeton();
+
+        self::assertSame(1, $appels);
+    }
+
+    public function testLeJetonEstReemisDesLaMargeAtteinte(): void
+    {
+        $appels = 0;
+        $client = new MockHttpClient(static function () use (&$appels): MockResponse {
+            ++$appels;
+
+            return new MockResponse('{"access_token":"ya29.oauth","expires_in":3600}');
+        });
+        $horloge = new MockClock('2026-08-25 04:00:00');
+
+        $service = $this->service($client, horloge: $horloge);
+        $service->jeton();
+        $horloge->sleep(3550); // > 3600 - 60 : la marge de 60 s force la réémission
+        $service->jeton();
+
+        self::assertSame(2, $appels);
+    }
+
     public function testUneErreurSeDegradeEnNull(): void
     {
         $client = new MockHttpClient(static fn (): MockResponse => throw new TransportException('réseau'));

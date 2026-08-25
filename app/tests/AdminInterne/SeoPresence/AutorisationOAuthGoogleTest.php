@@ -63,6 +63,7 @@ final class AutorisationOAuthGoogleTest extends TestCase
         });
 
         self::assertNull($this->service($client, '')->echanger('4/0Acode'));
+        self::assertNull($this->service($client, 'client-123', '')->echanger('4/0Acode'));
         self::assertNull($this->service($client)->echanger(''));
         self::assertSame(0, $appels);
     }

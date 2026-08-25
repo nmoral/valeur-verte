@@ -30,6 +30,8 @@ final class AutoriserPresenceSeoCommandTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $code);
         self::assertStringContainsString('https://accounts.google.com/o/oauth2/v2/auth', $sortie);
+        self::assertStringContainsString('http://localhost/?code', $sortie);
+        self::assertStringContainsString('.env.local', $sortie);
         self::assertStringContainsString('GSC_OAUTH_REFRESH_TOKEN=1//new-refresh', $sortie);
     }
 
@@ -49,5 +51,6 @@ final class AutoriserPresenceSeoCommandTest extends TestCase
 
         self::assertSame(Command::FAILURE, $tester->execute([]));
         self::assertStringContainsStringIgnoringCase('échec', $tester->getDisplay());
+        self::assertStringContainsString('http://localhost', $tester->getDisplay());
     }
 }
