@@ -1,0 +1,25 @@
+{% extends 'back_office/base.html.twig' %}
+
+{% block page_subtitle %}<p>Votre premier rapport est produit. Pour en produire d'autres, confirmez votre adresse email.</p>{% endblock %}
+
+{% block bo_content %}
+    <section class="verif-requise" style="max-width:560px">
+        <p>
+            Vous avez produit votre premier rapport — vous avez vu ce que Valeur Verte
+            estime. Pour continuer à produire des rapports, il ne reste qu'une étape :
+            <strong>confirmer votre adresse email</strong>. C'est ce qui distingue un
+            compte réel d'un essai jetable, et cela sécurise le vôtre.
+        </p>
+        <p>
+            Un email de confirmation vous a déjà été envoyé à l'inscription. Vous ne le
+            retrouvez pas ?
+        </p>
+        <p>
+            <a class="btn" href="{{ path('verification_email_renvoyer') }}">Renvoyer l'email de confirmation</a>
+        </p>
+        <p class="verif-requise-note">
+            Une fois votre adresse confirmée, revenez sur cette page : la saisie d'un
+            nouvel audit sera rouverte.
+        </p>
+    </section>
+{% endblock %}
