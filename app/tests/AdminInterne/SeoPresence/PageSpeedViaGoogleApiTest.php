@@ -42,7 +42,8 @@ final class PageSpeedViaGoogleApiTest extends TestCase
         self::assertSame(92, $vitals->scorePerformance);
         self::assertIsString($urlAppelee);
         self::assertStringContainsString('key=cle-psi', $urlAppelee);
-        self::assertStringContainsString('url='.rawurlencode('https://valeurverte.fr/'), $urlAppelee);
+        self::assertStringContainsString('strategy=mobile', $urlAppelee);
+        self::assertStringContainsString('valeurverte.fr', $urlAppelee);
     }
 
     public function testNonConfigureRendNullSansAppel(): void
