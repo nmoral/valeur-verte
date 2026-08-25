@@ -35,8 +35,9 @@ final class PageOutilController extends AbstractController
 
         // Landing statique : rien n'y dépend de la session, on rend donc la page
         // cachable par le proxy partagé (le noyau poserait sinon « private »).
+        // setSharedMaxAge() marque déjà la réponse « public » : pas de setPublic()
+        // redondant.
         $reponse->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, 'true');
-        $reponse->setPublic();
         $reponse->setSharedMaxAge(3600);
 
         return $reponse;

@@ -104,7 +104,8 @@ final class PageOutilCalculateurTest extends WebTestCase
 
         $cache = (string) $client->getResponse()->headers->get('Cache-Control');
         self::assertStringContainsString('public', $cache);
-        self::assertStringContainsString('s-maxage', $cache, 'Une landing statique ne se recalcule pas à chaque visite.');
+        // Valeur exacte : le proxy partagé garde la landing une heure pile.
+        self::assertStringContainsString('s-maxage=3600', $cache, 'Une landing statique ne se recalcule pas à chaque visite.');
     }
 
     private function page(): Crawler
