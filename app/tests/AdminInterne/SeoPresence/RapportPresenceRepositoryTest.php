@@ -49,6 +49,7 @@ final class RapportPresenceRepositoryTest extends KernelTestCase
         self::assertSame(1, $relu->nombreUrls());
 
         $instantane = $relu->instantane();
+        self::assertIsArray($instantane['recherche']);
         self::assertSame('valeur verte', $instantane['recherche']['topRequetes'][0]['requete']);
         self::assertSame('https://a.test/', $instantane['vitals'][0]['url']);
         self::assertSame(2100, $instantane['vitals'][0]['lcpMs']);
