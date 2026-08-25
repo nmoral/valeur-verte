@@ -1,0 +1,51 @@
+{% extends 'admin/base.html.twig' %}
+
+{% set instantane = rapport.instantane %}
+
+{% block title %}Audit SEO du {{ rapport.executeLe|date('d/m/Y H:i') }} · Admin interne{% endblock %}
+
+{% block admin_title %}Audit SEO — {{ rapport.executeLe|date('d/m/Y à H:i') }}{% endblock %}
+
+{% block admin_subtitle %}<p>Score {{ rapport.scoreTechnique }}/100 sur {{ rapport.nombreUrls }} URL — {{ rapport.nombreOk }} ok · {{ rapport.nombreAlerte }} alerte(s) · {{ rapport.nombreErreur }} erreur(s).</p>{% endblock %}
+
+{% block admin_actions %}<a href="{{ path('admin_seo') }}">← Tous les audits</a>{% endblock %}
+
+{% block admin_content %}
+    <section class="fiche-bloc">
+        <h2>Contrôles globaux</h2>
+        {% if instantane.globaux is empty %}
+            <p>Aucun contrôle global.</p>
+        {% else %}
+            <table class="tableau">
+                <thead><tr><th>Règle</th><th>Gravité</th><th>Détail</th></tr></thead>
+                <tbody>
+                {% for constat in instantane.globaux %}
+                    <tr class="seo-gravite-{{ constat.gravite }}">
+                        <td>{{ constat.regle }}</td>
+                        <td>{{ constat.gravite }}</td>
+                        <td>{{ constat.message }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    {% for page in instantane.pages %}
+        <section class="fiche-bloc">
+            <h2><a href="{{ page.url }}" rel="noopener noreferrer nofollow" target="_blank">{{ page.url }}</a> <small>(HTTP {{ page.codeHttp }})</small></h2>
+            <table class="tableau">
+                <thead><tr><th>Règle</th><th>Gravité</th><th>Détail</th></tr></thead>
+                <tbody>
+                {% for constat in page.constats %}
+                    <tr class="seo-gravite-{{ constat.gravite }}">
+                        <td>{{ constat.regle }}</td>
+                        <td>{{ constat.gravite }}</td>
+                        <td>{{ constat.message }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endfor %}
+{% endblock %}

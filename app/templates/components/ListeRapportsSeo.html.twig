@@ -1,0 +1,23 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucun audit SEO archivé pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.executeLe|date('d/m/Y H:i') }}</td>
+            <td>{{ element.scoreTechnique }}/100</td>
+            <td>{{ element.nombreUrls }}</td>
+            <td>{{ element.nombreOk }}</td>
+            <td>{{ element.nombreAlerte }}</td>
+            <td>{{ element.nombreErreur }}</td>
+            <td><a href="{{ path('admin_rapport_seo', {id: element.id}) }}">Détail</a></td>
+        {% endblock %}
+    {% endembed %}
+</div>

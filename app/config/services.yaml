@@ -76,6 +76,9 @@ services:
     # Notification admin d'un usage anormal (#44) : inscrite au journal d'audit (#50).
     App\Notification\NotificationAdmin: '@App\AdminInterne\JournalAudit\NotificationAdminViaJournal'
 
+    # Périmètre d'URLs de l'audit SEO (#345) : sitemap + pages widget marque blanche.
+    App\AdminInterne\SeoAudit\SourceUrls: '@App\AdminInterne\SeoAudit\CollecteurUrls'
+
     # Sauvegarde de la base (#55, §9.11). Répertoire et rétention réglables par
     # l'environnement (le cron du VPS monte un volume et fixe VV_SAUVEGARDE_DIR) ;
     # défauts pour le poste de dev. Le dump réel est pg_dump via Symfony Process.

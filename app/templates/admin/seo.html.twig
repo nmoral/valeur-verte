@@ -1,0 +1,44 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Audit SEO · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Audit SEO{% endblock %}
+
+{% block admin_subtitle %}<p>Contrôle technique et on-page des pages publiques indexables (sitemap + pages hébergées marque blanche) : titres, méta, données structurées, codes HTTP, robots.txt/sitemap.xml. Un instantané est archivé à chaque exécution de <code>app:seo:audit</code>.</p>{% endblock %}
+
+{% block admin_content %}
+    {% if dernier is null %}
+        <section class="fiche-bloc">
+            <p>Aucun audit archivé pour le moment. Lancez la commande <code>app:seo:audit</code> (planifiée le lundi à 01:00 UTC).</p>
+        </section>
+    {% else %}
+        <section class="fiche-bloc">
+            <table class="tableau fiche">
+                <tbody>
+                    <tr><th scope="row">Dernier audit</th><td>{{ dernier.executeLe|date('d/m/Y à H:i') }}</td></tr>
+                    <tr><th scope="row">Score technique</th><td><strong>{{ dernier.scoreTechnique }}/100</strong></td></tr>
+                    <tr><th scope="row">URL auditées</th><td>{{ dernier.nombreUrls }}</td></tr>
+                    <tr><th scope="row">Constats</th><td>{{ dernier.nombreOk }} ok · {{ dernier.nombreAlerte }} alerte(s) · {{ dernier.nombreErreur }} erreur(s)</td></tr>
+                </tbody>
+            </table>
+
+            {% if tendance|length > 1 %}
+                {% set larg = 600 %}
+                {% set haut = 80 %}
+                {% set n = tendance|length %}
+                <figure class="seo-tendance">
+                    <figcaption>Tendance du score technique ({{ n }} derniers audits)</figcaption>
+                    <svg viewBox="0 0 {{ larg }} {{ haut }}" role="img" aria-label="Évolution du score technique" preserveAspectRatio="none" style="width:100%;max-width:{{ larg }}px;height:{{ haut }}px">
+                        <polyline fill="none" stroke="currentColor" stroke-width="2" points="
+                            {%- for r in tendance -%}
+                                {{ (loop.index0 / (n - 1) * larg)|round(2) }},{{ (haut - r.scoreTechnique / 100 * haut)|round(2) }}{{ ' ' }}
+                            {%- endfor -%}
+                        " />
+                    </svg>
+                </figure>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    <twig:ListeRapportsSeo />
+{% endblock %}

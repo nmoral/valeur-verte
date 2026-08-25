@@ -35,6 +35,19 @@ class PagePubliqueRepository extends ServiceEntityRepository
     }
 
     /**
+     * Toutes les pages **servies au visiteur** — actives et non suspendues (#268) —
+     * quel que soit leur tenant. Source d'URLs marque blanche de l'audit SEO (#345) :
+     * il tourne en CLI, sans pro connecté, le filtre de cloisonnement est éteint, la
+     * requête porte donc sur l'ensemble des tenants (comme {@see self::trouverActiveParJeton()}).
+     *
+     * @return list<PagePublique>
+     */
+    public function actives(): array
+    {
+        return $this->findBy(['active' => true, 'suspendueLe' => null], ['id' => 'ASC']);
+    }
+
+    /**
      * Résout une page à partir de son token opaque. Sur le host `widget.`, aucun pro
      * n'est connecté : le filtre de cloisonnement est éteint, la recherche par token
      * (unique) porte donc sur l'ensemble des tenants — c'est l'effet recherché. Le
