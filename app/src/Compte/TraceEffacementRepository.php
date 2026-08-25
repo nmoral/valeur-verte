@@ -47,4 +47,19 @@ class TraceEffacementRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['empreinte' => $empreinte]);
     }
+
+    /**
+     * Purge les traces plus anciennes que la borne (#332, rétention bornée) :
+     * l'empreinte ne survit que le temps où l'anti-abus reste proportionné.
+     * Renvoie le nombre supprimé.
+     */
+    public function supprimerAnterieuresA(\DateTimeImmutable $borne): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->delete()
+            ->andWhere('t.effaceLe < :borne')
+            ->setParameter('borne', $borne)
+            ->getQuery()
+            ->execute();
+    }
 }
