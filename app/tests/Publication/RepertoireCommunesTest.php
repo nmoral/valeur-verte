@@ -66,6 +66,27 @@ final class RepertoireCommunesTest extends KernelTestCase
         self::assertNotNull($this->repertoire()->resoudre('manche', 'creances'));
     }
 
+    public function testPourRetrouveUneCommuneParSonCodeInsee(): void
+    {
+        // Sens inverse de la résolution : d'un code_insee (sitemap #365, maillage
+        // #364) vers la commune et son slug, pour reconstruire son URL.
+        $this->semerCommune('33063', 'Bordeaux', '33');
+        $this->semerRattachementEpci('33063', '243300316');
+
+        $commune = $this->repertoire()->pour('33063');
+
+        self::assertNotNull($commune);
+        self::assertSame('Bordeaux', $commune->nom);
+        self::assertSame('33', $commune->codeDepartement);
+        self::assertSame('243300316', $commune->codeEpci);
+        self::assertSame('bordeaux', $commune->slug());
+    }
+
+    public function testPourRenvoieNullSurUnCodeInconnu(): void
+    {
+        self::assertNull($this->repertoire()->pour('99999'));
+    }
+
     private function repertoire(): RepertoireCommunes
     {
         return new RepertoireCommunes($this->app(), new \App\Publication\RepertoireDepartements());
