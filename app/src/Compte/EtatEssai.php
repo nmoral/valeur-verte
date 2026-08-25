@@ -17,6 +17,7 @@ final readonly class EtatEssai
         private int $quotaRapports,
         private int $joursRestants,
         private bool $tempsEcoule,
+        private bool $neutralise,
     ) {
     }
 
@@ -25,6 +26,7 @@ final readonly class EtatEssai
         ParametresFormule $parametres,
         \DateTimeImmutable $creeLe,
         \DateTimeImmutable $maintenant,
+        ?\DateTimeImmutable $essaiNeutraliseLe = null,
     ): self {
         $fin = $creeLe->modify(\sprintf('+%d days', $parametres->dureeEssaiJours()));
         $secondesRestantes = $fin->getTimestamp() - $maintenant->getTimestamp();
@@ -35,12 +37,13 @@ final readonly class EtatEssai
             $parametres->quotaRapports(),
             $joursRestants,
             $maintenant >= $fin,
+            null !== $essaiNeutraliseLe,
         );
     }
 
     public function enEssai(): bool
     {
-        return $this->rapportsRestants() > 0 && !$this->tempsEcoule;
+        return !$this->neutralise && $this->rapportsRestants() > 0 && !$this->tempsEcoule;
     }
 
     public function termine(): bool

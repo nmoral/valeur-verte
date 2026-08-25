@@ -190,6 +190,12 @@ services:
         arguments:
             $secret: '%kernel.secret%'
 
+    # Empreinte d'effacement (#332) : signe l'adresse canonique avec le secret
+    # applicatif pour reconnaître une réinscription sans conserver l'adresse en clair.
+    App\Compte\EmpreinteEffacement:
+        arguments:
+            $secret: '%kernel.secret%'
+
     # Envoi de l'email de vérification (#105) : lien construit sur le sous-domaine app.
     App\Security\VerificationEmail\EnvoiVerificationEmail:
         arguments:
