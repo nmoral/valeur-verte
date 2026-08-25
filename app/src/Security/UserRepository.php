@@ -76,6 +76,31 @@ class UserRepository extends ServiceEntityRepository implements UserLoaderInterf
     }
 
     /**
+     * Adresses **canoniques** (#331) des utilisateurs d'un tenant, lues AVANT
+     * l'effacement (#332) pour en tracer l'empreinte sans jamais conserver
+     * l'adresse en clair.
+     *
+     * @return list<string>
+     */
+    public function emailsCanoniquesParTenant(int $tenantId): array
+    {
+        $lignes = $this->createQueryBuilder('u')
+            ->select('u.emailCanonique')
+            ->andWhere('u.tenantId = :tenant')
+            ->setParameter('tenant', $tenantId)
+            ->getQuery()
+            ->getScalarResult();
+
+        $adresses = [];
+        foreach ($lignes as $ligne) {
+            \assert(\is_array($ligne) && \is_string($ligne['emailCanonique']));
+            $adresses[] = $ligne['emailCanonique'];
+        }
+
+        return $adresses;
+    }
+
+    /**
      * Supprime les utilisateurs rattachés à un tenant (#308, effacement de
      * compte) : un compte pourra porter plusieurs licences, toutes partent avec
      * lui. Renvoie le nombre supprimé.
