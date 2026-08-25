@@ -112,6 +112,24 @@ final class JetonCompteServiceGoogleTest extends TestCase
         self::assertSame(1, $appels, 'Le jeton valide est réutilisé sans réémettre de requête.');
     }
 
+    public function testUnJetonExpireEstReemis(): void
+    {
+        $appels = 0;
+        $client = new MockHttpClient(static function () use (&$appels): MockResponse {
+            ++$appels;
+
+            return new MockResponse('{"access_token":"ya29.test","expires_in":3600}');
+        });
+        $horloge = new MockClock('2026-08-25 04:00:00');
+        $service = new JetonCompteServiceGoogle($client, $horloge, 'svc@x', $this->cles['private']);
+
+        $service->jeton();
+        $horloge->sleep(4000); // au-delà de la fenêtre de validité (3600 - marge 60 s)
+        $service->jeton();
+
+        self::assertSame(2, $appels, 'Un jeton expiré doit être réémis.');
+    }
+
     public function testUneErreurDeTokenRendNull(): void
     {
         $client = new MockHttpClient(static fn (): MockResponse => throw new TransportException('réseau'));

@@ -69,6 +69,20 @@ final class SearchConsoleViaGoogleApiTest extends TestCase
         self::assertTrue($jetonPorte, 'Le jeton doit être passé en Authorization: Bearer.');
     }
 
+    public function testUnResultatVideDonneDesMetriquesAZeroSansDivisionParZero(): void
+    {
+        $client = new MockHttpClient(static fn (): MockResponse => new MockResponse('{"rows":[]}'));
+
+        $metriques = (new SearchConsoleViaGoogleApi($this->jetons('ya29'), $client, 'sc-domain:x'))->metriques(new \DateTimeImmutable('2026-07-01'), new \DateTimeImmutable('2026-07-31'));
+
+        self::assertNotNull($metriques);
+        self::assertSame(0, $metriques->clics);
+        self::assertSame(0, $metriques->impressions);
+        self::assertSame(0.0, $metriques->ctr);
+        self::assertSame(0.0, $metriques->positionMoyenne);
+        self::assertSame([], $metriques->topRequetes);
+    }
+
     public function testMetriquesNonConfigureRendNull(): void
     {
         $appels = 0;
