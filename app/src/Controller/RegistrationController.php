@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class RegistrationController extends AbstractController
 {
-    #[Route('/inscription', name: 'inscription', methods: ['GET', 'POST'])]
+    #[Route('/inscription', name: 'inscription', methods: ['GET', 'POST'], options: ['sitemap' => true])]
     public function inscrire(
         Request $request,
         CreateurDeCompte $createurDeCompte,

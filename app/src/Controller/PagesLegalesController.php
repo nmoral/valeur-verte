@@ -34,7 +34,7 @@ final class PagesLegalesController extends AbstractController
     ) {
     }
 
-    #[Route('/mentions-legales', name: 'mentions_legales', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/mentions-legales', name: 'mentions_legales', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function mentionsLegales(): Response
     {
         return $this->pageLegale('legal/mentions_legales.html.twig', [
@@ -43,7 +43,7 @@ final class PagesLegalesController extends AbstractController
         ]);
     }
 
-    #[Route('/confidentialite', name: 'confidentialite', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/confidentialite', name: 'confidentialite', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function confidentialite(): Response
     {
         return $this->pageLegale('legal/confidentialite.html.twig', [
@@ -52,7 +52,7 @@ final class PagesLegalesController extends AbstractController
         ]);
     }
 
-    #[Route('/cgu', name: 'cgu', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/cgu', name: 'cgu', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function cgu(): Response
     {
         return $this->pageLegale('legal/cgu.html.twig', [
@@ -61,7 +61,7 @@ final class PagesLegalesController extends AbstractController
         ]);
     }
 
-    #[Route('/cgv', name: 'cgv', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/cgv', name: 'cgv', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function cgv(): Response
     {
         return $this->pageLegale('legal/cgv.html.twig', [

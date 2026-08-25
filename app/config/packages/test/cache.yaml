@@ -1,0 +1,7 @@
+framework:
+    cache:
+        pools:
+            # En test, le sitemap se cache en mémoire (durée du kernel) : chaque
+            # cas repart d'un cache vide, sans état qui fuiterait d'un test à l'autre.
+            cache.sitemap:
+                adapter: cache.adapter.array

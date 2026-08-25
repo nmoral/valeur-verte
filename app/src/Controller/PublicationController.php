@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class PublicationController extends AbstractController
 {
-    #[Route('/valeur-verte-par-departement', name: 'publication', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/valeur-verte-par-departement', name: 'publication', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function __invoke(EtudePubliee $etudePubliee): Response
     {
         $etude = $etudePubliee->courante();
