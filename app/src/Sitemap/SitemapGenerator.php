@@ -14,6 +14,10 @@ use Symfony\Component\Routing\RouterInterface;
  * toute route marquée `options: ['sitemap' => true]`, accessible en GET et sans
  * paramètre d'URL, est publiée en URL absolue. Ajouter une page publique
  * indexable = marquer sa route — aucune liste à tenir ici.
+ *
+ * Les familles de pages servies par une route à paramètre (les hubs
+ * départementaux, #337) échappent à la découverte : elles sont énumérées par des
+ * {@see SitemapUrlProvider}.
  */
 final readonly class SitemapGenerator
 {
@@ -23,7 +27,8 @@ final readonly class SitemapGenerator
     private array $gardes;
 
     /**
-     * @param iterable<SitemapRouteGuard> $gardes
+     * @param iterable<SitemapRouteGuard>  $gardes
+     * @param iterable<SitemapUrlProvider> $providers
      */
     public function __construct(
         private RouterInterface $router,
@@ -31,6 +36,8 @@ final readonly class SitemapGenerator
         private string $domaine,
         #[AutowireIterator('app.sitemap_guard')]
         iterable $gardes,
+        #[AutowireIterator('app.sitemap_url_provider')]
+        private iterable $providers,
     ) {
         $indexes = [];
         foreach ($gardes as $garde) {
@@ -86,6 +93,15 @@ final readonly class SitemapGenerator
             }
 
             $urls[] = $this->router->generate($nom, [], UrlGeneratorInterface::ABSOLUTE_URL);
+        }
+
+        // Routes à paramètre (hubs départementaux, #337) : chaque provider énumère
+        // les valeurs qui mènent à une page réelle. On génère sous le même contexte
+        // canonique que ci-dessus.
+        foreach ($this->providers as $provider) {
+            foreach ($provider->routes() as [$nom, $parametres]) {
+                $urls[] = $this->router->generate($nom, $parametres, UrlGeneratorInterface::ABSOLUTE_URL);
+            }
         }
 
         // Ordre stable : le sitemap ne doit pas dépendre de l'ordre de déclaration

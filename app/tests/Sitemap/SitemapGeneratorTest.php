@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Sitemap;
 
 use App\Publication\LectureModelePublie;
+use App\Publication\Maille;
 use App\Publication\Publication;
 use App\Sitemap\SitemapGenerator;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -103,6 +104,44 @@ final class SitemapGeneratorTest extends KernelTestCase
         );
     }
 
+    public function testLaCarteNationaleEstAbsenteSansMillesimePublie(): void
+    {
+        self::assertNotContains(
+            'https://'.self::DOMAINE.'/carte-valeur-verte-france',
+            self::generateur(null)->urls(),
+        );
+    }
+
+    public function testLaCarteNationaleEstPresenteAvecUnMillesimePublie(): void
+    {
+        $publie = new Publication(
+            millesime: 2024,
+            publieLe: new \DateTimeImmutable('2026-01-01'),
+            calculeLe: new \DateTimeImmutable('2026-01-01'),
+        );
+
+        self::assertContains(
+            'https://'.self::DOMAINE.'/carte-valeur-verte-france',
+            self::generateur($publie)->urls(),
+        );
+    }
+
+    public function testUnHubDeDepartementMesureEstPublie(): void
+    {
+        // Une maille en 33 (Gironde) mesurée : son hub doit figurer au sitemap.
+        self::assertContains(
+            'https://'.self::DOMAINE.'/valeur-verte/gironde',
+            self::generateurPeuple()->urls(),
+        );
+    }
+
+    public function testAucunHubNApparaitSansMillesimePublie(): void
+    {
+        foreach (self::generateur(null)->urls() as $url) {
+            self::assertStringNotContainsString('/valeur-verte/', $url, 'Un hub sans donnée mènerait à un 404.');
+        }
+    }
+
     public function testLaGenerationNAlterePasDurablementLeContexteDuRouteur(): void
     {
         // Le générateur bascule le contexte du routeur sur le domaine canonique
@@ -132,6 +171,45 @@ final class SitemapGeneratorTest extends KernelTestCase
     private static function generateur(?Publication $publication = null): SitemapGenerator
     {
         self::getContainer()->set(LectureModelePublie::class, self::modele($publication));
+
+        $generateur = self::getContainer()->get(SitemapGenerator::class);
+        self::assertInstanceOf(SitemapGenerator::class, $generateur);
+
+        return $generateur;
+    }
+
+    /**
+     * Générateur adossé à un millésime publié portant une maille en Gironde (33) :
+     * de quoi exercer le fournisseur d'URLs des hubs départementaux (#337).
+     */
+    private static function generateurPeuple(): SitemapGenerator
+    {
+        $publie = new Publication(
+            millesime: 2024,
+            publieLe: new \DateTimeImmutable('2026-01-01'),
+            calculeLe: new \DateTimeImmutable('2026-01-01'),
+        );
+
+        self::getContainer()->set(LectureModelePublie::class, new class($publie) implements LectureModelePublie {
+            public function __construct(private ?Publication $publication)
+            {
+            }
+
+            public function publication(): ?Publication
+            {
+                return $this->publication;
+            }
+
+            public function mailles(): array
+            {
+                return [new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19])];
+            }
+
+            public function communesReferencees(): int
+            {
+                return 1;
+            }
+        });
 
         $generateur = self::getContainer()->get(SitemapGenerator::class);
         self::assertInstanceOf(SitemapGenerator::class, $generateur);

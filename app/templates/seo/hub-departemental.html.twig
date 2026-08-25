@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% set dep = fiche.departement %}
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Valeur verte ' ~ dep.nom ~ ' : la plus-value d\'un meilleur DPE, par commune',
+  og_titre: 'Valeur verte ' ~ dep.nom,
+  description: 'La valeur verte dans le département ' ~ dep.nom ~ ' : le gain de prix qu\'un meilleur DPE ajoute à une maison, mesuré sur les ventes réellement enregistrées par les notaires (DVF) croisées aux DPE de l\'ADEME.',
+  canonical: url('hub_departemental', { departement: slug }),
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+<style>
+  .hero .wrap{grid-template-columns:1fr}
+  .hero .lead{max-width:64ch}
+  .block h2{font:800 26px/1.1 'Archivo',sans-serif;letter-spacing:-.02em;margin-bottom:16px}
+  .block p{max-width:72ch;color:var(--slate);margin-bottom:14px}
+  .chiffres{display:flex;flex-wrap:wrap;gap:28px;margin:22px 0}
+  .chiffres b{display:block;font:800 30px/1 'Archivo',sans-serif;letter-spacing:-.02em}
+  .chiffres span{font-size:13px;color:var(--slate)}
+  .source{max-width:72ch;margin:20px 0;padding:12px 16px;background:var(--card);border:1px solid var(--rule);border-radius:3px;font-size:14px;color:var(--slate)}
+</style>
+{% set donnees_structurees = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  'name': 'Valeur verte ' ~ dep.nom,
+  'url': url('hub_departemental', { departement: slug }),
+  'inLanguage': 'fr-FR',
+  'about': { '@type': 'Place', 'name': dep.nom },
+  'isPartOf': { '@type': 'WebSite', 'name': 'Valeur Verte', 'url': url('home') }
+} %}
+<script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+
+<nav class="nav" aria-label="Navigation principale">
+  <div class="wrap">
+    <a href="{{ url('home') }}" class="brand" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+    <ul class="nav-menu">
+      <li class="nav-link"><a href="{{ url('carte_nationale') }}">La carte de France</a></li>
+      <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
+      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
+      <li class="nav-cta"><a href="{{ url('inscription') }}" class="btn btn-sm" data-lien="inscription">Créer un compte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main id="contenu">
+
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Valeur verte · {{ dep.nom }}</p>
+        <h1>La plus-value d'un meilleur DPE dans <span>{{ dep.nom }}</span>.</h1>
+        <p class="lead">Combien un saut de classe énergétique ajoute-t-il à la valeur d'une maison dans le
+          département {{ dep.nom }}&nbsp;? Le chiffre mesuré sur les ventes réellement enregistrées par les
+          notaires, croisées aux DPE — pas une moyenne nationale.</p>
+        <div class="cta-row">
+          <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Estimer un bien</a>
+          <a href="{{ url('carte_nationale') }}" class="btn btn-ghost">Voir la carte de France</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="block" aria-labelledby="chiffres-titre">
+    <div class="wrap">
+      <h2 id="chiffres-titre">Ce que le marché paie dans {{ dep.nom }}</h2>
+      <div class="chiffres">
+        {% if dep.gainEc is not null %}
+          <div><b data-mesure="gain-ec">+{{ dep.gainEc }} %</b><span>de E jusqu'à C, en médiane</span></div>
+        {% endif %}
+        {% if dep.gainCb is not null %}
+          <div><b data-mesure="gain-cb">+{{ dep.gainCb }} %</b><span>le cran de plus, vers B</span></div>
+        {% endif %}
+        <div><b data-mesure="zones">{{ dep.zones|number_format(0, ',', ' ') }}</b><span>zone{{ dep.zones > 1 ? 's' }} mesurée{{ dep.zones > 1 ? 's' }}</span></div>
+      </div>
+      <p>
+        {% if dep.partDepartementale > 0 %}
+          Faute d'assez de ventes proches dans certaines communes, {{ dep.partDepartementale }} % des zones
+          sont estimées à l'échelle du département — la page produit l'indique toujours.
+        {% else %}
+          La mesure tient à l'échelle locale sur l'ensemble du département.
+        {% endif %}
+        À l'échelle nationale, atteindre C vaut en médiane +{{ fiche.medianeNationaleEc }} % ;
+        {{ dep.nom }} est l'un des {{ fiche.departementsCouverts }} départements couverts par le millésime {{ fiche.millesime }}.
+      </p>
+      <p class="source" data-source>
+        Source&nbsp;: ventes DVF (DGFiP) et DPE (ADEME), sous licence ouverte Etalab · millésime {{ fiche.millesime }}
+        {%- if fiche.calculeLe %}, calculé le {{ fiche.calculeLe|date('d/m/Y') }}{% endif %}.
+      </p>
+      <div class="cta-row">
+        <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte gratuit</a>
+        <a href="{{ path('publication') }}" class="btn btn-ghost">Comment c'est mesuré</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+
+</body>
+</html>
