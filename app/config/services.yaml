@@ -88,6 +88,11 @@ services:
             $clientId: '%env(GSC_OAUTH_CLIENT_ID)%'
             $clientSecret: '%env(GSC_OAUTH_CLIENT_SECRET)%'
             $refreshToken: '%env(GSC_OAUTH_REFRESH_TOKEN)%'
+    # Amorçage « une fois » du refresh token (commande app:seo:presence:autoriser).
+    App\AdminInterne\SeoPresence\Google\AutorisationOAuthGoogle:
+        arguments:
+            $clientId: '%env(GSC_OAUTH_CLIENT_ID)%'
+            $clientSecret: '%env(GSC_OAUTH_CLIENT_SECRET)%'
     App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi:
         arguments:
             $siteUrl: '%env(GSC_SITE_URL)%'
