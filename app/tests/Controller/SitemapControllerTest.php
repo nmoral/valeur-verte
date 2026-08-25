@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Publication\LectureModelePublie;
+use App\Publication\Publication;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
  * Exposition du `sitemap.xml` des pages publiques indexables (#340) : statut,
  * type de contenu, validité XML, présence des URLs publiques et absence des
- * zones privées / jetons / widget. La cachabilité partagée est vérifiée à part.
+ * zones privées / jetons / widget. L'état « millésime publié » est stubé — la
+ * conditionnalité de la ligne publication a son test dédié côté générateur.
  */
 final class SitemapControllerTest extends WebTestCase
 {
@@ -17,9 +22,7 @@ final class SitemapControllerTest extends WebTestCase
 
     public function testLeSitemapRepondEnXml(): void
     {
-        $client = static::createClient();
-
-        $client->request('GET', 'http://'.self::HOTE.'/sitemap.xml');
+        $this->sitemap();
 
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Content-Type', 'application/xml; charset=UTF-8');
@@ -27,10 +30,7 @@ final class SitemapControllerTest extends WebTestCase
 
     public function testLeSitemapEstUnUrlsetValide(): void
     {
-        $client = static::createClient();
-
-        $client->request('GET', 'http://'.self::HOTE.'/sitemap.xml');
-        $xml = (string) $client->getResponse()->getContent();
+        $xml = (string) $this->sitemap()->getResponse()->getContent();
 
         $document = new \DOMDocument();
         self::assertTrue($document->loadXML($xml), 'Le corps doit être un XML bien formé.');
@@ -56,16 +56,12 @@ final class SitemapControllerTest extends WebTestCase
         yield 'inscription' => ['https://'.self::HOTE.'/inscription'];
     }
 
-    /**
-     * @dataProvider urlsPubliquesAttendues
-     */
+    #[DataProvider('urlsPubliquesAttendues')]
     public function testLeSitemapListeChaquePagePublique(string $url): void
     {
-        $client = static::createClient();
+        $xml = (string) $this->sitemap()->getResponse()->getContent();
 
-        $client->request('GET', 'http://'.self::HOTE.'/sitemap.xml');
-
-        self::assertStringContainsString('<loc>'.$url.'</loc>', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('<loc>'.$url.'</loc>', $xml);
     }
 
     /**
@@ -82,16 +78,12 @@ final class SitemapControllerTest extends WebTestCase
         yield 'widget' => ['://widget.'];
     }
 
-    /**
-     * @dataProvider fragmentsInterdits
-     */
+    #[DataProvider('fragmentsInterdits')]
     public function testLeSitemapNExposeAucuneZonePriveeNiJeton(string $fragment): void
     {
-        $client = static::createClient();
+        $xml = (string) $this->sitemap()->getResponse()->getContent();
 
-        $client->request('GET', 'http://'.self::HOTE.'/sitemap.xml');
-
-        self::assertStringNotContainsString($fragment, (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString($fragment, $xml);
     }
 
     /**
@@ -100,12 +92,43 @@ final class SitemapControllerTest extends WebTestCase
      */
     public function testLeSitemapEstCachablePubliquement(): void
     {
+        $cacheControl = (string) $this->sitemap()->getResponse()->headers->get('Cache-Control');
+
+        self::assertStringContainsString('public', $cacheControl);
+        self::assertStringContainsString('s-maxage=', $cacheControl);
+    }
+
+    private function sitemap(?Publication $publication = null): KernelBrowser
+    {
         $client = static::createClient();
+        $client->getContainer()->set(LectureModelePublie::class, $this->modele($publication));
 
         $client->request('GET', 'http://'.self::HOTE.'/sitemap.xml');
 
-        $cacheControl = (string) $client->getResponse()->headers->get('Cache-Control');
-        self::assertStringContainsString('public', $cacheControl);
-        self::assertStringContainsString('s-maxage=', $cacheControl);
+        return $client;
+    }
+
+    private function modele(?Publication $publication): LectureModelePublie
+    {
+        return new class($publication) implements LectureModelePublie {
+            public function __construct(private ?Publication $publication)
+            {
+            }
+
+            public function publication(): ?Publication
+            {
+                return $this->publication;
+            }
+
+            public function mailles(): array
+            {
+                return [];
+            }
+
+            public function communesReferencees(): int
+            {
+                return 0;
+            }
+        };
     }
 }
