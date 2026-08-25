@@ -1,0 +1,72 @@
+/* Pied de page unifié du site public (#337).
+   Un seul pied de page — mêmes liens (maillage interne SEO + mentions légales) et
+   même style — sur toutes les pages publiques. Volontairement AUTO-SUFFISANT
+   (couleurs et mise en page en dur, sans variables) : les pages chargent des
+   feuilles différentes (landing.css OU publication.css) aux jeux de tokens
+   distincts, et le footer doit rendre à l'identique dans les deux contextes. */
+footer {
+  border-top: 1px solid #cbd3db;
+  background: #ffffff;
+  margin-top: 56px;
+  padding: 30px 0 40px;
+  font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #3e4954;
+}
+
+footer .wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px 40px;
+}
+
+footer p {
+  flex: 1 1 280px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #3e4954;
+  max-width: 52ch;
+}
+
+footer .foot-nav {
+  margin: 0;
+}
+
+footer .foot-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+footer .foot-links a {
+  color: #0e4a5c;
+  text-decoration: none;
+}
+
+footer .foot-links a:hover,
+footer .foot-links a:focus {
+  text-decoration: underline;
+}
+
+/* Le bloc légal, secondaire, se distingue par une couleur plus sobre. */
+footer .foot-nav--legal .foot-links a {
+  color: #3e4954;
+}
+
+@media (max-width: 760px) {
+  footer .wrap {
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 20px;
+  }
+}
