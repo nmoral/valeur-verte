@@ -37,6 +37,22 @@ final class SuppressionCompteControllerTest extends WebTestCase
         self::assertSelectorExists('button');
     }
 
+    public function testLaPageAnnonceLEmpreinteConserveeApresEffacement(): void
+    {
+        // #332 : au moment de supprimer, la personne doit savoir ce qui subsiste
+        // (une empreinte non réversible) et pourquoi (pas de nouvel essai à la
+        // réinscription).
+        $client = static::createClient();
+        $this->seedProAvecCompte($client, 'pro-rgpd@example.com', 7006);
+
+        $client->request('GET', self::APP.'/mon-compte/suppression');
+
+        self::assertResponseIsSuccessful();
+        $texte = mb_strtolower((string) $client->getCrawler()->filter('main')->text());
+        self::assertStringContainsString('empreinte', $texte, 'L\'écran doit annoncer l\'empreinte conservée.');
+        self::assertStringContainsString('essai', $texte, 'Il doit dire que la réinscription ne rouvre pas d\'essai.');
+    }
+
     public function testUnMotDePasseValideProgrammeLaSuppression(): void
     {
         $client = static::createClient();

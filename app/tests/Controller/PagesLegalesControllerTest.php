@@ -128,6 +128,19 @@ final class PagesLegalesControllerTest extends WebTestCase
         });
     }
 
+    public function testLaConfidentialiteDecritLEmpreinteDEffacementAntiAbus(): void
+    {
+        // #332 : conserver une empreinte après un effacement (#308) ne tient que si
+        // c'est documenté et proportionné — finalité, base légale et durée bornée.
+        $ligne = $this->page('/confidentialite')->filter('[data-traitement="empreinte-effacement"]');
+        self::assertSame(1, $ligne->count(), 'Le traitement de l\'empreinte d\'effacement doit figurer.');
+
+        $texte = mb_strtolower($ligne->text());
+        self::assertStringContainsString('empreinte', $texte);
+        self::assertStringContainsString('abus', $texte, 'La finalité anti-abus doit être annoncée.');
+        self::assertStringContainsString('12 mois', $texte, 'La durée de conservation bornée doit être annoncée.');
+    }
+
     public function testLaConfidentialiteNommeLesDestinatairesEtLaVoieDeRecours(): void
     {
         $crawler = $this->page('/confidentialite');
