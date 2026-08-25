@@ -34,11 +34,11 @@ final class SitemapControllerTest extends WebTestCase
 
         $document = new \DOMDocument();
         self::assertTrue($document->loadXML($xml), 'Le corps doit être un XML bien formé.');
-        self::assertSame('urlset', $document->documentElement?->localName);
-        self::assertSame(
-            'http://www.sitemaps.org/schemas/sitemap/0.9',
-            $document->documentElement?->namespaceURI,
-        );
+
+        $racine = $document->documentElement;
+        self::assertInstanceOf(\DOMElement::class, $racine);
+        self::assertSame('urlset', $racine->localName);
+        self::assertSame('http://www.sitemaps.org/schemas/sitemap/0.9', $racine->namespaceURI);
         self::assertGreaterThanOrEqual(1, $document->getElementsByTagName('loc')->length);
     }
 

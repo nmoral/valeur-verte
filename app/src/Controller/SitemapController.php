@@ -6,8 +6,8 @@ namespace App\Controller;
 
 use App\Sitemap\SitemapGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -31,9 +31,8 @@ final class SitemapController extends AbstractController
         Environment $twig,
         #[Autowire(service: 'cache.sitemap')]
         CacheInterface $cache,
-    ): Response
-    {
-        $xml = $cache->get(self::CLE_CACHE, function (ItemInterface $item) use ($generateur, $twig): string {
+    ): Response {
+        $xml = $cache->get(self::CLE_CACHE, static function (ItemInterface $item) use ($generateur, $twig): string {
             $item->expiresAfter(self::DUREE);
 
             return $twig->render('sitemap/index.xml.twig', ['urls' => $generateur->urls()]);
