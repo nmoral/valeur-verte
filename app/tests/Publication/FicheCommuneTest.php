@@ -1,0 +1,101 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Publication;
+
+use App\BackOffice\Restitution\IndicateurFiabilite;
+use App\BackOffice\Restitution\PalierFiabilite;
+use App\BackOffice\Restitution\PorteeEstimation;
+use App\Publication\FicheCommune;
+use App\Publication\Maille;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Objet de présentation publique d'une commune (#360, SEO Vague 2 #338) : agrège
+ * la maille publiée en chiffres prêts pour la page — décote/surcote par étiquette,
+ * prix m² par classe, gains de cran, effectif, portée et indicateur de fiabilité.
+ * Les effets DPE sont des effets log de base D ; le lisible est ``exp(Δ) − 1``.
+ */
+final class FicheCommuneTest extends TestCase
+{
+    public function testExposeLesGainsDeCran(): void
+    {
+        $fiche = $this->ficheStandard();
+
+        self::assertSame(28, $fiche->gainEc(), 'E → C.');
+        self::assertSame(8, $fiche->gainCb(), 'C → B.');
+    }
+
+    public function testExposeLaDecoteSurcoteParEtiquette(): void
+    {
+        // Base D (0 %) ; A surcote, E décote. Ordonné de A vers G, classes publiées.
+        self::assertSame(
+            ['A' => 35, 'B' => 20, 'C' => 11, 'D' => 0, 'E' => -14],
+            $this->ficheStandard()->decoteSurcote(),
+        );
+    }
+
+    public function testExposeLePrixM2MedianEtParClasse(): void
+    {
+        $fiche = $this->ficheStandard();
+
+        self::assertSame(2500, $fiche->prixM2Median());
+        self::assertSame(
+            ['A' => 3375, 'B' => 2993, 'C' => 2763, 'D' => 2500, 'E' => 2152],
+            $fiche->prixM2ParClasse(),
+        );
+    }
+
+    public function testSansPrixDeMarcheLesPrixSontAbsentsSansErreur(): void
+    {
+        $fiche = $this->ficheStandard(prixM2: null);
+
+        self::assertNull($fiche->prixM2Median());
+        self::assertSame([], $fiche->prixM2ParClasse());
+    }
+
+    public function testIndicateurEtPorteeDeriventDeLEffectifDuRayonEtDuMode(): void
+    {
+        $fiche = $this->ficheStandard();
+
+        self::assertSame(IndicateurFiabilite::Solide, $fiche->indicateur(), 'n≥80 et rayon≤20 km.');
+        self::assertSame(PorteeEstimation::Local, $fiche->portee());
+        self::assertSame(90, $fiche->n);
+        self::assertSame(15, $fiche->rayonKm);
+        self::assertSame(2025, $fiche->millesime);
+    }
+
+    public function testUneMailleDepartementaleEstFragileEtDePorteeDepartementale(): void
+    {
+        // Repli départemental : rayon absent → Fragile quel que soit l'effectif ;
+        // la décote/surcote reste calculable depuis les coefficients.
+        $fiche = $this->ficheStandard(n: 400, rayonKm: null, mode: 'departemental');
+
+        self::assertSame(IndicateurFiabilite::Fragile, $fiche->indicateur());
+        self::assertSame(PorteeEstimation::Departemental, $fiche->portee());
+        self::assertSame(11, $fiche->decoteSurcote()['C']);
+    }
+
+    private function ficheStandard(
+        ?float $prixM2 = 2500.0,
+        int $n = 90,
+        ?int $rayonKm = 15,
+        string $mode = 'local',
+    ): FicheCommune {
+        $maille = new Maille('33063', $mode, ['D' => 0.0, 'C' => 0.10, 'B' => 0.18, 'E' => -0.15, 'A' => 0.30]);
+
+        return FicheCommune::depuis(
+            codeInsee: '33063',
+            nom: 'Bordeaux',
+            millesime: 2025,
+            calculeLe: new \DateTimeImmutable('2026-02-08 04:12:00'),
+            maille: $maille,
+            n: $n,
+            rayonKm: $rayonKm,
+            erreurMediane: 17.0,
+            prixM2Median: $prixM2,
+            palier: PalierFiabilite::Standard,
+        );
+    }
+}
