@@ -96,7 +96,18 @@ final class RelanceEssaisTest extends KernelTestCase
         self::assertCount(0, $this->mailer()->envoyes());
     }
 
-    private function seedCompte(int $tenantId, string $email, int $creeIlYaJours, bool $desabonne = false): void
+    public function testIlNeRelancePasUnCompteNeutralise(): void
+    {
+        self::bootKernel();
+        // Essai qui approcherait de la fin (57 j), mais compte neutralisé (#332,
+        // recréé après effacement) : aucun essai à relancer.
+        $this->seedCompte(9606, 'artisan-neutralise@example.com', creeIlYaJours: 57, neutralise: true);
+
+        self::assertSame(0, $this->relance()->executer());
+        self::assertCount(0, $this->mailer()->envoyes());
+    }
+
+    private function seedCompte(int $tenantId, string $email, int $creeIlYaJours, bool $desabonne = false, bool $neutralise = false): void
     {
         $artisan = new User($email, ['ROLE_PRO']);
         $artisan->rattacherAuTenant($tenantId);
@@ -105,6 +116,9 @@ final class RelanceEssaisTest extends KernelTestCase
         $compte = Compte::creer($tenantId, $creeLe);
         if ($desabonne) {
             $compte->seDesabonnerDesEmails(new \DateTimeImmutable());
+        }
+        if ($neutralise) {
+            $compte->neutraliserEssai(new \DateTimeImmutable());
         }
         $this->comptes()->enregistrer($compte);
     }

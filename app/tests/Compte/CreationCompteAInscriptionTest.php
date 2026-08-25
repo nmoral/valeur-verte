@@ -6,8 +6,12 @@ namespace App\Tests\Compte;
 
 use App\Compte\Compte;
 use App\Compte\CompteRepository;
+use App\Compte\EmpreinteEffacement;
 use App\Compte\Formule;
 use App\Compte\StatutCandidatureFondateur;
+use App\Compte\TraceEffacement;
+use App\Compte\TraceEffacementRepository;
+use App\Security\AdresseEmail;
 use App\Security\CreateurDeCompte;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -35,5 +39,60 @@ final class CreationCompteAInscriptionTest extends WebTestCase
         self::assertInstanceOf(Compte::class, $compte);
         self::assertSame(Formule::Classique, $compte->formule());
         self::assertSame(StatutCandidatureFondateur::EnAttente, $compte->candidatureFondateur());
+    }
+
+    public function testUneAdresseSansTraceDEffacementGardeSonEssai(): void
+    {
+        self::bootKernel();
+        $createur = self::getContainer()->get(CreateurDeCompte::class);
+        self::assertInstanceOf(CreateurDeCompte::class, $createur);
+
+        $user = $createur->creer('neuf@example.com', 'motdepasse-solide', '2026-08-16');
+        $tenantId = $user->getTenantId();
+        self::assertNotNull($tenantId);
+
+        $compte = $this->comptes()->pourTenant($tenantId);
+        self::assertInstanceOf(Compte::class, $compte);
+        self::assertNull($compte->essaiNeutraliseLe(), 'une adresse jamais effacée garde son essai');
+    }
+
+    public function testUneAdresseAvecTraceDEffacementNaitSansNouvelEssai(): void
+    {
+        self::bootKernel();
+        $empreintes = self::getContainer()->get(EmpreinteEffacement::class);
+        self::assertInstanceOf(EmpreinteEffacement::class, $empreintes);
+        $canonique = AdresseEmail::depuis('recree@example.com')->canonique();
+        $this->traces()->enregistrer(TraceEffacement::creer(
+            $empreintes->pour($canonique),
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            5,
+            new \DateTimeImmutable('2026-03-01 00:00:00'),
+        ));
+
+        $createur = self::getContainer()->get(CreateurDeCompte::class);
+        self::assertInstanceOf(CreateurDeCompte::class, $createur);
+        $user = $createur->creer('recree@example.com', 'motdepasse-solide', '2026-08-16');
+        $tenantId = $user->getTenantId();
+        self::assertNotNull($tenantId);
+
+        $compte = $this->comptes()->pourTenant($tenantId);
+        self::assertInstanceOf(Compte::class, $compte);
+        self::assertNotNull($compte->essaiNeutraliseLe(), 'une adresse déjà effacée ne rouvre pas d\'essai');
+    }
+
+    private function comptes(): CompteRepository
+    {
+        $comptes = self::getContainer()->get(CompteRepository::class);
+        self::assertInstanceOf(CompteRepository::class, $comptes);
+
+        return $comptes;
+    }
+
+    private function traces(): TraceEffacementRepository
+    {
+        $traces = self::getContainer()->get(TraceEffacementRepository::class);
+        self::assertInstanceOf(TraceEffacementRepository::class, $traces);
+
+        return $traces;
     }
 }
