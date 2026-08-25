@@ -16,7 +16,7 @@
             <a href="{{ path('admin_millesimes') }}"{{ route starts with 'admin_millesime' ? ' class="on"' : '' }}>Millésimes</a>
             <a href="{{ path('admin_ingestion') }}"{{ route == 'admin_ingestion' ? ' class="on"' : '' }}>État des imports</a>
             <a href="{{ path('admin_rapports_batch') }}"{{ route starts with 'admin_rapports_batch' or route == 'admin_rapport_batch' ? ' class="on"' : '' }}>Rapports de batch</a>
-            <a href="{{ path('admin_seo') }}"{{ route starts with 'admin_seo' or route == 'admin_rapport_seo' ? ' class="on"' : '' }}>Audit SEO</a>
+            <a href="{{ path('admin_seo') }}"{{ route starts with 'admin_seo' or route == 'admin_rapport_seo' or route == 'admin_presence_seo' ? ' class="on"' : '' }}>SEO</a>
             <p class="sect">Comptes</p>
             <a href="{{ path('admin_metriques_activation') }}"{{ route == 'admin_metriques_activation' ? ' class="on"' : '' }}>Activation</a>
             <a href="{{ path('admin_comptes') }}"{{ route == 'admin_comptes' ? ' class="on"' : '' }}>Comptes pro</a>

@@ -41,4 +41,43 @@
     {% endif %}
 
     <twig:ListeRapportsSeo />
+
+    <section class="fiche-bloc">
+        <h2>Présence externe</h2>
+        <p>Positionnement, indexation et Core Web Vitals collectés auprès de Google Search Console et PageSpeed Insights (<code>app:seo:presence:fetch</code>, lundi 01:30 UTC).</p>
+
+        {% if dernierePresence is null or not dernierePresence.estConfigure %}
+            <p><strong>Présence externe non configurée.</strong> Les sources externes (compte de service Search Console, clé PageSpeed) ne sont pas encore provisionnées : la collecte n'archive rien tant que le site n'est pas en ligne et la propriété vérifiée.</p>
+        {% else %}
+            <table class="tableau fiche">
+                <tbody>
+                    <tr><th scope="row">Dernière collecte</th><td>{{ dernierePresence.executeLe|date('d/m/Y à H:i') }}</td></tr>
+                    <tr><th scope="row">Clics</th><td><strong>{{ dernierePresence.clics|number_format(0, ',', ' ') }}</strong></td></tr>
+                    <tr><th scope="row">Impressions</th><td>{{ dernierePresence.impressions|number_format(0, ',', ' ') }}</td></tr>
+                    <tr><th scope="row">Position moyenne</th><td>{{ dernierePresence.positionMoyenne is null ? 'n/d' : dernierePresence.positionMoyenne|number_format(1, ',', ' ') }}</td></tr>
+                    <tr><th scope="row">URL suivies</th><td>{{ dernierePresence.nombreUrls }}</td></tr>
+                </tbody>
+            </table>
+
+            {% set pointsClics = tendancePresence|filter(r => r.estConfigure) %}
+            {% if pointsClics|length > 1 %}
+                {% set larg = 600 %}
+                {% set haut = 80 %}
+                {% set maxClics = max(pointsClics|map(r => r.clics)) %}
+                {% set n = pointsClics|length %}
+                <figure class="seo-tendance">
+                    <figcaption>Tendance des clics ({{ n }} dernières collectes)</figcaption>
+                    <svg viewBox="0 0 {{ larg }} {{ haut }}" role="img" aria-label="Évolution des clics" preserveAspectRatio="none" style="width:100%;max-width:{{ larg }}px;height:{{ haut }}px">
+                        <polyline fill="none" stroke="currentColor" stroke-width="2" points="
+                            {%- for r in pointsClics -%}
+                                {{ (loop.index0 / (n - 1) * larg)|round(2) }},{{ (haut - (maxClics > 0 ? r.clics / maxClics : 0) * haut)|round(2) }}{{ ' ' }}
+                            {%- endfor -%}
+                        " />
+                    </svg>
+                </figure>
+            {% endif %}
+        {% endif %}
+
+        <twig:ListeRapportsPresence />
+    </section>
 {% endblock %}
