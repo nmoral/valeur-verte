@@ -149,6 +149,7 @@ l'hôte. Le registre des tâches vit dans l'issue [#190](../../../issues/190).
 | `app:inscription:purger-evenements` | 03:40 | Purge des événements anonymes du parcours d'inscription au-delà de 90 jours ([#111](../../../issues/111)) |
 | `app:sauvegarde:executer` | dim. 02:00 | Dump complet hebdomadaire de la base, élagage au-delà de 30 j ([#55](../../../issues/55)) |
 | `app:seo:audit` | lun. 01:00 | Audit SEO technique/on-page des pages publiques, snapshot horodaté restitué dans l'admin ([#345](../../../issues/345)) |
+| `app:seo:presence:fetch` | lun. 01:30 | Présence SEO externe (Search Console + PageSpeed), snapshot horodaté ; no-op tant que les secrets ne sont pas provisionnés ([#346](../../../issues/346)) |
 | `app:essai:relancer` | — | Email de relance de fin d'essai ([#108](../../../issues/108)) — **ligne commentée, pas encore activée** : elle écrit à de vraies personnes, elle ne s'allume pas comme effet de bord de la mise en place de l'ordonnanceur |
 
 Toutes sont **idempotentes** : les rejouer ne fait rien de plus. Elles sont
