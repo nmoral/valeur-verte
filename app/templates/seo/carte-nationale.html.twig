@@ -102,16 +102,7 @@
 
   </main>
 
-  <footer class="ft">
-    <p>Millésime {{ etude.millesime }} · fenêtre glissante de deux ans · segment maisons individuelles.
-      Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.</p>
-    <nav class="ft-legal" aria-label="Liens de bas de page">
-      <a href="{{ url('mentions_legales') }}">Mentions légales</a>
-      <a href="{{ url('confidentialite') }}">Confidentialité</a>
-      <a href="{{ url('cgu') }}">CGU</a>
-      <a href="{{ url('cgv') }}">CGV</a>
-    </nav>
-  </footer>
+  {{ include('_pied_de_page.html.twig') }}
 
 </div>
 </body>
