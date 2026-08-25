@@ -81,6 +81,26 @@ final class SupervisionComptesTest extends KernelTestCase
         self::assertFalse($c2->suspendu());
     }
 
+    public function testLeBilanSignaleUnCompteRecreeApresEffacement(): void
+    {
+        self::bootKernel();
+        $t1 = $this->tenants()->nouveau()->id();
+        $t2 = $this->tenants()->nouveau()->id();
+        self::assertNotNull($t1);
+        self::assertNotNull($t2);
+
+        // Compte recréé après effacement (#332) : sa neutralisation date la recréation.
+        $recree = Compte::creer($t1, new \DateTimeImmutable());
+        $recree->neutraliserEssai(new \DateTimeImmutable('2026-08-24 09:00:00'));
+        $this->comptes()->enregistrer($recree);
+        $this->comptes()->enregistrer(Compte::creer($t2, new \DateTimeImmutable()));
+
+        [$c1, $c2] = $this->supervision()->comptes();
+
+        self::assertEquals(new \DateTimeImmutable('2026-08-24 09:00:00'), $c1->recreeApresEffacementLe());
+        self::assertNull($c2->recreeApresEffacementLe(), 'un compte jamais effacé n\'est pas signalé');
+    }
+
     private function supervision(): SupervisionComptes
     {
         $supervision = self::getContainer()->get(SupervisionComptes::class);
