@@ -35,6 +35,16 @@ class EntrepriseRepository extends ServiceEntityRepository
     }
 
     /**
+     * Fiche d'un tenant désigné explicitement (#309, export RGPD), ou null : à la
+     * différence de `courante()`, ne s'appuie pas sur le filtre du pro connecté —
+     * l'export admin lit un tenant tiers.
+     */
+    public function parTenant(int $tenantId): ?Entreprise
+    {
+        return $this->findOneBy(['tenantId' => $tenantId]);
+    }
+
+    /**
      * Supprime la fiche entreprise d'un tenant (#308, effacement de compte). Le
      * DELETE DQL n'est pas filtré par le cloisonnement : le tenant est contraint
      * explicitement. Renvoie le nombre supprimé.

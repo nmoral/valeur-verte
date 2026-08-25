@@ -90,4 +90,13 @@ class PagePubliqueRepository extends ServiceEntityRepository
     {
         return $this->findOneBy([], ['id' => 'ASC']);
     }
+
+    /**
+     * Page publique d'un tenant désigné explicitement (#309, export RGPD), ou
+     * null : l'export admin lit un tenant qui n'est pas celui de la requête.
+     */
+    public function parTenant(int $tenantId): ?PagePublique
+    {
+        return $this->findOneBy(['tenantId' => $tenantId], ['id' => 'ASC']);
+    }
 }

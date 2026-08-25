@@ -101,6 +101,18 @@ class UserRepository extends ServiceEntityRepository implements UserLoaderInterf
     }
 
     /**
+     * Les utilisateurs rattachés à un tenant, tenant contraint explicitement
+     * (#309, export RGPD) : `User` n'est pas cloisonné par le filtre Doctrine,
+     * et l'export admin lit un tenant qui n'est pas celui de la requête.
+     *
+     * @return list<User>
+     */
+    public function parTenant(int $tenantId): array
+    {
+        return $this->findBy(['tenantId' => $tenantId], ['id' => 'ASC']);
+    }
+
+    /**
      * Supprime les utilisateurs rattachés à un tenant (#308, effacement de
      * compte) : un compte pourra porter plusieurs licences, toutes partent avec
      * lui. Renvoie le nombre supprimé.
