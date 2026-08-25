@@ -102,4 +102,23 @@ final class CompteTest extends TestCase
 
         self::assertTrue($etat->termine());
     }
+
+    public function testUnCompteNeufNaPasSignaleDeBlocageVerification(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        self::assertFalse($compte->blocageVerificationDejaSignale());
+    }
+
+    public function testSignalerLeBlocageVerificationEstIdempotentSurLaPremiereDate(): void
+    {
+        // Le mur de vérification (#333) n'est mesuré qu'une fois par pro : le taux
+        // de pros bloqués se compte en acteurs distincts, sans spam au journal.
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $compte->signalerBlocageVerification(new \DateTimeImmutable('2026-02-10 09:00:00'));
+        $compte->signalerBlocageVerification(new \DateTimeImmutable('2026-03-01 09:00:00'));
+
+        self::assertTrue($compte->blocageVerificationDejaSignale());
+    }
 }

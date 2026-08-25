@@ -14,7 +14,9 @@ use App\BackOffice\Estimation\EstimationIndisponible;
 use App\BackOffice\Estimation\ResultatEstimation;
 use App\BackOffice\Rapport\ArchiveurRapport;
 use App\BackOffice\Rapport\Dpe;
+use App\Compte\MurVerificationEmail;
 use App\Compte\SuiviCompte;
+use App\Security\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,6 +40,7 @@ final class AuditController extends AbstractController
         private readonly ArchiveurRapport $archiveur,
         private readonly BouquetRepository $bouquets,
         private readonly SuiviCompte $suivi,
+        private readonly MurVerificationEmail $mur,
     ) {
     }
 
@@ -54,6 +57,17 @@ final class AuditController extends AbstractController
         // d'audit est fermée, on renvoie vers l'écran de bilan (la bascule).
         if ($this->suivi->essaiCourant()?->termine() ?? false) {
             return $this->redirectToRoute('back_office_bilan');
+        }
+
+        // Au-delà du premier rapport (#333), produire exige une adresse vérifiée
+        // (#105). Le premier rapport reste libre (ONB-4) ; au-delà, un écran
+        // d'accompagnement invite à confirmer, avec renvoi d'email en un clic.
+        $utilisateur = $this->getUser();
+        if ($utilisateur instanceof User && $this->mur->bloqueLaProduction($utilisateur)) {
+            return $this->render('back_office/verification_requise.html.twig', [
+                'page_title' => 'Confirmez votre adresse',
+                'nav_active' => 'audit',
+            ]);
         }
 
         if ($request->isMethod('POST')) {
