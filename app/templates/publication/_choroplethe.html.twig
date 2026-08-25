@@ -1,0 +1,42 @@
+{# Carte choroplèthe par département (#224), partagée par la page d'étude et la
+   page-carte nationale (#337). Paramètres : `carte` (structure {w, h, feats}),
+   `medianeEc`, `medianeCb` (médianes nationales embarquées pour la légende JS).
+   Le rendu vit dans js/publication.js, qui lit #carte-donnees ; la page hôte doit
+   charger css/publication.css. #}
+<section class="block">
+  <div class="ctl">
+    <div class="seg" id="seg" role="tablist">
+      <button data-m="gain" class="on">Où atteindre C rapporte le plus</button>
+      <button data-m="cb">Le supplément du cran vers B</button>
+      <button data-m="solid">Où la mesure est la plus fine</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="main">
+    <div class="mapwrap">
+      <svg id="map" viewBox="0 0 {{ carte.w }} {{ carte.h }}" role="img"
+           aria-label="Carte de France du bénéfice de la rénovation par département"></svg>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+
+    <aside class="panel">
+      {# Contenu en flux détaché : le panneau se cale sur la hauteur de la carte
+         et défile en interne, au lieu de la dépasser quand la fiche s'ouvre. #}
+      <div class="panel-flux">
+        <label class="srch">
+          <span>Votre département</span>
+          <input id="q" type="search" placeholder="Nom ou numéro…" autocomplete="off">
+        </label>
+        <div id="qres" class="qres" hidden></div>
+        <h2 id="ptitle"></h2>
+        <p class="pnote" id="pnote"></p>
+        <ol class="rank" id="rank"></ol>
+        <button class="flip" id="flip"></button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script type="application/json" id="carte-donnees">{{ carte|merge({ med: { ec: medianeEc, cb: medianeCb } })|json_encode|raw }}</script>
+<script src="{{ asset('js/publication.js') }}" defer></script>
