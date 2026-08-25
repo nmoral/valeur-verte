@@ -24,7 +24,12 @@
             <span>≥ 3 rapports à J+30</span>
             <span class="hint">{{ m.troisRapportsAJTrente.numerateur }} / {{ m.troisRapportsAJTrente.denominateur }} comptes mûrs · cible &gt; 40 %</span>
         </div>
+        <div class="kpi" data-metrique="abandon-siret">
+            <b>{{ funnel.abandonSiret.pourcentage is null ? '—' : funnel.abandonSiret.pourcentage ~ ' %' }}</b>
+            <span>Abandon sur l'écran SIRET</span>
+            <span class="hint">{{ funnel.affichees }} vus → {{ funnel.siretRenseigne }} SIRET → {{ funnel.compteCree }} créés · cible &lt; 15 %</span>
+        </div>
     </div>
 
-    <p class="banner" role="note">L'<strong>abandon sur l'écran SIRET</strong> et le taux <strong>essai → souscription</strong> ne figurent pas encore ici : le premier attend l'instrumentation du funnel d'inscription (lot suivant de #111), le second une souscription payante autonome (<a href="https://github.com/nmoral/valeur-verte/issues/107">#107</a>, non livrée).</p>
+    <p class="banner" role="note">Le taux <strong>essai → souscription</strong> ne figure pas encore ici : il attend une souscription payante autonome (<a href="https://github.com/nmoral/valeur-verte/issues/107">#107</a>, non livrée).</p>
 {% endblock %}

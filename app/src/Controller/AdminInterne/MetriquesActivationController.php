@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\AdminInterne;
 
+use App\AdminInterne\Activation\CalculFunnelInscription;
 use App\AdminInterne\Activation\CalculMetriquesActivation;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,10 +19,11 @@ use Symfony\Component\Routing\Attribute\Route;
 final class MetriquesActivationController extends AbstractController
 {
     #[Route('/metriques-activation', name: 'admin_metriques_activation', host: 'admin.%app.domaine%', methods: ['GET'])]
-    public function __invoke(CalculMetriquesActivation $calcul): Response
+    public function __invoke(CalculMetriquesActivation $calcul, CalculFunnelInscription $funnel): Response
     {
         return $this->render('admin/metriques_activation.html.twig', [
             'metriques' => $calcul->calculer(),
+            'funnel' => $funnel->calculer(),
         ]);
     }
 }
