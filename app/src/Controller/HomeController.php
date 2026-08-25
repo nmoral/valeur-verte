@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class HomeController extends AbstractController
 {
-    #[Route('/', name: 'home', host: '%app.domaine%', methods: ['GET'])]
+    #[Route('/', name: 'home', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
     public function __invoke(LectureModelePublie $modelePublie): Response
     {
         return $this->render('home/index.html.twig', [

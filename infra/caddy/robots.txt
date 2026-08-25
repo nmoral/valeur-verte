@@ -1,2 +1,16 @@
+# Pages publiques indexables du domaine principal (#340). Les zones privées
+# vivent sur des sous-domaines (app. = espace pro, admin. = admin interne) et
+# restent derrière basic auth + `X-Robots-Tag: noindex` (voir Caddyfile) ; le
+# sous-domaine widget. est noindex par nature (pages hébergées par client, D9).
+# Ce fichier gouverne le crawl du domaine public.
 User-agent: *
-Disallow: /
+
+# URLs à jeton signé / usage unique : non partageables, elles expirent — hors
+# index, on ne veut pas qu'un robot suive un lien mort.
+Disallow: /verification-email
+Disallow: /mot-de-passe-oublie
+Disallow: /desabonnement
+
+Allow: /
+
+Sitemap: https://valeur-verte.fr/sitemap.xml

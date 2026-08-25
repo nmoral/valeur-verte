@@ -15,5 +15,9 @@ framework:
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            # Rendu du sitemap.xml (#340) : mémoïsé pour ne pas reconstruire — ni
+            # requêter la base — à chaque passage d'un robot. Pool dédié pour un
+            # cycle de vie propre (adapter « array » en test, cf. config/packages/test).
+            cache.sitemap:
+                adapter: cache.adapter.filesystem
