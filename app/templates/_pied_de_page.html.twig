@@ -1,12 +1,20 @@
-{# Pied de page du site public, partagé par la vitrine et les pages légales (#228).
-   C'est le seul chemin d'accès aux mentions obligatoires : tout lien y est vivant. #}
+{# Pied de page du site public, partagé par toutes les pages publiques (#337, #228).
+   Les mêmes liens partout : le maillage interne SEO (pages piliers, pour diffuser
+   l'autorité) et l'accès aux mentions légales obligatoires. Tout lien y est vivant. #}
 <footer>
   <div class="wrap">
     <p>Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.<br>
       Estimation statistique — ne constitue pas une évaluation immobilière.</p>
-    <nav aria-label="Liens de bas de page">
+    <nav class="foot-nav" aria-label="Explorer Valeur Verte">
       <ul class="foot-links">
-        <li><a href="{{ path('home') }}#methode">Méthode détaillée</a></li>
+        <li><a href="{{ path('home') }}">Accueil</a></li>
+        <li><a href="{{ path('page_calculateur') }}">Calculateur</a></li>
+        <li><a href="{{ path('carte_nationale') }}">Carte de France</a></li>
+        <li><a href="{{ path('publication') }}">Étude par département</a></li>
+      </ul>
+    </nav>
+    <nav class="foot-nav foot-nav--legal" aria-label="Informations légales">
+      <ul class="foot-links">
         <li><a href="{{ path('mentions_legales') }}">Mentions légales</a></li>
         <li><a href="{{ path('confidentialite') }}">Confidentialité</a></li>
         <li><a href="{{ path('cgu') }}">CGU</a></li>

@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/publication.css') }}">
+<link rel="stylesheet" href="{{ asset('css/footer.css') }}">
 </head>
 <body>
 <div id="app">
@@ -169,17 +170,7 @@
     </p>
   </section>
 
-  <footer class="ft">
-    <p>Millésime {{ etude.millesime }} · fenêtre glissante de deux ans · segment maisons individuelles.
-    Données DVF (DGFiP) et DPE (ADEME) sous licence ouverte Etalab.</p>
-    <p class="dl"><a href="{{ url('home') }}">Valeur Verte — l'outil des entreprises RGE</a></p>
-    <nav class="ft-legal" aria-label="Liens de bas de page">
-      <a href="{{ url('mentions_legales') }}">Mentions légales</a>
-      <a href="{{ url('confidentialite') }}">Confidentialité</a>
-      <a href="{{ url('cgu') }}">CGU</a>
-      <a href="{{ url('cgv') }}">CGV</a>
-    </nav>
-  </footer>
+  {{ include('_pied_de_page.html.twig') }}
 
 </div>
 </body>
