@@ -6,6 +6,7 @@ namespace App\AdminInterne\SeoAudit\Regle;
 
 use App\AdminInterne\SeoAudit\Constat;
 use App\AdminInterne\SeoAudit\PageAuditee;
+use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 /**
  * Une règle SEO « on-page » (#345) : elle regarde **une seule page** — son HTML
@@ -13,6 +14,7 @@ use App\AdminInterne\SeoAudit\PageAuditee;
  * cœur testable de l'audit. Les implémentations sont taguées `app.regle_seo_on_page`
  * (autoconfiguration) et injectées en lot dans l'auditeur.
  */
+#[AutoconfigureTag('app.regle_seo_on_page')]
 interface RegleOnPage
 {
     /**
