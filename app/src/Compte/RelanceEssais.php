@@ -43,10 +43,9 @@ final readonly class RelanceEssais
             if ($compte->estDesabonneDesEmails()) {
                 continue;
             }
-            $etat = EtatEssai::calculer(
-                $this->compteur->pour($compte->tenantId()),
+            $etat = $compte->etatEssai(
                 $this->reglages->pour($compte->formule()),
-                $compte->creeLe(),
+                $this->compteur->pour($compte->tenantId()),
                 $maintenant,
             );
             if ($etat->termine() || $etat->joursRestants() > $delai) {

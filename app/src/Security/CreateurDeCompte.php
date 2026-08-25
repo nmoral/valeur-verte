@@ -8,6 +8,8 @@ use App\BackOffice\Entreprise\EnregistreurFicheEntreprise;
 use App\BackOffice\Entreprise\Siret;
 use App\Compte\Compte;
 use App\Compte\CompteRepository;
+use App\Compte\EmpreinteEffacement;
+use App\Compte\TraceEffacementRepository;
 use App\Tenant\ProvisionneurCompte;
 use App\Tenant\TenantRepository;
 use Psr\Clock\ClockInterface;
@@ -28,6 +30,8 @@ final class CreateurDeCompte
         private readonly ProvisionneurCompte $provisionneur,
         private readonly CompteRepository $comptes,
         private readonly ClockInterface $horloge,
+        private readonly TraceEffacementRepository $traces,
+        private readonly EmpreinteEffacement $empreintes,
     ) {
     }
 
@@ -48,7 +52,18 @@ final class CreateurDeCompte
 
         // Agrégat compte (#61) : porteur de la formule et des droits d'essai,
         // distinct de l'utilisateur. Classique + candidature fondateur en attente.
-        $this->comptes->enregistrer(Compte::creer($tenantId, $tenant->creeLe()));
+        $compte = Compte::creer($tenantId, $tenant->creeLe());
+
+        // Réinscription d'une adresse déjà effacée (#332) : le compte est bien créé,
+        // mais **sans nouvel essai** — sinon supprimer puis recréer serait le
+        // contournement le plus propre. On vise l'abus, pas la personne : l'inscription
+        // n'est pas refusée, et le regret d'une suppression reste un cas légitime.
+        $empreinte = $this->empreintes->pour(AdresseEmail::depuis($email)->canonique());
+        if (null !== $this->traces->parEmpreinte($empreinte)) {
+            $compte->neutraliserEssai($this->horloge->now());
+        }
+
+        $this->comptes->enregistrer($compte);
 
         $user = new User($email, ['ROLE_PRO']);
         $user->rattacherAuTenant($tenantId);

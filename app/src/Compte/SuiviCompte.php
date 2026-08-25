@@ -32,10 +32,9 @@ final readonly class SuiviCompte
             return null;
         }
 
-        return EtatEssai::calculer(
-            $this->compteur->pour($compte->tenantId()),
+        return $compte->etatEssai(
             $this->reglages->pour($compte->formule()),
-            $compte->creeLe(),
+            $this->compteur->pour($compte->tenantId()),
             $this->horloge->now(),
         );
     }

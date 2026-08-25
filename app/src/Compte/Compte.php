@@ -248,4 +248,15 @@ class Compte
     {
         $this->essaiNeutraliseLe ??= $quand;
     }
+
+    /**
+     * État d'essai du compte à un instant donné (#108), en tenant compte d'une
+     * neutralisation éventuelle (#332). Le compte portant sa propre neutralisation,
+     * tous les sites qui lisent l'essai passent par ici plutôt que par
+     * {@see EtatEssai::calculer} directement, pour ne jamais l'oublier.
+     */
+    public function etatEssai(ParametresFormule $parametres, int $rapportsConsommes, \DateTimeImmutable $maintenant): EtatEssai
+    {
+        return EtatEssai::calculer($rapportsConsommes, $parametres, $this->creeLe, $maintenant, $this->essaiNeutraliseLe);
+    }
 }
