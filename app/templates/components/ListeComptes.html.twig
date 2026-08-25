@@ -14,6 +14,7 @@
             <td>
                 {{ element.identite }}
                 {% if element.suspendu %}<span class="badge-suspendu" title="Compte suspendu">Suspendu</span>{% endif %}
+                {% if element.recreeApresEffacementLe %}<span class="badge-suspendu" title="Recréé le {{ element.recreeApresEffacementLe|date('d/m/Y') }} après un effacement — essai non renouvelé (#332)">Recréé après effacement</span>{% endif %}
             </td>
             <td>{{ element.creeLe|date('d/m/Y') }}</td>
             <td>{{ element.formule.libelle }}</td>

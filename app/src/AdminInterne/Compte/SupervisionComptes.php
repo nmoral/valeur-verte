@@ -58,6 +58,7 @@ final readonly class SupervisionComptes
                     ? $compte->etatEssai($this->reglages->pour($formule), $this->compteur->pour($tenantId), $maintenant)
                     : EtatEssai::calculer($this->compteur->pour($tenantId), $this->reglages->pour($formule), $creeLe, $maintenant),
                 suspendu: $compte?->estSuspendu() ?? false,
+                recreeApresEffacementLe: $compte?->essaiNeutraliseLe(),
             );
         }
 

@@ -21,6 +21,7 @@ final readonly class BilanCompte
         private Formule $formule,
         private EtatEssai $essai,
         private bool $suspendu = false,
+        private ?\DateTimeImmutable $recreeApresEffacementLe = null,
     ) {
     }
 
@@ -56,5 +57,15 @@ final readonly class BilanCompte
     public function suspendu(): bool
     {
         return $this->suspendu;
+    }
+
+    /**
+     * Date de recréation d'un compte né après un effacement (#332), nulle sinon :
+     * l'essai neutralisé signale une réinscription. Sert à l'éditeur pour trancher
+     * un cas particulier — par exemple rétablir l'essai d'un regret légitime.
+     */
+    public function recreeApresEffacementLe(): ?\DateTimeImmutable
+    {
+        return $this->recreeApresEffacementLe;
     }
 }
