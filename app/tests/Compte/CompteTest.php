@@ -44,4 +44,32 @@ final class CompteTest extends TestCase
         self::assertSame(Formule::Classique, $compte->formule());
         self::assertSame(StatutCandidatureFondateur::Refusee, $compte->candidatureFondateur());
     }
+
+    public function testUnCompteNeufNAPasDEssaiNeutralise(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        self::assertNull($compte->essaiNeutraliseLe());
+    }
+
+    public function testNeutraliserLEssaiEnMarqueLaDate(): void
+    {
+        // Compte recréé après effacement (#332) : il naît sans essai, pour ne pas
+        // rendre un second essai à une adresse déjà passée par la porte.
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-02-01 09:00:00'), $compte->essaiNeutraliseLe());
+    }
+
+    public function testNeutraliserLEssaiEstIdempotentSurLaPremiereDate(): void
+    {
+        $compte = Compte::creer(42, new \DateTimeImmutable('2026-02-01 09:00:00'));
+
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-02-01 09:00:00'));
+        $compte->neutraliserEssai(new \DateTimeImmutable('2026-03-01 09:00:00'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-02-01 09:00:00'), $compte->essaiNeutraliseLe());
+    }
 }

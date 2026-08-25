@@ -97,6 +97,23 @@ final class EtatEssaiTest extends TestCase
         self::assertFalse($this->calculer(consommes: 7, maintenant: '2026-01-21 10:00:00')->quotaConsommeAuMoins(80));
     }
 
+    public function testUnEssaiNeutraliseEstTermineDEmbleeMalgreTempsEtQuota(): void
+    {
+        // Compte recréé après effacement (#332) : créé à l'instant, 0 rapport
+        // consommé — donc temps et quota intacts —, mais l'essai est neutralisé.
+        // Il doit être terminé sans période de grâce : pas de second essai.
+        $etat = EtatEssai::calculer(
+            0,
+            new ParametresFormule(60, 10, null),
+            new \DateTimeImmutable(self::CREE_LE),
+            new \DateTimeImmutable(self::CREE_LE),
+            new \DateTimeImmutable(self::CREE_LE),
+        );
+
+        self::assertFalse($etat->enEssai());
+        self::assertTrue($etat->termine());
+    }
+
     private function calculer(int $consommes, string $maintenant): EtatEssai
     {
         return EtatEssai::calculer(
