@@ -9,6 +9,7 @@ use App\Publication\Publication;
 use App\Sitemap\SitemapGenerator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Le sitemap se construit par **découverte des routes** marquées
@@ -100,6 +101,32 @@ final class SitemapGeneratorTest extends KernelTestCase
             'https://'.self::DOMAINE.'/valeur-verte-par-departement',
             self::generateur($publie)->urls(),
         );
+    }
+
+    public function testLaGenerationNAlterePasDurablementLeContexteDuRouteur(): void
+    {
+        // Le générateur bascule le contexte du routeur sur le domaine canonique
+        // (HTTPS) le temps de produire les URLs, puis doit le restaurer : sinon
+        // toute génération d'URL ultérieure de la requête partirait sur le mauvais
+        // host/scheme.
+        $router = self::getContainer()->get('router');
+        self::assertInstanceOf(RouterInterface::class, $router);
+        $hoteAvant = $router->getContext()->getHost();
+        $schemeAvant = $router->getContext()->getScheme();
+
+        self::generateur()->urls();
+
+        self::assertSame($hoteAvant, $router->getContext()->getHost());
+        self::assertSame($schemeAvant, $router->getContext()->getScheme());
+    }
+
+    public function testLesUrlsSontTrieesPourUnDiffStable(): void
+    {
+        $urls = self::generateur()->urls();
+
+        $triees = $urls;
+        sort($triees);
+        self::assertSame($triees, $urls, 'Le sitemap doit être trié, indépendant de l\'ordre de déclaration des routes.');
     }
 
     private static function generateur(?Publication $publication = null): SitemapGenerator

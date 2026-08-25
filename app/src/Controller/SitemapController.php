@@ -44,7 +44,8 @@ final class SitemapController extends AbstractController
         // le noyau pose dès qu'une session existe, sinon le cache partagé serait
         // désactivé pour tout le monde.
         $reponse->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, 'true');
-        $reponse->setPublic();
+        // setSharedMaxAge marque déjà la réponse « public » : inutile de l'appeler
+        // séparément.
         $reponse->setSharedMaxAge(self::DUREE);
 
         return $reponse;

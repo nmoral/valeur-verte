@@ -74,11 +74,6 @@ final readonly class SitemapGenerator
                 continue;
             }
 
-            $methodes = $route->getMethods();
-            if ([] !== $methodes && !\in_array('GET', $methodes, true)) {
-                continue;
-            }
-
             // Une URL paramétrée ne peut pas être publiée telle quelle : les
             // endpoints à jeton/identifiant ne sont pas des pages indexables.
             if ([] !== $route->compile()->getPathVariables()) {
@@ -93,7 +88,8 @@ final readonly class SitemapGenerator
             $urls[] = $this->router->generate($nom, [], UrlGeneratorInterface::ABSOLUTE_URL);
         }
 
-        $urls = array_values(array_unique($urls));
+        // Ordre stable : le sitemap ne doit pas dépendre de l'ordre de déclaration
+        // des routes (diff propre entre déploiements).
         sort($urls);
 
         return $urls;
