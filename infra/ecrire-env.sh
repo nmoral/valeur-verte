@@ -29,7 +29,9 @@ set -euo pipefail
 # plutôt que de livrer un identifiant faux : la panne serait silencieuse et se
 # manifesterait bien plus tard, sur une base déjà initialisée.
 for valeur in "$POSTGRES_USER" "$POSTGRES_DB" "$POSTGRES_PASSWORD" \
-    "$DATA_IMAGE_TAG" "$APP_IMAGE_TAG" "$APP_SECRET" "$BREVO_API_KEY"; do
+    "$DATA_IMAGE_TAG" "$APP_IMAGE_TAG" "$APP_SECRET" "$BREVO_API_KEY" \
+    "${PAGESPEED_API_KEY:-}" "${GSC_OAUTH_CLIENT_ID:-}" \
+    "${GSC_OAUTH_CLIENT_SECRET:-}" "${GSC_OAUTH_REFRESH_TOKEN:-}"; do
     case "$valeur" in
         *\\* | *\'*)
             echo "Un identifiant contient une apostrophe ou une barre oblique inverse," \
@@ -67,3 +69,14 @@ printf "BREVO_API_KEY='%s'\n" "$BREVO_API_KEY"
 # passe à 1 sur le VPS (dans ce .env) pour couper proprement en 503, sans
 # redéploiement ni reconstruction d'image.
 printf "APP_MAINTENANCE='%s'\n" "${APP_MAINTENANCE:-0}"
+
+# Présence SEO externe (#346) : accès à Google Search Console (OAuth utilisateur —
+# les clés de compte de service sont bloquées par une règle d'org) et à PageSpeed
+# Insights (clé API). Écrits explicitement, à vide par défaut, pour que Compose
+# n'avertisse pas d'une variable absente et que la collecte reste inerte tant que
+# les secrets ne sont pas provisionnés (dégradation gracieuse). Les renseigner via
+# les secrets GitHub du déploiement pour activer la collecte hebdomadaire.
+printf "PAGESPEED_API_KEY='%s'\n" "${PAGESPEED_API_KEY:-}"
+printf "GSC_OAUTH_CLIENT_ID='%s'\n" "${GSC_OAUTH_CLIENT_ID:-}"
+printf "GSC_OAUTH_CLIENT_SECRET='%s'\n" "${GSC_OAUTH_CLIENT_SECRET:-}"
+printf "GSC_OAUTH_REFRESH_TOKEN='%s'\n" "${GSC_OAUTH_REFRESH_TOKEN:-}"

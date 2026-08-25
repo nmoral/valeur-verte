@@ -47,6 +47,19 @@ x-environnement-app: &environnement_app
   BREVO_API_KEY: ${BREVO_API_KEY:?BREVO_API_KEY est requis}
   BREVO_EXPEDITEUR: no-reply@valeur-verte.fr
   CONTACT_REPONSE: contact@valeur-verte.fr
+  # Présence SEO externe (#346) : collecte hebdomadaire Search Console + PageSpeed
+  # (commande app:seo:presence:fetch, portée par l'ordonnanceur). La propriété
+  # (non secrète) est versionnée ; les accès (clé PageSpeed + OAuth Search Console)
+  # sont des secrets injectés par le VPS. Passe-plats **optionnels** (comme
+  # APP_MAINTENANCE, sans « :? ») : tant que les secrets ne sont pas provisionnés,
+  # ecrire-env.sh les écrit à vide, la collecte est inerte (« non configurée ») et
+  # n'archive rien — la mise en production ne doit pas échouer avant que ces accès
+  # existent. Les activer, c'est renseigner les secrets GitHub du déploiement.
+  GSC_SITE_URL: sc-domain:valeur-verte.fr
+  PAGESPEED_API_KEY: ${PAGESPEED_API_KEY}
+  GSC_OAUTH_CLIENT_ID: ${GSC_OAUTH_CLIENT_ID}
+  GSC_OAUTH_CLIENT_SECRET: ${GSC_OAUTH_CLIENT_SECRET}
+  GSC_OAUTH_REFRESH_TOKEN: ${GSC_OAUTH_REFRESH_TOKEN}
 
 services:
   db:

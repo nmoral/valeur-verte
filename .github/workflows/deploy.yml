@@ -109,6 +109,13 @@ jobs:
           APP_SECRET: ${{ secrets.APP_SECRET }}
           APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          # Présence SEO externe (#346) : clé PageSpeed + OAuth Search Console.
+          # Optionnels — un secret non défini vaut chaîne vide, la collecte reste
+          # inerte sans faire échouer le déploiement (ecrire-env.sh les écrit à vide).
+          PAGESPEED_API_KEY: ${{ secrets.PAGESPEED_API_KEY }}
+          GSC_OAUTH_CLIENT_ID: ${{ secrets.GSC_OAUTH_CLIENT_ID }}
+          GSC_OAUTH_CLIENT_SECRET: ${{ secrets.GSC_OAUTH_CLIENT_SECRET }}
+          GSC_OAUTH_REFRESH_TOKEN: ${{ secrets.GSC_OAUTH_REFRESH_TOKEN }}
         run: |
           set -euo pipefail
           umask 077
