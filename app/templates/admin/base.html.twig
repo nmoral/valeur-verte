@@ -20,6 +20,7 @@
             <p class="sect">Comptes</p>
             <a href="{{ path('admin_metriques_activation') }}"{{ route == 'admin_metriques_activation' ? ' class="on"' : '' }}>Activation</a>
             <a href="{{ path('admin_comptes') }}"{{ route == 'admin_comptes' ? ' class="on"' : '' }}>Comptes pro</a>
+            <a href="{{ path('admin_rgpd') }}"{{ route starts with 'admin_rgpd' ? ' class="on"' : '' }}>Demandes RGPD</a>
             <a href="{{ path('admin_candidatures') }}"{{ route == 'admin_candidatures' ? ' class="on"' : '' }}>Candidatures fondateur</a>
             <a href="{{ path('admin_pages_publiques') }}"{{ route == 'admin_pages_publiques' ? ' class="on"' : '' }}>Pages publiques</a>
             <p class="sect">Réglages</p>

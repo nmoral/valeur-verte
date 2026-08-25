@@ -1,0 +1,80 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Demandes RGPD · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Demandes RGPD{% endblock %}
+
+{% block admin_subtitle %}<p>Servez une demande d'accès, de rectification ou de portabilité reçue par email, et consignez son arrivée puis sa réponse. Le suivi s'appuie sur le journal d'audit. L'effacement, lui, se traite depuis « Comptes pro ».</p>{% endblock %}
+
+{% block admin_content %}
+    {% for message in app.flashes('admin_rgpd') %}
+        <p class="alert-ok" role="status">{{ message }}</p>
+    {% endfor %}
+
+    <section class="carte">
+        <h2>Générer l'export d'un compte</h2>
+        <p>Téléchargez le JSON de toutes les données d'un compte, identifié par l'adresse email du pro.</p>
+        <form method="post" action="{{ path('admin_rgpd_export') }}">
+            <label for="export_email">Adresse email du compte</label>
+            <input type="email" id="export_email" name="email" autocomplete="off" required>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('rgpd_export') }}">
+            <button type="submit">Télécharger l'export JSON</button>
+        </form>
+    </section>
+
+    <section class="carte">
+        <h2>Consigner une demande reçue</h2>
+        <form method="post" action="{{ path('admin_rgpd_demande') }}">
+            <label for="demande_email">Adresse email du compte</label>
+            <input type="email" id="demande_email" name="email" autocomplete="off" required>
+            <label for="demande_droit">Droit invoqué</label>
+            <select id="demande_droit" name="droit">
+                {% for droit in droits %}<option value="{{ droit.value }}">{{ droit.libelle }}</option>{% endfor %}
+            </select>
+            <label for="demande_recue_le">Reçue le</label>
+            <input type="date" id="demande_recue_le" name="recue_le" required>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('rgpd_demande') }}">
+            <button type="submit">Consigner la demande</button>
+        </form>
+    </section>
+
+    <section class="carte">
+        <h2>Consigner une réponse</h2>
+        <form method="post" action="{{ path('admin_rgpd_reponse') }}">
+            <label for="reponse_email">Adresse email du compte</label>
+            <input type="email" id="reponse_email" name="email" autocomplete="off" required>
+            <label for="reponse_droit">Droit invoqué</label>
+            <select id="reponse_droit" name="droit">
+                {% for droit in droits %}<option value="{{ droit.value }}">{{ droit.libelle }}</option>{% endfor %}
+            </select>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('rgpd_reponse') }}">
+            <button type="submit">Consigner la réponse</button>
+        </form>
+    </section>
+
+    <section class="carte">
+        <h2>Demandes récentes</h2>
+        <table>
+            <thead>
+                <tr><th>Quand</th><th>Action</th><th>Cible</th><th>Détail</th></tr>
+            </thead>
+            <tbody>
+            {% for e in evenements %}
+                {% set c = e.contexte %}
+                <tr>
+                    <td>{{ e.survenuLe|date('d/m/Y H:i') }}</td>
+                    <td>{{ e.action }}</td>
+                    <td>{{ e.cible }}</td>
+                    <td>
+                        {%- if c.droit is defined %}{{ c.droit }}{% endif -%}
+                        {%- if c.echeance_le is defined %} · échéance {{ c.echeance_le|date('d/m/Y') }}{% endif -%}
+                        {%- if c.reponse_le is defined %} · répondu {{ c.reponse_le|date('d/m/Y') }}{% endif -%}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">Aucune demande consignée.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

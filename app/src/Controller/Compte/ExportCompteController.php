@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Controller\Compte;
 
 use App\Compte\Export\GenererExportCompte;
+use App\Compte\Export\ReponseExportJson;
 use App\Security\User;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -49,7 +49,7 @@ final class ExportCompteController extends AbstractController
 
         $document = $generer->pour($tenantId, $user->getUserIdentifier());
 
-        return $this->telechargement($document, $clock);
+        return ReponseExportJson::pour($document, $clock->now());
     }
 
     private function valider(Request $request, UserPasswordHasherInterface $hasher, User $user): ?string
@@ -62,25 +62,5 @@ final class ExportCompteController extends AbstractController
         }
 
         return null;
-    }
-
-    /**
-     * @param array<string, mixed> $document
-     */
-    private function telechargement(array $document, ClockInterface $clock): Response
-    {
-        $json = json_encode($document, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
-        \assert(false !== $json);
-
-        $nomFichier = 'valeur-verte-export-'.$clock->now()->format('Y-m-d').'.json';
-
-        $reponse = new Response($json);
-        $reponse->headers->set('Content-Type', 'application/json; charset=utf-8');
-        $reponse->headers->set(
-            'Content-Disposition',
-            HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $nomFichier),
-        );
-
-        return $reponse;
     }
 }
