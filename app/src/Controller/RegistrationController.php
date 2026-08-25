@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\BackOffice\Entreprise\Siret;
+use App\Onboarding\Parcours\SuiviInscription;
 use App\Security\AdresseEmail;
 use App\Security\CreateurDeCompte;
 use App\Security\EmailDejaUtilise;
@@ -26,6 +27,7 @@ final class RegistrationController extends AbstractController
         Security $security,
         LimiteurInscription $limiteurInscription,
         EnvoiVerificationEmail $envoiVerificationEmail,
+        SuiviInscription $suiviInscription,
     ): Response {
         $email = trim((string) $request->request->get('email', ''));
         $siret = trim((string) $request->request->get('siret', ''));
@@ -45,6 +47,7 @@ final class RegistrationController extends AbstractController
                     // Vérification d'email a posteriori (ONB-1) : envoi du lien de
                     // confirmation, sans jamais bloquer l'accès au premier rapport.
                     $envoiVerificationEmail->envoyerPour($user);
+                    $suiviInscription->compteCree($request->getSession());
                     $security->login($user);
 
                     // ONB-4 : droit à la saisie, aucun écran de bienvenue ni de
@@ -57,6 +60,8 @@ final class RegistrationController extends AbstractController
                 }
             }
 
+            $suiviInscription->ecranAffiche($request->getSession());
+
             return $this->render('registration/index.html.twig', [
                 'erreurs' => $erreurs,
                 'email' => $email,
@@ -64,6 +69,8 @@ final class RegistrationController extends AbstractController
                 'cgu_accepte' => $request->request->getBoolean('cgu'),
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
+
+        $suiviInscription->ecranAffiche($request->getSession());
 
         return $this->render('registration/index.html.twig', [
             'erreurs' => [],

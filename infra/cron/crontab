@@ -23,6 +23,7 @@
  10  3 * * *  php /app/bin/console app:widget:purger-demandes-lead --no-interaction
  20  3 * * *  php /app/bin/console app:rapport:appliquer-retention --no-interaction
  30  3 * * *  php /app/bin/console app:compte:effacer-exigibles --no-interaction
+ 40  3 * * *  php /app/bin/console app:inscription:purger-evenements --no-interaction
 
 # Sauvegarde de la base (#55, §9.11) — dump complet hebdomadaire, dimanche 02:00 UTC,
 # avant les purges quotidiennes. Écrit dans le volume « db_backups » (voir le service

@@ -175,15 +175,17 @@ Tout ce qui aurait été expliqué de vive voix doit exister dans le produit.
 
 ## Métriques d'activation à instrumenter
 
-| Métrique | Seuil visé |
-|---|---|
-| Inscription → premier rapport | > 60 % |
-| Délai médian inscription → premier rapport | < 10 min |
-| Comptes ayant produit ≥ 3 rapports à J+30 | > 40 % |
-| Abandon sur l'écran SIRET | < 15 % |
-| Essai → souscription | à observer, pas de cible a priori |
+| Métrique | Seuil visé | État ([#111](../../../issues/111)) |
+|---|---|---|
+| Inscription → premier rapport | > 60 % | ✅ livré — dérivé des horodatages (`compte.cree_le`, `rapport.cree_le` audit) |
+| Délai médian inscription → premier rapport | < 10 min | ✅ livré — médiane du délai au 1er rapport audit |
+| Comptes ayant produit ≥ 3 rapports à J+30 | > 40 % | ✅ livré — sur les seuls comptes mûrs (créés il y a ≥ 30 j) |
+| Abandon sur l'écran SIRET | < 15 % | ✅ livré — funnel d'inscription anonyme (`evenement_inscription`) |
+| Essai → souscription | à observer, pas de cible a priori | ⏸️ bloqué — pas de souscription payante autonome ([#107](../../../issues/107)) |
 
 L'abandon sur l'écran SIRET est le signal le plus important : c'est le seul moment où l'on demande quelque chose avant de rien donner.
+
+Les métriques se lisent sur la page admin **Activation** (zone `admin.`, `ROLE_ADMIN`). Trois d'entre elles se **dérivent** des horodatages déjà en base — aucune instrumentation. L'abandon SIRET, lui, exige de tracer le parcours **pré-compte** (un abandon n'a pas de compte à interroger) : un socle d'événements **anonyme et isolé** (`App\Onboarding\Parcours`, sans donnée personnelle, rétention 90 j purgée par cron), calqué sur le socle widget [#90](../../../issues/90) mais séparé — le régime RGPD d'un visiteur non identifié n'est pas celui d'un compte pro. Le taux **essai → souscription** attend une souscription payante autonome ([#107](../../../issues/107)) : rien à mesurer tant qu'aucune bascule payante n'existe.
 
 ---
 

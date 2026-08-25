@@ -1,0 +1,35 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Métriques d'activation · Admin interne · Valeur Verte{% endblock %}
+
+{% block admin_title %}Métriques d'activation{% endblock %}
+
+{% block admin_subtitle %}<p>Sans commercial au contact, ces chiffres sont la seule lecture de ce qui se passe entre l'inscription et le premier rapport. Ils se lisent des horodatages déjà en base — le « premier rapport » est un rapport produit en mode audit, un lead widget ne vaut pas activation.</p>{% endblock %}
+
+{% block admin_content %}
+    {% set m = metriques %}
+    <div class="kpis">
+        <div class="kpi" data-metrique="premier-rapport">
+            <b>{{ m.premierRapport.pourcentage is null ? '—' : m.premierRapport.pourcentage ~ ' %' }}</b>
+            <span>Inscription → premier rapport</span>
+            <span class="hint">{{ m.premierRapport.numerateur }} / {{ m.premierRapport.denominateur }} comptes · cible &gt; 60 %</span>
+        </div>
+        <div class="kpi" data-metrique="delai-median">
+            <b>{{ m.delaiMedianMinutes is null ? '—' : m.delaiMedianMinutes ~ ' min' }}</b>
+            <span>Délai médian inscription → premier rapport</span>
+            <span class="hint">cible &lt; 10 min</span>
+        </div>
+        <div class="kpi" data-metrique="trois-rapports-j30">
+            <b>{{ m.troisRapportsAJTrente.pourcentage is null ? '—' : m.troisRapportsAJTrente.pourcentage ~ ' %' }}</b>
+            <span>≥ 3 rapports à J+30</span>
+            <span class="hint">{{ m.troisRapportsAJTrente.numerateur }} / {{ m.troisRapportsAJTrente.denominateur }} comptes mûrs · cible &gt; 40 %</span>
+        </div>
+        <div class="kpi" data-metrique="abandon-siret">
+            <b>{{ funnel.abandonSiret.pourcentage is null ? '—' : funnel.abandonSiret.pourcentage ~ ' %' }}</b>
+            <span>Abandon sur l'écran SIRET</span>
+            <span class="hint">{{ funnel.affichees }} vus → {{ funnel.siretRenseigne }} SIRET → {{ funnel.compteCree }} créés · cible &lt; 15 %</span>
+        </div>
+    </div>
+
+    <p class="banner" role="note">Le taux <strong>essai → souscription</strong> ne figure pas encore ici : il attend une souscription payante autonome (<a href="https://github.com/nmoral/valeur-verte/issues/107">#107</a>, non livrée).</p>
+{% endblock %}
