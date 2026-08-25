@@ -69,6 +69,20 @@ final class TraceEffacementRepositoryTest extends KernelTestCase
         self::assertNull($trace->finEssai());
     }
 
+    public function testSupprimerAnterieuresANeGardeQueLesTracesRecentes(): void
+    {
+        $this->repository->enregistrer(TraceEffacement::creer('ancienne', new \DateTimeImmutable('2025-01-01 09:00:00'), 0, null));
+        $this->repository->enregistrer(TraceEffacement::creer('recente', new \DateTimeImmutable('2026-08-01 09:00:00'), 0, null));
+        $this->vider();
+
+        $supprimees = $this->repository->supprimerAnterieuresA(new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $this->vider();
+
+        self::assertSame(1, $supprimees);
+        self::assertNull($this->repository->parEmpreinte('ancienne'));
+        self::assertNotNull($this->repository->parEmpreinte('recente'));
+    }
+
     private function vider(): void
     {
         $manager = self::getContainer()->get(EntityManagerInterface::class);
