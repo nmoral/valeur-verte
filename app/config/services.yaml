@@ -81,17 +81,20 @@ services:
 
     # Présence SEO externe (#346) : clients Google. Secrets hors dépôt via %env% ;
     # vides = clients inertes (patron Turnstile). Ports → implémentations.
-    App\AdminInterne\SeoPresence\Google\JetonCompteServiceGoogle:
+    # Auth Search Console par OAuth utilisateur (refresh token) : les clés de compte de
+    # service sont bloquées par une règle d'organisation Google.
+    App\AdminInterne\SeoPresence\Google\JetonOAuthUtilisateurGoogle:
         arguments:
-            $email: '%env(GSC_SERVICE_ACCOUNT_EMAIL)%'
-            $clePrivee: '%env(GSC_PRIVATE_KEY)%'
+            $clientId: '%env(GSC_OAUTH_CLIENT_ID)%'
+            $clientSecret: '%env(GSC_OAUTH_CLIENT_SECRET)%'
+            $refreshToken: '%env(GSC_OAUTH_REFRESH_TOKEN)%'
     App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi:
         arguments:
             $siteUrl: '%env(GSC_SITE_URL)%'
     App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi:
         arguments:
             $cleApi: '%env(PAGESPEED_API_KEY)%'
-    App\AdminInterne\SeoPresence\Google\JetonAcces: '@App\AdminInterne\SeoPresence\Google\JetonCompteServiceGoogle'
+    App\AdminInterne\SeoPresence\Google\JetonAcces: '@App\AdminInterne\SeoPresence\Google\JetonOAuthUtilisateurGoogle'
     App\AdminInterne\SeoPresence\SearchConsole: '@App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi'
     App\AdminInterne\SeoPresence\PageSpeed: '@App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi'
 
