@@ -33,6 +33,16 @@ class RapportSeoRepository extends ServiceEntityRepository
     }
 
     /**
+     * Les `$limite` rapports les plus récents d'abord — matière de la liste admin.
+     *
+     * @return list<RapportSeo>
+     */
+    public function recents(int $limite): array
+    {
+        return $this->findBy([], ['executeLe' => 'DESC', 'id' => 'DESC'], $limite);
+    }
+
+    /**
      * Les `$limite` rapports les plus récents, rendus **du plus ancien au plus
      * récent** : la restitution en tire une courbe de tendance qui se lit de gauche
      * à droite dans le sens du temps.
