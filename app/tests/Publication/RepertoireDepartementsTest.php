@@ -54,7 +54,9 @@ final class RepertoireDepartementsTest extends TestCase
 
         // 01–95 (sans le 20, éclaté en 2A/2B) : 96 départements métropolitains.
         self::assertCount(96, $tous);
-        self::assertTrue(array_is_list($tous), 'tous() renvoie une liste de codes, pas le tableau slug => code.');
+        // Une liste de codes (clés 0..n), pas le tableau slug => code : la première
+        // clé est l'entier 0, jamais un slug.
+        self::assertSame(0, array_key_first($tous), 'tous() renvoie une liste de codes, pas le tableau slug => code.');
         self::assertContains('2A', $tous);
     }
 
