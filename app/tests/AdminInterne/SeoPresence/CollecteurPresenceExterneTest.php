@@ -40,20 +40,20 @@ final class CollecteurPresenceExterneTest extends TestCase
         $sc = new class implements SearchConsole {
             public ?\DateTimeImmutable $debut = null;
 
-            public function metriques(\DateTimeImmutable $debut, \DateTimeImmutable $fin, int $maxRequetes = 10): ?MetriquesRecherche
+            public function metriques(\DateTimeImmutable $debut, \DateTimeImmutable $fin, int $maxRequetes = 10): MetriquesRecherche
             {
                 $this->debut = $debut;
 
                 return new MetriquesRecherche(100, 2000, 0.05, 6.5, [new RequeteTop('vv', 80, 1000)]);
             }
 
-            public function indexation(string $url): ?EtatIndexation
+            public function indexation(string $url): EtatIndexation
             {
                 return new EtatIndexation($url, 'Submitted and indexed');
             }
         };
         $ps = new class implements PageSpeed {
-            public function mesurer(string $url): ?WebVitals
+            public function mesurer(string $url): WebVitals
             {
                 return new WebVitals($url, 2000, 0.05, 180, 90);
             }

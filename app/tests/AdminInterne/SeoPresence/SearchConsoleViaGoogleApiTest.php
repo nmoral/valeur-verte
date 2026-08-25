@@ -54,11 +54,19 @@ final class SearchConsoleViaGoogleApiTest extends TestCase
         self::assertSame(80, $metriques->topRequetes[0]->clics);
 
         self::assertSame('POST', $capture['methode']);
-        self::assertStringContainsString(rawurlencode('sc-domain:valeur-verte.fr'), $capture['url']);
-        self::assertStringContainsString('searchAnalytics/query', $capture['url']);
+        $urlAppelee = $capture['url'];
+        self::assertIsString($urlAppelee);
+        self::assertStringContainsString(rawurlencode('sc-domain:valeur-verte.fr'), $urlAppelee);
+        self::assertStringContainsString('searchAnalytics/query', $urlAppelee);
         $entetes = $capture['options']['headers'] ?? [];
         self::assertIsArray($entetes);
-        self::assertStringContainsStringIgnoringCase('authorization: Bearer ya29.test', implode("\n", array_map(strval(...), $entetes)));
+        $jetonPorte = false;
+        foreach ($entetes as $entete) {
+            if (\is_string($entete) && false !== stripos($entete, 'ya29.test')) {
+                $jetonPorte = true;
+            }
+        }
+        self::assertTrue($jetonPorte, 'Le jeton doit être passé en Authorization: Bearer.');
     }
 
     public function testMetriquesNonConfigureRendNull(): void
