@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\AdminInterne\SeoAudit\Regle;
 
 use App\AdminInterne\SeoAudit\Constat;
-use App\AdminInterne\SeoAudit\PageAuditee;
 
 /**
  * Liens internes cassés **dans le périmètre crawlé** (#345). Un lien qui pointe vers

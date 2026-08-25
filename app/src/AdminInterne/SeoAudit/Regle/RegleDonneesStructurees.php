@@ -12,7 +12,7 @@ use App\AdminInterne\SeoAudit\PageAuditee;
  * `BreadcrumbList`…) permet les résultats enrichis : absentes, on rate cette
  * visibilité (alerte) ; présentes mais **illisibles**, elles sont pire que rien —
  * le moteur les rejette et peut douter du reste (erreur) ; présentes et parsables
- * mais sans `@context`/`@type`, elles ne décrivent aucune entité exploitable (alerte).
+ * mais sans contexte ni type schema.org, elles ne décrivent aucune entité (alerte).
  */
 final class RegleDonneesStructurees implements RegleOnPage
 {

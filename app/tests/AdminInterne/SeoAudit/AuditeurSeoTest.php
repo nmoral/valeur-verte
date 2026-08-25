@@ -12,9 +12,9 @@ use App\AdminInterne\SeoAudit\Regle\RegleCodeHttp;
 use App\AdminInterne\SeoAudit\Regle\RegleTitre;
 use App\AdminInterne\SeoAudit\Regle\RegleTitresUniques;
 use App\AdminInterne\SeoAudit\SourceUrls;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
-use PHPUnit\Framework\TestCase;
 
 final class AuditeurSeoTest extends TestCase
 {

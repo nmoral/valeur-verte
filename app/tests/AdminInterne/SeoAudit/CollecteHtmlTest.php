@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\AdminInterne\SeoAudit;
 
 use App\AdminInterne\SeoAudit\CollecteHtml;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
-use PHPUnit\Framework\TestCase;
 
 final class CollecteHtmlTest extends TestCase
 {

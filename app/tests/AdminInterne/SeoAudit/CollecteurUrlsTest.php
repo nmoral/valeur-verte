@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\AdminInterne\SeoAudit;
 
 use App\AdminInterne\SeoAudit\CollecteurUrls;
+use App\Sitemap\SitemapGenerator;
 use App\Tenant\TenantRepository;
+use App\Tests\Publication\ProvisionneModelePublie;
 use App\Widget\PagePublique;
+use App\Widget\PagePubliqueRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Le périmètre d'URLs de l'audit SEO (#345) : pages canoniques du sitemap +
@@ -16,30 +20,59 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class CollecteurUrlsTest extends KernelTestCase
 {
+    use ProvisionneModelePublie;
+
     public function testCombineSitemapEtPagesWidgetActives(): void
     {
         self::bootKernel();
+        $this->prive(); // provisionne le schéma « data » lu par le sitemap.
 
-        $tenants = static::getContainer()->get(TenantRepository::class);
-        self::assertInstanceOf(TenantRepository::class, $tenants);
+        $tenants = $this->service(TenantRepository::class);
+        $tenantId = $tenants->nouveau()->id();
+        self::assertIsInt($tenantId);
         $token = bin2hex(random_bytes(5));
-        $page = PagePublique::creer($tenants->nouveau()->id(), $token, 'agence-durand');
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $page = PagePublique::creer($tenantId, $token, 'agence-durand');
+        $em = $this->service(EntityManagerInterface::class);
         $em->persist($page);
         $em->flush();
 
-        $collecteur = static::getContainer()->get(CollecteurUrls::class);
-        self::assertInstanceOf(CollecteurUrls::class, $collecteur);
+        $domaine = static::getContainer()->getParameter('app.domaine');
+        self::assertIsString($domaine);
+
+        $sitemap = $this->service(SitemapGenerator::class);
+        $collecteur = new CollecteurUrls(
+            $sitemap,
+            $this->service(PagePubliqueRepository::class),
+            $this->service(RouterInterface::class),
+            $domaine,
+        );
         $urls = $collecteur->urls();
 
-        // Au moins une page canonique du sitemap (la home est marquée sitemap).
-        self::assertNotEmpty($urls);
-        self::assertContains('https://valeurverte.localhost/', $urls);
+        // Toutes les URLs canoniques du sitemap sont reprises…
+        $canoniques = $sitemap->urls();
+        foreach ($canoniques as $canonique) {
+            self::assertContains($canonique, $urls);
+        }
 
-        // La page widget active, en URL absolue sur le sous-domaine widget.
-        $widget = array_filter($urls, static fn (string $u): bool => str_contains($u, $token));
+        // …plus la page widget active, en URL absolue sur le sous-domaine widget.
+        $widget = array_values(array_filter($urls, static fn (string $u): bool => str_contains($u, $token)));
         self::assertCount(1, $widget);
-        self::assertStringStartsWith('https://widget.valeurverte.localhost/'.$token.'/agence-durand', array_values($widget)[0]);
+        self::assertStringStartsWith('https://widget.'.$domaine.'/'.$token.'/agence-durand', $widget[0]);
+        self::assertGreaterThan(\count($canoniques), \count($urls));
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $classe
+     *
+     * @return T
+     */
+    private function service(string $classe): object
+    {
+        $service = static::getContainer()->get($classe);
+        self::assertInstanceOf($classe, $service);
+
+        return $service;
     }
 }
