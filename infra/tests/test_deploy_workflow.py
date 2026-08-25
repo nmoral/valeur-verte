@@ -222,3 +222,29 @@ def test_l_ordonnanceur_est_demarre_au_deploiement() -> None:
     assert re.search(r"up -d [^\n&|]*\bcron\b", contenu), (
         "Le déploiement doit démarrer l'ordonnanceur « cron » (ex. « up -d app caddy cron »)."
     )
+
+
+def test_la_config_montee_est_ecrasee_sans_imbrication() -> None:
+    """« scp -r infra/caddy » vers un dossier DÉJÀ existant copie DANS ce dossier
+    (caddy/caddy/…, cron/cron/…) au lieu de le remplacer : le montage Compose sert
+    alors une version périmée (#368). Le dossier de config distant doit donc être
+    effacé avant la recopie, sinon la config figée survit à tous les déploiements."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"rm -rf[^\n]*\bcaddy\b[^\n]*\bcron\b", contenu) or re.search(
+        r"rm -rf[^\n]*\bcron\b[^\n]*\bcaddy\b", contenu
+    ), (
+        "Le déploiement doit effacer le dossier de config distant (caddy, cron) avant "
+        "« scp -r », sinon la copie s'imbrique et la config périmée persiste (#368)."
+    )
+
+
+def test_caddy_et_cron_relisent_leur_config_au_deploiement() -> None:
+    """« up -d » ne recrée un conteneur que si son image ou sa définition change, pas
+    quand seul le CONTENU d'un fichier bind-monté change (Caddyfile, crontab). Sans
+    « --force-recreate », caddy et cron resservent la config lue au démarrage
+    précédent malgré un fichier à jour sur le VPS (#368)."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"up -d[^\n&|]*--force-recreate[^\n&|]*\bcaddy\b[^\n&|]*\bcron\b", contenu), (
+        "Le déploiement doit forcer la recréation de « caddy » et « cron » "
+        "(--force-recreate) pour qu'ils relisent leur configuration montée (#368)."
+    )

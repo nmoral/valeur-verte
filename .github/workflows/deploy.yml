@@ -142,13 +142,18 @@ jobs:
           # déploiement (crée le rôle, resynchronise son mot de passe, pose les droits).
           scp -i ~/.ssh/deploiement infra/provisionner-app.sql \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/provisionner-app.sql"
-          # Configuration du reverse proxy (Caddyfile + robots.txt), montée par le
-          # service « caddy ». Sans elle, le proxy démarrerait sans sa config.
+          # Configuration montée par les services « caddy » (Caddyfile, robots.txt,
+          # page d'erreur — #190) et « cron » (crontab — #190). On **efface d'abord**
+          # le dossier distant, puis on recopie : « scp -r » vers un dossier DÉJÀ
+          # existant copie DANS ce dossier (caddy/caddy/…, cron/cron/…) au lieu de le
+          # remplacer, et le montage Compose sert alors une version périmée (#368). Le
+          # rm purge cette imbrication laissée par les déploiements précédents. Les
+          # conteneurs en cours gardent leur inode monté jusqu'à leur recréation
+          # (--force-recreate plus bas) : effacer puis recopier ne les perturbe pas.
+          ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
+            "rm -rf '$REPERTOIRE_VPS/caddy' '$REPERTOIRE_VPS/cron'"
           scp -i ~/.ssh/deploiement -r infra/caddy \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/caddy"
-          # Tâches planifiées (#190) montées par le service « cron ». Sans elles,
-          # Compose crée un répertoire à la place du crontab et l'ordonnanceur
-          # démarre sans tâche — panne silencieuse, aucune purge ne tourne.
           scp -i ~/.ssh/deploiement -r infra/cron \
             "$UTILISATEUR@$HOTE:$REPERTOIRE_VPS/cron"
 
@@ -169,6 +174,12 @@ jobs:
           # jamais sur le runner). L'ordre est contraint : « migrate » crée le schéma
           # « data » avant le provisionnement (qui pose les GRANT dessus), et l'app
           # n'est démarrée puis migrée qu'une fois son rôle prêt.
+          # « caddy » et « cron » sont **forcés à se recréer** (--force-recreate) :
+          # « up -d » ne recrée un conteneur que si son image ou sa définition change,
+          # pas quand seul le CONTENU d'un fichier bind-monté change (Caddyfile,
+          # crontab). Sans ça, ils resservent la config lue au démarrage précédent
+          # (#368). Bref clignotement du proxy à chaque déploiement, assumé (manuel,
+          # rare). --no-deps : db/app tournent déjà, on ne veut pas les redémarrer.
           printf '%s' "$JETON_GHCR" | ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
             "docker login ghcr.io -u '$COMPTE_GHCR' --password-stdin \
              && cd '$REPERTOIRE_VPS' \
@@ -177,7 +188,8 @@ jobs:
              && docker compose run --rm -T migrate \
              && set -a && . ./.env && set +a \
              && docker compose exec -T db psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v mot_de_passe=\"\$APP_DB_PASSWORD\" -v superutilisateur=\"\$POSTGRES_USER\" < provisionner-app.sql \
-             && docker compose up -d app caddy cron \
+             && docker compose up -d app \
+             && docker compose up -d --force-recreate --no-deps caddy cron \
              && docker compose exec -T app php bin/console doctrine:migrations:migrate --no-interaction \
              && docker compose exec -T app php bin/console cache:clear --env=prod \
              && docker logout ghcr.io"
