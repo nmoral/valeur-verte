@@ -1,0 +1,71 @@
+{% extends 'admin/base.html.twig' %}
+
+{% set instantane = rapport.instantane %}
+
+{% block title %}Présence externe du {{ rapport.executeLe|date('d/m/Y H:i') }} · Admin interne{% endblock %}
+
+{% block admin_title %}Présence externe — {{ rapport.executeLe|date('d/m/Y à H:i') }}{% endblock %}
+
+{% block admin_subtitle %}<p>{{ rapport.clics|number_format(0, ',', ' ') }} clic(s) · {{ rapport.impressions|number_format(0, ',', ' ') }} impression(s) · position moyenne {{ rapport.positionMoyenne is null ? 'n/d' : rapport.positionMoyenne|number_format(1, ',', ' ') }} · {{ rapport.nombreUrls }} URL suivies.</p>{% endblock %}
+
+{% block admin_actions %}<a href="{{ path('admin_seo') }}">← Tableau SEO</a>{% endblock %}
+
+{% block admin_content %}
+    <section class="fiche-bloc">
+        <h2>Requêtes les plus cliquées</h2>
+        {% if instantane.recherche is null or instantane.recherche.topRequetes is empty %}
+            <p>Aucune requête remontée.</p>
+        {% else %}
+            <table class="tableau">
+                <thead><tr><th>Requête</th><th>Clics</th><th>Impressions</th></tr></thead>
+                <tbody>
+                {% for req in instantane.recherche.topRequetes %}
+                    <tr>
+                        <td>{{ req.requete }}</td>
+                        <td>{{ req.clics|number_format(0, ',', ' ') }}</td>
+                        <td>{{ req.impressions|number_format(0, ',', ' ') }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="fiche-bloc">
+        <h2>État d'indexation</h2>
+        {% if instantane.indexation is empty %}
+            <p>Aucune URL inspectée.</p>
+        {% else %}
+            <table class="tableau">
+                <thead><tr><th>URL</th><th>Couverture</th></tr></thead>
+                <tbody>
+                {% for etat in instantane.indexation %}
+                    <tr><td>{{ etat.url }}</td><td>{{ etat.couverture }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="fiche-bloc">
+        <h2>Core Web Vitals</h2>
+        {% if instantane.vitals is empty %}
+            <p>Aucune mesure de performance.</p>
+        {% else %}
+            <table class="tableau">
+                <thead><tr><th>URL</th><th>LCP</th><th>CLS</th><th>INP</th><th>Score</th></tr></thead>
+                <tbody>
+                {% for v in instantane.vitals %}
+                    <tr>
+                        <td>{{ v.url }}</td>
+                        <td>{{ v.lcpMs is null ? 'n/d' : v.lcpMs ~ ' ms' }}</td>
+                        <td>{{ v.cls is null ? 'n/d' : v.cls }}</td>
+                        <td>{{ v.inpMs is null ? 'n/d' : v.inpMs ~ ' ms' }}</td>
+                        <td>{{ v.scorePerformance is null ? 'n/d' : v.scorePerformance ~ '/100' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}
