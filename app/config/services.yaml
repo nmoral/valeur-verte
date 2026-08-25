@@ -246,6 +246,12 @@ services:
         arguments:
             $retentionJours: 90
 
+    # Rétention des événements du parcours d'inscription (#111) : même finalité de
+    # mesure (activation self-service), même durée courte, même cron (registre #190).
+    App\Onboarding\Parcours\PurgeEvenementsInscription:
+        arguments:
+            $retentionJours: 90
+
     # Rétention des rapports (décision D10, #68) : à 24 mois du dernier contact
     # connu — faute de suivi d'interaction, la production du rapport — le contact
     # est effacé et l'adresse bornée à la commune ; à 3 ans, le rapport est
