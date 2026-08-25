@@ -95,6 +95,15 @@ class Compte
     #[ORM\Column(name: 'essai_neutralise_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $essaiNeutraliseLe = null;
 
+    /**
+     * Date à laquelle le blocage du 2ᵉ rapport pour email non vérifié (#333) a été
+     * mesuré pour ce compte. Nulle tant qu'il ne l'a pas été : garantit qu'un seul
+     * événement de blocage est journalisé par pro — le taux de pros bloqués se
+     * compte alors en acteurs distincts, sans flux bruité par les rechargements.
+     */
+    #[ORM\Column(name: 'blocage_verification_signale_le', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $blocageVerificationSignaleLe = null;
+
     private function __construct(int $tenantId, \DateTimeImmutable $creeLe)
     {
         $this->tenantId = $tenantId;
@@ -247,6 +256,20 @@ class Compte
     public function neutraliserEssai(\DateTimeImmutable $quand): void
     {
         $this->essaiNeutraliseLe ??= $quand;
+    }
+
+    public function blocageVerificationDejaSignale(): bool
+    {
+        return null !== $this->blocageVerificationSignaleLe;
+    }
+
+    /**
+     * Marque que le blocage du 2ᵉ rapport pour email non vérifié (#333) a été
+     * mesuré. Idempotent sur la première date : un seul événement par pro.
+     */
+    public function signalerBlocageVerification(\DateTimeImmutable $quand): void
+    {
+        $this->blocageVerificationSignaleLe ??= $quand;
     }
 
     /**
