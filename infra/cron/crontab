@@ -37,6 +37,12 @@
 # site et n'écrit qu'un rapport : sans effet de bord externe, idempotente.
   0  1 * * 1  php /app/bin/console app:seo:audit --no-interaction
 
+# Présence SEO externe (#346) — hebdomadaire, lundi 01:30 UTC. Interroge Google Search
+# Console (positions, clics, indexation) et PageSpeed Insights (Core Web Vitals) et
+# archive un snapshot horodaté restitué dans l'admin. Tant que les secrets ne sont pas
+# provisionnés, la commande signale « non configurée » et n'archive rien (sans échec).
+ 30  1 * * 1  php /app/bin/console app:seo:presence:fetch --no-interaction
+
 # Relance de fin d'essai (#108) — **volontairement pas encore activée**. Les trois
 # tâches ci-dessus ne font qu'effacer des données à nous ; celle-ci écrit à de
 # vraies personnes (« Votre essai Valeur Verte se termine bientôt », une fois par

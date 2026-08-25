@@ -79,6 +79,30 @@ services:
     # Périmètre d'URLs de l'audit SEO (#345) : sitemap + pages widget marque blanche.
     App\AdminInterne\SeoAudit\SourceUrls: '@App\AdminInterne\SeoAudit\CollecteurUrls'
 
+    # Présence SEO externe (#346) : clients Google. Secrets hors dépôt via %env% ;
+    # vides = clients inertes (patron Turnstile). Ports → implémentations.
+    # Auth Search Console par OAuth utilisateur (refresh token) : les clés de compte de
+    # service sont bloquées par une règle d'organisation Google.
+    App\AdminInterne\SeoPresence\Google\JetonOAuthUtilisateurGoogle:
+        arguments:
+            $clientId: '%env(GSC_OAUTH_CLIENT_ID)%'
+            $clientSecret: '%env(GSC_OAUTH_CLIENT_SECRET)%'
+            $refreshToken: '%env(GSC_OAUTH_REFRESH_TOKEN)%'
+    # Amorçage « une fois » du refresh token (commande app:seo:presence:autoriser).
+    App\AdminInterne\SeoPresence\Google\AutorisationOAuthGoogle:
+        arguments:
+            $clientId: '%env(GSC_OAUTH_CLIENT_ID)%'
+            $clientSecret: '%env(GSC_OAUTH_CLIENT_SECRET)%'
+    App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi:
+        arguments:
+            $siteUrl: '%env(GSC_SITE_URL)%'
+    App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi:
+        arguments:
+            $cleApi: '%env(PAGESPEED_API_KEY)%'
+    App\AdminInterne\SeoPresence\Google\JetonAcces: '@App\AdminInterne\SeoPresence\Google\JetonOAuthUtilisateurGoogle'
+    App\AdminInterne\SeoPresence\SearchConsole: '@App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi'
+    App\AdminInterne\SeoPresence\PageSpeed: '@App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi'
+
     # Sauvegarde de la base (#55, §9.11). Répertoire et rétention réglables par
     # l'environnement (le cron du VPS monte un volume et fixe VV_SAUVEGARDE_DIR) ;
     # défauts pour le poste de dev. Le dump réel est pg_dump via Symfony Process.

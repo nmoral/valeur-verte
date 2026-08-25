@@ -1,0 +1,22 @@
+<div {{ attributes }}>
+    {% embed 'components/_liste_chrome.html.twig' with {
+        resultat: this.resultat,
+        colonnes: this.colonnes,
+        actions: this.actionsGroupees,
+        tri: tri,
+        direction: direction,
+        recherche: recherche,
+        selection: selection,
+        message: message,
+        vide_message: 'Aucune collecte de présence externe archivée pour le moment.'
+    } %}
+        {% block ligne %}
+            <td>{{ element.executeLe|date('d/m/Y H:i') }}</td>
+            <td>{{ element.clics|number_format(0, ',', ' ') }}</td>
+            <td>{{ element.impressions|number_format(0, ',', ' ') }}</td>
+            <td>{{ element.positionMoyenne is null ? 'n/d' : element.positionMoyenne|number_format(1, ',', ' ') }}</td>
+            <td>{{ element.nombreUrls }}</td>
+            <td><a href="{{ path('admin_presence_seo', {id: element.id}) }}">Détail</a></td>
+        {% endblock %}
+    {% endembed %}
+</div>

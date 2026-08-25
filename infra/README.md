@@ -58,9 +58,20 @@ un message explicite sinon, plutôt que d'échouer sur un « Permission denied �
 | `SSH_USER` | Compte de déploiement (doit être dans le groupe `docker`) |
 | `SSH_KEY` | Clé privée de déploiement, dont la publique est dans `authorized_keys` |
 | `POSTGRES_PASSWORD` | Mot de passe du rôle `valeur_verte` |
+| `PAGESPEED_API_KEY` | *(optionnel, #346)* Clé API PageSpeed Insights (Core Web Vitals) |
+| `GSC_OAUTH_CLIENT_ID` | *(optionnel, #346)* Client OAuth Google (Search Console) |
+| `GSC_OAUTH_CLIENT_SECRET` | *(optionnel, #346)* Secret du client OAuth |
+| `GSC_OAUTH_REFRESH_TOKEN` | *(optionnel, #346)* Refresh token OAuth (obtenu via `app:seo:presence:autoriser`) |
 
 `POSTGRES_USER`, `POSTGRES_DB` et `DATABASE_URL` ne sont pas des secrets : le
 workflow les compose.
+
+Les quatre secrets de **présence SEO externe** (#346) sont **optionnels** : non
+définis, ils valent chaîne vide et la collecte hebdomadaire (`app:seo:presence:fetch`)
+reste inerte sans faire échouer le déploiement. La propriété Search Console
+(`GSC_SITE_URL=sc-domain:valeur-verte.fr`, non secrète) est versionnée dans le
+compose. Pour obtenir le refresh token : renseigner `GSC_OAUTH_CLIENT_ID`/`_SECRET`
+puis jouer `docker compose exec app php bin/console app:seo:presence:autoriser`.
 
 > **Contrainte sur le mot de passe** : il ne doit contenir ni apostrophe (`'`)
 > ni barre oblique inverse (`\`). Ni le format `.env` de Compose ni le format
@@ -149,6 +160,7 @@ l'hôte. Le registre des tâches vit dans l'issue [#190](../../../issues/190).
 | `app:inscription:purger-evenements` | 03:40 | Purge des événements anonymes du parcours d'inscription au-delà de 90 jours ([#111](../../../issues/111)) |
 | `app:sauvegarde:executer` | dim. 02:00 | Dump complet hebdomadaire de la base, élagage au-delà de 30 j ([#55](../../../issues/55)) |
 | `app:seo:audit` | lun. 01:00 | Audit SEO technique/on-page des pages publiques, snapshot horodaté restitué dans l'admin ([#345](../../../issues/345)) |
+| `app:seo:presence:fetch` | lun. 01:30 | Présence SEO externe (Search Console + PageSpeed), snapshot horodaté ; no-op tant que les secrets ne sont pas provisionnés ([#346](../../../issues/346)) |
 | `app:essai:relancer` | — | Email de relance de fin d'essai ([#108](../../../issues/108)) — **ligne commentée, pas encore activée** : elle écrit à de vraies personnes, elle ne s'allume pas comme effet de bord de la mise en place de l'ordonnanceur |
 
 Toutes sont **idempotentes** : les rejouer ne fait rien de plus. Elles sont
