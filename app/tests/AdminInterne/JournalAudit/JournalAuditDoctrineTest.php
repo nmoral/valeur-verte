@@ -69,6 +69,20 @@ final class JournalAuditDoctrineTest extends KernelTestCase
         self::assertSame('b', $recents[1]->action());
     }
 
+    public function testEvenementsParPrefixeNeReliteQueLesActionsDuPrefixe(): void
+    {
+        $this->journal->enregistrer($this->evenement('rgpd.demande_recue', '2026-08-13 09:00:00'));
+        $this->journal->enregistrer($this->evenement('compte.suspendu', '2026-08-13 10:00:00'));
+        $this->journal->enregistrer($this->evenement('rgpd.export_genere', '2026-08-13 11:00:00'));
+
+        $this->viderIdentityMap();
+        $rgpd = $this->journal->evenementsParPrefixe('rgpd.');
+
+        self::assertCount(2, $rgpd);
+        self::assertSame('rgpd.export_genere', $rgpd[0]->action());
+        self::assertSame('rgpd.demande_recue', $rgpd[1]->action());
+    }
+
     /**
      * @param array<string, mixed> $contexte
      */

@@ -35,4 +35,16 @@ class JournalAuditDoctrine extends ServiceEntityRepository implements JournalAud
             ->getQuery()
             ->getResult();
     }
+
+    public function evenementsParPrefixe(string $prefixe, int $limite = 50): array
+    {
+        return $this->createQueryBuilder('e')
+            ->andWhere('e.action LIKE :prefixe')
+            ->setParameter('prefixe', addcslashes($prefixe, '\\_%').'%')
+            ->orderBy('e.survenuLe', 'DESC')
+            ->addOrderBy('e.id', 'DESC')
+            ->setMaxResults($limite)
+            ->getQuery()
+            ->getResult();
+    }
 }
