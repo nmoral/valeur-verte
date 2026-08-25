@@ -6,7 +6,9 @@ namespace App\Controller;
 
 use App\BackOffice\Entreprise\FicheEntrepriseParSiret;
 use App\BackOffice\Entreprise\Siret;
+use App\Onboarding\Parcours\SuiviInscription;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -23,8 +25,16 @@ final class RechercheEntrepriseController
         requirements: ['siret' => '\d{14}'],
         methods: ['GET'],
     )]
-    public function __invoke(string $siret, FicheEntrepriseParSiret $ficheParSiret): JsonResponse
-    {
+    public function __invoke(
+        string $siret,
+        Request $request,
+        FicheEntrepriseParSiret $ficheParSiret,
+        SuiviInscription $suiviInscription,
+    ): JsonResponse {
+        // Un SIRET bien formé atteint ce point : l'écran SIRET a donc été renseigné,
+        // qu'il soit trouvé ou non (l'engagement est ce qu'on mesure, #111).
+        $suiviInscription->siretRenseigne($request->getSession());
+
         $fiche = $ficheParSiret->parSiret(Siret::depuis($siret));
 
         if (null === $fiche) {
