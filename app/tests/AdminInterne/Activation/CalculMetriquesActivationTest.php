@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\AdminInterne\Activation;
 
 use App\AdminInterne\Activation\CalculMetriquesActivation;
-use App\AdminInterne\Activation\MetriquesActivation;
 use App\BackOffice\Rapport\Rapport;
 use App\BackOffice\Rapport\RapportRepository;
 use App\BackOffice\Rapport\Source;
