@@ -55,6 +55,23 @@ final readonly class RepertoireCommunes
     }
 
     /**
+     * Sens inverse : la commune d'un ``code_insee``, ou ``null`` si elle n'est pas
+     * au référentiel. Sert à reconstruire l'URL d'une commune (sitemap, maillage).
+     */
+    public function pour(string $codeInsee): ?Commune
+    {
+        $ligne = $this->connexion->fetchAssociative(
+            'SELECT c.code_insee, c.nom, c.code_departement, e.code_epci
+             FROM data.commune c
+             LEFT JOIN data.commune_epci e ON e.code_insee = c.code_insee
+             WHERE c.code_insee = :code',
+            ['code' => $codeInsee],
+        );
+
+        return false === $ligne ? null : self::depuisLigne($ligne);
+    }
+
+    /**
      * @param array<string, mixed> $ligne
      */
     private static function depuisLigne(array $ligne): Commune
