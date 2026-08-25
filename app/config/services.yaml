@@ -79,6 +79,22 @@ services:
     # Périmètre d'URLs de l'audit SEO (#345) : sitemap + pages widget marque blanche.
     App\AdminInterne\SeoAudit\SourceUrls: '@App\AdminInterne\SeoAudit\CollecteurUrls'
 
+    # Présence SEO externe (#346) : clients Google. Secrets hors dépôt via %env% ;
+    # vides = clients inertes (patron Turnstile). Ports → implémentations.
+    App\AdminInterne\SeoPresence\Google\JetonCompteServiceGoogle:
+        arguments:
+            $email: '%env(GSC_SERVICE_ACCOUNT_EMAIL)%'
+            $clePrivee: '%env(GSC_PRIVATE_KEY)%'
+    App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi:
+        arguments:
+            $siteUrl: '%env(GSC_SITE_URL)%'
+    App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi:
+        arguments:
+            $cleApi: '%env(PAGESPEED_API_KEY)%'
+    App\AdminInterne\SeoPresence\Google\JetonAcces: '@App\AdminInterne\SeoPresence\Google\JetonCompteServiceGoogle'
+    App\AdminInterne\SeoPresence\SearchConsole: '@App\AdminInterne\SeoPresence\Google\SearchConsoleViaGoogleApi'
+    App\AdminInterne\SeoPresence\PageSpeed: '@App\AdminInterne\SeoPresence\Google\PageSpeedViaGoogleApi'
+
     # Sauvegarde de la base (#55, §9.11). Répertoire et rétention réglables par
     # l'environnement (le cron du VPS monte un volume et fixe VV_SAUVEGARDE_DIR) ;
     # défauts pour le poste de dev. Le dump réel est pg_dump via Symfony Process.
