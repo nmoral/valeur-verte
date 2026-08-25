@@ -34,14 +34,14 @@ parameters:
     # Mentions légales (#228, LCEN art. 6-III) : l'identité de l'éditeur et celle
     # de l'hébergeur vivent ici plutôt que dans le gabarit — un changement de
     # siège ou de statut ne doit pas passer par une modification de HTML.
-    # ⚠ VALEURS DE TEST tant que l'identité réelle n'est pas arrêtée : la page
-    # les affiche telles quelles, elles doivent être remplacées avant l'ouverture
-    # au public.
+    # Éditeur = entreprise individuelle (l'éditeur est la personne physique) ;
+    # identité vérifiée via recherche-entreprises.api.gouv.fr (SIRET), nom et
+    # adresse fournis par l'éditeur car non-diffusibles en open data SIRENE.
     app.editeur:
-        raison_sociale: 'Valeur Verte'
-        forme_juridique: 'Entreprise individuelle (forme à confirmer)'
-        immatriculation: 'SIREN 000 000 000 — RCS à compléter'
-        siege: 'Adresse du siège à compléter, France'
+        raison_sociale: 'Nicolas Moral'
+        forme_juridique: 'Entrepreneur individuel'
+        immatriculation: 'SIRET 925 313 207 00019'
+        siege: '4 rue de Nancy, 31500 Toulouse, France'
         directeur_publication: 'Nicolas Moral'
         contact: '%env(CONTACT_REPONSE)%'
     app.hebergeur:

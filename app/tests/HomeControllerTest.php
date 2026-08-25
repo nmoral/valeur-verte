@@ -59,8 +59,8 @@ final class HomeControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Membre classique');
         self::assertSelectorTextContains('body', 'Offre fondateur');
-        self::assertSelectorTextContains('body', '129 €');
-        self::assertSelectorTextContains('body', '89 €');
+        self::assertSelectorTextContains('body', '300 €');
+        self::assertSelectorTextContains('body', '250 €');
     }
 
     public function testLaHomeOffreConnexionEtCreationDeCompte(): void
