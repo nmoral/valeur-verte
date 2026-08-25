@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Calculateur de valeur verte, commune par commune — simulateur de plus-value DPE',
+  og_titre: 'Calculateur de valeur verte, commune par commune',
+  description: 'Estimez la plus-value qu\'un meilleur DPE ajoute à un logement, mesurée commune par commune sur les ventes réellement enregistrées par les notaires (DVF) croisées aux DPE de l\'ADEME.',
+  canonical: url('page_calculateur'),
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+{# La grille du hero (1fr 424px) réserve la colonne du simulateur, absent ici :
+   on repasse en pleine largeur pour cette landing et on borne la lecture. #}
+<style>
+  .hero .wrap{grid-template-columns:1fr}
+  .hero .lead{max-width:62ch}
+  .block h2{font:800 26px/1.1 'Archivo',sans-serif;letter-spacing:-.02em;margin-bottom:16px}
+  .block p{max-width:72ch;color:var(--slate);margin-bottom:14px}
+  .source{max-width:72ch;margin:20px 0;padding:12px 16px;background:var(--card);border:1px solid var(--rule);border-radius:3px;font-size:14px;color:var(--slate)}
+</style>
+{% set donnees_structurees = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  'name': 'Calculateur de valeur verte',
+  'url': url('page_calculateur'),
+  'applicationCategory': 'BusinessApplication',
+  'inLanguage': 'fr-FR',
+  'description': 'Calculateur de valeur verte par commune : la plus-value d\'un meilleur DPE, mesurée sur les ventes réelles (DVF) croisées aux DPE de l\'ADEME.',
+  'offers': { '@type': 'Offer', 'price': '0', 'priceCurrency': 'EUR' }
+} %}
+<script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+
+<nav class="nav" aria-label="Navigation principale">
+  <div class="wrap">
+    <a href="{{ url('home') }}" class="brand" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+    <ul class="nav-menu">
+      <li class="nav-link"><a href="#methode">Méthode</a></li>
+      <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
+      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
+      <li class="nav-cta"><a href="{{ url('inscription') }}" class="btn btn-sm" data-lien="inscription">Créer un compte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main id="contenu">
+
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Calculateur de valeur verte</p>
+        <h1>La plus-value d'un meilleur DPE, mesurée <span>commune par commune</span>.</h1>
+        <p class="lead">Combien un saut de classe énergétique ajoute-t-il à la valeur d'un logement&nbsp;?
+          Pas une moyenne nationale : le chiffre observé dans <em>votre commune</em>, sur les ventes
+          réellement enregistrées par les notaires et croisées aux DPE.</p>
+        <div class="cta-row">
+          <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Lancer un calcul</a>
+          <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
+        </div>
+        <p class="cta-note">Gratuit à l'essai · Résultat chiffré avec fourchette</p>
+      </div>
+    </div>
+  </header>
+
+  <section id="methode" class="block" aria-labelledby="methode-titre">
+    <div class="wrap">
+      <h2 id="methode-titre">D'où vient le chiffre&nbsp;?</h2>
+      <p>Le calculateur ne s'appuie sur aucune moyenne nationale. Pour chaque commune, il croise les
+        <strong>ventes réellement enregistrées par les notaires</strong> (base DVF de la DGFiP) avec les
+        <strong>diagnostics de performance énergétique (DPE) de l'ADEME</strong>, et mesure l'écart de prix
+        statistiquement observé entre classes énergétiques dans le secteur.</p>
+      <p>Quand une commune compte trop peu de ventes pour être fiable, le périmètre s'élargit à
+        l'intercommunalité puis au département — et la page l'indique explicitement. Le résultat est
+        toujours accompagné d'une fourchette : c'est une <strong>mesure statistique</strong>, pas une
+        évaluation immobilière.</p>
+      <p class="source" data-source>
+        Source&nbsp;: ventes DVF (DGFiP) et DPE (ADEME), sous licence ouverte Etalab.
+      </p>
+      <div class="cta-row">
+        <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte gratuit</a>
+        <a href="{{ path('publication') }}" class="btn btn-ghost">Voir l'étude par département</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+
+</body>
+</html>
