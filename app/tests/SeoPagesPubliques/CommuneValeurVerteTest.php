@@ -175,6 +175,43 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::assertStringContainsString('s-maxage=3600', $cache);
     }
 
+    public function testLaPageRemonteVersSonEpci(): void
+    {
+        // Maillage montant #364 : la page commune lie vers son hub EPCI.
+        $liens = $this->cheminsDesLiens($this->commune('haute-garonne', 'toulouse'));
+
+        self::assertContains('/valeur-verte/epci/toulouse-metropole', $liens);
+    }
+
+    public function testUneCommuneSansEpciNAffichePasDeLienEpci(): void
+    {
+        // Commune sans rattachement EPCI : pas de lien mort, pas de 500 — juste
+        // pas de lien EPCI (le lien montant département reste, lui).
+        $client = $this->naviguer();
+        $this->semerCommune('31099', 'Solo', '31');
+        $this->semerMaille('31099', coefDpe: '{"D":0.0,"C":0.11,"E":-0.19}');
+        $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
+
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne/solo');
+        self::assertResponseIsSuccessful();
+
+        $epci = array_filter(
+            $this->cheminsDesLiens($crawler),
+            static fn (string $chemin): bool => str_starts_with($chemin, '/valeur-verte/epci/'),
+        );
+        self::assertSame([], $epci);
+    }
+
+    /**
+     * @return list<string> les chemins (path) de tous les liens de la page
+     */
+    private function cheminsDesLiens(\Symfony\Component\DomCrawler\Crawler $crawler): array
+    {
+        return $crawler->filter('a')->each(
+            static fn (\Symfony\Component\DomCrawler\Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
+        );
+    }
+
     private function commune(string $slugDepartement, string $slugCommune): \Symfony\Component\DomCrawler\Crawler
     {
         $client = $this->naviguer();
@@ -212,6 +249,9 @@ final class CommuneValeurVerteTest extends WebTestCase
     {
         $this->semerCommune('31001', 'Toulouse', '31');
         $this->semerMaille('31001', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
+        // Rattachement EPCI pour le maillage montant commune → EPCI (#364).
+        $this->semerEpci('243100518', 'Toulouse Métropole');
+        $this->rattacherCommuneEpci('31001', '243100518');
         $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
     }
 }
