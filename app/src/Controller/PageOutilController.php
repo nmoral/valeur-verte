@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Publication\LectureModelePublie;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
@@ -15,10 +16,11 @@ use Symfony\Component\Routing\Attribute\Route;
  * portant le différenciateur maison : la mesure se fait *par commune*.
  *
  * Le calculateur réel est le parcours produit (widget/audit) : cette page présente
- * la méthode et convertit vers l'inscription. C'est un aimant à trafic permanent,
- * volontairement indépendant de l'état du modèle publié — elle existe toujours et
- * ne touche pas la base. La source des données (DVF/DPE) y est affichée en clair ;
- * le millésime servi est porté par les pages qui lisent la donnée (carte, hubs).
+ * la méthode et convertit vers l'inscription. C'est un aimant à trafic permanent
+ * qui **n'exige pas** de millésime publié — sans modèle publié elle existe toujours
+ * (jamais de 404). La source des données (DVF/DPE) y est affichée en clair, **datée
+ * du millésime publié quand il y en a un** (critère d'acceptation : source +
+ * millésime), pour situer la donnée qu'elle décrit.
  */
 final class PageOutilController extends AbstractController
 {
@@ -29,9 +31,13 @@ final class PageOutilController extends AbstractController
         methods: ['GET'],
         options: ['sitemap' => true],
     )]
-    public function __invoke(): Response
+    public function __invoke(LectureModelePublie $modele): Response
     {
-        $reponse = $this->render('seo/calculateur.html.twig');
+        $reponse = $this->render('seo/calculateur.html.twig', [
+            // Best-effort : dater la source du millésime servi, sans jamais
+            // conditionner l'existence de la page à sa présence (null ⇒ pas de date).
+            'millesime' => $modele->publication()?->millesime,
+        ]);
 
         // Landing statique : rien n'y dépend de la session, on rend donc la page
         // cachable par le proxy partagé (le noyau poserait sinon « private »).
