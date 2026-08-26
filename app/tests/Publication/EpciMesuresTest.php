@@ -16,9 +16,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class EpciMesuresTest extends KernelTestCase
 {
-    private const COEF = '{"D":0.0,"C":0.11,"E":-0.19}';
-
     use ProvisionneModelePublie;
+    private const COEF = '{"D":0.0,"C":0.11,"E":-0.19}';
 
     public function testListeLesSlugsDesEpciMesures(): void
     {
