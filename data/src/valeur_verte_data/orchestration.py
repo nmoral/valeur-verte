@@ -22,6 +22,7 @@ from .batch import (
     compute_maille_epci,
     pool_hierarchique,
 )
+from .climat import marqueur_climat
 from .config import DEFAULT_CONFIG, CalculConfig
 from .db.coefficient_repository import (
     archiver_coefficient,
@@ -31,6 +32,7 @@ from .db.coefficient_repository import (
 from .db.commune_repository import upsert_communes
 from .db.epci_repository import communes_de_meme_epci, upsert_epci, upsert_epci_noms
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
+from .db.marqueurs_repository import upsert_marqueurs
 from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
@@ -49,6 +51,7 @@ from .invariants import (
     evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
+from .marqueurs import Marqueur
 from .multi_communes import filtrer_multi_communes
 from .ruptures import filtrer_regime_dpe
 from .schema_source import SchemaSourceError
@@ -574,6 +577,32 @@ def charger_communes_departement(
     seule transaction, committée s'il y a eu un enregistrement.
     """
     ecrites = upsert_communes(conn, fetch_communes_by_departement(fetcher, departement))
+    if ecrites:
+        conn.commit()
+    return ecrites
+
+
+def _marqueurs_contextuels(departement: str) -> list[Marqueur]:
+    """Les marqueurs contextuels (référentiels figés embarqués) d'un département.
+
+    S'étoffe au fil du Lot 1 (#341) : climat aujourd'hui, marché/densité/littoral…
+    à venir. Un référentiel muet sur ce département n'ajoute rien (pas de marqueur).
+    """
+    marqueurs: list[Marqueur] = []
+    climat = marqueur_climat(departement)
+    if climat is not None:
+        marqueurs.append(climat)
+    return marqueurs
+
+
+def charger_marqueurs_departement(conn: ConnexionTransactionnelle, departement: str) -> int:
+    """Charge les marqueurs contextuels d'un département (#341, Lot 1).
+
+    Référentiels **figés embarqués** (climat…) : aucun appel réseau, d'où l'absence
+    de ``Fetcher``. Idempotent (upsert) ; une seule transaction, committée s'il y a
+    eu un enregistrement.
+    """
+    ecrites = upsert_marqueurs(conn, _marqueurs_contextuels(departement))
     if ecrites:
         conn.commit()
     return ecrites
