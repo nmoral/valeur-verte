@@ -35,6 +35,7 @@ final readonly class FicheCommune
         public float $erreurMediane,
         private ?float $prixM2Median,
         public PalierFiabilite $palier,
+        public ?float $poidsPooling,
     ) {
     }
 
@@ -49,6 +50,7 @@ final readonly class FicheCommune
         float $erreurMediane,
         ?float $prixM2Median,
         PalierFiabilite $palier,
+        ?float $poidsPooling = null,
     ): self {
         return new self(
             $codeInsee,
@@ -61,6 +63,7 @@ final readonly class FicheCommune
             $erreurMediane,
             $prixM2Median,
             $palier,
+            $poidsPooling,
         );
     }
 
@@ -72,6 +75,16 @@ final readonly class FicheCommune
     public function portee(): PorteeEstimation
     {
         return PorteeEstimation::depuis($this->maille->mode, $this->rayonKm);
+    }
+
+    /**
+     * Décision de gating d'indexation SEO (#361) : indexable seulement si la
+     * portée est locale et la maille non rapprochée du département (pooling).
+     * Consommée par le contrôleur (#362) pour la meta ``robots``.
+     */
+    public function indexabilite(): IndexabiliteCommune
+    {
+        return IndexabiliteCommune::depuis($this->portee(), $this->poidsPooling);
     }
 
     public function gainEc(): ?int

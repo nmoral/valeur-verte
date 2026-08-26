@@ -8,6 +8,7 @@ use App\BackOffice\Restitution\IndicateurFiabilite;
 use App\BackOffice\Restitution\PalierFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
 use App\Publication\FicheCommune;
+use App\Publication\IndexabiliteCommune;
 use App\Publication\Maille;
 use PHPUnit\Framework\TestCase;
 
@@ -77,11 +78,36 @@ final class FicheCommuneTest extends TestCase
         self::assertSame(11, $fiche->decoteSurcote()['C']);
     }
 
+    /**
+     * Indexabilité SEO (#361) : la portée locale non rapprochée est indexable, le
+     * repli départemental et le pooling sous 0.5 basculent en noindex. La fiche
+     * ne fait que porter la métrique et déléguer à {@see IndexabiliteCommune}.
+     */
+    public function testExposeSonIndexabilitePourLeGatingSeo(): void
+    {
+        self::assertSame(
+            IndexabiliteCommune::Indexable,
+            $this->ficheStandard()->indexabilite(),
+            'Locale sans pooling → indexable.',
+        );
+        self::assertSame(
+            IndexabiliteCommune::Repli,
+            $this->ficheStandard(poidsPooling: 0.4)->indexabilite(),
+            'Locale mais fortement rapprochée (pooling < 0.5) → repli.',
+        );
+        self::assertSame(
+            IndexabiliteCommune::Repli,
+            $this->ficheStandard(rayonKm: null, mode: 'departemental')->indexabilite(),
+            'Repli départemental → repli.',
+        );
+    }
+
     private function ficheStandard(
         ?float $prixM2 = 2500.0,
         int $n = 90,
         ?int $rayonKm = 15,
         string $mode = 'local',
+        ?float $poidsPooling = null,
     ): FicheCommune {
         $maille = new Maille('33063', $mode, ['D' => 0.0, 'C' => 0.10, 'B' => 0.18, 'E' => -0.15, 'A' => 0.30]);
 
@@ -96,6 +122,7 @@ final class FicheCommuneTest extends TestCase
             erreurMediane: 17.0,
             prixM2Median: $prixM2,
             palier: PalierFiabilite::Standard,
+            poidsPooling: $poidsPooling,
         );
     }
 }
