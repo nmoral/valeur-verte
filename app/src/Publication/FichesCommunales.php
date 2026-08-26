@@ -36,7 +36,7 @@ final readonly class FichesCommunales
         }
 
         $ligne = $this->connexion->fetchAssociative(
-            'SELECT rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, palier
+            'SELECT rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, palier, poids_pooling
              FROM data.coefficient_maille
              WHERE code_insee = :code',
             ['code' => $commune->codeInsee],
@@ -62,6 +62,7 @@ final readonly class FichesCommunales
             erreurMediane: is_numeric($ligne['erreur_mediane']) ? (float) $ligne['erreur_mediane'] : 0.0,
             prixM2Median: $this->prix->prixM2Median($commune->codeInsee),
             palier: PalierFiabilite::depuis(\is_string($ligne['palier']) ? $ligne['palier'] : null),
+            poidsPooling: is_numeric($ligne['poids_pooling']) ? (float) $ligne['poids_pooling'] : null,
         );
     }
 
