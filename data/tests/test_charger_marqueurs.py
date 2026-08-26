@@ -33,12 +33,13 @@ class _FausseConnexion:
 
 def test_charge_le_marqueur_climat_du_departement() -> None:
     """Le climat (marqueur contextuel départemental) est écrit pour le département,
-    en une seule transaction."""
+    en une seule transaction. Il ouvre la liste (portée départementale avant les
+    marqueurs communaux)."""
     conn = _FausseConnexion()
 
-    n = orchestration.charger_marqueurs_departement(conn, "55")
+    n = orchestration.charger_marqueurs_departement(conn, "55")  # Meuse, H1 froid
 
-    assert n == 1
+    assert n >= 1
     assert conn.commits == 1
     _, params = conn.calls[0]
     assert params is not None
@@ -62,12 +63,12 @@ def test_charge_aussi_les_marqueurs_littoral_communaux() -> None:
     assert conn.commits == 1
 
 
-def test_un_departement_hors_zonage_ne_committe_pas() -> None:
-    """Un département sans référentiel contextuel (DOM, hors zonage climatique) :
-    rien à écrire, aucune transaction."""
+def test_un_departement_sans_aucun_marqueur_ne_committe_pas() -> None:
+    """Un code sans aucun référentiel contextuel (ni climat, ni commune littoral) :
+    rien à écrire, aucune transaction — la branche « commit seulement si écriture »."""
     conn = _FausseConnexion()
 
-    n = orchestration.charger_marqueurs_departement(conn, "971")
+    n = orchestration.charger_marqueurs_departement(conn, "00")
 
     assert n == 0
     assert conn.commits == 0

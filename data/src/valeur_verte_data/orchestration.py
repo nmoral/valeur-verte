@@ -51,6 +51,7 @@ from .invariants import (
     evaluer_signe_ordre_grandeur,
 )
 from .limitrophes import limitrophes
+from .littoral import marqueurs_littoral_departement
 from .marqueurs import Marqueur
 from .multi_communes import filtrer_multi_communes
 from .ruptures import filtrer_regime_dpe
@@ -592,6 +593,7 @@ def _marqueurs_contextuels(departement: str) -> list[Marqueur]:
     climat = marqueur_climat(departement)
     if climat is not None:
         marqueurs.append(climat)
+    marqueurs.extend(marqueurs_littoral_departement(departement))
     return marqueurs
 
 
