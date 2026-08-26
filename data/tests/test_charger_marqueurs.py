@@ -99,6 +99,18 @@ def test_charge_aussi_les_marqueurs_densite_communaux() -> None:
     assert conn.commits == 1
 
 
+def test_charge_aussi_les_marqueurs_tourisme_communaux() -> None:
+    """Une commune très touristique porte un marqueur tourisme=fort."""
+    conn = _FausseConnexion()
+
+    orchestration.charger_marqueurs_departement(conn, "73")  # Savoie
+
+    ecrits = [tuple(params) for _, params in conn.calls if params is not None]
+    tourisme = [e for e in ecrits if e[2] == "tourisme"]
+    assert any(e[0] == "73206" and e[3] == "fort" for e in tourisme)  # Tignes
+    assert conn.commits == 1
+
+
 def test_un_departement_sans_aucun_marqueur_ne_committe_pas() -> None:
     """Un code sans aucun référentiel contextuel (ni climat, ni commune littoral) :
     rien à écrire, aucune transaction — la branche « commit seulement si écriture »."""
