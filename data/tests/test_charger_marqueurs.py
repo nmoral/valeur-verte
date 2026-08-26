@@ -87,6 +87,18 @@ def test_charge_aussi_les_marqueurs_marche_communaux() -> None:
     assert conn.commits == 1
 
 
+def test_charge_aussi_les_marqueurs_densite_communaux() -> None:
+    """Chaque commune du département porte un marqueur de densité (grille INSEE)."""
+    conn = _FausseConnexion()
+
+    orchestration.charger_marqueurs_departement(conn, "31")  # Haute-Garonne
+
+    ecrits = [tuple(params) for _, params in conn.calls if params is not None]
+    densite = [e for e in ecrits if e[2] == "densite"]
+    assert any(e[0] == "31555" and e[3] == "urbain" for e in densite)  # Toulouse
+    assert conn.commits == 1
+
+
 def test_un_departement_sans_aucun_marqueur_ne_committe_pas() -> None:
     """Un code sans aucun référentiel contextuel (ni climat, ni commune littoral) :
     rien à écrire, aucune transaction — la branche « commit seulement si écriture »."""
