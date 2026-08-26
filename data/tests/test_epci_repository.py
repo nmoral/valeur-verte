@@ -136,3 +136,20 @@ def test_upsert_epci_noms_sans_epci_valide_n_ecrit_rien() -> None:
 
     assert upsert_epci_noms(conn, []) == 0
     assert conn.calls == []
+
+
+def test_upsert_epci_noms_saute_code_vide_et_nom_absent() -> None:
+    """Un code EPCI vide, ou un nom absent (None) malgré un code présent, ne
+    produisent pas d'EPCI fantôme — les deux gardes du filtre sont exercées."""
+    conn = _ConnexionEnregistreuse()
+
+    ecrits = upsert_epci_noms(
+        conn,
+        [
+            _commune("80021", "", "CC fantôme"),  # code EPCI vide
+            _commune("80002", "240800391", None),  # nom absent malgré le code
+        ],
+    )
+
+    assert ecrits == 0
+    assert conn.calls == []
