@@ -56,6 +56,44 @@ final class FicheCommuneTest extends TestCase
         self::assertSame([], $fiche->prixM2ParClasse());
     }
 
+    public function testExposeSesVariablesMesureesPourLeJsonLd(): void
+    {
+        // Données structurées Schema.org (#338) : chaque étiquette publiée porte,
+        // dans l'ordre A→G, un PropertyValue de décote/surcote (%) suivi de son
+        // prix au m² estimé (€/m²) quand un prix de marché est connu.
+        self::assertSame(
+            [
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette A', 'value' => 35, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette A', 'value' => 3375, 'unitText' => '€/m²'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette B', 'value' => 20, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette B', 'value' => 2993, 'unitText' => '€/m²'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette C', 'value' => 11, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette C', 'value' => 2763, 'unitText' => '€/m²'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette D', 'value' => 0, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette D', 'value' => 2500, 'unitText' => '€/m²'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette E', 'value' => -14, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette E', 'value' => 2152, 'unitText' => '€/m²'],
+            ],
+            $this->ficheStandard()->variablesMesurees(),
+        );
+    }
+
+    public function testSansPrixDeMarcheLesVariablesMesureesNePortentQueLaDecoteSurcote(): void
+    {
+        // Sans prix de marché, seule la décote/surcote reste mesurée : aucune
+        // entrée prix, pas d'erreur.
+        self::assertSame(
+            [
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette A', 'value' => 35, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette B', 'value' => 20, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette C', 'value' => 11, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette D', 'value' => 0, 'unitText' => '%'],
+                ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette E', 'value' => -14, 'unitText' => '%'],
+            ],
+            $this->ficheStandard(prixM2: null)->variablesMesurees(),
+        );
+    }
+
     public function testIndicateurEtPorteeDeriventDeLEffectifDuRayonEtDuMode(): void
     {
         $fiche = $this->ficheStandard();
