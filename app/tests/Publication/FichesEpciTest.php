@@ -46,6 +46,11 @@ final class FichesEpciTest extends KernelTestCase
         self::assertTrue($bordeaux->indexable, 'Maille locale non rapprochée → indexable.');
         self::assertSame('Bruges', $bruges->nom);
         self::assertFalse($bruges->indexable, 'Maille fortement rapprochée (pooling < 0.5) → repli.');
+
+        // Le(s) département(s) recouvert(s) : maillage montant + JSON-LD.
+        self::assertCount(1, $fiche->departements);
+        self::assertSame('Gironde', $fiche->departements[0]['nom']);
+        self::assertSame('gironde', $fiche->departements[0]['slug']);
     }
 
     public function testSansMillesimePublieAucuneFiche(): void

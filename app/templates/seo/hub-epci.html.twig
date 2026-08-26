@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% set epci = fiche.epci %}
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Valeur verte ' ~ epci.nom ~ ' : la plus-value d\'un meilleur DPE, commune par commune',
+  og_titre: 'Valeur verte ' ~ epci.nom,
+  description: 'La valeur verte dans l\'intercommunalité ' ~ epci.nom ~ ' : le gain de prix qu\'un meilleur DPE ajoute à une maison, mesuré sur les ventes réellement enregistrées par les notaires (DVF) croisées aux DPE de l\'ADEME, commune par commune.',
+  canonical: url('hub_epci', { epci: slug }),
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+<link rel="stylesheet" href="{{ asset('css/footer.css') }}">
+<style>
+  .hero .wrap{grid-template-columns:1fr}
+  .hero .lead{max-width:64ch}
+  .block h2{font:800 26px/1.1 'Archivo',sans-serif;letter-spacing:-.02em;margin-bottom:16px}
+  .block p{max-width:72ch;color:var(--slate);margin-bottom:14px}
+  .chiffres{display:flex;flex-wrap:wrap;gap:28px;margin:22px 0}
+  .chiffres b{display:block;font:800 30px/1 'Archivo',sans-serif;letter-spacing:-.02em}
+  .chiffres span{font-size:13px;color:var(--slate)}
+  .annuaire{columns:220px;gap:24px;margin:18px 0;padding:0;list-style:none}
+  .annuaire li{padding:4px 0;break-inside:avoid}
+  .source{max-width:72ch;margin:20px 0;padding:12px 16px;background:var(--card);border:1px solid var(--rule);border-radius:3px;font-size:14px;color:var(--slate)}
+</style>
+{% set donnees_structurees = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  'name': 'Valeur verte ' ~ epci.nom,
+  'url': url('hub_epci', { epci: slug }),
+  'inLanguage': 'fr-FR',
+  'about': {
+    '@type': 'Place',
+    'name': epci.nom,
+    'containedInPlace': fiche.departements|map(d => { '@type': 'Place', 'name': d.nom })
+  },
+  'isPartOf': { '@type': 'WebSite', 'name': 'Valeur Verte', 'url': url('home') }
+} %}
+<script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+
+<nav class="nav" aria-label="Navigation principale">
+  <div class="wrap">
+    <a href="{{ url('home') }}" class="brand" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+    <ul class="nav-menu">
+      <li class="nav-link"><a href="{{ url('carte_nationale') }}">La carte de France</a></li>
+      <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
+      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
+      <li class="nav-cta"><a href="{{ url('inscription') }}" class="btn btn-sm" data-lien="inscription">Créer un compte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main id="contenu">
+
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Valeur verte · {{ epci.nom }}</p>
+        <h1>La plus-value d'un meilleur DPE dans <span>{{ epci.nom }}</span>.</h1>
+        <p class="lead">Combien un saut de classe énergétique ajoute-t-il à la valeur d'une maison dans
+          l'intercommunalité {{ epci.nom }}&nbsp;? Le chiffre mesuré sur les ventes réellement
+          enregistrées par les notaires, croisées aux DPE — commune par commune, pas une moyenne nationale.</p>
+        <div class="cta-row">
+          <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Estimer un bien</a>
+          {% for dep in fiche.departements %}
+            <a href="{{ url('hub_departemental', { departement: dep.slug }) }}" class="btn btn-ghost">Voir {{ dep.nom }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="block" aria-labelledby="chiffres-titre">
+    <div class="wrap">
+      <h2 id="chiffres-titre">Ce que le marché paie dans {{ epci.nom }}</h2>
+      <div class="chiffres">
+        {% if epci.gainEc is not null %}
+          <div><b data-mesure="gain-ec">+{{ epci.gainEc }} %</b><span>de E jusqu'à C, en médiane</span></div>
+        {% endif %}
+        {% if epci.gainCb is not null %}
+          <div><b data-mesure="gain-cb">+{{ epci.gainCb }} %</b><span>le cran de plus, vers B</span></div>
+        {% endif %}
+        <div><b data-mesure="zones">{{ epci.zones|number_format(0, ',', ' ') }}</b><span>commune{{ epci.zones > 1 ? 's' }} mesurée{{ epci.zones > 1 ? 's' }}</span></div>
+      </div>
+      <p>
+        {% if epci.partNonLocale > 0 %}
+          Faute d'assez de ventes proches dans certaines communes, {{ epci.partNonLocale }} % des mesures
+          sont estimées à une échelle plus large (intercommunale ou départementale) — chaque page commune l'indique.
+        {% else %}
+          La mesure tient à l'échelle locale sur l'ensemble de l'intercommunalité.
+        {% endif %}
+      </p>
+      <p class="source" data-source>
+        Source&nbsp;: ventes DVF (DGFiP) et DPE (ADEME), sous licence ouverte Etalab · millésime {{ fiche.millesime }}
+        {%- if fiche.calculeLe %}, calculé le {{ fiche.calculeLe|date('d/m/Y') }}{% endif %}.
+      </p>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="annuaire-titre">
+    <div class="wrap">
+      <h2 id="annuaire-titre">Les communes de {{ epci.nom }}</h2>
+      <p>La plus-value verte, commune par commune :</p>
+      <ul class="annuaire">
+        {% for commune in fiche.annuaire %}
+          <li>
+            {%- if commune.indexable -%}
+              <a href="{{ url('commune_valeur_verte', { departement: commune.departementSlug, commune: commune.communeSlug }) }}">{{ commune.nom }}</a>
+            {%- else -%}
+              <span>{{ commune.nom }}</span>
+            {%- endif -%}
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="cta-row">
+        <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte gratuit</a>
+        <a href="{{ path('publication') }}" class="btn btn-ghost">Comment c'est mesuré</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+
+</body>
+</html>

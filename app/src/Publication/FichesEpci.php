@@ -60,11 +60,15 @@ final readonly class FichesEpci
 
         $mailles = [];
         $annuaire = [];
+        $codesDepartements = [];
         foreach ($lignes as $ligne) {
             $codeInsee = \is_string($ligne['code_insee']) ? trim($ligne['code_insee']) : '';
             $nom = \is_string($ligne['nom']) ? $ligne['nom'] : '';
             $mode = \is_string($ligne['mode']) ? $ligne['mode'] : '';
             $codeDepartement = \is_string($ligne['code_departement']) ? trim($ligne['code_departement']) : '';
+            // Liste (valeurs), pas clés : une clé de tableau « 33 » serait coercée en
+            // entier par PHP, et RepertoireDepartements::slug() attend une chaîne.
+            $codesDepartements[] = $codeDepartement;
 
             $mailles[] = new Maille($codeInsee, $mode, self::coefficients($ligne['coef_dpe']));
 
@@ -82,6 +86,7 @@ final readonly class FichesEpci
             calculeLe: $publication->calculeLe,
             epci: MetriqueEpci::pour($codeEpci, $epci->nom, $mailles),
             annuaire: $annuaire,
+            departements: $this->departements->annuaire(array_values(array_unique($codesDepartements))),
         );
     }
 

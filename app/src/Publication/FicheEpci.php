@@ -14,7 +14,8 @@ namespace App\Publication;
 final readonly class FicheEpci
 {
     /**
-     * @param list<LienCommune> $annuaire communes membres mesurées, ordonnées par nom
+     * @param list<LienCommune>                                    $annuaire     communes membres mesurées, ordonnées par nom
+     * @param list<array{code: string, nom: string, slug: string}> $departements département(s) que l'EPCI recouvre (maillage montant, JSON-LD) — un EPCI peut chevaucher deux départements
      */
     public function __construct(
         public int $millesime,
@@ -22,6 +23,7 @@ final readonly class FicheEpci
         public ?\DateTimeImmutable $calculeLe,
         public MetriqueEpci $epci,
         public array $annuaire,
+        public array $departements,
     ) {
     }
 }

@@ -6,8 +6,8 @@ namespace App\Tests\SeoPagesPubliques;
 
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Vague 2 SEO (#363, épic #336) — hub EPCI, nœud d'autorité intermédiaire de la
@@ -94,13 +94,14 @@ final class HubEpciTest extends WebTestCase
 
     public function testLAnnuaireNeLieQueLesCommunesIndexables(): void
     {
-        $liens = $this->cheminsDesLiens($this->hub());
+        $crawler = $this->hub();
+        $liens = $this->cheminsDesLiens($crawler);
 
         // Bordeaux (locale, indexable) est liée ; Bruges (repli #361) reste en texte.
         self::assertContains('/valeur-verte/gironde/bordeaux', $liens);
         self::assertNotContains('/valeur-verte/gironde/bruges', $liens);
         // Mais Bruges figure bien à l'annuaire (en texte).
-        self::assertStringContainsString('Bruges', $this->hub()->filter('body')->text());
+        self::assertStringContainsString('Bruges', $crawler->filter('body')->text());
     }
 
     public function testLeHubRemonteVersLeDepartement(): void
@@ -124,7 +125,9 @@ final class HubEpciTest extends WebTestCase
 
         $contenants = $lieu['containedInPlace'];
         self::assertIsArray($contenants);
-        self::assertSame('Gironde', $contenants[0]['name']);
+        $premier = $contenants[0];
+        self::assertIsArray($premier);
+        self::assertSame('Gironde', $premier['name']);
     }
 
     public function testLeHubEstMisEnCachePubliquement(): void
