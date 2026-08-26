@@ -56,7 +56,7 @@ def test_charge_aussi_les_marqueurs_littoral_communaux() -> None:
 
     ecrits = [tuple(params) for _, params in conn.calls if params is not None]
     # climat départemental (Finistère = H2 tempéré).
-    assert (None, "29", "climat", "tempere", "contextuel") == ecrits[0][:5]
+    assert ecrits[0][:5] == (None, "29", "climat", "tempere", "contextuel")
     # littoral communal : Brest (29019) figure parmi les communes écrites.
     littoral = [e for e in ecrits if e[2] == "littoral"]
     assert any(e[0] == "29019" and e[3] == "oui" for e in littoral)
