@@ -181,6 +181,15 @@ trait ProvisionneModelePublie
             )',
         );
 
+        // Appartenance commune → EPCI (#169) : RepertoireCommunes::resoudre fait un
+        // LEFT JOIN dessus. Vide, le JOIN laisse simplement code_epci à null.
+        $prive->executeStatement(
+            'CREATE TABLE IF NOT EXISTS data.commune_epci (
+                code_insee CHAR(5) PRIMARY KEY,
+                code_epci  VARCHAR(9)
+            )',
+        );
+
         // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
         // sinon la disposition du dépôt, qui vaut en CI comme en local.
         $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 3).'/data';
@@ -205,6 +214,7 @@ trait ProvisionneModelePublie
             'data.coefficient_maille_historique',
             'data.coefficient_maille',
             'data.commune',
+            'data.commune_epci',
         ] as $table) {
             $prive->executeStatement(\sprintf('DELETE FROM %s', $table));
         }
