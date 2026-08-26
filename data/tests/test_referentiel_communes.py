@@ -11,9 +11,26 @@ from __future__ import annotations
 
 from valeur_verte_data.referentiel_communes import (
     charger_codes_communes,
+    charger_mapping_communes,
     departement_de,
     extraire_codes,
+    extraire_mapping,
 )
+
+
+def test_extrait_un_mapping_code_valeur() -> None:
+    texte = "# entête sourçant la donnée\n31555 B1\n01001 C\n\n"
+
+    assert extraire_mapping(texte) == {"31555": "B1", "01001": "C"}
+
+
+def test_charge_un_mapping_packagé() -> None:
+    mapping = charger_mapping_communes("communes_zonage_abc.txt")
+
+    assert mapping["31555"] == "B1"  # Toulouse, marché tendu
+    assert mapping["75056"] == "Abis"  # Paris
+    assert mapping["05001"] == "C"  # Gap, marché détendu
+    assert all(not code.startswith("#") for code in mapping)
 
 
 def test_extrait_les_codes_en_sautant_commentaires_et_lignes_vides() -> None:
