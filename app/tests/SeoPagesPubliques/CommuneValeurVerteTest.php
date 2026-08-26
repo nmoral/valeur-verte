@@ -178,6 +178,7 @@ final class CommuneValeurVerteTest extends WebTestCase
         $dataset = $this->donneesWebPage($crawler)['mainEntity'];
         self::assertIsArray($dataset);
         self::assertSame('Dataset', $dataset['@type']);
+        self::assertIsString($dataset['license']);
         self::assertStringContainsStringIgnoringCase('etalab', $dataset['license']);
         self::assertSame('2025', $dataset['temporalCoverage']);
 
@@ -204,7 +205,7 @@ final class CommuneValeurVerteTest extends WebTestCase
     }
 
     /**
-     * @return array<string, mixed> le JSON-LD dont @type vaut WebPage
+     * @return array<mixed> le JSON-LD de type WebPage
      */
     private function donneesWebPage(\Symfony\Component\DomCrawler\Crawler $crawler): array
     {

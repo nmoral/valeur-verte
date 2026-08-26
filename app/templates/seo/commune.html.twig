@@ -38,7 +38,25 @@
     'name': commune_nom,
     'containedInPlace': { '@type': 'Place', 'name': departement_nom }
   },
-  'isPartOf': { '@type': 'WebSite', 'name': 'Valeur Verte', 'url': url('home') }
+  'isPartOf': { '@type': 'WebSite', 'name': 'Valeur Verte', 'url': url('home') },
+  'mainEntity': {
+    '@type': 'Dataset',
+    'name': 'Valeur verte ' ~ commune_nom ~ ' — millésime ' ~ fiche.millesime,
+    'description': 'Décote et surcote de prix par étiquette DPE à ' ~ commune_nom ~
+      ', mesurées sur les ventes de maisons (DVF) croisées aux DPE.',
+    'temporalCoverage': fiche.millesime ~ '',
+    'license': 'https://www.etalab.gouv.fr/licence-ouverte-open-licence',
+    'spatialCoverage': {
+      '@type': 'Place',
+      'name': commune_nom,
+      'containedInPlace': { '@type': 'Place', 'name': departement_nom }
+    },
+    'isBasedOn': [
+      { '@type': 'Dataset', 'name': 'Demandes de valeurs foncières (DVF), DGFiP' },
+      { '@type': 'Dataset', 'name': 'Diagnostics de performance énergétique (DPE), ADEME' }
+    ],
+    'variableMeasured': fiche.variablesMesurees
+  }
 } %}
 <script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
 </head>
