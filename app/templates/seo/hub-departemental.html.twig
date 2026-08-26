@@ -54,6 +54,11 @@
 
 <main id="contenu">
 
+  {{ include('seo/_fil_ariane.html.twig', { niveaux: [
+    { nom: 'Accueil', url: url('home') },
+    { nom: dep.nom, url: url('hub_departemental', { departement: slug }) },
+  ] }) }}
+
   <header class="hero">
     <div class="wrap">
       <div>
