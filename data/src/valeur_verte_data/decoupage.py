@@ -31,6 +31,10 @@ class Commune:
     centre_longitude: float | None
     centre_latitude: float | None
     code_departement: str | None
+    # #366 : nom de l'EPCI de rattachement, porté par l'objet imbriqué ``epci`` de
+    # geo.api. Auxiliaire (défaut ``None``) : sa présence dépend du champ demandé et
+    # de l'existence d'un EPCI ; il alimente le référentiel des noms d'EPCI.
+    nom_epci: str | None = None
 
 
 def _clean(value: object) -> str | None:
@@ -46,6 +50,13 @@ def _centre(payload: Mapping[str, object]) -> tuple[float | None, float | None]:
     if not isinstance(coordinates, (list, tuple)) or len(coordinates) < 2:
         return None, None
     return float(coordinates[0]), float(coordinates[1])
+
+
+def _nom_epci(payload: Mapping[str, object]) -> str | None:
+    epci = payload.get("epci")
+    if not isinstance(epci, Mapping):
+        return None
+    return _clean(epci.get("nom"))
 
 
 def _codes_postaux(payload: Mapping[str, object]) -> tuple[str, ...]:
@@ -69,6 +80,7 @@ def parse_commune(payload: Mapping[str, object]) -> Commune | None:
         centre_longitude=longitude,
         centre_latitude=latitude,
         code_departement=_clean(payload.get("codeDepartement")),
+        nom_epci=_nom_epci(payload),
     )
 
 

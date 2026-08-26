@@ -29,7 +29,7 @@ from .db.coefficient_repository import (
     lire_coefficient_precedent,
 )
 from .db.commune_repository import upsert_communes
-from .db.epci_repository import communes_de_meme_epci, upsert_epci
+from .db.epci_repository import communes_de_meme_epci, upsert_epci, upsert_epci_noms
 from .db.limitrophe_repository import derive_limitrophes, read_adjacence, upsert_contour
 from .db.pool_repository import load_pool
 from .db.runner import Connection
@@ -548,12 +548,16 @@ def charger_epci_departement(
     ignorées ; une seule transaction est committée s'il y a eu un enregistrement.
     Chargeable après coup sur un département déjà ingéré, sans re-télécharger DVF.
     """
+    communes = fetch_communes_by_departement(fetcher, departement)
     enregistres = 0
-    for commune in fetch_communes_by_departement(fetcher, departement):
+    for commune in communes:
         if commune.code_epci is None:
             continue
         upsert_epci(conn, commune.code_insee, commune.code_epci)
         enregistres += 1
+    # Même appel geo.api, même transaction : on persiste aussi le nom des EPCI (#366),
+    # source du slug d'URL du hub EPCI côté app.
+    upsert_epci_noms(conn, communes)
     if enregistres:
         conn.commit()
     return enregistres

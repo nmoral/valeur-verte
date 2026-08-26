@@ -82,6 +82,26 @@ def test_parse_commune_sans_epci_donne_none() -> None:
     assert commune.code_epci is None
 
 
+def test_parse_commune_extrait_le_nom_d_epci() -> None:
+    """geo.api renvoie l'objet imbriqué ``epci`` quand on demande ce champ : son
+    ``nom`` alimente le référentiel EPCI (#366), source du slug d'URL du hub EPCI."""
+    payload = _commune(epci={"code": "200069250", "nom": "Amiens Métropole"})
+
+    commune = parse_commune(payload)
+
+    assert commune is not None
+    assert commune.nom_epci == "Amiens Métropole"
+
+
+def test_parse_commune_sans_objet_epci_donne_nom_epci_none() -> None:
+    """Le nom d'EPCI est auxiliaire : son absence (champ non demandé, ou EPCI
+    manquant) ne casse pas le parsing — ``None``, pas d'erreur."""
+    commune = parse_commune(_commune())
+
+    assert commune is not None
+    assert commune.nom_epci is None
+
+
 def test_parse_commune_sans_nom_donne_chaine_vide() -> None:
     payload = _commune()
     del payload["nom"]
