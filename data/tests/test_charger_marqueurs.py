@@ -63,6 +63,18 @@ def test_charge_aussi_les_marqueurs_littoral_communaux() -> None:
     assert conn.commits == 1
 
 
+def test_charge_aussi_les_marqueurs_montagne_communaux() -> None:
+    """Un département montagneux écrit un marqueur montagne=oui par commune classée."""
+    conn = _FausseConnexion()
+
+    orchestration.charger_marqueurs_departement(conn, "05")  # Hautes-Alpes
+
+    ecrits = [tuple(params) for _, params in conn.calls if params is not None]
+    montagne = [e for e in ecrits if e[2] == "montagne"]
+    assert any(e[0] == "05001" and e[3] == "oui" for e in montagne)
+    assert conn.commits == 1
+
+
 def test_un_departement_sans_aucun_marqueur_ne_committe_pas() -> None:
     """Un code sans aucun référentiel contextuel (ni climat, ni commune littoral) :
     rien à écrire, aucune transaction — la branche « commit seulement si écriture »."""
