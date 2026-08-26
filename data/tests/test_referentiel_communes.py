@@ -24,6 +24,12 @@ def test_extrait_un_mapping_code_valeur() -> None:
     assert extraire_mapping(texte) == {"31555": "B1", "01001": "C"}
 
 
+def test_le_mapping_preserve_une_valeur_a_plusieurs_mots() -> None:
+    """Seule la première espace sépare le code de la valeur : une valeur peut
+    contenir des espaces (le reste de la ligne)."""
+    assert extraire_mapping("31555 marché tendu\n") == {"31555": "marché tendu"}
+
+
 def test_charge_un_mapping_packagé() -> None:
     mapping = charger_mapping_communes("communes_zonage_abc.txt")
 
