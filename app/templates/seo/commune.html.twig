@@ -60,6 +60,14 @@
 
 <main id="contenu">
 
+  {% set niveaux = [
+    { nom: 'Accueil', url: url('home') },
+    { nom: departement_nom, url: url('hub_departemental', { departement: departement_slug }) },
+  ] %}
+  {% if epci_slug %}{% set niveaux = niveaux|merge([{ nom: epci_nom, url: url('hub_epci', { epci: epci_slug }) }]) %}{% endif %}
+  {% set niveaux = niveaux|merge([{ nom: commune_nom, url: url('commune_valeur_verte', { departement: departement_slug, commune: commune_slug }) }]) %}
+  {{ include('seo/_fil_ariane.html.twig', { niveaux: niveaux }) }}
+
   <header class="hero">
     <div class="wrap">
       <div>
@@ -70,6 +78,9 @@
           notaires, croisées aux DPE — pas une moyenne nationale.</p>
         <div class="cta-row">
           <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Estimer un bien</a>
+          {% if epci_slug %}
+            <a href="{{ url('hub_epci', { epci: epci_slug }) }}" class="btn btn-ghost">Voir {{ epci_nom }}</a>
+          {% endif %}
           <a href="{{ url('hub_departemental', { departement: departement_slug }) }}" class="btn btn-ghost">Voir tout le département</a>
         </div>
       </div>

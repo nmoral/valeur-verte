@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Publication\FichesCommunales;
 use App\Publication\RepertoireCommunes;
 use App\Publication\RepertoireDepartements;
+use App\Publication\RepertoireEpci;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\EventListener\AbstractSessionListener;
@@ -38,6 +39,7 @@ final class CommuneController extends AbstractController
         RepertoireCommunes $communes,
         FichesCommunales $fiches,
         RepertoireDepartements $departements,
+        RepertoireEpci $epcis,
     ): Response {
         $laCommune = $communes->resoudre($departement, $commune);
         if (null === $laCommune) {
@@ -49,6 +51,11 @@ final class CommuneController extends AbstractController
             throw $this->createNotFoundException(\sprintf('Commune non mesurée : %s.', $commune));
         }
 
+        // Maillage montant (#364) : l'EPCI de la commune, si elle est rattachée
+        // (codeEpci nullable) et que l'EPCI porte un nom au référentiel (#366).
+        // Double nullité tolérée : pas de lien plutôt qu'un lien mort.
+        $epci = null === $laCommune->codeEpci ? null : $epcis->pour($laCommune->codeEpci);
+
         $reponse = $this->render('seo/commune.html.twig', [
             'fiche' => $fiche,
             'commune_nom' => $laCommune->nom,
@@ -57,6 +64,8 @@ final class CommuneController extends AbstractController
             // casse/graphie de l'URL demandée (comme le hub #337).
             'departement_slug' => $departements->slug($laCommune->codeDepartement),
             'commune_slug' => $laCommune->slug(),
+            'epci_nom' => $epci?->nom,
+            'epci_slug' => $epci?->slug(),
         ]);
 
         // Page stable tant que le millésime ne change pas : cachable par le proxy partagé.

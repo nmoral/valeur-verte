@@ -1,0 +1,26 @@
+{# Fil d'Ariane réutilisable (#364) : maillage montant visible + JSON-LD
+   BreadcrumbList. Paramètre `niveaux` : liste ordonnée de { nom, url }, du plus
+   général (Accueil) au plus précis (page courante, rendue sans lien). #}
+<nav class="fil-ariane" aria-label="Fil d'Ariane">
+  <ol>
+    {%- for niveau in niveaux -%}
+      <li>
+        {%- if loop.last -%}
+          <span aria-current="page">{{ niveau.nom }}</span>
+        {%- else -%}
+          <a href="{{ niveau.url }}">{{ niveau.nom }}</a>
+        {%- endif -%}
+      </li>
+    {%- endfor -%}
+  </ol>
+</nav>
+<script type="application/ld+json">{{ {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  'itemListElement': niveaux|map((niveau, i) => {
+    '@type': 'ListItem',
+    'position': i + 1,
+    'name': niveau.nom,
+    'item': niveau.url,
+  }),
+}|json_encode|raw }}</script>

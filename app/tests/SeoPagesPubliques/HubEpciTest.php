@@ -141,6 +141,36 @@ final class HubEpciTest extends WebTestCase
         self::assertStringContainsString('s-maxage=3600', $cache);
     }
 
+    public function testLeHubPorteUnFilDAriane(): void
+    {
+        // Fil d'Ariane #364 : Accueil › Département › EPCI.
+        self::assertSame(['Accueil', 'Gironde', 'Bordeaux Métropole'], $this->filAriane($this->hub()));
+    }
+
+    /**
+     * @return list<mixed> les noms du fil d'Ariane (JSON-LD BreadcrumbList), dans l'ordre
+     */
+    private function filAriane(Crawler $crawler): array
+    {
+        foreach ($crawler->filter('script[type="application/ld+json"]') as $node) {
+            $donnees = json_decode((string) $node->textContent, true);
+            if (!\is_array($donnees) || 'BreadcrumbList' !== ($donnees['@type'] ?? null)) {
+                continue;
+            }
+            $items = $donnees['itemListElement'];
+            self::assertIsArray($items);
+            $noms = [];
+            foreach ($items as $item) {
+                self::assertIsArray($item);
+                $noms[] = $item['name'];
+            }
+
+            return $noms;
+        }
+
+        self::fail('Aucun JSON-LD BreadcrumbList trouvé sur la page.');
+    }
+
     /**
      * @return list<string> les chemins (path) de tous les liens de la page
      */

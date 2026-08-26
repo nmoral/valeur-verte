@@ -58,6 +58,11 @@
 
 <main id="contenu">
 
+  {% set niveaux = [{ nom: 'Accueil', url: url('home') }] %}
+  {% if fiche.departements is not empty %}{% set niveaux = niveaux|merge([{ nom: fiche.departements[0].nom, url: url('hub_departemental', { departement: fiche.departements[0].slug }) }]) %}{% endif %}
+  {% set niveaux = niveaux|merge([{ nom: epci.nom, url: url('hub_epci', { epci: slug }) }]) %}
+  {{ include('seo/_fil_ariane.html.twig', { niveaux: niveaux }) }}
+
   <header class="hero">
     <div class="wrap">
       <div>
