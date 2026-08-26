@@ -143,14 +143,28 @@ final class HubDepartementalTest extends WebTestCase
         return $client;
     }
 
+    public function testLeHubRedescendVersSesEpci(): void
+    {
+        // Maillage descendant (#364) : le hub liste ses EPCI mesurés, liés (les
+        // hubs EPCI sont toujours indexables — pas de gating ici).
+        $liens = $this->hub('haute-garonne')->filter('a')->each(
+            static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
+        );
+
+        self::assertContains('/valeur-verte/epci/toulouse-metropole', $liens);
+    }
+
     /**
      * La Haute-Garonne (31) mesurée localement, avec un B publiable (cran C→B).
+     * Toulouse (31001) est rattachée à Toulouse Métropole (maillage descendant #364).
      */
     private function publier(): void
     {
         $this->semerMaille('31001', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
         $this->semerMaille('31002', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
         $this->semerCommune('31001', 'Toulouse', '31');
+        $this->semerEpci('243100518', 'Toulouse Métropole');
+        $this->rattacherCommuneEpci('31001', '243100518');
         $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
     }
 }
