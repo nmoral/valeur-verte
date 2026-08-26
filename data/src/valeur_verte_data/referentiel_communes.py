@@ -21,10 +21,32 @@ def extraire_codes(texte: str) -> frozenset[str]:
     )
 
 
+def extraire_mapping(texte: str) -> dict[str, str]:
+    """Le mapping ``code INSEE → valeur`` d'un contenu de ressource : chaque ligne
+    utile porte ``CODE VALEUR`` (séparés par une espace) ; lignes vides et
+    commentaires (``#``) ignorés."""
+    mapping: dict[str, str] = {}
+    for ligne in texte.splitlines():
+        ligne = ligne.strip()
+        if ligne == "" or ligne.startswith("#"):
+            continue
+        code, valeur = ligne.split(maxsplit=1)
+        mapping[code] = valeur
+    return mapping
+
+
+def _lire_ressource(nom_fichier: str) -> str:
+    return (files("valeur_verte_data.referentiels") / nom_fichier).read_text(encoding="utf-8")
+
+
 def charger_codes_communes(nom_fichier: str) -> frozenset[str]:
     """Les codes INSEE d'une ressource packagée, hors lignes de commentaire/vides."""
-    texte = (files("valeur_verte_data.referentiels") / nom_fichier).read_text(encoding="utf-8")
-    return extraire_codes(texte)
+    return extraire_codes(_lire_ressource(nom_fichier))
+
+
+def charger_mapping_communes(nom_fichier: str) -> dict[str, str]:
+    """Le mapping ``code INSEE → valeur`` d'une ressource packagée."""
+    return extraire_mapping(_lire_ressource(nom_fichier))
 
 
 def departement_de(code_insee: str) -> str:
