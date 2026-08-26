@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\SeoPagesPubliques;
 
+use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -119,10 +120,16 @@ final class CommuneValeurVerteTest extends WebTestCase
 
     public function testLaPageAfficheLePrixAuM2QuandIlEstDisponible(): void
     {
-        $texte = $this->commune('haute-garonne', 'toulouse')->filter('[data-prix-m2]')->text();
+        $client = $this->naviguer();
+        $this->publier();
+        // En test, le prix vient du double en mémoire (PrixMailleDbal → data.vente
+        // est remplacé par alias, cf. services.yaml when@test).
+        $this->prix($client)->definir('31001', 2500.0);
 
-        // publier() sème des ventes de médiane 2 500 €/m².
-        self::assertStringContainsString('2 500', $texte);
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne/toulouse');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('2 500', $crawler->filter('[data-prix-m2]')->text());
     }
 
     public function testLaPageAnnonceSourceMillesimeEtFiabilite(): void
@@ -144,12 +151,17 @@ final class CommuneValeurVerteTest extends WebTestCase
         $brut = $crawler->filter('script[type="application/ld+json"]')->text();
         $donnees = json_decode($brut, true, 512, \JSON_THROW_ON_ERROR);
         self::assertIsArray($donnees);
-
         self::assertSame('WebPage', $donnees['@type']);
-        self::assertSame('Place', $donnees['about']['@type']);
-        self::assertSame('Toulouse', $donnees['about']['name']);
-        self::assertSame('Place', $donnees['about']['containedInPlace']['@type']);
-        self::assertSame('Haute-Garonne', $donnees['about']['containedInPlace']['name']);
+
+        $lieu = $donnees['about'];
+        self::assertIsArray($lieu);
+        self::assertSame('Place', $lieu['@type']);
+        self::assertSame('Toulouse', $lieu['name']);
+
+        $contenant = $lieu['containedInPlace'];
+        self::assertIsArray($contenant);
+        self::assertSame('Place', $contenant['@type']);
+        self::assertSame('Haute-Garonne', $contenant['name']);
     }
 
     public function testLaPageEstMiseEnCachePubliquement(): void
@@ -177,21 +189,29 @@ final class CommuneValeurVerteTest extends WebTestCase
     {
         $client = self::createClient();
         $client->setServerParameter('HTTP_HOST', self::HOTE);
+        // Le double de prix vit dans le conteneur : sans figer le kernel, la requête
+        // le reconstruirait et perdrait le prix défini avant elle.
+        $client->disableReboot();
 
         return $client;
     }
 
+    private function prix(KernelBrowser $client): FournisseurPrixMailleEnMemoire
+    {
+        $double = $client->getContainer()->get(FournisseurPrixMailleEnMemoire::class);
+        self::assertInstanceOf(FournisseurPrixMailleEnMemoire::class, $double);
+
+        return $double;
+    }
+
     /**
-     * Toulouse (31001) mesurée localement, avec un B publiable (cran C→B) et un prix
-     * de marché de médiane 2 500 €/m². Maille pleinement locale → indexable (#361).
+     * Toulouse (31001) mesurée localement, avec un B publiable (cran C→B). Maille
+     * pleinement locale (poids_pooling absent) → indexable (#361).
      */
     private function publier(): void
     {
         $this->semerCommune('31001', 'Toulouse', '31');
         $this->semerMaille('31001', coefDpe: '{"D":0.0,"C":0.11,"B":0.19,"E":-0.19}', calculeLe: '2026-02-08 04:12:00');
-        foreach ([2000.0, 2500.0, 3000.0] as $prix) {
-            $this->semerVente('31001', $prix);
-        }
         $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
     }
 }
