@@ -45,6 +45,23 @@ def test_charge_le_marqueur_climat_du_departement() -> None:
     assert list(params)[:5] == [None, "55", "climat", "froid", "contextuel"]
 
 
+def test_charge_aussi_les_marqueurs_littoral_communaux() -> None:
+    """Un département côtier écrit, en plus du climat départemental, un marqueur
+    littoral=oui par commune de la loi Littoral — de quoi varier d'une commune à
+    l'autre (anti-duplicate #341)."""
+    conn = _FausseConnexion()
+
+    orchestration.charger_marqueurs_departement(conn, "29")  # Finistère
+
+    ecrits = [tuple(params) for _, params in conn.calls if params is not None]
+    # climat départemental (Finistère = H2 tempéré).
+    assert (None, "29", "climat", "tempere", "contextuel") == ecrits[0][:5]
+    # littoral communal : Brest (29019) figure parmi les communes écrites.
+    littoral = [e for e in ecrits if e[2] == "littoral"]
+    assert any(e[0] == "29019" and e[3] == "oui" for e in littoral)
+    assert conn.commits == 1
+
+
 def test_un_departement_hors_zonage_ne_committe_pas() -> None:
     """Un département sans référentiel contextuel (DOM, hors zonage climatique) :
     rien à écrire, aucune transaction."""
