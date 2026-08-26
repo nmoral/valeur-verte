@@ -89,4 +89,38 @@ final class AdresseEmailTest extends TestCase
         self::assertTrue(AdresseEmail::estValide('  Pro@Exemple.fr '));
         self::assertFalse(AdresseEmail::estValide('pro.exemple.fr'));
     }
+
+    #[DataProvider('domainesJetables')]
+    public function testUnDomaineJetableEstReconnu(string $saisie): void
+    {
+        self::assertTrue(AdresseEmail::depuis($saisie)->estJetable(), $saisie.' est un domaine jetable');
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function domainesJetables(): iterable
+    {
+        yield 'yopmail' => ['pro@yopmail.com'];
+        yield 'mailinator' => ['pro@mailinator.com'];
+        yield '10minutemail' => ['pro@10minutemail.com'];
+        // La casse et les espaces sont déjà normalisés à la construction.
+        yield 'casse et espaces' => ['  Pro@YopMail.com  '];
+    }
+
+    #[DataProvider('domainesClassiques')]
+    public function testUnDomaineClassiqueNEstPasJetable(string $saisie): void
+    {
+        self::assertFalse(AdresseEmail::depuis($saisie)->estJetable(), $saisie.' est un domaine légitime');
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function domainesClassiques(): iterable
+    {
+        yield 'gmail' => ['pro@gmail.com'];
+        yield 'domaine grand public' => ['pro@example.com'];
+        yield 'domaine entreprise' => ['jean.dupont@societe.fr'];
+    }
 }

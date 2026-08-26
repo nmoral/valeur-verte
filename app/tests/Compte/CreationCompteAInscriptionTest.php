@@ -80,6 +80,23 @@ final class CreationCompteAInscriptionTest extends WebTestCase
         self::assertNotNull($compte->essaiNeutraliseLe(), 'une adresse déjà effacée ne rouvre pas d\'essai');
     }
 
+    public function testUneAdresseJetableNaitSansEssai(): void
+    {
+        self::bootKernel();
+        $createur = self::getContainer()->get(CreateurDeCompte::class);
+        self::assertInstanceOf(CreateurDeCompte::class, $createur);
+
+        // Aucune trace d'effacement : c'est le domaine jetable, pas la réinscription,
+        // qui neutralise l'essai (#343, filet complémentaire du mur du 2ᵉ rapport).
+        $user = $createur->creer('bob@yopmail.com', 'motdepasse-solide', '2026-08-16');
+        $tenantId = $user->getTenantId();
+        self::assertNotNull($tenantId);
+
+        $compte = $this->comptes()->pourTenant($tenantId);
+        self::assertInstanceOf(Compte::class, $compte);
+        self::assertNotNull($compte->essaiNeutraliseLe(), 'une adresse jetable naît sans essai');
+    }
+
     private function comptes(): CompteRepository
     {
         $comptes = self::getContainer()->get(CompteRepository::class);

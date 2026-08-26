@@ -49,6 +49,39 @@ final class AdresseEmail implements \Stringable
      */
     private const array DOMAINES_SANS_POINTS = ['gmail.com'];
 
+    /**
+     * Domaines de messagerie **jetable** (boîtes éphémères, sans inscription).
+     * Une adresse sur l'un d'eux naît **sans essai** (#343) — même traitement que
+     * le compte recréé après effacement (#332) : on ne refuse pas l'inscription,
+     * on retire seulement la gratuité. Le filet reste complémentaire du mur de
+     * vérification du 2ᵉ rapport (rendement décroissant, jeu du chat et de la
+     * souris), d'où une liste **en dur** — non configurable pour la même raison
+     * que {@see DOMAINES_ALIAS} : une règle rangée en base est une règle qu'on ne
+     * relit plus jamais. On y ajoute une entrée quand un domaine se banalise.
+     *
+     * @var list<string>
+     */
+    private const array DOMAINES_JETABLES = [
+        'yopmail.com',
+        'yopmail.fr',
+        'yopmail.net',
+        'mailinator.com',
+        '10minutemail.com',
+        'guerrillamail.com',
+        'guerrillamail.info',
+        'sharklasers.com',
+        'temp-mail.org',
+        'tempmail.com',
+        'throwawaymail.com',
+        'trashmail.com',
+        'getnada.com',
+        'maildrop.cc',
+        'dispostable.com',
+        'fakeinbox.com',
+        'mailnesia.com',
+        'jetable.org',
+    ];
+
     private function __construct(
         private readonly string $locale,
         private readonly string $domaine,
@@ -94,6 +127,17 @@ final class AdresseEmail implements \Stringable
         }
 
         return $locale.'@'.$domaine;
+    }
+
+    /**
+     * Le domaine relève-t-il d'une messagerie jetable ? Décidé sur le domaine
+     * **de connexion** (déjà en minuscules et sans espaces), non sur la forme
+     * canonique : yopmail/mailinator ne sont pas des alias connus, et la liste
+     * vise le domaine tel qu'il est saisi.
+     */
+    public function estJetable(): bool
+    {
+        return \in_array($this->domaine, self::DOMAINES_JETABLES, true);
     }
 
     public function __toString(): string

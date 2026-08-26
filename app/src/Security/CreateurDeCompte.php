@@ -54,12 +54,15 @@ final class CreateurDeCompte
         // distinct de l'utilisateur. Classique + candidature fondateur en attente.
         $compte = Compte::creer($tenantId, $tenant->creeLe());
 
-        // Réinscription d'une adresse déjà effacée (#332) : le compte est bien créé,
-        // mais **sans nouvel essai** — sinon supprimer puis recréer serait le
-        // contournement le plus propre. On vise l'abus, pas la personne : l'inscription
-        // n'est pas refusée, et le regret d'une suppression reste un cas légitime.
-        $empreinte = $this->empreintes->pour(AdresseEmail::depuis($email)->canonique());
-        if (null !== $this->traces->parEmpreinte($empreinte)) {
+        // Compte créé **sans nouvel essai** dans deux cas où on vise l'abus, pas la
+        // personne (l'inscription n'est jamais refusée) :
+        //  - réinscription d'une adresse déjà effacée (#332), sinon supprimer puis
+        //    recréer serait le contournement le plus propre ;
+        //  - domaine de messagerie jetable (#343), filet complémentaire du mur de
+        //    vérification du 2ᵉ rapport.
+        $adresse = AdresseEmail::depuis($email);
+        $empreinte = $this->empreintes->pour($adresse->canonique());
+        if (null !== $this->traces->parEmpreinte($empreinte) || $adresse->estJetable()) {
             $compte->neutraliserEssai($this->horloge->now());
         }
 
