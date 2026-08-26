@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Publication\AnnuaireEpciDuDepartement;
 use App\Publication\FichesDepartementales;
 use App\Publication\RepertoireDepartements;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,6 +35,7 @@ final class HubDepartementalController extends AbstractController
         string $departement,
         FichesDepartementales $fiches,
         RepertoireDepartements $repertoire,
+        AnnuaireEpciDuDepartement $annuaireEpci,
     ): Response {
         $code = $repertoire->code($departement);
         if (null === $code) {
@@ -48,6 +50,8 @@ final class HubDepartementalController extends AbstractController
         $reponse = $this->render('seo/hub-departemental.html.twig', [
             'fiche' => $fiche,
             'slug' => $repertoire->slug($code),
+            // Maillage descendant (#364) : les EPCI mesurés du département.
+            'annuaire_epci' => $annuaireEpci->pour($code),
         ]);
 
         // Page stable tant que le millésime ne change pas : cachable par le proxy

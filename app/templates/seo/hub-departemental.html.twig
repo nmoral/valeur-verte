@@ -22,6 +22,8 @@
   .chiffres b{display:block;font:800 30px/1 'Archivo',sans-serif;letter-spacing:-.02em}
   .chiffres span{font-size:13px;color:var(--slate)}
   .source{max-width:72ch;margin:20px 0;padding:12px 16px;background:var(--card);border:1px solid var(--rule);border-radius:3px;font-size:14px;color:var(--slate)}
+  .annuaire{columns:220px;gap:24px;margin:18px 0;padding:0;list-style:none}
+  .annuaire li{padding:4px 0;break-inside:avoid}
 </style>
 {% set donnees_structurees = {
   '@context': 'https://schema.org',
@@ -100,6 +102,20 @@
       </div>
     </div>
   </section>
+
+  {% if annuaire_epci is not empty %}
+    <section class="block" aria-labelledby="epci-titre">
+      <div class="wrap">
+        <h2 id="epci-titre">Les intercommunalités de {{ dep.nom }}</h2>
+        <p>La valeur verte, intercommunalité par intercommunalité :</p>
+        <ul class="annuaire">
+          {% for epci in annuaire_epci %}
+            <li><a href="{{ url('hub_epci', { epci: epci.slug }) }}">{{ epci.nom }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
 
 </main>
 
