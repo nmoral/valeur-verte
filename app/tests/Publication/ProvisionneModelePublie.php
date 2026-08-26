@@ -113,6 +113,29 @@ trait ProvisionneModelePublie
         );
     }
 
+    /**
+     * Rattache une commune à son EPCI (SIREN) — alimente le LEFT JOIN de
+     * {@see \App\Publication\RepertoireCommunes} et l'énumération par EPCI (#363).
+     */
+    protected function rattacherCommuneEpci(string $codeInsee, string $codeEpci): void
+    {
+        $this->prive()->executeStatement(
+            'INSERT INTO data.commune_epci (code_insee, code_epci) VALUES (:code, :epci)',
+            ['code' => $codeInsee, 'epci' => $codeEpci],
+        );
+    }
+
+    /**
+     * Sème le nom d'un EPCI (#366) — source du slug d'URL du hub EPCI (#363).
+     */
+    protected function semerEpci(string $codeEpci, string $nom): void
+    {
+        $this->prive()->executeStatement(
+            'INSERT INTO data.epci (code_epci, nom) VALUES (:epci, :nom)',
+            ['epci' => $codeEpci, 'nom' => $nom],
+        );
+    }
+
     private function provisionner(): void
     {
         $prive = $this->connexionPrivilegiee;
@@ -190,6 +213,16 @@ trait ProvisionneModelePublie
             )',
         );
 
+        // Référentiel des noms d'EPCI (#366, migration 020) : source du slug d'URL
+        // du hub EPCI (#363), lu par RepertoireEpci.
+        $prive->executeStatement(
+            'CREATE TABLE IF NOT EXISTS data.epci (
+                code_epci VARCHAR(9) PRIMARY KEY,
+                nom       TEXT NOT NULL,
+                maj_le    TIMESTAMP NOT NULL DEFAULT now()
+            )',
+        );
+
         // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
         // sinon la disposition du dépôt, qui vaut en CI comme en local.
         $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 3).'/data';
@@ -215,6 +248,7 @@ trait ProvisionneModelePublie
             'data.coefficient_maille',
             'data.commune',
             'data.commune_epci',
+            'data.epci',
         ] as $table) {
             $prive->executeStatement(\sprintf('DELETE FROM %s', $table));
         }
