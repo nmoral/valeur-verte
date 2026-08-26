@@ -59,6 +59,7 @@ from .montagne import marqueurs_montagne_departement
 from .multi_communes import filtrer_multi_communes
 from .ruptures import filtrer_regime_dpe
 from .schema_source import SchemaSourceError
+from .tourisme import marqueurs_tourisme_departement
 
 logger = logging.getLogger("valeur_verte_data")
 
@@ -600,6 +601,7 @@ def _marqueurs_contextuels(departement: str) -> list[Marqueur]:
     marqueurs.extend(marqueurs_montagne_departement(departement))
     marqueurs.extend(marqueurs_marche_departement(departement))
     marqueurs.extend(marqueurs_densite_departement(departement))
+    marqueurs.extend(marqueurs_tourisme_departement(departement))
     return marqueurs
 
 
