@@ -14,7 +14,10 @@ from .http import Fetcher
 from .schema_source import COLONNES_COMMUNE, verifier_schema_json
 
 GEO_API_URL = "https://geo.api.gouv.fr"
-_FIELDS = "nom,code,codeDepartement,codeEpci,codesPostaux,centre"
+# ``epci`` (#366) demande l'objet imbriqué {code, nom} : le nom de l'EPCI voyage
+# ainsi avec l'appel commune déjà fait, sans endpoint /epcis séparé. Auxiliaire —
+# il n'entre pas dans la porte de schéma DAT-1 (COLONNES_COMMUNE).
+_FIELDS = "nom,code,codeDepartement,codeEpci,epci,codesPostaux,centre"
 _QUERY = {"fields": _FIELDS, "geometry": "centre", "format": "json"}
 
 # Contours : polygones communaux pour la contiguïté INV-3 (#121). Requête à part,
