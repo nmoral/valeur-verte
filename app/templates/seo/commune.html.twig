@@ -27,17 +27,18 @@
   .source{max-width:72ch;margin:20px 0;padding:12px 16px;background:var(--card);border:1px solid var(--rule);border-radius:3px;font-size:14px;color:var(--slate)}
 </style>
 {% set prix_par_classe = fiche.prixM2ParClasse %}
+{% set lieu = {
+  '@type': 'Place',
+  'name': commune_nom,
+  'containedInPlace': { '@type': 'Place', 'name': departement_nom }
+} %}
 {% set donnees_structurees = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   'name': 'Valeur verte ' ~ commune_nom,
   'url': url('commune_valeur_verte', { departement: departement_slug, commune: commune_slug }),
   'inLanguage': 'fr-FR',
-  'about': {
-    '@type': 'Place',
-    'name': commune_nom,
-    'containedInPlace': { '@type': 'Place', 'name': departement_nom }
-  },
+  'about': lieu,
   'isPartOf': { '@type': 'WebSite', 'name': 'Valeur Verte', 'url': url('home') },
   'mainEntity': {
     '@type': 'Dataset',
@@ -46,11 +47,7 @@
       ', mesurées sur les ventes de maisons (DVF) croisées aux DPE.',
     'temporalCoverage': fiche.millesime ~ '',
     'license': 'https://www.etalab.gouv.fr/licence-ouverte-open-licence',
-    'spatialCoverage': {
-      '@type': 'Place',
-      'name': commune_nom,
-      'containedInPlace': { '@type': 'Place', 'name': departement_nom }
-    },
+    'spatialCoverage': lieu,
     'isBasedOn': [
       { '@type': 'Dataset', 'name': 'Demandes de valeurs foncières (DVF), DGFiP' },
       { '@type': 'Dataset', 'name': 'Diagnostics de performance énergétique (DPE), ADEME' }
