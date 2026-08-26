@@ -37,6 +37,7 @@ from .db.pool_repository import load_pool
 from .db.runner import Connection
 from .decoupage_source import fetch_communes_by_departement, fetch_contours_by_departement
 from .degraded import CoverageMode
+from .densite import marqueurs_densite_departement
 from .distributions import Distribution
 from .ecarts import ClasseEcart, MotifRefus, RapportEcarts, ecart_maille
 from .http import Fetcher
@@ -598,6 +599,7 @@ def _marqueurs_contextuels(departement: str) -> list[Marqueur]:
     marqueurs.extend(marqueurs_littoral_departement(departement))
     marqueurs.extend(marqueurs_montagne_departement(departement))
     marqueurs.extend(marqueurs_marche_departement(departement))
+    marqueurs.extend(marqueurs_densite_departement(departement))
     return marqueurs
 
 
