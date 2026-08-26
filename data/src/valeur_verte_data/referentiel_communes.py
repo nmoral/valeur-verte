@@ -11,14 +11,20 @@ from __future__ import annotations
 from importlib.resources import files
 
 
-def charger_codes_communes(nom_fichier: str) -> frozenset[str]:
-    """Les codes INSEE d'une ressource packagée, hors lignes de commentaire/vides."""
-    texte = (files("valeur_verte_data.referentiels") / nom_fichier).read_text(encoding="utf-8")
+def extraire_codes(texte: str) -> frozenset[str]:
+    """Les codes INSEE d'un contenu de ressource : une ligne par code, en ignorant
+    les lignes vides et les lignes de commentaire (``#``, entête sourçant la donnée)."""
     return frozenset(
         ligne.strip()
         for ligne in texte.splitlines()
         if ligne.strip() != "" and not ligne.startswith("#")
     )
+
+
+def charger_codes_communes(nom_fichier: str) -> frozenset[str]:
+    """Les codes INSEE d'une ressource packagée, hors lignes de commentaire/vides."""
+    texte = (files("valeur_verte_data.referentiels") / nom_fichier).read_text(encoding="utf-8")
+    return extraire_codes(texte)
 
 
 def departement_de(code_insee: str) -> str:

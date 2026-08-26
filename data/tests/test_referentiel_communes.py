@@ -12,7 +12,14 @@ from __future__ import annotations
 from valeur_verte_data.referentiel_communes import (
     charger_codes_communes,
     departement_de,
+    extraire_codes,
 )
+
+
+def test_extrait_les_codes_en_sautant_commentaires_et_lignes_vides() -> None:
+    texte = "# entête sourçant la donnée\n29019\n\n  06088  \n# autre commentaire\n"
+
+    assert extraire_codes(texte) == frozenset({"29019", "06088"})
 
 
 def test_charge_les_codes_en_ignorant_les_commentaires() -> None:
@@ -38,5 +45,6 @@ def test_departement_corse_sur_deux_caracteres() -> None:
 
 
 def test_departement_outre_mer_sur_trois_caracteres() -> None:
-    assert departement_de("97101") == "971"
-    assert departement_de("97411") == "974"
+    assert departement_de("97101") == "971"  # Guadeloupe
+    assert departement_de("97411") == "974"  # La Réunion
+    assert departement_de("98818") == "988"  # Nouvelle-Calédonie (préfixe 98)
