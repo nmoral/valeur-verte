@@ -164,6 +164,60 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::assertSame('Haute-Garonne', $contenant['name']);
     }
 
+    public function testLeJsonLdExposeLesStatistiquesMesureesEnDataset(): void
+    {
+        // Données structurées #338 : la WebPage porte un Dataset (mainEntity) qui
+        // expose en PropertyValue la décote/surcote et le prix au m² par étiquette,
+        // avec la provenance E-E-A-T (licence Etalab, millésime, sources DVF/DPE).
+        $client = $this->naviguer();
+        $this->publier();
+        $this->prix($client)->definir('31001', 2500.0);
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne/toulouse');
+        self::assertResponseIsSuccessful();
+
+        $dataset = $this->donneesWebPage($crawler)['mainEntity'];
+        self::assertIsArray($dataset);
+        self::assertSame('Dataset', $dataset['@type']);
+        self::assertStringContainsStringIgnoringCase('etalab', $dataset['license']);
+        self::assertSame('2025', $dataset['temporalCoverage']);
+
+        $couverture = $dataset['spatialCoverage'];
+        self::assertIsArray($couverture);
+        self::assertSame('Toulouse', $couverture['name']);
+
+        $sources = json_encode($dataset['isBasedOn'], \JSON_THROW_ON_ERROR);
+        self::assertStringContainsString('DVF', $sources);
+        self::assertStringContainsString('DPE', $sources);
+
+        $variables = $dataset['variableMeasured'];
+        self::assertIsArray($variables);
+        // Décote/surcote C (base D, exp(0.11)−1 ≈ +12 %) exposée en PropertyValue.
+        self::assertContains(
+            ['@type' => 'PropertyValue', 'name' => 'Décote/surcote étiquette C', 'value' => 12, 'unitText' => '%'],
+            $variables,
+        );
+        // Prix au m² C : médiane 2500 € pondérée par l'effet C (2500·exp(0.11) ≈ 2791 €).
+        self::assertContains(
+            ['@type' => 'PropertyValue', 'name' => 'Prix au m² étiquette C', 'value' => 2791, 'unitText' => '€/m²'],
+            $variables,
+        );
+    }
+
+    /**
+     * @return array<string, mixed> le JSON-LD dont @type vaut WebPage
+     */
+    private function donneesWebPage(\Symfony\Component\DomCrawler\Crawler $crawler): array
+    {
+        foreach ($crawler->filter('script[type="application/ld+json"]') as $node) {
+            $donnees = json_decode((string) $node->textContent, true);
+            if (\is_array($donnees) && 'WebPage' === ($donnees['@type'] ?? null)) {
+                return $donnees;
+            }
+        }
+
+        self::fail('Aucun JSON-LD WebPage trouvé sur la page.');
+    }
+
     public function testLaPageEstMiseEnCachePubliquement(): void
     {
         $client = $this->naviguer();
