@@ -142,6 +142,40 @@ final readonly class FicheCommune
     }
 
     /**
+     * Statistiques mesurées de la commune, prêtes au balisage Schema.org
+     * ``PropertyValue`` (données structurées de la page SEO, #338) : pour chaque
+     * étiquette publiée (ordre A→G), sa décote/surcote (base D, en %) puis, quand
+     * un prix de marché est connu, son prix au m² estimé (€/m²). Expose en
+     * structuré ce que la page affiche déjà en clair — signal E-E-A-T.
+     *
+     * @return list<array{'@type': string, name: string, value: int, unitText: string}>
+     */
+    public function variablesMesurees(): array
+    {
+        $prixParClasse = $this->prixM2ParClasse();
+
+        $variables = [];
+        foreach ($this->decoteSurcote() as $classe => $ecart) {
+            $variables[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'Décote/surcote étiquette '.$classe,
+                'value' => $ecart,
+                'unitText' => '%',
+            ];
+            if (isset($prixParClasse[$classe])) {
+                $variables[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'Prix au m² étiquette '.$classe,
+                    'value' => $prixParClasse[$classe],
+                    'unitText' => '€/m²',
+                ];
+            }
+        }
+
+        return $variables;
+    }
+
+    /**
      * Les étiquettes publiées sur la maille, ordonnées de A vers G.
      *
      * @return list<string>
