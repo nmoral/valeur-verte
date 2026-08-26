@@ -76,12 +76,13 @@ trait ProvisionneModelePublie
         string $coefDpe = '{"D":0.0,"C":0.11,"E":-0.19}',
         string $calculeLe = '2026-02-08 04:12:00',
         int $millesime = 2025,
+        ?float $poidsPooling = null,
     ): void {
         $this->prive()->executeStatement(
             'INSERT INTO data.coefficient_maille
-                (code_insee, millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, calcule_le)
-             VALUES (:code, :millesime, 10, 120, 17.00, :coef, :mode, :calcule)',
-            ['code' => $codeInsee, 'millesime' => $millesime, 'coef' => $coefDpe, 'mode' => $mode, 'calcule' => $calculeLe],
+                (code_insee, millesime, rayon_retenu_km, n_transactions, erreur_mediane, coef_dpe, mode, poids_pooling, calcule_le)
+             VALUES (:code, :millesime, 10, 120, 17.00, :coef, :mode, :poids, :calcule)',
+            ['code' => $codeInsee, 'millesime' => $millesime, 'coef' => $coefDpe, 'mode' => $mode, 'poids' => $poidsPooling, 'calcule' => $calculeLe],
         );
     }
 
@@ -141,6 +142,7 @@ trait ProvisionneModelePublie
             'palier TEXT',
             'bandes JSONB',
             'effectifs_dpe JSONB',
+            'poids_pooling DOUBLE PRECISION',
             'calcule_le TIMESTAMP NOT NULL DEFAULT now()',
         ] as $colonne) {
             $prive->executeStatement(

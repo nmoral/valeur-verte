@@ -9,6 +9,7 @@ use App\BackOffice\Restitution\IndicateurFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
 use App\Publication\Commune;
 use App\Publication\FichesCommunales;
+use App\Publication\IndexabiliteCommune;
 use App\Publication\LectureModelePublieDbal;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -39,6 +40,33 @@ final class FichesCommunalesTest extends KernelTestCase
         // semerMaille sème n=120, rayon=10 km → Solide, portée locale.
         self::assertSame(IndicateurFiabilite::Solide, $fiche->indicateur());
         self::assertSame(PorteeEstimation::Local, $fiche->portee());
+    }
+
+    public function testLePoidsDePoolingRemonteEtPiloteLIndexabilite(): void
+    {
+        // Maille locale mais fortement rapprochée du département (pooling < 0.5) :
+        // la métrique remonte de data.coefficient_maille et bascule la page en repli.
+        $this->semerMaille('33063', coefDpe: '{"D":0.0,"C":0.10}', poidsPooling: 0.3);
+        $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
+
+        $fiche = $this->fiches(prix: 2500.0)->pour(new Commune('33063', 'Bordeaux', '33', '243300316'));
+
+        self::assertNotNull($fiche);
+        self::assertSame(0.3, $fiche->poidsPooling);
+        self::assertSame(IndexabiliteCommune::Repli, $fiche->indexabilite());
+    }
+
+    public function testSansPoolingUneCommuneLocaleResteIndexable(): void
+    {
+        // poids_pooling absent = aucun pooling = maille pleinement locale → indexable.
+        $this->semerMaille('33063', coefDpe: '{"D":0.0,"C":0.10}');
+        $this->deciderMillesime(2025, 'publie', '2026-02-10 09:30:00');
+
+        $fiche = $this->fiches(prix: 2500.0)->pour(new Commune('33063', 'Bordeaux', '33', '243300316'));
+
+        self::assertNotNull($fiche);
+        self::assertNull($fiche->poidsPooling);
+        self::assertSame(IndexabiliteCommune::Indexable, $fiche->indexabilite());
     }
 
     public function testUneCommuneHorsCouvertureNAPasDeFiche(): void
