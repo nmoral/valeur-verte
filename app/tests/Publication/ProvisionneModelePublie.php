@@ -113,6 +113,19 @@ trait ProvisionneModelePublie
         );
     }
 
+    /**
+     * Une vente au prix/m² donné, pour que {@see \App\BackOffice\Estimation\PrixMailleDbal}
+     * ait une médiane à servir (la fiche commune #360 en dérive le prix au m²).
+     */
+    protected function semerVente(string $codeInsee, float $prixM2, int $millesime = 2025): void
+    {
+        $this->prive()->executeStatement(
+            'INSERT INTO data.vente (id_mutation, code_insee, millesime, prix_m2)
+             VALUES (:mutation, :code, :millesime, :prix)',
+            ['mutation' => uniqid('m', true), 'code' => $codeInsee, 'millesime' => $millesime, 'prix' => $prixM2],
+        );
+    }
+
     private function provisionner(): void
     {
         $prive = $this->connexionPrivilegiee;
@@ -181,6 +194,19 @@ trait ProvisionneModelePublie
             )',
         );
 
+        // Forme minimale de data.vente (comme EstimationDbalTest) : PrixMailleDbal ne
+        // lit que code_insee + prix_m2 pour sa médiane. Le prix de la fiche commune (#360)
+        // en dérive ; une table vide ⇒ prix null ⇒ section prix simplement masquée.
+        $prive->executeStatement(
+            'CREATE TABLE IF NOT EXISTS data.vente (
+                id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                id_mutation TEXT NOT NULL,
+                code_insee  CHAR(5) NOT NULL,
+                millesime   SMALLINT NOT NULL,
+                prix_m2     NUMERIC(10,2)
+            )',
+        );
+
         // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
         // sinon la disposition du dépôt, qui vaut en CI comme en local.
         $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 3).'/data';
@@ -205,6 +231,7 @@ trait ProvisionneModelePublie
             'data.coefficient_maille_historique',
             'data.coefficient_maille',
             'data.commune',
+            'data.vente',
         ] as $table) {
             $prive->executeStatement(\sprintf('DELETE FROM %s', $table));
         }
