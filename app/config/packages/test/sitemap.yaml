@@ -1,0 +1,5 @@
+# Petite borne de pagination en test (#365) : quelques pages statiques suffisent
+# alors à produire plusieurs sitemaps enfants, ce qui exerce réellement la
+# pagination sans avoir à semer des dizaines de milliers de communes.
+parameters:
+    app.sitemap.max_urls: 3

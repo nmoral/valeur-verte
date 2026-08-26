@@ -34,6 +34,8 @@ final readonly class SitemapGenerator
         private RouterInterface $router,
         #[Autowire('%app.domaine%')]
         private string $domaine,
+        #[Autowire('%app.sitemap.max_urls%')]
+        private int $maxParPage,
         #[AutowireIterator('app.sitemap_guard')]
         iterable $gardes,
         #[AutowireIterator('app.sitemap_url_provider')]
@@ -51,10 +53,61 @@ final readonly class SitemapGenerator
      */
     public function urls(): array
     {
-        // Un sitemap liste les URLs **canoniques** : le domaine principal en
-        // HTTPS, quel que soit le contexte de la requête entrante (http interne
-        // derrière le proxy, host « localhost » d'une commande CLI). On génère
-        // donc contre un contexte canonique, puis on restaure celui d'origine.
+        return $this->sousContexteCanonique(fn (): array => $this->collecter());
+    }
+
+    /**
+     * Nombre de fichiers sitemap enfants (#365) : les URLs découpées en pages d'au
+     * plus ``maxParPage`` (borne sitemaps.org). Au moins un, même vide.
+     */
+    public function nombreDePages(): int
+    {
+        return max(1, (int) ceil(\count($this->urls()) / max(1, $this->maxParPage)));
+    }
+
+    /**
+     * Les URLs de la n-ième page (1-indexée), ou une liste vide hors bornes.
+     *
+     * @return list<string>
+     */
+    public function page(int $n): array
+    {
+        $pages = array_chunk($this->urls(), max(1, $this->maxParPage));
+
+        return $pages[$n - 1] ?? [];
+    }
+
+    /**
+     * URLs absolues canoniques des sitemaps enfants (contenu du sitemap index).
+     *
+     * @return list<string>
+     */
+    public function sitemapsEnfants(): array
+    {
+        $nombre = $this->nombreDePages();
+
+        return $this->sousContexteCanonique(function () use ($nombre): array {
+            $urls = [];
+            for ($n = 1; $n <= $nombre; ++$n) {
+                $urls[] = $this->router->generate('sitemap_page', ['n' => $n], UrlGeneratorInterface::ABSOLUTE_URL);
+            }
+
+            return $urls;
+        });
+    }
+
+    /**
+     * Exécute un rendu d'URLs sous le contexte **canonique** (domaine principal,
+     * HTTPS) puis restaure le contexte d'origine — un sitemap liste des URLs
+     * canoniques, quel que soit le contexte entrant (http interne derrière le
+     * proxy, host « localhost » d'une commande CLI).
+     *
+     * @param callable(): list<string> $rendu
+     *
+     * @return list<string>
+     */
+    private function sousContexteCanonique(callable $rendu): array
+    {
         $contexteInitial = $this->router->getContext();
         $this->router->setContext(
             (clone $contexteInitial)
@@ -64,7 +117,7 @@ final readonly class SitemapGenerator
         );
 
         try {
-            return $this->collecter();
+            return $rendu();
         } finally {
             $this->router->setContext($contexteInitial);
         }

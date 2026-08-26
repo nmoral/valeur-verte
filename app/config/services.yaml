@@ -10,6 +10,9 @@ parameters:
     # Domaine de base du monolithe : chaque zone vit sur son sous-domaine
     # (app., admin., widget.). Surchargé par l'environnement en production.
     app.domaine: '%env(APP_DOMAINE)%'
+    # Nombre maximal d'URLs par fichier sitemap (#365) : la spec sitemaps.org
+    # borne à 50 000 URLs / 50 Mo. Au-delà, le sitemap index paginé prend le relais.
+    app.sitemap.max_urls: 50000
 
     # Sauvegarde de la base (#55). Défauts du poste de dev ; le cron du VPS fixe
     # VV_SAUVEGARDE_DIR (volume monté) et, au besoin, VV_SAUVEGARDE_RETENTION_JOURS.
