@@ -202,6 +202,39 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::assertSame([], $epci);
     }
 
+    public function testLaPagePorteUnFilDArianeMontant(): void
+    {
+        // Fil d'Ariane #364 (BreadcrumbList) : Accueil › Département › EPCI › Commune.
+        self::assertSame(
+            ['Accueil', 'Haute-Garonne', 'Toulouse Métropole', 'Toulouse'],
+            $this->filAriane($this->commune('haute-garonne', 'toulouse')),
+        );
+    }
+
+    /**
+     * @return list<mixed> les noms du fil d'Ariane (JSON-LD BreadcrumbList), dans l'ordre
+     */
+    private function filAriane(\Symfony\Component\DomCrawler\Crawler $crawler): array
+    {
+        foreach ($crawler->filter('script[type="application/ld+json"]') as $node) {
+            $donnees = json_decode((string) $node->textContent, true);
+            if (!\is_array($donnees) || 'BreadcrumbList' !== ($donnees['@type'] ?? null)) {
+                continue;
+            }
+            $items = $donnees['itemListElement'];
+            self::assertIsArray($items);
+            $noms = [];
+            foreach ($items as $item) {
+                self::assertIsArray($item);
+                $noms[] = $item['name'];
+            }
+
+            return $noms;
+        }
+
+        self::fail('Aucun JSON-LD BreadcrumbList trouvé sur la page.');
+    }
+
     /**
      * @return list<string> les chemins (path) de tous les liens de la page
      */
