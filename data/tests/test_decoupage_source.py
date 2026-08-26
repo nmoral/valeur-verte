@@ -61,6 +61,17 @@ def test_fetch_communes_by_departement() -> None:
     assert params["geometry"] == "centre"
 
 
+def test_la_requete_demande_le_champ_epci() -> None:
+    """Le nom d'EPCI (#366) voyage avec l'appel commune déjà fait : on demande le
+    champ imbriqué ``epci`` à geo.api plutôt qu'un endpoint /epcis séparé."""
+    fetcher = _FakeFetcher([_COMMUNE])
+
+    fetch_communes_by_departement(fetcher, "80")
+
+    _, params = fetcher.calls[0]
+    assert "epci" in params["fields"].split(",")
+
+
 def test_fetch_commune_reponse_invalide_donne_none() -> None:
     fetcher = _FakeFetcher("oops")
 
