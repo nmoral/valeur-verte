@@ -52,6 +52,7 @@ from .invariants import (
 )
 from .limitrophes import limitrophes
 from .littoral import marqueurs_littoral_departement
+from .marche import marqueurs_marche_departement
 from .marqueurs import Marqueur
 from .montagne import marqueurs_montagne_departement
 from .multi_communes import filtrer_multi_communes
@@ -596,6 +597,7 @@ def _marqueurs_contextuels(departement: str) -> list[Marqueur]:
         marqueurs.append(climat)
     marqueurs.extend(marqueurs_littoral_departement(departement))
     marqueurs.extend(marqueurs_montagne_departement(departement))
+    marqueurs.extend(marqueurs_marche_departement(departement))
     return marqueurs
 
 
