@@ -20,6 +20,9 @@ final class HubDepartementalTest extends WebTestCase
     use ProvisionneModelePublie;
 
     private const HOTE = 'valeurverte.localhost';
+    private const CARRE_31001 = '{"type":"Polygon","coordinates":[[[1.0,43.0],[1.1,43.0],[1.1,43.1],[1.0,43.1],[1.0,43.0]]]}';
+    private const CARRE_31002 = '{"type":"Polygon","coordinates":[[[1.2,43.0],[1.3,43.0],[1.3,43.1],[1.2,43.1],[1.2,43.0]]]}';
+    private const CARRE_31003 = '{"type":"Polygon","coordinates":[[[1.4,43.0],[1.5,43.0],[1.5,43.1],[1.4,43.1],[1.4,43.0]]]}';
 
     public function testUnSlugDeDepartementInconnuEst404(): void
     {
@@ -133,6 +136,39 @@ final class HubDepartementalTest extends WebTestCase
     {
         // Fil d'Ariane #364 : Accueil › Département.
         self::assertSame(['Accueil', 'Haute-Garonne'], $this->filAriane($this->hub('haute-garonne')));
+    }
+
+    public function testLeHubAfficheLaChoroplethyDesCommunes(): void
+    {
+        // Carte communale (#392) : la page embarque les contours + le gain E→C par
+        // commune ; le SVG est peuplé côté client à partir du bloc JSON.
+        $client = $this->naviguer();
+        $this->publier(); // 31001 et 31002 sont mesurées (+35 %).
+        $this->semerContourCommune('31001', '31', self::CARRE_31001);
+        $this->semerContourCommune('31002', '31', self::CARRE_31002);
+        // 31003 a un contour mais aucune maille publiée : dessinée sans chiffre.
+        $this->semerContourCommune('31003', '31', self::CARRE_31003);
+
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne');
+        self::assertResponseIsSuccessful();
+
+        self::assertSame(1, $crawler->filter('svg#carte-dept')->count(), 'Le hub porte la carte des communes.');
+        $donnees = json_decode($crawler->filter('#carte-departement-donnees')->text(), true);
+        self::assertIsArray($donnees);
+        self::assertIsArray($donnees['feats']);
+        $parInsee = array_column($donnees['feats'], 'gain', 'insee');
+        self::assertSame(35, $parInsee['31001']);
+        self::assertArrayHasKey('31003', $parInsee);
+        self::assertNull($parInsee['31003'], 'Une commune sans coefficient est tracée sans gain.');
+    }
+
+    public function testSansContourLeHubNAffichePasDeCarte(): void
+    {
+        // Département mesuré mais sans contours communaux chargés : pas de cadre de
+        // carte vide, la section disparaît.
+        $crawler = $this->hub('haute-garonne');
+
+        self::assertSame(0, $crawler->filter('svg#carte-dept')->count());
     }
 
     public function testLeHubNAfficheAucunCommercial(): void

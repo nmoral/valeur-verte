@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Publication\AnnuaireEpciDuDepartement;
+use App\Publication\CarteDepartement;
+use App\Publication\CommunesTraceesDbal;
 use App\Publication\FichesDepartementales;
 use App\Publication\NomsDepartements;
 use App\Publication\PerimetrePublic;
@@ -39,6 +41,7 @@ final class HubDepartementalController extends AbstractController
         RepertoireDepartements $repertoire,
         AnnuaireEpciDuDepartement $annuaireEpci,
         PerimetrePublic $perimetre,
+        CommunesTraceesDbal $communes,
     ): Response {
         $code = $repertoire->code($departement);
         if (null === $code) {
@@ -67,6 +70,9 @@ final class HubDepartementalController extends AbstractController
             'slug' => $repertoire->slug($code),
             // Maillage descendant (#364) : les EPCI mesurés du département.
             'annuaire_epci' => $annuaireEpci->pour($code),
+            // Choroplèthe communale (#392) : contours + gain vert par commune ;
+            // vide (donc masquée) si les contours ne sont pas chargés.
+            'carte_dept' => (new CarteDepartement($communes->pour($code)))->donnees(),
         ]);
 
         // Page stable tant que le millésime ne change pas : cachable par le proxy
