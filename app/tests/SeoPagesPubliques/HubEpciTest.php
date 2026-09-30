@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\SeoPagesPubliques;
 
+use App\Publication\PerimetrePublic;
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -188,6 +189,22 @@ final class HubEpciTest extends WebTestCase
 
         self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
         self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+    }
+
+    public function testLesHubsEpciSont404TantQueLeTypeNEstPasOuvert(): void
+    {
+        $client = $this->naviguer();
+        $client->disableReboot();
+        $this->publier(); // Bordeaux Métropole mesurée…
+        // …mais le type EPCI n'est pas ouvert (même avec un périmètre départemental large).
+        self::getContainer()->set(
+            PerimetrePublic::class,
+            new PerimetrePublic(['*'], communesPubliques: true, epciPublics: false),
+        );
+
+        $client->request('GET', '/valeur-verte/epci/bordeaux-metropole');
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     private function hub(): Crawler
