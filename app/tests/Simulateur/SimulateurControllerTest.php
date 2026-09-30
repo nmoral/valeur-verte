@@ -43,6 +43,32 @@ final class SimulateurControllerTest extends WebTestCase
         $case = $client->getCrawler()->filter('input[type="checkbox"][name="consentement"]');
         self::assertSame(1, $case->count());
         self::assertNull($case->attr('checked'));
+        // Anti-abus : le champ leurre (honeypot) est présent.
+        self::assertSelectorExists('input[name="site_web"]');
+    }
+
+    public function testUnHoneypotRempliEstRejete(): void
+    {
+        // Un bot naïf remplit le champ leurre : la soumission est refusée avant tout
+        // traitement — aucun rapport, aucun lead, aucun usage compté.
+        $client = $this->prepare(couvert: true);
+        $usagesAvant = $this->usages($client)->compter();
+
+        $client->request('POST', 'http://'.self::HOTE.'/simulateur', [
+            'adresse' => '12 rue du Taur, Toulouse',
+            'code_insee' => self::CODE_INSEE,
+            'surface_batie' => '95',
+            'surface_terrain' => '300',
+            'dpe_avant' => 'E',
+            'dpe_apres' => 'C',
+            'email' => 'bot@example.com',
+            'site_web' => 'je-suis-un-bot',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertCount(0, $this->mailer($client)->envoyes());
+        self::assertSame(0, $this->leads($client)->compter());
+        self::assertSame($usagesAvant, $this->usages($client)->compter());
     }
 
     public function testUnRapportEstEnvoyeParEmailEtLUsageEstCompteSansConserverLEmail(): void
