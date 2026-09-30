@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Publication\AnnuaireEpciDuDepartement;
 use App\Publication\FichesDepartementales;
+use App\Publication\NomsDepartements;
+use App\Publication\PerimetrePublic;
 use App\Publication\RepertoireDepartements;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,10 +38,23 @@ final class HubDepartementalController extends AbstractController
         FichesDepartementales $fiches,
         RepertoireDepartements $repertoire,
         AnnuaireEpciDuDepartement $annuaireEpci,
+        PerimetrePublic $perimetre,
     ): Response {
         $code = $repertoire->code($departement);
         if (null === $code) {
             throw $this->createNotFoundException(\sprintf('Département inconnu : %s.', $departement));
+        }
+
+        // Mise en ligne progressive (#393) : un département valide mais hors du
+        // périmètre publié n'est pas encore ouvert. Page « pas encore disponible »
+        // servie en 404 (statut correct pour les moteurs, message clair pour l'humain).
+        if (!$perimetre->contient($code)) {
+            $reponse = $this->render('seo/region-indisponible.html.twig', [
+                'departement_nom' => NomsDepartements::pour($code),
+            ]);
+            $reponse->setStatusCode(Response::HTTP_NOT_FOUND);
+
+            return $reponse;
         }
 
         $fiche = $fiches->pour($code);
