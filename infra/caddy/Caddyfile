@@ -7,14 +7,18 @@ www.valeur-verte.fr {
 	redir https://valeur-verte.fr{uri} permanent
 }
 
-# Point d'entrée public : TLS auto (Let's Encrypt), HTTP->HTTPS, basic auth + noindex,
-# puis proxy vers le conteneur app (HTTP interne). L'app route par sous-domaine
-# (app.=espace pro, admin.=admin interne, widget.=widget public) via APP_DOMAINE.
+# Point d'entrée public : TLS auto (Let's Encrypt), HTTP->HTTPS, puis proxy vers le
+# conteneur app (HTTP interne). L'app route par sous-domaine (app.=espace pro,
+# admin.=admin interne, widget.=widget public) via APP_DOMAINE.
 valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte.fr {
 	encode zstd gzip
 
-	# Preview non public : interdire l'indexation (en plus du 401 basic auth).
-	header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+	# Site ouvert au public (#402) : le domaine public valeur-verte.fr est indexable.
+	# Seules les zones privées (espace pro, admin interne) et le widget hébergé par
+	# client (D9) restent hors index — l'accès y est porté par l'authentification
+	# applicative (ROLE_PRO/ROLE_ADMIN) et la vitrine restreinte (#385), plus par un 401.
+	@prive host app.valeur-verte.fr admin.valeur-verte.fr widget.valeur-verte.fr
+	header @prive X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
 
 	# robots.txt servi sans auth (fichier monté) : interdiction totale.
 	@robots path /robots.txt
@@ -38,14 +42,10 @@ valeur-verte.fr, app.valeur-verte.fr, admin.valeur-verte.fr, widget.valeur-verte
 		reverse_proxy app:80
 	}
 
-	# Tout le reste : gate basic auth (équivalent htaccess) -> proxy vers app.
-	# Hash bcrypt inline (pas via env : Compose interpole les $ du hash et le casse).
-	# Gate de preview privé (mot de passe aléatoire fort, bcrypt coût 14) sur dépôt
-	# privé ; à déplacer vers un secret / à retirer à l'ouverture publique du site.
+	# Tout le reste -> proxy vers app. Le site est ouvert au public (#402) : plus de
+	# gate basic auth de préversion. L'accès aux zones pro/admin est porté par
+	# l'authentification applicative et la vitrine restreinte (#385).
 	handle {
-		basic_auth {
-			vv $2a$14$derpNf6CMOrgDM6wNUrvCeiNX.LEB0YwtaQIFuEITRyEVJReE1dUW
-		}
 		reverse_proxy app:80
 	}
 

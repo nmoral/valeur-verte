@@ -70,6 +70,12 @@ printf "BREVO_API_KEY='%s'\n" "$BREVO_API_KEY"
 # redéploiement ni reconstruction d'image.
 printf "APP_MAINTENANCE='%s'\n" "${APP_MAINTENANCE:-0}"
 
+# Vitrine restreinte (#385) : passe-plat depuis le .env du VPS pour ouvrir/fermer
+# la zone pro sans reconstruire l'image. **Défaut 1 (restreinte)** : tant qu'on ne
+# l'ouvre pas explicitement, la zone pro reste fermée (redirigée vers l'accueil).
+# L'exploitant la passe à 0 le jour de l'ouverture commerciale.
+printf "APP_VITRINE_RESTREINTE='%s'\n" "${APP_VITRINE_RESTREINTE:-1}"
+
 # Présence SEO externe (#346) : accès à Google Search Console (OAuth utilisateur —
 # les clés de compte de service sont bloquées par une règle d'org) et à PageSpeed
 # Insights (clé API). Écrits explicitement, à vide par défaut, pour que Compose

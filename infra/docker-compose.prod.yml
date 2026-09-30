@@ -19,6 +19,13 @@ x-environnement-app: &environnement_app
   # variable absente laisse le service ouvert (défaut off dans le .env écrit
   # par ecrire-env.sh), jamais fermé par accident. 1 = maintenance active.
   APP_MAINTENANCE: ${APP_MAINTENANCE}
+  # Vitrine restreinte (#385) : passe-plat depuis le .env du VPS pour ouvrir/fermer
+  # la zone pro (redirigée vers l'accueil), masquer le commercial et mettre en avant
+  # le simulateur — sans reconstruire l'image. Passe-plat nu (pas de « :- » : la règle
+  # « aucun repli en prod » l'interdit) ; le **défaut restreint (1)** est porté par
+  # ecrire-env.sh, qui écrit toujours la variable. L'exploitant passe 0 le jour de
+  # l'ouverture commerciale.
+  APP_VITRINE_RESTREINTE: ${APP_VITRINE_RESTREINTE}
   # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
   # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
   # exiger explicitement, jamais de repli.
