@@ -113,15 +113,17 @@ final class SitemapGeneratorTest extends KernelTestCase
         );
     }
 
-    public function testLaCarteNationaleEstPresenteAvecUnMillesimePublie(): void
+    public function testLaCarteNationaleNeFigurePlusAuSitemapMemePubliee(): void
     {
+        // Retirée (#391) : l'URL ne redirige plus qu'en 301 vers l'étude, elle n'est
+        // plus une cible d'indexation propre — absente même millésime publié.
         $publie = new Publication(
             millesime: 2024,
             publieLe: new \DateTimeImmutable('2026-01-01'),
             calculeLe: new \DateTimeImmutable('2026-01-01'),
         );
 
-        self::assertContains(
+        self::assertNotContains(
             'https://'.self::DOMAINE.'/carte-valeur-verte-france',
             self::generateur($publie)->urls(),
         );

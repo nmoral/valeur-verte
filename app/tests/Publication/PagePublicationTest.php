@@ -167,7 +167,7 @@ final class PagePublicationTest extends WebTestCase
         $liens = $crawler->filter('footer a')->each(
             static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
         );
-        foreach (['/', '/calculateur', '/carte-valeur-verte-france', '/valeur-verte-par-departement'] as $attendu) {
+        foreach (['/', '/calculateur', '/valeur-verte-par-departement'] as $attendu) {
             self::assertContains($attendu, $liens, \sprintf('Le pied de page doit mailler la page pilier %s.', $attendu));
         }
     }
