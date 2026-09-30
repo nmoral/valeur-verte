@@ -37,10 +37,7 @@ final readonly class PlafondSimulateur
         $limite = $factory->create($ip ?? 'inconnu')->consume(1);
 
         if (!$limite->isAccepted()) {
-            throw new TooManyRequestsHttpException(
-                max(1, $limite->getRetryAfter()->getTimestamp() - time()),
-                'Trop de demandes depuis cette adresse. Merci de réessayer plus tard.',
-            );
+            throw new TooManyRequestsHttpException(max(1, $limite->getRetryAfter()->getTimestamp() - time()), 'Trop de demandes depuis cette adresse. Merci de réessayer plus tard.');
         }
     }
 }

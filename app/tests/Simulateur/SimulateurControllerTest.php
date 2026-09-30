@@ -113,6 +113,8 @@ final class SimulateurControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         $donnees = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($donnees);
+        self::assertArrayHasKey(0, $donnees);
+        self::assertIsArray($donnees[0]);
         self::assertSame(self::CODE_INSEE, $donnees[0]['code_insee']);
     }
 
