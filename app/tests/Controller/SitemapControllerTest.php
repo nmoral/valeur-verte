@@ -108,7 +108,6 @@ final class SitemapControllerTest extends WebTestCase
         yield 'accueil' => ['https://'.self::HOTE.'/'];
         yield 'mentions légales' => ['https://'.self::HOTE.'/mentions-legales'];
         yield 'CGU' => ['https://'.self::HOTE.'/cgu'];
-        yield 'inscription' => ['https://'.self::HOTE.'/inscription'];
     }
 
     /**
@@ -117,6 +116,9 @@ final class SitemapControllerTest extends WebTestCase
     public static function fragmentsInterdits(): iterable
     {
         yield 'déconnexion' => ['/logout'];
+        // Vitrine restreinte (#385) : la création de compte est masquée, elle ne
+        // doit plus être proposée aux robots.
+        yield 'inscription' => ['/inscription'];
         yield 'espace pro' => ['://app.'];
         yield 'admin interne' => ['://admin.'];
         yield 'widget' => ['://widget.'];
