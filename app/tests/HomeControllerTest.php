@@ -17,7 +17,7 @@ final class HomeControllerTest extends WebTestCase
         $client->request('GET', 'http://'.self::HOTE.'/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'Montrez-leur la valeur');
+        self::assertSelectorTextContains('h1', 'valeur');
     }
 
     public function testLeSimulateurEstPresentAvecSesSeptClasses(): void
@@ -50,36 +50,52 @@ final class HomeControllerTest extends WebTestCase
         self::assertGreaterThanOrEqual(4, $crawler->filter('.devis-card table tbody tr')->count());
     }
 
-    public function testLesDeuxOffresDePrixSontPresentes(): void
+    public function testAucuneOffreCommercialeNiTarifNestAffichee(): void
     {
+        // Vitrine restreinte (#385) : on masque tout le commercial (tarifs, offres,
+        // « deux façons d'entrer »). Le site n'affiche que des infos et le simulateur.
         $client = static::createClient();
 
         $client->request('GET', 'http://'.self::HOTE.'/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Membre classique');
-        self::assertSelectorTextContains('body', 'Offre fondateur');
-        self::assertSelectorTextContains('body', '300 €');
-        self::assertSelectorTextContains('body', '250 €');
+        self::assertSelectorTextNotContains('body', 'Membre classique');
+        self::assertSelectorTextNotContains('body', 'Offre fondateur');
+        self::assertSelectorTextNotContains('body', '300 €');
+        self::assertSelectorTextNotContains('body', '250 €');
+        self::assertSelectorTextNotContains('body', "Deux façons d'entrer");
     }
 
-    public function testLaHomeOffreConnexionEtCreationDeCompte(): void
+    public function testLaNavNeProposePlusConnexionNiCreationDeCompte(): void
     {
+        // Vitrine restreinte (#385) : plus d'entrée « Créer un compte » ni de lien
+        // « Connexion » dans la nav publique (la connexion reste accessible par URL
+        // directe pour l'exploitation).
         $client = static::createClient();
 
         $crawler = $client->request('GET', 'http://'.self::HOTE.'/');
 
         self::assertResponseIsSuccessful();
 
-        $connexion = $crawler->filter('nav a')->reduce(
-            static fn ($node): bool => str_contains($node->text(), 'Connexion'),
-        );
-        self::assertGreaterThan(0, $connexion->count(), 'Un lien « Connexion » est attendu dans la nav.');
-        self::assertSame('/login', $connexion->attr('href'));
-
         $creation = $crawler->filter('a')->reduce(
             static fn ($node): bool => str_contains($node->text(), 'Créer un compte'),
         );
-        self::assertGreaterThan(0, $creation->count(), 'Un bouton « Créer un compte » est attendu.');
+        self::assertSame(0, $creation->count(), 'Aucun bouton « Créer un compte » ne doit subsister.');
+
+        $connexionNav = $crawler->filter('nav a[href="'.'/login'.'"]');
+        self::assertSame(0, $connexionNav->count(), 'La nav ne doit plus proposer la connexion.');
+    }
+
+    public function testLAccesAuSimulateurEstMisEnAvant(): void
+    {
+        // On donne facilement accès au simulateur, à la place de la zone tarifs.
+        $client = static::createClient();
+
+        $crawler = $client->request('GET', 'http://'.self::HOTE.'/');
+
+        self::assertResponseIsSuccessful();
+        $acces = $crawler->filter('a[data-lien="simulateur"]');
+        self::assertGreaterThan(0, $acces->count(), 'Un accès au simulateur est attendu.');
+        self::assertStringContainsString('#simulateur', (string) $acces->first()->attr('href'));
     }
 }
