@@ -53,23 +53,13 @@ def test_le_compose_pilote_la_vitrine_par_l_environnement(
     environnement: object = app.get("environment", {})
     assert isinstance(environnement, dict)
     valeur = str(environnement.get("APP_VITRINE_RESTREINTE", "")).strip()
-    assert valeur.startswith("${APP_VITRINE_RESTREINTE"), (
+    # Passe-plat nu (la règle « aucun repli en prod » interdit « :- ») : le défaut
+    # restreint (1) est porté par ecrire-env.sh, testé plus bas.
+    assert valeur == "${APP_VITRINE_RESTREINTE}", (
         "APP_VITRINE_RESTREINTE doit être passée depuis l'environnement du VPS "
-        f"(« ${{APP_VITRINE_RESTREINTE...}} »), reçu « {valeur} »."
+        f"(« ${{APP_VITRINE_RESTREINTE}} »), reçu « {valeur} »."
     )
-
-
-def test_le_compose_restreint_la_vitrine_par_defaut(
-    compose_prod: dict[str, Any],
-) -> None:
-    """Défaut restreint (1) : une variable absente laisse la vitrine **fermée**,
-    jamais la zone pro ouverte par accident."""
-    app = services(compose_prod)["app"]
-    valeur = str(app.get("environment", {}).get("APP_VITRINE_RESTREINTE", ""))
-    assert valeur == "${APP_VITRINE_RESTREINTE:-1}", (
-        "Le compose doit défaut-er la vitrine restreinte à 1 (fermée), "
-        f"reçu « {valeur} »."
-    )
+    assert valeur != "1", "La vitrine ne doit jamais être figée dans le dépôt."
 
 
 def test_le_env_du_vps_restreint_la_vitrine_par_defaut() -> None:
