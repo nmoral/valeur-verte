@@ -136,6 +136,19 @@ final class GenerateurPdfRapportTest extends KernelTestCase
         self::assertStringContainsString('ne constitue pas une évaluation immobilière', $html);
     }
 
+    public function testLeRapportCiteLesSourcesPubliquesEtLeurLicence(): void
+    {
+        // #59 : DVF et DPE sont diffusés sous licence ouverte Etalab, qui impose la
+        // paternité — nommer la source (producteurs DGFiP/ADEME) et la licence dans
+        // le document diffusé. Le PDF de rapport est l'une des surfaces visées.
+        $html = $this->htmlGenere($this->restitutionSolide());
+
+        self::assertStringContainsString('DVF', $html);
+        self::assertStringContainsString('DGFiP', $html);
+        self::assertStringContainsString('ADEME', $html);
+        self::assertStringContainsStringIgnoringCase('licence ouverte Etalab', $html);
+    }
+
     public function testUneEstimationFragileAfficheLeBandeauDAlerte(): void
     {
         $html = $this->htmlGenere($this->restitutionFragile());

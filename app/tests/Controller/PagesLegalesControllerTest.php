@@ -225,6 +225,42 @@ final class PagesLegalesControllerTest extends WebTestCase
         }
     }
 
+    /**
+     * #59 : DVF et DPE sont réutilisés sous Licence Ouverte Etalab, qui impose la
+     * paternité — nommer la source (producteur) et la licence. Les mentions légales
+     * portent l'attribution canonique vers laquelle renvoient toutes les autres
+     * surfaces (footer, CGU, widget, PDF) ; elle ne doit pas disparaître en silence.
+     */
+    public function testLesMentionsLegalesAttribuentLesSourcesSousLicenceOuverte(): void
+    {
+        $sources = $this->page('/mentions-legales')->filter('#sources');
+
+        self::assertSame(1, $sources->count(), 'La section « Sources des données » est obligatoire (Licence Ouverte, paternité).');
+        $texte = $sources->text();
+        self::assertStringContainsString('Licence Ouverte', $texte);
+        self::assertStringContainsString('DVF', $texte);
+        self::assertStringContainsString('Direction générale des finances publiques', $texte);
+        self::assertStringContainsString('ADEME', $texte);
+    }
+
+    /**
+     * #59 : la CGU est l'une des surfaces où l'obligation de mention s'applique. Elle
+     * n'a pas à recopier l'attribution complète mais doit renvoyer à la Licence
+     * Ouverte et à la mention de source des mentions légales.
+     */
+    public function testLesCguRenvoientALaLicenceOuverteEtALaMentionDeSource(): void
+    {
+        $crawler = $this->page('/cgu');
+
+        $texte = $crawler->filter('main')->text();
+        self::assertStringContainsString('Licence Ouverte', $texte);
+        self::assertSame(
+            1,
+            $crawler->filter('#propriete-intellectuelle a[href="/mentions-legales"]')->count(),
+            'La CGU doit pointer vers la mention de source des mentions légales.',
+        );
+    }
+
     private function page(string $chemin): Crawler
     {
         $client = static::createClient();
