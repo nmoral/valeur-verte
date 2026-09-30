@@ -155,6 +155,20 @@ final class PresentationPagePubliqueTest extends WebTestCase
         self::assertStringContainsString('05 61 00 00 00', $pied);
     }
 
+    public function testLePiedCiteLesSourcesPubliquesEtLeurLicence(): void
+    {
+        // #59 : DVF et DPE sont diffusés sous licence ouverte Etalab, qui impose la
+        // paternité — nommer la source (producteur) et la licence partout où la
+        // donnée est restituée. Le widget public est une de ces surfaces, au même
+        // titre que le footer vitrine et le PDF de rapport.
+        $source = $this->afficher()->filter('.pied-source')->text();
+
+        self::assertStringContainsString('DVF', $source);
+        self::assertStringContainsString('DGFiP', $source);
+        self::assertStringContainsString('ADEME', $source);
+        self::assertStringContainsStringIgnoringCase('licence ouverte Etalab', $source);
+    }
+
     public function testUnProSansMentionsNiRgeNAffichePasDeLigneVide(): void
     {
         // « Un rapport avant toute configuration » : une page publiée avant d'avoir
