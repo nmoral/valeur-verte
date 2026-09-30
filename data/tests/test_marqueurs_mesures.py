@@ -25,7 +25,9 @@ from valeur_verte_data.marqueurs_mesures import (
 )
 
 
-def _maille(code: str, *, cC: float | None = None, n: int = 100, rayon: int | None = 15) -> MailleMesurable:
+def _maille(
+    code: str, *, cC: float | None = None, n: int = 100, rayon: int | None = 15
+) -> MailleMesurable:
     """Une maille de test dont ``cC`` pilote à la fois le gain E→C et l'amplitude A↔G.
 
     ``cC`` absent = échelle tronquée (ni C ni A/G) : ni gain ni amplitude calculables,
