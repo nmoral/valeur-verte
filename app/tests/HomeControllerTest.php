@@ -84,7 +84,7 @@ final class HomeControllerTest extends WebTestCase
         );
         self::assertSame(0, $creation->count(), 'Aucun bouton « Créer un compte » ne doit subsister.');
 
-        $connexionNav = $crawler->filter('nav a[href="'.'/login'.'"]');
+        $connexionNav = $crawler->filter('nav a[href="/login"]');
         self::assertSame(0, $connexionNav->count(), 'La nav ne doit plus proposer la connexion.');
     }
 
