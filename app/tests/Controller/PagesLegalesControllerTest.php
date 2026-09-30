@@ -136,7 +136,7 @@ final class PagesLegalesControllerTest extends WebTestCase
         $crawler = $this->page('/confidentialite');
 
         $traitements = $crawler->filter('[data-traitement]');
-        self::assertGreaterThanOrEqual(3, $traitements->count(), 'Compte pro, prospects du widget et emails sont au minimum attendus.');
+        self::assertGreaterThanOrEqual(3, $traitements->count(), 'Envoi du rapport, lead consenti et journaux techniques sont au minimum attendus.');
 
         $traitements->each(static function (Crawler $traitement): void {
             $nom = (string) $traitement->attr('data-traitement');
@@ -148,17 +148,21 @@ final class PagesLegalesControllerTest extends WebTestCase
         });
     }
 
-    public function testLaConfidentialiteDecritLEmpreinteDEffacementAntiAbus(): void
+    public function testLaConfidentialiteDecritLeLeadConsentiDuSimulateur(): void
     {
-        // #332 : conserver une empreinte après un effacement (#308) ne tient que si
-        // c'est documenté et proportionné — finalité, base légale et durée bornée.
-        $ligne = $this->page('/confidentialite')->filter('[data-traitement="empreinte-effacement"]');
-        self::assertSame(1, $ligne->count(), 'Le traitement de l\'empreinte d\'effacement doit figurer.');
+        // #405 : le /simulateur public collecte un email (lead consenti, opt-in décoché
+        // par défaut) pour envoyer le rapport puis, s'il le veut, recontacter le visiteur.
+        // C'est le seul traitement qui recueille des données personnelles côté public :
+        // il doit figurer, avec sa base légale (consentement).
+        $ligne = $this->page('/confidentialite')->filter('[data-traitement="simulateur-lead"]');
+        self::assertSame(1, $ligne->count(), 'Le traitement du lead du simulateur doit figurer.');
 
-        $texte = mb_strtolower($ligne->text());
-        self::assertStringContainsString('empreinte', $texte);
-        self::assertStringContainsString('abus', $texte, 'La finalité anti-abus doit être annoncée.');
-        self::assertStringContainsString('12 mois', $texte, 'La durée de conservation bornée doit être annoncée.');
+        self::assertMatchesRegularExpression(
+            '/consentement/i',
+            $ligne->filter('[data-rubrique="base-legale"]')->text(),
+            'La base légale du lead consenti est le consentement (art. 6-1-a).',
+        );
+        self::assertNotSame('', trim($ligne->filter('[data-rubrique="duree"]')->text()));
     }
 
     public function testLaConfidentialiteNommeLesDestinatairesEtLaVoieDeRecours(): void
@@ -293,23 +297,5 @@ final class PagesLegalesControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         return $crawler;
-    }
-
-    public function testLaRetentionAnnonceeSuitLaDecisionD10(): void
-    {
-        // Ce que la page promet doit être ce que le cron applique (#294) :
-        // anonymisation à 24 mois, suppression à 3 ans.
-        $client = static::createClient();
-        $crawler = $client->request('GET', 'http://'.self::HOTE.'/confidentialite');
-
-        self::assertResponseIsSuccessful();
-        $prospects = $crawler->filter('[data-traitement="prospects-widget"] [data-rubrique="duree"]')->text();
-        self::assertStringContainsString('24 mois', $prospects);
-        self::assertMatchesRegularExpression('/anonymis/i', $prospects, 'La page doit annoncer l\'anonymisation, pas la seule suppression.');
-        self::assertStringContainsString('3 ans', $prospects);
-
-        $rapports = $crawler->filter('[data-traitement="rapports"] [data-rubrique="duree"]')->text();
-        self::assertMatchesRegularExpression('/anonymis/i', $rapports);
-        self::assertStringContainsString('3 ans', $rapports);
     }
 }
