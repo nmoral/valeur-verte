@@ -1,0 +1,26 @@
+{# Bloc « Pourquoi ici ? » (#341, Lot 4). Le fait mesuré (sans badge) ancre les
+   hypothèses contextuelles, chacune badgée « Hypothèse » et formulée au conditionnel.
+   Inclus tel quel par les pages commune et département : { phrases: list<Phrase> }. #}
+{% if phrases is not empty %}
+<section class="block pourquoi-ici" aria-labelledby="pourquoi-ici-titre">
+  <style>
+    .pourquoi-ici .fait{font-weight:600;color:var(--ink,#1a1a1a);max-width:72ch}
+    .pourquoi-ici .pistes{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--slate);margin:18px 0 8px}
+    .pourquoi-ici .hypothese{display:flex;gap:10px;align-items:baseline;max-width:72ch}
+    .pourquoi-ici .badge{flex:none;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--card);border:1px solid var(--rule);color:var(--slate)}
+  </style>
+  <h2 id="pourquoi-ici-titre">Pourquoi ici&nbsp;?</h2>
+
+  {% for phrase in phrases|filter(p => not p.estHypothese) %}
+    <p class="fait">{{ phrase.texte }}</p>
+  {% endfor %}
+
+  {% set hypotheses = phrases|filter(p => p.estHypothese) %}
+  {% if hypotheses is not empty %}
+    <p class="pistes">Pistes d'explication (hypothèses)</p>
+    {% for phrase in hypotheses %}
+      <p class="hypothese"><span class="badge">Hypothèse</span> <span>{{ phrase.texte }}</span></p>
+    {% endfor %}
+  {% endif %}
+</section>
+{% endif %}
