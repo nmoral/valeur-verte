@@ -33,6 +33,16 @@ final class PerimetrePublicTest extends TestCase
         self::assertFalse($phase1->epciPublics());
     }
 
+    public function testUnPerimetreOuvertContientTousLesDepartements(): void
+    {
+        // Sentinelle « * » = périmètre ouvert (phase finale du go-live, et défaut
+        // permissif en environnement de test).
+        $ouvert = new PerimetrePublic(['*'], communesPubliques: true, epciPublics: true);
+
+        self::assertTrue($ouvert->contient('33'));
+        self::assertTrue($ouvert->contient('75'));
+    }
+
     public function testExposeLesDepartementsDuPerimetre(): void
     {
         $perimetre = new PerimetrePublic(['09', '31'], communesPubliques: false, epciPublics: false);
