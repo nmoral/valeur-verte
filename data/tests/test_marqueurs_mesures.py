@@ -86,6 +86,12 @@ def test_fiabilite_correct_entre_les_deux() -> None:
     assert fiabilite(120, 25) == "correct"  # gros échantillon mais rayon trop large
 
 
+def test_fiabilite_bornes_de_l_effectif_plancher() -> None:
+    # Plancher strict : à n = 50 la maille n'est plus fragile (elle devient correcte).
+    assert fiabilite(49, 15) == "fragile"
+    assert fiabilite(50, 15) == "correct"
+
+
 def test_tertiles_separent_la_distribution_en_trois() -> None:
     bas, haut = tertiles(list(range(0, 99)))  # 0..98, réparti uniformément
     assert bas < haut
@@ -97,6 +103,13 @@ def test_tertiles_degeneres_sur_moins_de_deux_valeurs() -> None:
     # Pas de distribution nationale exploitable : seuils confondus, jamais d'erreur.
     assert tertiles([42.0]) == (42.0, 42.0)
     assert tertiles([]) == (0.0, 0.0)
+
+
+def test_tertiles_sur_deux_valeurs_distinctes_ne_degenere_pas() -> None:
+    # Deux points suffisent à des quantiles distincts : on ne retombe pas sur le
+    # repli « seuils confondus » (borne stricte < 2).
+    bas, haut = tertiles([10.0, 40.0])
+    assert bas < haut
 
 
 def test_levier_renovation_classe_le_gain_sur_les_tertiles_nationaux() -> None:
@@ -124,6 +137,16 @@ def test_marqueurs_mesures_ne_couvre_que_le_departement_demande() -> None:
         assert m.code_departement is None
         assert m.type_marqueur == TYPE_MESURE
         assert "2025" in m.source  # source versionnée par millésime
+
+
+def test_chaque_marqueur_mesure_porte_sa_source_libellee_et_versionnee() -> None:
+    marqueurs = marqueurs_mesures_departement(_NATIONAL, "31", 2025)
+    sources = {m.nom: m.source for m in marqueurs}
+
+    assert sources["levier_renovation"].startswith("Levier de rénovation")
+    assert sources["sensibilite_dpe"].startswith("Sensibilité au DPE")
+    assert sources["fiabilite"].startswith("Fiabilité (effectif")
+    assert all("millésime 2025" in source for source in sources.values())
 
 
 def test_marqueurs_mesures_classe_chaque_commune_sur_la_distribution_nationale() -> None:

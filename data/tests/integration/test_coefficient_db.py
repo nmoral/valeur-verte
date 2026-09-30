@@ -15,7 +15,10 @@ import pytest
 from valeur_verte_data.batch import MailleCoefficient, compute_maille
 from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.db import migrate as cli
-from valeur_verte_data.db.coefficient_repository import archiver_coefficient
+from valeur_verte_data.db.coefficient_repository import (
+    archiver_coefficient,
+    lire_coefficients_publies,
+)
 from valeur_verte_data.db.publication_repository import publier_maille, publier_millesime
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
@@ -107,6 +110,32 @@ def _maille(code_insee: str, alerte: str | None) -> MailleCoefficient:
         ic_dpe={},
         alerte=alerte,
     )
+
+
+def test_lire_coefficients_publies_relit_la_table_vive() -> None:
+    """#341 (Lot 2) : source des marqueurs mesurés = la table vive **publiée**.
+
+    Le lecteur ne remonte que la matière utile (coef_dpe, effectif, rayon) et rend le
+    rayon départemental (stocké 0) en ``None`` — round-trip contre le vrai PostGIS."""
+    cli.run(os.environ)
+    locale = _maille("31910", None)  # rayon local 10 km
+    departementale = replace(
+        _maille("31911", None), rayon_retenu_km=None, mode=CoverageMode.DEPARTEMENTAL
+    )
+
+    with psycopg.connect(DSN) as conn:
+        conn.execute("DELETE FROM data.coefficient_maille WHERE code_insee IN ('31910', '31911')")
+        archiver_coefficient(conn, locale)
+        archiver_coefficient(conn, departementale)
+        publier_millesime(conn, 2024, "test@integration")
+        conn.commit()
+
+        par_code = {m.code_insee: m for m in lire_coefficients_publies(conn, 2024)}
+
+    assert par_code["31910"].n_transactions == 40
+    assert par_code["31910"].rayon_retenu_km == 10
+    assert round(par_code["31910"].coef_dpe["F"], 2) == -0.20
+    assert par_code["31911"].rayon_retenu_km is None  # 0 → repli départemental
 
 
 def test_la_publication_persiste_l_alerte_de_bord() -> None:
