@@ -261,6 +261,33 @@ final class PagesLegalesControllerTest extends WebTestCase
         );
     }
 
+    /**
+     * #57 : le service est désormais ouvert au public, sans compte ni abonnement.
+     * La CGU ne doit plus se restreindre à « des professionnels », ni supposer la
+     * création d'un compte ou un abonnement payant.
+     */
+    public function testLesCguNeSupposentNiCompteNiAbonnementNiProfession(): void
+    {
+        $texte = mb_strtolower($this->page('/cgu')->filter('main')->text());
+
+        self::assertStringNotContainsString('professionnel', $texte);
+        self::assertStringNotContainsString('abonnement', $texte);
+        self::assertStringNotContainsString('création d\'un compte', $texte);
+    }
+
+    /**
+     * #57 : la responsabilité de restitution incombe à qui reprend le chiffre, pas
+     * à un « professionnel » nommé — le service s'adresse à tout utilisateur.
+     */
+    public function testLaResponsabiliteDeRestitutionIncombeAQuiUtiliseLeChiffre(): void
+    {
+        $texte = $this->page('/cgu')->filter('#statut-estimation')->text();
+
+        self::assertMatchesRegularExpression('/utilisateur|toute personne/i', $texte);
+        self::assertMatchesRegularExpression('/présente|communique|diffuse|reprend/i', $texte);
+        self::assertStringContainsString('responsable', mb_strtolower($texte));
+    }
+
     private function page(string $chemin): Crawler
     {
         $client = static::createClient();
