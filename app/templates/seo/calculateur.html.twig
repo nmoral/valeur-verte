@@ -42,7 +42,7 @@
     <ul class="nav-menu">
       <li class="nav-link"><a href="#methode">Méthode</a></li>
       <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
-      <li class="nav-cta"><a href="{{ url('home') ~ '#simulateur' }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
+      <li class="nav-cta"><a href="{{ path('simulateur') }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
     </ul>
   </div>
 </nav>
@@ -58,7 +58,7 @@
           Pas une moyenne nationale : le chiffre observé dans <em>votre commune</em>, sur les ventes
           réellement enregistrées par les notaires et croisées aux DPE.</p>
         <div class="cta-row">
-          <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
+          <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
           <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
         </div>
         <p class="cta-note">Démonstration immédiate · Résultat chiffré avec fourchette</p>
@@ -81,7 +81,7 @@
         Source&nbsp;: ventes DVF (DGFiP) et DPE (ADEME), sous licence ouverte Etalab.{% if millesime %} · Données millésime&nbsp;{{ millesime }}.{% endif %}
       </p>
       <div class="cta-row">
-        <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
+        <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
         <a href="{{ path('publication') }}" class="btn btn-ghost">Voir l'étude par département</a>
       </div>
     </div>

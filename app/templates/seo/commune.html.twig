@@ -67,7 +67,7 @@
     <ul class="nav-menu">
       <li class="nav-link"><a href="{{ url('carte_nationale') }}">La carte de France</a></li>
       <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
-      <li class="nav-cta"><a href="{{ url('home') ~ '#simulateur' }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
+      <li class="nav-cta"><a href="{{ path('simulateur') }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
     </ul>
   </div>
 </nav>
@@ -91,7 +91,7 @@
           {{ commune_nom }}&nbsp;? Le chiffre mesuré sur les ventes réellement enregistrées par les
           notaires, croisées aux DPE — pas une moyenne nationale.</p>
         <div class="cta-row">
-          <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Estimer un bien</a>
+          <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Estimer un bien</a>
           {% if epci_slug %}
             <a href="{{ url('hub_epci', { epci: epci_slug }) }}" class="btn btn-ghost">Voir {{ epci_nom }}</a>
           {% endif %}
@@ -144,7 +144,7 @@
       </p>
 
       <div class="cta-row">
-        <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
+        <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
         <a href="{{ path('publication') }}" class="btn btn-ghost">Comment c'est mesuré</a>
       </div>
     </div>

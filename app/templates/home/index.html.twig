@@ -42,7 +42,7 @@
   <div class="wrap">
     <a href="/" class="brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
     <ul class="nav-menu">
-      <li class="nav-link"><a href="#simulateur">Simulateur</a></li>
+      <li class="nav-link"><a href="{{ path('simulateur') }}">Simulateur</a></li>
       <li class="nav-link"><a href="#methode">Méthode</a></li>
       <li class="nav-link"><a href="#limites">Limites</a></li>
     </ul>
@@ -60,7 +60,7 @@
         <p class="lead">Le chiffre que la rénovation énergétique ajoute à une maison, mesuré sur les ventes
           réellement enregistrées autour de l'adresse. Pas une moyenne nationale.</p>
         <div class="cta-row">
-          <a href="#simulateur" class="btn" data-lien="simulateur">Essayer le simulateur</a>
+          <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Estimer une adresse</a>
           <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
         </div>
         <p class="cta-note">Démonstration immédiate · Résultat chiffré avec fourchette</p>
@@ -191,11 +191,12 @@
   <!-- ============ ACCÈS SIMULATEUR ============ -->
   <section id="essayer" class="on-card" aria-labelledby="essayer-titre">
     <div class="wrap">
-      <h2 id="essayer-titre">Essayez le simulateur</h2>
-      <p class="section-lead">Choisissez l'état actuel du logement et la classe visée : la valeur créée, la
-        fourchette et le nombre de ventes comparables se recalculent en direct.</p>
+      <h2 id="essayer-titre">Estimez pour une adresse précise</h2>
+      <p class="section-lead">La démonstration ci-dessus est illustrative. Le simulateur, lui, part de
+        <strong>votre commune</strong> : saisissez l'adresse, la surface et les étiquettes DPE, et recevez le
+        rapport chiffré par email — la valeur créée, sa fourchette et le nombre de ventes comparables.</p>
       <p class="essayer-cta">
-        <a href="#simulateur" class="btn" data-lien="simulateur">Ouvrir le simulateur</a>
+        <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Ouvrir le simulateur</a>
       </p>
     </div>
   </section>
