@@ -33,12 +33,21 @@ let cur="gain", desc=true;
 
 const svg=document.getElementById("map"),tip=document.getElementById("tip");
 const paths={};
+/* Lien vers la page du département (#391), seulement s'il est mesuré (a une page). */
+const lienDept=f=>(f.m&&f.slug)?"/valeur-verte/"+f.slug:null;
 F.forEach(f=>{
  const p=document.createElementNS("http://www.w3.org/2000/svg","path");
  p.setAttribute("d",f.path);p.dataset.d=f.dept;paths[f.dept]=p;
  p.addEventListener("mousemove",e=>showTip(e,f));
  p.addEventListener("mouseenter",()=>{svg.classList.add("dim");p.classList.add("hl")});
  p.addEventListener("mouseleave",()=>{svg.classList.remove("dim");p.classList.remove("hl");tip.hidden=true});
+ const href=lienDept(f);
+ if(href){
+  p.style.cursor="pointer";
+  p.setAttribute("role","link");
+  p.setAttribute("aria-label","Voir la valeur verte "+f.nom);
+  p.addEventListener("click",()=>{window.location.href=href});
+ }
  svg.appendChild(p)});
 
 function colorFor(mm){const M=METRICS[cur],v=M.get(mm);
@@ -59,9 +68,11 @@ function paint(){
  document.getElementById("rank").innerHTML=arr.slice(0,10).map(f=>{
   const v=M.get(f.m),t=(v-M.dom[0])/(M.dom[1]-M.dom[0]);
   const c=M.bad?scaleBad(t):scaleSeq(t),dark=(!M.bad&&t<.45);
-  return `<li><span class="rc" style="background:${c};${dark?"color:#182226":""}">${f.dept}</span>`+
+  const href=lienDept(f);
+  const inner=`<span class="rc" style="background:${c};${dark?"color:#182226":""}">${f.dept}</span>`+
    `<span class="rn">${f.nom} <small>${f.m.n} zones</small></span>`+
-   `<span class="rvv">${M.fmt(v)}</span></li>`}).join("")}
+   `<span class="rvv">${M.fmt(v)}</span>`;
+  return href?`<li><a class="rlink" href="${href}">${inner}</a></li>`:`<li>${inner}</li>`}).join("")}
 
 function steps(ec,eb){
  const mx=Math.max(eb,1),h=v=>Math.round(6+34*v/mx);
@@ -103,13 +114,15 @@ document.getElementById("q").addEventListener("input",e=>{
  const f=F.find(x=>x.m&&(x.dept===q||norm(x.nom).startsWith(q)));
  box.hidden=false;
  if(!f){box.innerHTML=`<div class="qn">Aucun résultat</div><div class="qm" style="border-top:0">Département non couvert, ou orthographe différente.</div>`;return}
- const ec=f.m.gain,cb=f.m.gainCB;
- box.innerHTML=`<div class="qn">${f.nom}<span>${f.dept}</span></div>`+
+ const ec=f.m.gain,cb=f.m.gainCB,href=lienDept(f);
+ const contenu=`<div class="qn">${f.nom}<span>${f.dept}</span></div>`+
   `<div class="qsteps">
      <div class="qs"><b>+${ec} %</b><u>de E à C</u></div>
      <div class="qs"><b>${cb!=null?"+"+cb+" %":"—"}</b><u>cran vers B</u></div>
    </div>`+
-  `<div class="qm">${cb!=null?`Le cran vers B n'ajoute que ${cb} points de plus`:`Le niveau B n'est pas mesurable ici`} · médiane nationale E→C ${MED_EC} %${MED_CB!=null?", C→B "+MED_CB+" %":""}</div>`});
+  `<div class="qm">${cb!=null?`Le cran vers B n'ajoute que ${cb} points de plus`:`Le niveau B n'est pas mesurable ici`} · médiane nationale E→C ${MED_EC} %${MED_CB!=null?", C→B "+MED_CB+" %":""}</div>`+
+  (href?`<div class="qgo">Voir la page de ${f.nom} →</div>`:"");
+ box.innerHTML=href?`<a class="qlink" href="${href}">${contenu}</a>`:contenu});
 
 
 paint();

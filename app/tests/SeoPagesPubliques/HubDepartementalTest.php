@@ -94,13 +94,16 @@ final class HubDepartementalTest extends WebTestCase
         self::assertStringContainsString('2025', $texte, 'Le millésime publié doit être affiché (critère d\'acceptation).');
     }
 
-    public function testLeHubRemonteVersLaCarteNationale(): void
+    public function testLeHubRemonteVersLEtude(): void
     {
+        // Maillage montant (#391) : la carte nationale ayant fusionné dans l'étude,
+        // le hub remonte vers /valeur-verte-par-departement.
         $liens = $this->hub('haute-garonne')->filter('a')->each(
             static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
         );
 
-        self::assertContains('/carte-valeur-verte-france', $liens, 'Le hub porte le maillage montant vers la carte nationale.');
+        self::assertContains('/valeur-verte-par-departement', $liens, 'Le hub porte le maillage montant vers l\'étude.');
+        self::assertNotContains('/carte-valeur-verte-france', $liens, 'Plus de lien interne vers la carte retirée.');
     }
 
     public function testLePiedDePageMeneAuxPagesLegales(): void

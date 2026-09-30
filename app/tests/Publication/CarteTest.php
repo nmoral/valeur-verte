@@ -7,6 +7,7 @@ namespace App\Tests\Publication;
 use App\Publication\Carte;
 use App\Publication\Maille;
 use App\Publication\MetriquesDepartementales;
+use App\Publication\RepertoireDepartements;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -31,11 +32,22 @@ final class CarteTest extends TestCase
             [
                 'dept' => '31',
                 'nom' => 'Haute-Garonne',
+                'slug' => 'haute-garonne',
                 'path' => 'M0,0 L1,1Z',
                 'm' => ['n' => 2, 'gain' => 35, 'gainCB' => 8, 'dept' => 0],
             ],
             $donnees['feats'][0],
         );
+    }
+
+    public function testLeSlugPermetDeLierLaPageDuDepartement(): void
+    {
+        // Le slug de chaque département voyage dans la carte (#391) : le script
+        // rend les départements mesurés cliquables vers /valeur-verte/{slug}.
+        $donnees = self::carte()->donnees();
+
+        self::assertSame('haute-garonne', $donnees['feats'][0]['slug']);
+        self::assertSame('moselle', $donnees['feats'][1]['slug'], 'Le slug existe même sans métriques.');
     }
 
     public function testUnDepartementHorsPerimetreEstDessineSansMetriques(): void
@@ -56,6 +68,7 @@ final class CarteTest extends TestCase
         return new Carte(
             ['31' => 'M0,0 L1,1Z', '57' => 'M2,2 L3,3Z'],
             MetriquesDepartementales::depuisMailles($mailles),
+            new RepertoireDepartements(),
         );
     }
 }

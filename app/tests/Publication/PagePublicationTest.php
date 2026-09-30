@@ -79,6 +79,11 @@ final class PagePublicationTest extends WebTestCase
         $parDepartement = array_column($donnees['feats'], 'm', 'dept');
         self::assertSame(['n' => 2, 'gain' => 35, 'gainCB' => 8, 'dept' => 0], $parDepartement['31']);
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');
+
+        // Accès au détail (#391) : le slug voyage dans la carte, pour que le script
+        // rende chaque département mesuré cliquable vers /valeur-verte/{slug}.
+        $parSlug = array_column($donnees['feats'], 'slug', 'dept');
+        self::assertSame('haute-garonne', $parSlug['31']);
     }
 
     public function testLeMessageEstRecentreSurLArbitrageCVersB(): void
@@ -167,9 +172,19 @@ final class PagePublicationTest extends WebTestCase
         $liens = $crawler->filter('footer a')->each(
             static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
         );
-        foreach (['/', '/calculateur', '/carte-valeur-verte-france', '/valeur-verte-par-departement'] as $attendu) {
+        foreach (['/', '/calculateur', '/valeur-verte-par-departement'] as $attendu) {
             self::assertContains($attendu, $liens, \sprintf('Le pied de page doit mailler la page pilier %s.', $attendu));
         }
+    }
+
+    public function testLePiedDePageEstPleineLargeurHorsDuConteneurBoxe(): void
+    {
+        // Bug corrigé (#391) : le footer était piégé dans le conteneur boxé #app
+        // (max-width 1180), donc pas pleine largeur. Il doit être un frère de #app.
+        $crawler = $this->page();
+
+        self::assertSelectorExists('footer');
+        self::assertSame(0, $crawler->filter('#app footer')->count(), 'Le footer ne doit pas être dans #app.');
     }
 
     public function testLaPageEstMiseEnCachePubliquement(): void

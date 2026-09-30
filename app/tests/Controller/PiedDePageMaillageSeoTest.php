@@ -22,7 +22,7 @@ final class PiedDePageMaillageSeoTest extends WebTestCase
     {
         $liens = $this->liensDuPied('/mentions-legales');
 
-        foreach (['/', '/calculateur', '/carte-valeur-verte-france', '/valeur-verte-par-departement'] as $attendu) {
+        foreach (['/', '/calculateur', '/valeur-verte-par-departement'] as $attendu) {
             self::assertContains($attendu, $liens, \sprintf('Le pied de page doit mailler la page pilier %s.', $attendu));
         }
     }

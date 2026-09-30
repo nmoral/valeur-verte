@@ -15,6 +15,7 @@ final readonly class EtudePubliee
     public function __construct(
         private LectureModelePublie $lecture,
         private ContoursDepartements $contours,
+        private RepertoireDepartements $repertoire,
     ) {
     }
 
@@ -42,7 +43,7 @@ final readonly class EtudePubliee
             medianeGainEc: $metriques->medianeGainEc(),
             medianeGainCb: $metriques->medianeGainCb(),
             departementsOuBMesure: $metriques->departementsAvecCb(),
-            carte: (new Carte($chemins, $metriques))->donnees(),
+            carte: (new Carte($chemins, $metriques, $this->repertoire))->donnees(),
             constats: Constats::depuis($metriques->departements()),
             departementsAbsents: $absents,
         );
