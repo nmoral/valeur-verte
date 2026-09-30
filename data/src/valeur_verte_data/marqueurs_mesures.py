@@ -38,6 +38,7 @@ class MailleMesurable:
     n_transactions: int
     rayon_retenu_km: int | None
 
+
 # Fiabilité (port de ``BackOffice/Restitution/IndicateurFiabilite`` côté app, seule
 # source jusqu'ici) : dérivée de l'effectif ``n`` et du rayon retenu. Un rayon absent
 # (repli EPCI/départemental) est toujours « fragile », quelle que soit la taille.
@@ -102,9 +103,7 @@ def tertiles(valeurs: Sequence[float]) -> tuple[float, float]:
     return (p33, p66)
 
 
-def _classer(
-    valeur: float, seuils: tuple[float, float], *, bas: str, moyen: str, haut: str
-) -> str:
+def _classer(valeur: float, seuils: tuple[float, float], *, bas: str, moyen: str, haut: str) -> str:
     """Classe ``valeur`` par rapport aux seuils : ``≤ p33`` bas, ``≥ p66`` haut, sinon moyen."""
     p33, p66 = seuils
     if valeur <= p33:
