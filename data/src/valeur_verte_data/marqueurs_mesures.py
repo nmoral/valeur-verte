@@ -16,7 +16,8 @@ sur des seuils. La lecture de ``coefficient_maille`` vit dans
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+import statistics
+from collections.abc import Mapping, Sequence
 
 # Fiabilité (port de ``BackOffice/Restitution/IndicateurFiabilite`` côté app, seule
 # source jusqu'ici) : dérivée de l'effectif ``n`` et du rayon retenu. Un rayon absent
@@ -65,3 +66,48 @@ def fiabilite(n_transactions: int, rayon_retenu_km: int | None) -> str:
     if n_transactions >= _EFFECTIF_SOLIDE and rayon_retenu_km <= _RAYON_SOLIDE_MAX:
         return "solide"
     return "correct"
+
+
+def tertiles(valeurs: Sequence[float]) -> tuple[float, float]:
+    """Seuils nationaux p33/p66 d'une distribution — fig(és) « par millésime ».
+
+    Calculés à la volée sur toutes les communes publiées du millésime : mêmes
+    données → mêmes seuils, donc idempotent. Sous deux valeurs, la distribution
+    n'est pas exploitable et les seuils sont confondus (aucune classe « moyenne »).
+    """
+    donnees = sorted(valeurs)
+    if len(donnees) < 2:
+        seul = float(donnees[0]) if donnees else 0.0
+        return (seul, seul)
+    p33, p66 = statistics.quantiles(donnees, n=3)
+    return (p33, p66)
+
+
+def _classer(
+    valeur: float, seuils: tuple[float, float], *, bas: str, moyen: str, haut: str
+) -> str:
+    """Classe ``valeur`` par rapport aux seuils : ``≤ p33`` bas, ``≥ p66`` haut, sinon moyen."""
+    p33, p66 = seuils
+    if valeur <= p33:
+        return bas
+    if valeur >= p66:
+        return haut
+    return moyen
+
+
+def levier_renovation(gain_ec_pct: float, seuils: tuple[float, float]) -> str:
+    """Force du levier de rénovation — ``fort`` / ``moyen`` / ``faible``.
+
+    Position du gain E→C de la commune dans la distribution **nationale** : un gain
+    au moins égal au tertile haut est un levier ``fort``, au plus égal au tertile
+    bas un levier ``faible``. Relatif au parc national, pas un seuil absolu.
+    """
+    return _classer(gain_ec_pct, seuils, bas="faible", moyen="moyen", haut="fort")
+
+
+def sensibilite_dpe(amplitude_ag_pct: float, seuils: tuple[float, float]) -> str:
+    """Sensibilité au DPE — ``forte`` / ``modérée`` / ``faible``.
+
+    Position de l'amplitude A↔G de la commune dans la distribution **nationale**.
+    """
+    return _classer(amplitude_ag_pct, seuils, bas="faible", moyen="modérée", haut="forte")
