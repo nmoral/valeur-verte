@@ -25,32 +25,27 @@ final readonly class ListeBlanche
             RegleContextuelle::depuis(
                 contexte: ['climat' => ['froid']],
                 coherence: ['levier_renovation' => ['moyen', 'fort']],
-                texte: 'Département froid (zone H1) : le chauffage y pèse lourd, une maison '
-                    .'bien isolée s\'y valorise probablement davantage.',
+                texte: 'Département froid (zone H1) : le chauffage y pèse lourd, une maison bien isolée s\'y valorise probablement davantage.',
             ),
             RegleContextuelle::depuis(
                 contexte: ['climat' => ['doux'], 'marche' => ['tendu']],
                 coherence: ['levier_renovation' => ['faible']],
-                texte: 'Climat doux et marché tendu : ici une passoire se vend malgré tout, '
-                    .'le DPE pèse souvent moins sur le prix.',
+                texte: 'Climat doux et marché tendu : ici une passoire se vend malgré tout, le DPE pèse souvent moins sur le prix.',
             ),
             RegleContextuelle::depuis(
                 contexte: ['marche' => ['detendu']],
                 coherence: ['levier_renovation' => ['moyen', 'fort']],
-                texte: 'Marché détendu : les acheteurs peuvent trier, l\'étiquette devient '
-                    .'souvent un vrai levier de négociation.',
+                texte: 'Marché détendu : les acheteurs peuvent trier, l\'étiquette devient souvent un vrai levier de négociation.',
             ),
             RegleContextuelle::depuis(
                 contexte: ['densite' => ['rural']],
                 coherence: ['levier_renovation' => ['moyen', 'fort']],
-                texte: 'Territoire rural, parc souvent ancien : une rénovation s\'y remarque '
-                    .'probablement davantage.',
+                texte: 'Territoire rural, parc souvent ancien : une rénovation s\'y remarque probablement davantage.',
             ),
             RegleContextuelle::depuis(
                 contexte: ['littoral' => ['oui'], 'tourisme' => ['fort']],
                 coherence: ['levier_renovation' => ['faible']],
-                texte: 'Littoral prisé : la demande soutient les prix, l\'impact du DPE y est '
-                    .'généralement plus faible.',
+                texte: 'Littoral prisé : la demande soutient les prix, l\'impact du DPE y est généralement plus faible.',
             ),
         ];
     }

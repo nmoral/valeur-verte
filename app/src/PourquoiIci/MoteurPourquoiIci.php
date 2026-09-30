@@ -31,8 +31,7 @@ final readonly class MoteurPourquoiIci
 
         if (null !== $gainEc) {
             $phrases[] = Phrase::mesure(\sprintf(
-                'Ici, rénover une maison de E à C ajoute en moyenne +%d %% à sa valeur '
-                .'(mesuré sur %d ventes).',
+                'Ici, rénover une maison de E à C ajoute en moyenne +%d %% à sa valeur (mesuré sur %d ventes).',
                 $gainEc,
                 $n,
             ));

@@ -84,6 +84,101 @@ final class ListeBlancheTest extends TestCase
         self::assertSame([], $this->hypotheses($marqueurs, gainEc: 5, n: 40));
     }
 
+    public function testVarAvecLevierFortNeProduitAucuneHypothese(): void
+    {
+        // Mêmes marqueurs contextuels que le Var, mais la mesure dit « levier fort » :
+        // les deux hypothèses (doux+tendu, littoral+tourisme) supposent un levier faible,
+        // elles sont donc toutes supprimées.
+        $marqueurs = Marqueurs::depuis([
+            'climat' => 'doux',
+            'marche' => 'tendu',
+            'littoral' => 'oui',
+            'tourisme' => 'fort',
+            'densite' => 'urbain',
+            'levier_renovation' => 'fort',
+        ]);
+
+        self::assertSame([], $this->hypotheses($marqueurs, gainEc: 40, n: 90));
+    }
+
+    public function testLaRegleLittoralExigeLittoralEtTourisme(): void
+    {
+        // Le littoral seul ne suffit pas…
+        self::assertFalse($this->auMoinsUne(
+            $this->hypotheses(
+                Marqueurs::depuis(['littoral' => 'oui', 'levier_renovation' => 'faible']),
+                8,
+                90,
+            ),
+            'Littoral',
+        ));
+        // …le tourisme seul non plus…
+        self::assertFalse($this->auMoinsUne(
+            $this->hypotheses(
+                Marqueurs::depuis(['tourisme' => 'fort', 'levier_renovation' => 'faible']),
+                8,
+                90,
+            ),
+            'Littoral',
+        ));
+        // …les deux réunis, oui.
+        self::assertTrue($this->auMoinsUne(
+            $this->hypotheses(
+                Marqueurs::depuis([
+                    'littoral' => 'oui',
+                    'tourisme' => 'fort',
+                    'levier_renovation' => 'faible',
+                ]),
+                8,
+                90,
+            ),
+            'Littoral',
+        ));
+    }
+
+    public function testLaRegleClimatDouxExigeClimatDouxEtMarcheTendu(): void
+    {
+        // Doux mais marché non tendu : pas d'hypothèse « doux + tendu ».
+        self::assertFalse($this->auMoinsUne(
+            $this->hypotheses(
+                Marqueurs::depuis([
+                    'climat' => 'doux',
+                    'marche' => 'detendu',
+                    'levier_renovation' => 'faible',
+                ]),
+                8,
+                90,
+            ),
+            'Climat doux et marché tendu',
+        ));
+        // Marché tendu mais climat non doux : pas davantage.
+        self::assertFalse($this->auMoinsUne(
+            $this->hypotheses(
+                Marqueurs::depuis([
+                    'climat' => 'froid',
+                    'marche' => 'tendu',
+                    'levier_renovation' => 'faible',
+                ]),
+                8,
+                90,
+            ),
+            'Climat doux et marché tendu',
+        ));
+    }
+
+    public function testLeLevierMoyenSuffitAuxReglesFroidDetenduRural(): void
+    {
+        // La garde de ces trois règles accepte « moyen » comme « fort ».
+        $marqueurs = Marqueurs::depuis([
+            'climat' => 'froid',
+            'marche' => 'detendu',
+            'densite' => 'rural',
+            'levier_renovation' => 'moyen',
+        ]);
+
+        self::assertCount(3, $this->hypotheses($marqueurs, gainEc: 22, n: 60));
+    }
+
     public function testAucuneHypotheseNEstChiffree(): void
     {
         // Cadre de responsabilité : aucune hypothèse chiffrée — le pourcentage est
