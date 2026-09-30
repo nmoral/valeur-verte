@@ -100,6 +100,34 @@ def test_l_image_n_embarque_pas_l_outillage_de_test(image: str) -> None:
     )
 
 
+def test_l_image_rend_le_dossier_de_sauvegarde_inscriptible(image: str) -> None:
+    """Le volume `db_backups` (#55) est monté sur /sauvegardes et un volume nommé
+    neuf hérite du propriétaire du point de montage dans l'image. Créé root, la
+    tâche `app:sauvegarde:executer` échouait « Permission denied » sous l'utilisateur
+    app (uid 10001) — aucune sauvegarde produite (#400). Le dossier doit donc
+    appartenir à l'app dans l'image, pour qu'un volume neuf soit inscriptible."""
+    resultat = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--entrypoint",
+            "sh",
+            IMAGE,
+            "-c",
+            "touch /sauvegardes/.essai && rm /sauvegardes/.essai && echo INSCRIPTIBLE",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "INSCRIPTIBLE" in resultat.stdout, (
+        "/sauvegardes doit être inscriptible par l'utilisateur non privilégié. "
+        f"stdout={resultat.stdout!r} stderr={resultat.stderr!r}"
+    )
+
+
 def test_l_image_valide_le_crontab_des_taches_planifiees(image: str) -> None:
     """L'ordonnanceur embarqué relit lui-même le crontab versionné : c'est son propre
     analyseur qui tranche, pas une expression régulière de test. Un horaire invalide
