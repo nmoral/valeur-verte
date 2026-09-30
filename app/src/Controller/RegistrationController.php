@@ -20,7 +20,10 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class RegistrationController extends AbstractController
 {
-    #[Route('/inscription', name: 'inscription', methods: ['GET', 'POST'], options: ['sitemap' => true])]
+    // Vitrine restreinte (#385) : la création de compte est masquée le temps de
+    // l'observation d'usage — la route reste fonctionnelle (aucun lien ne la
+    // propose, l'espace pro est fermé) mais elle sort du sitemap.
+    #[Route('/inscription', name: 'inscription', methods: ['GET', 'POST'])]
     public function inscrire(
         Request $request,
         CreateurDeCompte $createurDeCompte,
