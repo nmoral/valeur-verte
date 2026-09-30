@@ -18,6 +18,13 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 
+# Fiabilité (port de ``BackOffice/Restitution/IndicateurFiabilite`` côté app, seule
+# source jusqu'ici) : dérivée de l'effectif ``n`` et du rayon retenu. Un rayon absent
+# (repli EPCI/départemental) est toujours « fragile », quelle que soit la taille.
+_EFFECTIF_FRAGILE = 50
+_EFFECTIF_SOLIDE = 80
+_RAYON_SOLIDE_MAX = 20
+
 
 def gain_ec(coef_dpe: Mapping[str, float]) -> int | None:
     """Gain de valeur d'une rénovation E→C, en pourcentage entier (fait mesuré).
@@ -44,3 +51,17 @@ def _ecart_pct(coef_dpe: Mapping[str, float], *, depuis: str, vers: str) -> int 
     if depuis not in coef_dpe or vers not in coef_dpe:
         return None
     return round((math.exp(coef_dpe[vers] - coef_dpe[depuis]) - 1) * 100)
+
+
+def fiabilite(n_transactions: int, rayon_retenu_km: int | None) -> str:
+    """Fiabilité lisible d'une maille — ``solide`` / ``correct`` / ``fragile``.
+
+    Règle héritée de la restitution : un rayon absent (repli EPCI/départemental) ou
+    un effectif sous le plancher est **fragile** ; un gros échantillon resserré
+    (``n ≥ 80`` et rayon ``≤ 20 km``) est **solide** ; entre les deux, **correct**.
+    """
+    if n_transactions < _EFFECTIF_FRAGILE or rayon_retenu_km is None:
+        return "fragile"
+    if n_transactions >= _EFFECTIF_SOLIDE and rayon_retenu_km <= _RAYON_SOLIDE_MAX:
+        return "solide"
+    return "correct"
