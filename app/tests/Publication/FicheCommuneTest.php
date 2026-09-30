@@ -10,6 +10,7 @@ use App\BackOffice\Restitution\PorteeEstimation;
 use App\Publication\FicheCommune;
 use App\Publication\IndexabiliteCommune;
 use App\Publication\Maille;
+use App\PourquoiIci\Phrase;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -140,12 +141,28 @@ final class FicheCommuneTest extends TestCase
         );
     }
 
+    /**
+     * @param list<Phrase> $phrases
+     */
+    public function testPorteLesPhrasesDuBlocPourquoiIci(): void
+    {
+        $phrases = [Phrase::mesure('Ici, rénover E→C ajoute +28 %.'), Phrase::hypothese('Marché tendu.')];
+
+        self::assertSame($phrases, $this->ficheStandard(phrases: $phrases)->phrases);
+    }
+
+    public function testSansPhrasesLeBlocEstVideParDefaut(): void
+    {
+        self::assertSame([], $this->ficheStandard()->phrases);
+    }
+
     private function ficheStandard(
         ?float $prixM2 = 2500.0,
         int $n = 90,
         ?int $rayonKm = 15,
         string $mode = 'local',
         ?float $poidsPooling = null,
+        array $phrases = [],
     ): FicheCommune {
         $maille = new Maille('33063', $mode, ['D' => 0.0, 'C' => 0.10, 'B' => 0.18, 'E' => -0.15, 'A' => 0.30]);
 
@@ -161,6 +178,7 @@ final class FicheCommuneTest extends TestCase
             prixM2Median: $prixM2,
             palier: PalierFiabilite::Standard,
             poidsPooling: $poidsPooling,
+            phrases: $phrases,
         );
     }
 }
