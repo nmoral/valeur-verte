@@ -36,6 +36,9 @@
 
     <form data-simulateur="estimation" method="post" action="{{ path('simulateur_soumettre') }}"
           data-adresse-url="{{ path('simulateur_adresses') }}">
+      {# Anti-abus (#43, réutilisé du widget) : honeypot + défi Turnstile invisible. #}
+      {{ include('widget/_piege.html.twig') }}
+      {{ include('widget/_turnstile.html.twig') }}
       <input type="hidden" name="code_insee" data-simulateur="code-insee" value="{{ valeurs.code_insee|default('') }}">
 
       <div class="champ">

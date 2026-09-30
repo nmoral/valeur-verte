@@ -19,7 +19,9 @@ use App\Simulateur\SimulateurLeadRepository;
 use App\Simulateur\Utilisation;
 use App\Simulateur\UtilisationRepository;
 use App\Widget\AdresseSuggeree;
+use App\Widget\PiegeAntiBotWidget;
 use App\Widget\RechercheAdresse;
+use App\Widget\VerificateurTurnstile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -51,12 +53,18 @@ final class SimulateurController extends AbstractController
     public function soumettre(
         Request $request,
         PlafondSimulateur $plafond,
+        PiegeAntiBotWidget $piege,
+        VerificateurTurnstile $turnstile,
         EstimateurValeurVerte $estimateur,
         EnvoiRapportSimulateur $envoi,
         UtilisationRepository $utilisations,
         SimulateurLeadRepository $leads,
     ): Response {
+        // Anti-abus, du moins cher au plus cher (comme le widget #43) : plafond IP,
+        // honeypot, puis le défi Turnstile (appel réseau, inerte sans secret).
         $plafond->verifierEmission($request->getClientIp());
+        $piege->verifier($request);
+        $turnstile->verifier($request->request->getString('cf-turnstile-response'), $request->getClientIp());
 
         $valeurs = [
             'adresse' => $request->request->getString('adresse'),
