@@ -2,7 +2,7 @@
 
 {% block route %}cgu{% endblock %}
 {% block titre_seo %}Conditions générales d'utilisation{% endblock %}
-{% block description_seo %}Règles d'utilisation du service Valeur Verte : objet, accès au compte, statut exact de l'estimation produite, limites de responsabilité, propriété intellectuelle et droit applicable.{% endblock %}
+{% block description_seo %}Règles d'utilisation du service Valeur Verte : objet, statut exact de l'estimation produite, limites de responsabilité, propriété intellectuelle et droit applicable.{% endblock %}
 
 {% block titre %}Conditions générales d'utilisation{% endblock %}
 
@@ -17,9 +17,9 @@
     <h2 id="objet-titre">1. Objet du service</h2>
     <p>Le service mesure, à partir de ventes immobilières réellement enregistrées et des diagnostics
       de performance énergétique associés, l'écart de prix statistiquement observé entre classes
-      énergétiques dans un secteur donné. Il en tire un rapport destiné à être remis par un
-      professionnel à son client.</p>
-    <p>Il s'adresse exclusivement à des <strong>professionnels</strong> agissant dans le cadre de leur activité.</p>
+      énergétiques dans un secteur donné. Il restitue cette mesure sous forme d'un chiffre accompagné
+      d'une fourchette.</p>
+    <p>Il est accessible <strong>librement</strong>, sans création de compte.</p>
   </section>
 
   <section id="statut-estimation" aria-labelledby="statut-estimation-titre">
@@ -32,18 +32,16 @@
       conditions de la vente. Une part importante du prix lui échappe : c'est la raison pour laquelle
       une fourchette accompagne systématiquement le chiffre. Dans les secteurs trop peu fournis en
       transactions, le service élargit son périmètre géographique et l'indique explicitement.</p>
-    <p>Le professionnel reste seul juge de l'opportunité de communiquer ce chiffre à son client, et
-      seul responsable des engagements commerciaux qu'il prend par ailleurs.</p>
+    <p><strong>Toute personne qui reprend, communique, présente ou diffuse ce chiffre en est seule
+      responsable</strong>, comme des engagements qu'elle prend sur sa foi. L'utilisateur reste seul
+      juge de l'opportunité de s'en servir.</p>
   </section>
 
-  <section id="compte" aria-labelledby="compte-titre">
-    <h2 id="compte-titre">3. Compte et accès</h2>
-    <p>L'accès suppose la création d'un compte avec une adresse email valide. Les identifiants sont
-      personnels et confidentiels ; l'utilisateur répond des actions réalisées depuis son compte et
-      signale sans délai tout usage frauduleux.</p>
-    <p>L'éditeur peut suspendre un compte en cas d'usage manifestement anormal (extraction massive,
-      revente de l'accès, contournement des limites d'usage), après information de l'utilisateur
-      lorsque les circonstances le permettent.</p>
+  <section id="acces" aria-labelledby="acces-titre">
+    <h2 id="acces-titre">3. Accès au service</h2>
+    <p>Le service est accessible librement et gratuitement, sans création de compte. L'éditeur peut
+      restreindre ou suspendre l'accès en cas d'usage manifestement anormal : extraction massive,
+      contournement des limites d'usage, ou tentative de reconstitution d'une base concurrente.</p>
   </section>
 
   <section id="disponibilite" aria-labelledby="disponibilite-titre">
@@ -60,21 +58,18 @@
       disponibilité du service. Sa responsabilité ne peut être engagée :</p>
     <ul class="liste">
       <li>en cas d'erreur, de lacune ou de retard des jeux de données publics utilisés ;</li>
-      <li>pour l'usage que le professionnel fait du rapport auprès de ses clients ;</li>
+      <li>pour l'usage que l'utilisateur fait du chiffre produit et pour la manière dont il le
+        restitue à des tiers ;</li>
       <li>pour les décisions d'achat, de vente ou de travaux prises sur la foi du chiffre produit ;</li>
       <li>pour les pertes indirectes, notamment perte de chance, de marge ou de clientèle.</li>
     </ul>
-    <p>En tout état de cause, l'indemnisation susceptible d'être due par l'éditeur est plafonnée aux
-      sommes effectivement versées par le professionnel au cours des douze mois précédant le fait
-      générateur.</p>
   </section>
 
   <section id="propriete-intellectuelle" aria-labelledby="propriete-intellectuelle-titre">
     <h2 id="propriete-intellectuelle-titre">6. Propriété intellectuelle</h2>
     <p>La méthode de calcul, le code, les gabarits de rapport et l'identité visuelle du service
-      appartiennent à l'éditeur. Le professionnel dispose, pendant la durée de son abonnement, d'un
-      droit d'usage non exclusif et non cessible : il peut diffuser les rapports produits à ses
-      clients, y compris à son en-tête, mais ne peut ni revendre l'accès au service, ni extraire
+      appartiennent à l'éditeur. L'utilisateur peut consulter le service et réutiliser les rapports
+      produits pour ses propres besoins, mais ne peut ni en revendre l'accès, ni extraire
       systématiquement les résultats pour reconstituer une base concurrente.</p>
     <p>Les données publiques sous-jacentes restent soumises à la Licence Ouverte Etalab, dont la
       mention de source figure aux <a href="{{ path('mentions_legales') }}">mentions légales</a>.</p>
@@ -83,22 +78,18 @@
   <section id="donnees" aria-labelledby="donnees-titre">
     <h2 id="donnees-titre">7. Données personnelles</h2>
     <p>Le traitement des données personnelles est décrit dans la
-      <a href="{{ path('confidentialite') }}">politique de confidentialité</a>. Lorsque le professionnel
-      collecte lui-même des coordonnées via le formulaire embarqué, il en est responsable de traitement
-      et s'engage à recueillir un consentement libre et éclairé.</p>
+      <a href="{{ path('confidentialite') }}">politique de confidentialité</a>.</p>
   </section>
 
   <section id="modification" aria-labelledby="modification-titre">
     <h2 id="modification-titre">8. Modification des conditions</h2>
     <p>Les présentes conditions peuvent être modifiées. La version applicable est celle en vigueur au
-      jour de l'utilisation, identifiée par sa date en tête de page. Toute modification substantielle
-      est portée à la connaissance des professionnels abonnés par email avant son entrée en vigueur.</p>
+      jour de l'utilisation, identifiée par sa date en tête de page.</p>
   </section>
 
   <section id="droit-applicable" aria-labelledby="droit-applicable-titre">
     <h2 id="droit-applicable-titre">9. Droit applicable et litiges</h2>
     <p>Les présentes conditions sont soumises au <strong>droit français</strong>. À défaut de résolution
-      amiable, le litige relève des tribunaux compétents dans les conditions du droit commun, le
-      service s'adressant exclusivement à des professionnels.</p>
+      amiable, le litige relève des tribunaux compétents dans les conditions du droit commun.</p>
   </section>
 {% endblock %}

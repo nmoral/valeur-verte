@@ -113,7 +113,7 @@ final class HubDepartementalTest extends WebTestCase
             static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
         );
 
-        foreach (['/mentions-legales', '/confidentialite', '/cgu', '/cgv'] as $attendu) {
+        foreach (['/mentions-legales', '/confidentialite', '/cgu'] as $attendu) {
             self::assertContains($attendu, $liens, \sprintf('Le pied de page doit mener à %s.', $attendu));
         }
     }

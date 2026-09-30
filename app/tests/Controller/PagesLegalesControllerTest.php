@@ -9,7 +9,8 @@ use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Pages légalement obligatoires (#228) : mentions légales (LCEN art. 6-III),
- * politique de confidentialité (RGPD art. 13), CGU et CGV (C. com. art. L441-1).
+ * politique de confidentialité (RGPD art. 13) et CGU. La CGV (offre commerciale)
+ * est retirée du site public tant que la vente n'est pas ouverte (#57).
  */
 final class PagesLegalesControllerTest extends WebTestCase
 {
@@ -23,7 +24,6 @@ final class PagesLegalesControllerTest extends WebTestCase
         yield 'mentions légales' => ['/mentions-legales'];
         yield 'confidentialité' => ['/confidentialite'];
         yield 'CGU' => ['/cgu'];
-        yield 'CGV' => ['/cgv'];
     }
 
     /**
@@ -210,22 +210,6 @@ final class PagesLegalesControllerTest extends WebTestCase
     }
 
     /**
-     * C. com. art. L441-1 : entre professionnels, les CGV sont le socle unique de
-     * la négociation — prix, échéances, pénalités de retard et indemnité de 40 €.
-     */
-    public function testLesCgvPortentLesMentionsCommercialesObligatoires(): void
-    {
-        $crawler = $this->page('/cgv');
-
-        $texte = $crawler->filter('main')->text();
-        self::assertStringContainsString('40 €', $texte, 'L\'indemnité forfaitaire de recouvrement est obligatoire.');
-        self::assertStringContainsString('pénalités de retard', mb_strtolower($texte));
-        foreach (['#prix', '#duree', '#resiliation', '#paiement'] as $section) {
-            self::assertSame(1, $crawler->filter($section)->count(), \sprintf('Section « %s » attendue.', $section));
-        }
-    }
-
-    /**
      * #59 : DVF et DPE sont réutilisés sous Licence Ouverte Etalab, qui impose la
      * paternité — nommer la source (producteur) et la licence. Les mentions légales
      * portent l'attribution canonique vers laquelle renvoient toutes les autres
@@ -259,6 +243,47 @@ final class PagesLegalesControllerTest extends WebTestCase
             $crawler->filter('#propriete-intellectuelle a[href="/mentions-legales"]')->count(),
             'La CGU doit pointer vers la mention de source des mentions légales.',
         );
+    }
+
+    /**
+     * #57 : le service est désormais ouvert au public, sans compte ni abonnement.
+     * La CGU ne doit plus se restreindre à « des professionnels », ni supposer la
+     * création d'un compte ou un abonnement payant.
+     */
+    public function testLesCguNeSupposentNiCompteNiAbonnementNiProfession(): void
+    {
+        $texte = mb_strtolower($this->page('/cgu')->filter('main')->text());
+
+        self::assertStringNotContainsString('professionnel', $texte);
+        self::assertStringNotContainsString('abonnement', $texte);
+        self::assertStringNotContainsString('création d\'un compte', $texte);
+    }
+
+    /**
+     * #57 : la responsabilité de restitution incombe à qui reprend le chiffre, pas
+     * à un « professionnel » nommé — le service s'adresse à tout utilisateur.
+     */
+    public function testLaResponsabiliteDeRestitutionIncombeAQuiUtiliseLeChiffre(): void
+    {
+        $texte = $this->page('/cgu')->filter('#statut-estimation')->text();
+
+        self::assertMatchesRegularExpression('/utilisateur|toute personne/i', $texte);
+        self::assertMatchesRegularExpression('/présente|communique|diffuse|reprend/i', $texte);
+        self::assertStringContainsString('responsable', mb_strtolower($texte));
+    }
+
+    /**
+     * #57 : l'offre commerciale n'est pas ouverte (site public et gratuit, sans
+     * compte payant). La CGV est retirée du site public ; son URL historique
+     * redirige vers les CGU tant que la vente n'est pas ouverte.
+     */
+    public function testLaCgvRedirigeVersLesCguTantQueLaVenteNestPasOuverte(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', 'http://'.self::HOTE.'/cgv');
+
+        self::assertResponseRedirects('/cgu', 301);
     }
 
     private function page(string $chemin): Crawler

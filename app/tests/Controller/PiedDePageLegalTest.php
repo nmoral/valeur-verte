@@ -24,20 +24,19 @@ final class PiedDePageLegalTest extends WebTestCase
         yield 'mentions légales' => ['/mentions-legales'];
         yield 'confidentialité' => ['/confidentialite'];
         yield 'CGU' => ['/cgu'];
-        yield 'CGV' => ['/cgv'];
     }
 
     /**
      * @dataProvider pagesPubliques
      */
-    public function testLePiedDePageMeneAuxQuatrePagesLegales(string $chemin): void
+    public function testLePiedDePageMeneAuxPagesLegales(string $chemin): void
     {
         $crawler = $this->page($chemin);
 
         $liens = $crawler->filter('footer a')->each(
             static fn (Crawler $lien): string => (string) parse_url((string) $lien->attr('href'), \PHP_URL_PATH),
         );
-        foreach (['/mentions-legales', '/confidentialite', '/cgu', '/cgv'] as $attendu) {
+        foreach (['/mentions-legales', '/confidentialite', '/cgu'] as $attendu) {
             self::assertContains($attendu, $liens, \sprintf('Le pied de page de « %s » doit mener à %s.', $chemin, $attendu));
         }
     }

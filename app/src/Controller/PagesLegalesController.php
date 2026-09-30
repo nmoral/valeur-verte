@@ -61,13 +61,14 @@ final class PagesLegalesController extends AbstractController
         ]);
     }
 
-    #[Route('/cgv', name: 'cgv', host: '%app.domaine%', methods: ['GET'], options: ['sitemap' => true])]
+    #[Route('/cgv', name: 'cgv', host: '%app.domaine%', methods: ['GET'])]
     public function cgv(): Response
     {
-        return $this->pageLegale('legal/cgv.html.twig', [
-            'editeur' => $this->editeur,
-            'version' => self::VERSION_CGU,
-        ]);
+        // Offre commerciale non ouverte (#57) : le site est public et gratuit, sans
+        // compte payant. L'URL historique redirige vers les CGU tant que la vente
+        // n'est pas ouverte ; la CGV reviendra avec l'offre professionnelle. Retirée
+        // aussi du pied de page public et de la sitemap.
+        return $this->redirectToRoute('cgu', [], Response::HTTP_MOVED_PERMANENTLY);
     }
 
     /**
