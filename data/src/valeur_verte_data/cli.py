@@ -39,6 +39,7 @@ from .orchestration import (
     charger_communes_departement,
     charger_epci_departement,
     charger_marqueurs_departement,
+    charger_marqueurs_mesures_departement,
     compute_departement,
     ingest_departement,
     load_contours_departement,
@@ -83,6 +84,16 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     marqueurs.add_argument("--departement", required=True, help="Code département (ex. 31)")
 
+    marqueurs_mesures = commandes.add_parser(
+        "load-marqueurs-mesures",
+        help="Dériver les marqueurs mesurés d'un département depuis les coefficients "
+        "publiés d'un millésime (#341, Lot 2)",
+    )
+    marqueurs_mesures.add_argument("--departement", required=True, help="Code département (ex. 31)")
+    marqueurs_mesures.add_argument(
+        "--millesime", required=True, type=int, help="Millésime publié à lire (ex. 2024)"
+    )
+
     audit = commandes.add_parser(
         "audit", help="Contrôler la validité de data.vente (read-only, sans effet de bord)"
     )
@@ -121,6 +132,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.commande == "load-marqueurs":
             charges = charger_marqueurs_departement(conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} marqueur(s) chargé(s)")
+            return 0
+        if arguments.commande == "load-marqueurs-mesures":
+            charges = charger_marqueurs_mesures_departement(
+                conn, arguments.departement, arguments.millesime
+            )
+            print(
+                f"Département {arguments.departement}, millésime {arguments.millesime} : "
+                f"{charges} marqueur(s) mesuré(s) chargé(s)"
+            )
             return 0
         if arguments.commande == "audit":
             return _auditer(conn, arguments)

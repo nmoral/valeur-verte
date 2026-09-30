@@ -28,6 +28,7 @@ from .db.coefficient_repository import (
     archiver_coefficient,
     enregistrer_refus,
     lire_coefficient_precedent,
+    lire_coefficients_publies,
 )
 from .db.commune_repository import upsert_communes
 from .db.epci_repository import communes_de_meme_epci, upsert_epci, upsert_epci_noms
@@ -55,6 +56,7 @@ from .limitrophes import limitrophes
 from .littoral import marqueurs_littoral_departement
 from .marche import marqueurs_marche_departement
 from .marqueurs import Marqueur
+from .marqueurs_mesures import marqueurs_mesures_departement
 from .montagne import marqueurs_montagne_departement
 from .multi_communes import filtrer_multi_communes
 from .ruptures import filtrer_regime_dpe
@@ -613,6 +615,23 @@ def charger_marqueurs_departement(conn: ConnexionTransactionnelle, departement: 
     eu un enregistrement.
     """
     ecrites = upsert_marqueurs(conn, _marqueurs_contextuels(departement))
+    if ecrites:
+        conn.commit()
+    return ecrites
+
+
+def charger_marqueurs_mesures_departement(
+    conn: ConnexionTransactionnelle, departement: str, millesime: int
+) -> int:
+    """Charge les marqueurs **mesurés** d'un département pour un millésime (#341, Lot 2).
+
+    Faits dérivés des coefficients **publiés** (table vive) : lit tout le millésime
+    au niveau national — les seuils de ``levier_renovation``/``sensibilite_dpe`` sont
+    des tertiles nationaux — puis n'écrit que les communes du département. Idempotent
+    (upsert) ; une seule transaction, committée s'il y a eu un enregistrement.
+    """
+    mailles = lire_coefficients_publies(conn, millesime)
+    ecrites = upsert_marqueurs(conn, marqueurs_mesures_departement(mailles, departement, millesime))
     if ecrites:
         conn.commit()
     return ecrites
