@@ -67,6 +67,44 @@ final class ProjectionDepartementTest extends TestCase
         );
     }
 
+    public function testUnContourEstProjeteRelativementAuCoinBasGauche(): void
+    {
+        // Même forme que le premier cas mais décalée (lon 2→6 au lieu de 0→4) :
+        // la projection est relative à l'emprise, donc le chemin est identique — un
+        // département n'est pas ancré à la longitude zéro.
+        $projete = (new ProjectionDepartement())->projeter([
+            ['cle' => '31001', 'anneaux' => [[[2.0, 59.0], [6.0, 59.0], [6.0, 61.0], [2.0, 61.0]]]],
+        ]);
+
+        self::assertSame(560, $projete['w']);
+        self::assertSame(560, $projete['h']);
+        self::assertContains('M8.0,552.0 L552.0,552.0 L552.0,8.0 L8.0,8.0Z', $projete['chemins']);
+    }
+
+    public function testLaHauteurEstArrondie(): void
+    {
+        // Forme bornée par la largeur (lon 0→41 → 20,5 unités projetées) : la hauteur
+        // vaut 88,59 px → arrondie à 89 (et non tronquée à 88).
+        $projete = (new ProjectionDepartement())->projeter([
+            ['cle' => '09001', 'anneaux' => [[[0.0, 59.0], [41.0, 59.0], [41.0, 61.0], [0.0, 61.0]]]],
+        ]);
+
+        self::assertSame(760, $projete['w']);
+        self::assertSame(89, $projete['h']);
+    }
+
+    public function testLaLargeurEstArrondie(): void
+    {
+        // Forme bornée par la hauteur (lat 55,05→64,95 → 9,9 unités, médiane 60°) :
+        // la largeur vaut 70,95 px → arrondie à 71 (et non tronquée à 70).
+        $projete = (new ProjectionDepartement())->projeter([
+            ['cle' => '09001', 'anneaux' => [[[0.0, 55.05], [2.0, 55.05], [2.0, 64.95], [0.0, 64.95]]]],
+        ]);
+
+        self::assertSame(71, $projete['w']);
+        self::assertSame(560, $projete['h']);
+    }
+
     public function testUneFormeLargeEstLimiteeParLaLargeur(): void
     {
         // Rectangle très large (lon 0→40 → largeur projetée 20) et peu haut

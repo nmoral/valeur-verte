@@ -7,6 +7,7 @@ namespace App\Tests\Publication;
 use App\Publication\CarteDepartement;
 use App\Publication\CommuneTracee;
 use App\Publication\Maille;
+use App\Publication\ProjectionDepartement;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -71,6 +72,24 @@ final class CarteDepartementTest extends TestCase
         ]);
 
         self::assertSame([0, 0], $carte->donnees()['dom']);
+    }
+
+    public function testLaProjectionFournieEstUtilisee(): void
+    {
+        // Une projection sur mesure (boîte 100×100, sans marge) : la carte l'emploie
+        // au lieu d'en fabriquer une par défaut.
+        $carte = new CarteDepartement(
+            [new CommuneTracee(
+                '31001',
+                'Toulouse',
+                [[[0.0, 59.0], [4.0, 59.0], [4.0, 61.0], [0.0, 61.0]]],
+                null,
+            )],
+            new ProjectionDepartement(largeurMax: 100, hauteurMax: 100, marge: 0.0),
+        );
+
+        self::assertSame(100, $carte->donnees()['w']);
+        self::assertSame(100, $carte->donnees()['h']);
     }
 
     private static function carte(): CarteDepartement
