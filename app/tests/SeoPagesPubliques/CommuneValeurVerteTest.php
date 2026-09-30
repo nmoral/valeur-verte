@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\SeoPagesPubliques;
 
+use App\Publication\PerimetrePublic;
 use App\Tests\BackOffice\Estimation\Double\FournisseurPrixMailleEnMemoire;
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -337,6 +338,22 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::assertSame(1, $bloc->filter('.fait')->count());
         self::assertStringContainsString('+35 %', $bloc->filter('.fait')->text());
         self::assertSame(0, $bloc->filter('.fait .badge')->count());
+    }
+
+    public function testLesPagesCommunesSont404TantQueLeTypeNEstPasOuvert(): void
+    {
+        $client = $this->naviguer();
+        $client->disableReboot();
+        $this->publier(); // Toulouse (31001) mesurée…
+        // …mais en phase 1 les pages communes ne sont pas ouvertes (dept 31 pourtant public).
+        self::getContainer()->set(
+            PerimetrePublic::class,
+            new PerimetrePublic(['31'], communesPubliques: false, epciPublics: false),
+        );
+
+        $client->request('GET', '/valeur-verte/haute-garonne/toulouse');
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     private function commune(string $slugDepartement, string $slugCommune): \Symfony\Component\DomCrawler\Crawler
