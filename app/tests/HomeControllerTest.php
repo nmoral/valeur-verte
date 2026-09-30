@@ -61,8 +61,10 @@ final class HomeControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextNotContains('body', 'Membre classique');
         self::assertSelectorTextNotContains('body', 'Offre fondateur');
-        self::assertSelectorTextNotContains('body', '300 €');
-        self::assertSelectorTextNotContains('body', '250 €');
+        // « 300 € » seul matcherait « 68 300 € » (label du simulateur) : on cible
+        // les mentions tarifaires sans ambiguïté.
+        self::assertSelectorTextNotContains('body', '/ mois');
+        self::assertSelectorTextNotContains('body', 'sans engagement');
         self::assertSelectorTextNotContains('body', "Deux façons d'entrer");
     }
 
