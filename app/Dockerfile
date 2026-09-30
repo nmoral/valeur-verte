@@ -80,9 +80,13 @@ RUN php bin/console asset-map:compile
 
 # Exécution sans privilège. Outre var/ (cache/logs Symfony), FrankenPHP écrit son
 # état Caddy dans /data et /config : ces dossiers doivent appartenir à l'utilisateur.
+# /sauvegardes est le point de montage du volume db_backups (#55) : créé et possédé
+# par l'app ici, un volume nommé neuf hérite de ce propriétaire — sans quoi il est
+# créé root et pg_dump échoue « Permission denied » sous l'uid 10001 (#400).
 # Le binaire FrankenPHP porte déjà CAP_NET_BIND_SERVICE, d'où le bind sur :80 en rootless.
 RUN useradd --uid 10001 --create-home app \
-    && chown -R app:app var /data /config
+    && mkdir -p /sauvegardes \
+    && chown -R app:app var /data /config /sauvegardes
 USER app
 
 EXPOSE 80
