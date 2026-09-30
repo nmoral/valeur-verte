@@ -17,11 +17,14 @@ from valeur_verte_data.config import CalculConfig
 from valeur_verte_data.db import migrate as cli
 from valeur_verte_data.db.coefficient_repository import (
     archiver_coefficient,
+    enregistrer_refus,
     lire_coefficients_publies,
+    supprimer_refus,
 )
 from valeur_verte_data.db.publication_repository import publier_maille, publier_millesime
 from valeur_verte_data.degraded import CoverageMode
 from valeur_verte_data.dvf import Mutation, aggregate_mutations
+from valeur_verte_data.ecarts import MotifRefus
 
 DSN = os.environ.get("DATABASE_URL", "")
 
@@ -186,6 +189,32 @@ def test_debloquer_une_maille_est_refuse_tant_que_le_millesime_n_est_pas_publie(
         publier_millesime(conn, 2099, "test@integration")
         assert publier_maille(conn, "31903", 2099, "test@integration") == 1
         conn.commit()
+
+
+def test_un_refus_perime_ne_supprime_pas_une_maille_recalculee() -> None:
+    """#399 : une commune refusée à un run, puis recalculée avec succès, doit rester
+    servie après publication. ``publier_millesime`` applique les refus APRÈS avoir
+    projeté l'archive : sans purge du refus périmé (le correctif), la maille valide
+    serait effacée du vif — c'est le bug qui a vidé 5 départements (dont la Lozère)."""
+    cli.run(os.environ)
+    maille = _maille("31920", None)
+
+    with psycopg.connect(DSN) as conn:
+        conn.execute("DELETE FROM data.coefficient_maille WHERE code_insee = '31920'")
+        conn.execute("DELETE FROM data.maille_refusee WHERE code_insee = '31920'")
+        # Run 1 : la commune est refusée (état pré-recompute).
+        enregistrer_refus(conn, "31920", 2024, MotifRefus.REFUS)
+        # Run 2 : recalcul réussi → archive + purge du refus périmé (le correctif).
+        archiver_coefficient(conn, maille)
+        supprimer_refus(conn, "31920", 2024)
+        publier_millesime(conn, 2024, "test@integration")
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT count(*) FROM data.coefficient_maille WHERE code_insee = '31920'"
+        ).fetchone()
+
+    assert row is not None and row[0] == 1
 
 
 def test_les_ecarts_types_dpe_survivent_a_l_archivage() -> None:
