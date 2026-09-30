@@ -172,6 +172,16 @@ final class PagePublicationTest extends WebTestCase
         }
     }
 
+    public function testLePiedDePageEstPleineLargeurHorsDuConteneurBoxe(): void
+    {
+        // Bug corrigé (#391) : le footer était piégé dans le conteneur boxé #app
+        // (max-width 1180), donc pas pleine largeur. Il doit être un frère de #app.
+        $crawler = $this->page();
+
+        self::assertSelectorExists('footer');
+        self::assertSame(0, $crawler->filter('#app footer')->count(), 'Le footer ne doit pas être dans #app.');
+    }
+
     public function testLaPageEstMiseEnCachePubliquement(): void
     {
         $client = $this->naviguer();
