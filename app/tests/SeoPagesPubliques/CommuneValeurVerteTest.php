@@ -332,6 +332,11 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::assertStringContainsString('Marché détendu', $bloc->text());
         self::assertGreaterThanOrEqual(1, $bloc->filter('.hypothese .badge')->count());
         self::assertStringContainsString('Hypothèse', $bloc->filter('.hypothese .badge')->first()->text());
+        // Critère d'acceptation #341 : le fait mesuré est visuellement DISTINCT des
+        // hypothèses — porté par « .fait », sans badge « Hypothèse ».
+        self::assertSame(1, $bloc->filter('.fait')->count());
+        self::assertStringContainsString('+35 %', $bloc->filter('.fait')->text());
+        self::assertSame(0, $bloc->filter('.fait .badge')->count());
     }
 
     private function commune(string $slugDepartement, string $slugCommune): \Symfony\Component\DomCrawler\Crawler
