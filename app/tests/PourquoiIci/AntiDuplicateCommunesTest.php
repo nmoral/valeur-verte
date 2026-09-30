@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\PourquoiIci;
 
 use App\BackOffice\Estimation\FournisseurPrixMaille;
+use App\PourquoiIci\MarqueursDbal;
+use App\PourquoiIci\MoteurPourquoiIci;
 use App\Publication\Commune;
 use App\Publication\FicheCommune;
 use App\Publication\FichesCommunales;
 use App\Publication\LectureModelePublieDbal;
-use App\PourquoiIci\MarqueursDbal;
-use App\PourquoiIci\MoteurPourquoiIci;
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -83,7 +83,7 @@ final class AntiDuplicateCommunesTest extends KernelTestCase
     private function fiches(): FichesCommunales
     {
         $prix = new class implements FournisseurPrixMaille {
-            public function prixM2Median(string $codeInsee): ?float
+            public function prixM2Median(string $codeInsee): float
             {
                 return 2500.0;
             }
