@@ -112,6 +112,7 @@ final class EtudePublieeTest extends TestCase
         return new EtudePubliee(
             $lecture,
             new ContoursDepartements(\dirname(__DIR__).'/Publication/'.$contours),
+            new \App\Publication\RepertoireDepartements(),
         );
     }
 }

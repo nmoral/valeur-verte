@@ -23,11 +23,12 @@ final readonly class Carte
     public function __construct(
         private array $chemins,
         private MetriquesDepartementales $metriques,
+        private RepertoireDepartements $repertoire,
     ) {
     }
 
     /**
-     * @return array{w: int, h: int, feats: list<array{dept: string, nom: string, path: string, m: array{n: int, gain: ?int, gainCB: ?int, dept: int}|null}>}
+     * @return array{w: int, h: int, feats: list<array{dept: string, nom: string, slug: ?string, path: string, m: array{n: int, gain: ?int, gainCB: ?int, dept: int}|null}>}
      */
     public function donnees(): array
     {
@@ -39,6 +40,9 @@ final readonly class Carte
             $feats[] = [
                 'dept' => $departement,
                 'nom' => NomsDepartements::pour($departement),
+                // Slug d'URL du hub départemental (#391) : embarqué dans la carte
+                // pour que le script rende chaque département cliquable vers sa page.
+                'slug' => $this->repertoire->slug($departement),
                 'path' => $chemin,
                 'm' => null === $metrique ? null : [
                     'n' => $metrique->zones,

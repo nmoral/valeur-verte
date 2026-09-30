@@ -79,6 +79,11 @@ final class PagePublicationTest extends WebTestCase
         $parDepartement = array_column($donnees['feats'], 'm', 'dept');
         self::assertSame(['n' => 2, 'gain' => 35, 'gainCB' => 8, 'dept' => 0], $parDepartement['31']);
         self::assertNull($parDepartement['57'], 'L\'Alsace-Moselle est dessinée sans chiffres.');
+
+        // Accès au détail (#391) : le slug voyage dans la carte, pour que le script
+        // rende chaque département mesuré cliquable vers /valeur-verte/{slug}.
+        $parSlug = array_column($donnees['feats'], 'slug', 'dept');
+        self::assertSame('haute-garonne', $parSlug['31']);
     }
 
     public function testLeMessageEstRecentreSurLArbitrageCVersB(): void
