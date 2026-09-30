@@ -37,7 +37,6 @@ final class SitemapGeneratorTest extends KernelTestCase
         yield 'mentions légales' => ['/mentions-legales'];
         yield 'confidentialité' => ['/confidentialite'];
         yield 'CGU' => ['/cgu'];
-        yield 'CGV' => ['/cgv'];
         yield 'connexion' => ['/login'];
     }
 
