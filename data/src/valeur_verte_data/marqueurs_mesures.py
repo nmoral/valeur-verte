@@ -18,6 +18,22 @@ from __future__ import annotations
 import math
 import statistics
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class MailleMesurable:
+    """Matière première d'une maille publiée pour dériver ses marqueurs mesurés.
+
+    Sous-ensemble de ``coefficient_maille`` (table vive) : ``coef_dpe`` porte le gain
+    E→C et l'amplitude A↔G ; ``n_transactions`` et ``rayon_retenu_km`` portent la
+    fiabilité (rayon ``None`` = repli EPCI/départemental).
+    """
+
+    code_insee: str
+    coef_dpe: dict[str, float]
+    n_transactions: int
+    rayon_retenu_km: int | None
 
 # Fiabilité (port de ``BackOffice/Restitution/IndicateurFiabilite`` côté app, seule
 # source jusqu'ici) : dérivée de l'effectif ``n`` et du rayon retenu. Un rayon absent

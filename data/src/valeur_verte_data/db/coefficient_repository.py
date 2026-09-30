@@ -20,6 +20,7 @@ from typing import Any
 from ..batch import MailleCoefficient
 from ..degraded import CoverageMode, PalierFiabilite
 from ..ecarts import ClasseEcart, MotifRefus
+from ..marqueurs_mesures import MailleMesurable
 from .runner import Connection
 
 # Historique versionné (REG-1, #129) : mêmes colonnes et mêmes valeurs que la table
@@ -66,6 +67,34 @@ _SELECT_PRECEDENT = (
     "WHERE code_insee = %s AND millesime < %s "
     "ORDER BY millesime DESC LIMIT 1"
 )
+
+
+# #341 (Lot 2) : les marqueurs mesurés se dérivent des coefficients **publiés** (table
+# vive), pas de l'historique. On ne lit que la matière utile — coef_dpe (gain/amplitude),
+# effectif et rayon (fiabilité). Le rayon départemental stocké à 0 redevient None.
+_SELECT_PUBLIES = (
+    "SELECT code_insee, coef_dpe, n_transactions, rayon_retenu_km "
+    "FROM data.coefficient_maille WHERE millesime = %s ORDER BY code_insee"
+)
+
+
+def lire_coefficients_publies(conn: Connection, millesime: int) -> list[MailleMesurable]:
+    """Relit les mailles **publiées** d'un millésime, réduites à la matière des marqueurs.
+
+    Source des marqueurs mesurés (#341, Lot 2) : la table vive ``coefficient_maille``
+    (une ligne par commune servie), pas l'historique. Lecture nationale — les seuils
+    fort/moyen/faible sont des tertiles de la distribution entière du millésime.
+    """
+    rows = conn.execute(_SELECT_PUBLIES, [millesime]).fetchall()
+    return [
+        MailleMesurable(
+            code_insee=str(row[0]).strip(),
+            coef_dpe={classe: float(coef) for classe, coef in (row[1] or {}).items()},
+            n_transactions=int(row[2]),
+            rayon_retenu_km=None if not row[3] else int(row[3]),
+        )
+        for row in rows
+    ]
 
 
 def _params(maille: MailleCoefficient) -> list[object]:
