@@ -38,6 +38,7 @@ from .orchestration import (
     RapportIngestion,
     charger_communes_departement,
     charger_epci_departement,
+    charger_marqueurs_departement,
     compute_departement,
     ingest_departement,
     load_contours_departement,
@@ -76,6 +77,12 @@ def _analyser(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     communes.add_argument("--departement", required=True, help="Code département (ex. 31)")
 
+    marqueurs = commandes.add_parser(
+        "load-marqueurs",
+        help="Charger les marqueurs contextuels d'un département (#341)",
+    )
+    marqueurs.add_argument("--departement", required=True, help="Code département (ex. 31)")
+
     audit = commandes.add_parser(
         "audit", help="Contrôler la validité de data.vente (read-only, sans effet de bord)"
     )
@@ -110,6 +117,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.commande == "load-communes":
             charges = charger_communes_departement(HttpFetcher(), conn, arguments.departement)
             print(f"Département {arguments.departement} : {charges} commune(s) référencée(s)")
+            return 0
+        if arguments.commande == "load-marqueurs":
+            charges = charger_marqueurs_departement(conn, arguments.departement)
+            print(f"Département {arguments.departement} : {charges} marqueur(s) chargé(s)")
             return 0
         if arguments.commande == "audit":
             return _auditer(conn, arguments)

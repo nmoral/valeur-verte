@@ -26,6 +26,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "valeur_verte_data.db" = ["migrations/*.sql"]
+"valeur_verte_data.referentiels" = ["*.txt"]
 
 # ---- Lint / format (make data-lint) ----
 [tool.ruff]
