@@ -10,6 +10,7 @@ from valeur_verte_data.batch import MailleCoefficient
 from valeur_verte_data.db.coefficient_repository import (
     archiver_coefficient,
     lire_coefficient_precedent,
+    lire_coefficients_publies,
 )
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 
@@ -135,8 +136,10 @@ class _FakeReadConnection:
     def __init__(self, rows: list[tuple[Any, ...]]) -> None:
         self._rows = rows
         self.params: Sequence[Any] | None = None
+        self.derniere_query = ""
 
     def execute(self, query: str, params: Sequence[Any] | None = None) -> _FakeCursorRows:
+        self.derniere_query = query
         self.params = params
         return _FakeCursorRows(self._rows)
 
@@ -182,3 +185,26 @@ def test_lire_coefficient_precedent_absent_renvoie_none() -> None:
     """Aucun millésime antérieur (première publication d'une commune) → None."""
     conn = _FakeReadConnection([])
     assert lire_coefficient_precedent(conn, "52001", 2024) is None
+
+
+def test_lire_coefficients_publies_lit_la_table_vive_du_millesime() -> None:
+    """#341 (Lot 2) : les marqueurs mesurés se dérivent des coefficients **publiés**
+    (table vive coefficient_maille), pas de l'historique. On ne lit que la matière
+    utile — coef_dpe (gain/amplitude), effectif et rayon (fiabilité) — pour le
+    millésime servi. Le rayon départemental stocké à 0 redevient None."""
+    rows = [
+        ("31555", {"C": 0.30, "E": 0.0, "A": 0.5, "G": -0.4}, 120, 15),
+        ("52001", {"D": 0.0}, 40, 0),  # rayon 0 (repli départemental) → None
+    ]
+    conn = _FakeReadConnection(rows)
+
+    mailles = lire_coefficients_publies(conn, 2024)
+
+    assert "coefficient_maille" in conn.derniere_query and "historique" not in conn.derniere_query
+    assert "millesime" in conn.derniere_query.lower()
+    assert conn.params == [2024]
+    assert [m.code_insee for m in mailles] == ["31555", "52001"]
+    assert mailles[0].coef_dpe == {"C": 0.30, "E": 0.0, "A": 0.5, "G": -0.4}
+    assert mailles[0].n_transactions == 120
+    assert mailles[0].rayon_retenu_km == 15
+    assert mailles[1].rayon_retenu_km is None  # 0 → repli sans rayon
