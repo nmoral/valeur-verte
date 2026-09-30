@@ -108,6 +108,8 @@
     </div>
   </section>
 
+  {{ include('seo/_pourquoi_ici.html.twig', { phrases: fiche.phrases }) }}
+
   {% if annuaire_epci is not empty %}
     <section class="block" aria-labelledby="epci-titre">
       <div class="wrap">
