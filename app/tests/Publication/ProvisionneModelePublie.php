@@ -114,6 +114,20 @@ trait ProvisionneModelePublie
     }
 
     /**
+     * Sème le contour PostGIS d'une commune (#392, migration 006 du pipeline) :
+     * la source de la choroplèthe communale du hub. `$geojson` décrit un Polygon
+     * ou MultiPolygon en WGS84, stocké comme MultiPolygon comme en production.
+     */
+    protected function semerContourCommune(string $codeInsee, string $departement, string $geojson): void
+    {
+        $this->prive()->executeStatement(
+            'INSERT INTO data.commune_contour (code_insee, code_departement, geom)
+             VALUES (:code, :dept, ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geojson), 4326)))',
+            ['code' => $codeInsee, 'dept' => $departement, 'geojson' => $geojson],
+        );
+    }
+
+    /**
      * Sème un marqueur territorial (#341) : portée communale (`codeInsee`) OU
      * départementale (`codeDepartement`), jamais les deux.
      */
@@ -167,6 +181,10 @@ trait ProvisionneModelePublie
         $prive = $this->connexionPrivilegiee;
         self::assertInstanceOf(Connection::class, $prive);
         $prive->executeStatement('CREATE SCHEMA IF NOT EXISTS data');
+        // PostGIS (migration 001 du pipeline) : la choroplèthe communale (#392) lit
+        // des géométries. Installée dans public comme en production ; le rôle « app »
+        // (search_path=app) doit donc qualifier les fonctions ST_* en public.ST_*.
+        $prive->executeStatement('CREATE EXTENSION IF NOT EXISTS postgis');
         $prive->executeStatement(
             'CREATE TABLE IF NOT EXISTS data.coefficient_maille (
                 code_insee      CHAR(5) PRIMARY KEY,
@@ -264,6 +282,16 @@ trait ProvisionneModelePublie
             )',
         );
 
+        // Contours communaux (#121, migration 006) : source de la choroplèthe
+        // communale du hub (#392), lue par CommunesTraceesDbal.
+        $prive->executeStatement(
+            'CREATE TABLE IF NOT EXISTS data.commune_contour (
+                code_insee       CHAR(5) PRIMARY KEY,
+                code_departement VARCHAR(3) NOT NULL,
+                geom             geometry(MultiPolygon, 4326) NOT NULL
+            )',
+        );
+
         // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
         // sinon la disposition du dépôt, qui vaut en CI comme en local.
         $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 3).'/data';
@@ -291,6 +319,7 @@ trait ProvisionneModelePublie
             'data.commune_epci',
             'data.epci',
             'data.marqueurs',
+            'data.commune_contour',
         ] as $table) {
             $prive->executeStatement(\sprintf('DELETE FROM %s', $table));
         }
