@@ -300,6 +300,28 @@ final class CommuneValeurVerteTest extends WebTestCase
         );
     }
 
+    public function testLaPageAfficheLeBlocPourquoiIci(): void
+    {
+        $client = $this->naviguer();
+        $this->publier(); // Toulouse : gain E→C = 35 %, n = 120.
+        // Marqueurs communaux : marché détendu + levier fort → hypothèse cohérente.
+        $this->semerMarqueur(nom: 'marche', valeur: 'detendu', codeInsee: '31001');
+        $this->semerMarqueur(nom: 'levier_renovation', valeur: 'fort', typeMarqueur: 'mesure', codeInsee: '31001');
+
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne/toulouse');
+        self::assertResponseIsSuccessful();
+
+        $bloc = $crawler->filter('.pourquoi-ici');
+        self::assertSame(1, $bloc->count(), 'Le bloc « Pourquoi ici ? » est rendu.');
+        // Le fait mesuré ouvre le bloc (gain E→C + nombre de ventes).
+        self::assertStringContainsString('+35 %', $bloc->text());
+        self::assertStringContainsString('120 ventes', $bloc->text());
+        // Une hypothèse contextuelle badgée « Hypothèse ».
+        self::assertStringContainsString('Marché détendu', $bloc->text());
+        self::assertGreaterThanOrEqual(1, $bloc->filter('.hypothese .badge')->count());
+        self::assertStringContainsString('Hypothèse', $bloc->filter('.hypothese .badge')->first()->text());
+    }
+
     private function commune(string $slugDepartement, string $slugCommune): \Symfony\Component\DomCrawler\Crawler
     {
         $client = $this->naviguer();
