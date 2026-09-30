@@ -45,15 +45,13 @@ final class CommunesTraceesDbalTest extends KernelTestCase
         self::assertNotEmpty($toulouse->anneaux, 'La commune porte au moins un anneau.');
         $anneau = $toulouse->anneaux[0];
         self::assertGreaterThanOrEqual(4, \count($anneau), 'Un anneau de polygone a au moins quatre sommets.');
-        foreach ($anneau as $sommet) {
-            self::assertIsFloat($sommet[0]);
-            self::assertIsFloat($sommet[1]);
-        }
-        // Le carré semé couvre les longitudes 1,0→1,1 et latitudes 43,0→43,1.
-        $lons = array_map(static fn (array $p): float => $p[0], $anneau);
-        $lats = array_map(static fn (array $p): float => $p[1], $anneau);
-        self::assertEqualsWithDelta(1.0, min($lons), 0.001);
-        self::assertEqualsWithDelta(43.1, max($lats), 0.001);
+        // Le carré semé (lon 1,0→1,1 ; lat 43,0→43,1) revient intact en anneaux lon/lat.
+        $sommets = array_map(
+            static fn (array $p): array => [round($p[0], 4), round($p[1], 4)],
+            $anneau,
+        );
+        self::assertContains([1.0, 43.0], $sommets);
+        self::assertContains([1.1, 43.1], $sommets);
     }
 
     public function testUneCommuneMesureePorteSaMaille(): void

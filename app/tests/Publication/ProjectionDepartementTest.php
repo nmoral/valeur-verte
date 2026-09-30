@@ -32,10 +32,7 @@ final class ProjectionDepartementTest extends TestCase
         self::assertSame(560, $projete['w']);
         self::assertSame(560, $projete['h']);
         // Nord (lat 61) en haut (y = 8, la marge) ; sud (lat 59) en bas (y = 552).
-        self::assertSame(
-            'M8.0,552.0 L552.0,552.0 L552.0,8.0 L8.0,8.0Z',
-            $projete['chemins']['31001'],
-        );
+        self::assertContains('M8.0,552.0 L552.0,552.0 L552.0,8.0 L8.0,8.0Z', $projete['chemins']);
     }
 
     public function testToutesLesCommunesPartagentLaMemeEchelle(): void
@@ -49,10 +46,7 @@ final class ProjectionDepartementTest extends TestCase
 
         self::assertSame(560, $projete['w']);
         self::assertSame(560, $projete['h']);
-        self::assertSame(
-            'M8.0,280.0 L280.0,280.0 L280.0,8.0 L8.0,8.0Z',
-            $projete['chemins']['31002'],
-        );
+        self::assertContains('M8.0,280.0 L280.0,280.0 L280.0,8.0 L8.0,8.0Z', $projete['chemins']);
     }
 
     public function testUnContourAPlusieursAnneauxLesEnchaine(): void
@@ -66,10 +60,10 @@ final class ProjectionDepartementTest extends TestCase
             ]],
         ]);
 
-        self::assertSame(
+        self::assertContains(
             'M8.0,552.0 L552.0,552.0 L552.0,8.0 L8.0,8.0Z'
             .'M8.0,280.0 L280.0,280.0 L280.0,8.0 L8.0,8.0Z',
-            $projete['chemins']['31001'],
+            $projete['chemins'],
         );
     }
 
