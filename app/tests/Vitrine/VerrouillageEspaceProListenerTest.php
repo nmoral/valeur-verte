@@ -13,10 +13,10 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * Vitrine restreinte (#385) : la zone pro (sous-domaine app.) est fermée le temps
- * de l'observation d'usage. Toute visite y est redirigée vers l'accueil public,
- * y compris pour un pro déjà authentifié — la redirection tombe avant la sécurité.
- * L'admin et le public ne sont pas touchés ; la sonde de santé répond toujours.
+ * Vitrine restreinte (#385) : quand elle est active, la zone pro (sous-domaine
+ * app.) redirige vers l'accueil public — y compris pour un pro authentifié (la
+ * redirection tombe avant la sécurité). L'admin et le public ne sont pas touchés ;
+ * la sonde de santé répond toujours. Éteinte, le listener ne fait rien.
  */
 final class VerrouillageEspaceProListenerTest extends TestCase
 {
@@ -24,23 +24,30 @@ final class VerrouillageEspaceProListenerTest extends TestCase
 
     public function testLEspaceProEstRedirigeVersLAccueil(): void
     {
-        $event = $this->ecouter('app.valeurverte.localhost');
+        $event = $this->ecouter(active: true, hote: 'app.valeurverte.localhost');
 
         $reponse = $event->getResponse();
         self::assertInstanceOf(RedirectResponse::class, $reponse);
         self::assertSame(self::URL_ACCUEIL, $reponse->getTargetUrl());
     }
 
+    public function testEteintLEspaceProResteAccessible(): void
+    {
+        $event = $this->ecouter(active: false, hote: 'app.valeurverte.localhost');
+
+        self::assertNull($event->getResponse());
+    }
+
     public function testLaZonePubliqueNestPasTouchee(): void
     {
-        $event = $this->ecouter('valeurverte.localhost');
+        $event = $this->ecouter(active: true, hote: 'valeurverte.localhost');
 
         self::assertNull($event->getResponse());
     }
 
     public function testLAdminNestPasTouche(): void
     {
-        $event = $this->ecouter('admin.valeurverte.localhost');
+        $event = $this->ecouter(active: true, hote: 'admin.valeurverte.localhost');
 
         self::assertNull($event->getResponse());
     }
@@ -48,7 +55,7 @@ final class VerrouillageEspaceProListenerTest extends TestCase
     public function testLaSanteRepondMemeSurLEspacePro(): void
     {
         // La sonde du conteneur ne doit pas être aveuglée par la fermeture (#313).
-        $event = $this->ecouter('app.valeurverte.localhost', chemin: '/sante');
+        $event = $this->ecouter(active: true, hote: 'app.valeurverte.localhost', chemin: '/sante');
 
         self::assertNull($event->getResponse());
     }
@@ -61,12 +68,12 @@ final class VerrouillageEspaceProListenerTest extends TestCase
             HttpKernelInterface::SUB_REQUEST,
         );
 
-        $this->listener()($event);
+        $this->listener(active: true)($event);
 
         self::assertNull($event->getResponse());
     }
 
-    private function ecouter(string $hote, string $chemin = '/'): RequestEvent
+    private function ecouter(bool $active, string $hote, string $chemin = '/'): RequestEvent
     {
         $event = new RequestEvent(
             $this->createMock(HttpKernelInterface::class),
@@ -74,18 +81,18 @@ final class VerrouillageEspaceProListenerTest extends TestCase
             HttpKernelInterface::MAIN_REQUEST,
         );
 
-        $this->listener()($event);
+        $this->listener($active)($event);
 
         return $event;
     }
 
-    private function listener(): VerrouillageEspaceProListener
+    private function listener(bool $active): VerrouillageEspaceProListener
     {
         $urls = $this->createMock(UrlGeneratorInterface::class);
         $urls->method('generate')
             ->with('home', [], UrlGeneratorInterface::ABSOLUTE_URL)
             ->willReturn(self::URL_ACCUEIL);
 
-        return new VerrouillageEspaceProListener($urls);
+        return new VerrouillageEspaceProListener($active, $urls);
     }
 }

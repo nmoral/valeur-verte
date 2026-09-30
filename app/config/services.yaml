@@ -149,6 +149,13 @@ services:
         arguments:
             $maintenanceActive: '%env(bool:APP_MAINTENANCE)%'
 
+    # Vitrine restreinte (#385) : APP_VITRINE_RESTREINTE=1 ferme la zone pro (app.)
+    # en la redirigeant vers l'accueil public. Active par défaut le temps de
+    # l'observation d'usage ; éteinte, l'espace pro rouvre sans redéploiement.
+    App\Vitrine\VerrouillageEspaceProListener:
+        arguments:
+            $vitrineRestreinte: '%env(bool:APP_VITRINE_RESTREINTE)%'
+
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
         arguments:

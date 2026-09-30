@@ -16,6 +16,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * simulateur, la zone pro (sous-domaine app.) est fermée. Toute visite y est
  * redirigée vers l'accueil public — y compris pour un pro déjà authentifié.
  *
+ * Piloté par la variable d'environnement `APP_VITRINE_RESTREINTE` (comme la
+ * bascule maintenance #197) : active par défaut, elle se lève d'un coup pour
+ * rouvrir l'espace pro sans redéploiement de code. Éteinte, le listener ne fait
+ * rien — l'espace pro et toute sa couverture de test restent intacts.
+ *
  * Priorité élevée : on tranche **avant** le routage et la sécurité, sans quoi un
  * visiteur non connecté serait d'abord renvoyé vers la page de connexion. Seule la
  * requête maître est concernée (une sous-requête de rendu ne doit pas être
@@ -27,13 +32,14 @@ final readonly class VerrouillageEspaceProListener
     private const CHEMIN_SANTE = '/sante';
 
     public function __construct(
+        private bool $vitrineRestreinte,
         private UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
     public function __invoke(RequestEvent $event): void
     {
-        if (!$event->isMainRequest()) {
+        if (!$this->vitrineRestreinte || !$event->isMainRequest()) {
             return;
         }
 
