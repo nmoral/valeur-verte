@@ -1,8 +1,9 @@
 # Pages publiques indexables du domaine principal (#340). Les zones privées
-# vivent sur des sous-domaines (app. = espace pro, admin. = admin interne) et
-# restent derrière basic auth + `X-Robots-Tag: noindex` (voir Caddyfile) ; le
-# sous-domaine widget. est noindex par nature (pages hébergées par client, D9).
-# Ce fichier gouverne le crawl du domaine public.
+# vivent sur des sous-domaines (app. = espace pro, admin. = admin interne),
+# gardées hors index par `X-Robots-Tag: noindex` (voir Caddyfile) et protégées
+# par l'authentification applicative ; le sous-domaine widget. est noindex par
+# nature (pages hébergées par client, D9). Ce fichier gouverne le crawl du
+# domaine public, désormais ouvert (#402).
 User-agent: *
 
 # URLs à jeton signé / usage unique : non partageables, elles expirent — hors
