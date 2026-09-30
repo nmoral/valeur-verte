@@ -7,13 +7,13 @@ namespace App\Tests\Publication;
 use App\BackOffice\Estimation\FournisseurPrixMaille;
 use App\BackOffice\Restitution\IndicateurFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
+use App\PourquoiIci\MarqueursDbal;
+use App\PourquoiIci\MoteurPourquoiIci;
+use App\PourquoiIci\Phrase;
 use App\Publication\Commune;
 use App\Publication\FichesCommunales;
 use App\Publication\IndexabiliteCommune;
 use App\Publication\LectureModelePublieDbal;
-use App\PourquoiIci\MarqueursDbal;
-use App\PourquoiIci\MoteurPourquoiIci;
-use App\PourquoiIci\Phrase;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**

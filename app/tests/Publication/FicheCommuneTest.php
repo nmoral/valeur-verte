@@ -7,10 +7,10 @@ namespace App\Tests\Publication;
 use App\BackOffice\Restitution\IndicateurFiabilite;
 use App\BackOffice\Restitution\PalierFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
+use App\PourquoiIci\Phrase;
 use App\Publication\FicheCommune;
 use App\Publication\IndexabiliteCommune;
 use App\Publication\Maille;
-use App\PourquoiIci\Phrase;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -141,9 +141,6 @@ final class FicheCommuneTest extends TestCase
         );
     }
 
-    /**
-     * @param list<Phrase> $phrases
-     */
     public function testPorteLesPhrasesDuBlocPourquoiIci(): void
     {
         $phrases = [Phrase::mesure('Ici, rénover E→C ajoute +28 %.'), Phrase::hypothese('Marché tendu.')];
@@ -156,6 +153,9 @@ final class FicheCommuneTest extends TestCase
         self::assertSame([], $this->ficheStandard()->phrases);
     }
 
+    /**
+     * @param list<Phrase> $phrases
+     */
     private function ficheStandard(
         ?float $prixM2 = 2500.0,
         int $n = 90,

@@ -49,7 +49,11 @@ final readonly class MarqueursDbal implements FournisseurMarqueurs
     {
         $valeurs = [];
         foreach ($this->connexion->fetchAllAssociative($sql, $params) as $ligne) {
-            $valeurs[(string) $ligne['nom']] = (string) $ligne['valeur'];
+            $nom = $ligne['nom'];
+            $valeur = $ligne['valeur'];
+            if (\is_string($nom) && \is_string($valeur)) {
+                $valeurs[$nom] = $valeur;
+            }
         }
 
         return Marqueurs::depuis($valeurs);
