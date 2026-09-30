@@ -50,8 +50,7 @@
     <ul class="nav-menu">
       <li class="nav-link"><a href="{{ url('carte_nationale') }}">La carte de France</a></li>
       <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
-      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
-      <li class="nav-cta"><a href="{{ url('inscription') }}" class="btn btn-sm" data-lien="inscription">Créer un compte</a></li>
+      <li class="nav-cta"><a href="{{ path('simulateur') }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
     </ul>
   </div>
 </nav>
@@ -72,7 +71,7 @@
           l'intercommunalité {{ epci.nom }}&nbsp;? Le chiffre mesuré sur les ventes réellement
           enregistrées par les notaires, croisées aux DPE — commune par commune, pas une moyenne nationale.</p>
         <div class="cta-row">
-          <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Estimer un bien</a>
+          <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Estimer un bien</a>
           {% for dep in fiche.departements %}
             <a href="{{ url('hub_departemental', { departement: dep.slug }) }}" class="btn btn-ghost">Voir {{ dep.nom }}</a>
           {% endfor %}
@@ -124,7 +123,7 @@
         {% endfor %}
       </ul>
       <div class="cta-row">
-        <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte gratuit</a>
+        <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
         <a href="{{ path('publication') }}" class="btn btn-ghost">Comment c'est mesuré</a>
       </div>
     </div>

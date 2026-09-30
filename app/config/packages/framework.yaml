@@ -26,6 +26,18 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '1 hour'
+        # Simulateur public (#385) : l'envoi du rapport part un email vers l'adresse
+        # saisie — endpoint ouvert, donc plafonné par IP pour couper l'email-bombing.
+        simulateur_ip:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '1 hour'
+        # Autocomplétion d'adresse du simulateur : protège le quota de la BAN d'un
+        # martèlement, tout en restant large (une frappe = une requête).
+        simulateur_adresse_ip:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
 
     #esi: true
     #fragments: true

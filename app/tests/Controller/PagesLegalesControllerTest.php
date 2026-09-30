@@ -40,6 +40,26 @@ final class PagesLegalesControllerTest extends WebTestCase
     }
 
     /**
+     * Vitrine restreinte (#385) : la nav publique partagée (pages légales
+     * comprises) ne propose plus ni connexion ni création de compte.
+     *
+     * @dataProvider cheminsLegaux
+     */
+    public function testLaNavPubliqueNeProposePlusDeCommercial(string $chemin): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request('GET', 'http://'.self::HOTE.$chemin);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
+        $creation = $crawler->filter('nav a')->reduce(
+            static fn ($node): bool => str_contains($node->text(), 'Créer un compte'),
+        );
+        self::assertSame(0, $creation->count());
+    }
+
+    /**
      * Ces pages ne dépendent d'aucune session et ne changent qu'au déploiement :
      * elles doivent rester indexables et cachables par un proxy partagé.
      *

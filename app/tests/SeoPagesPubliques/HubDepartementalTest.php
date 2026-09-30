@@ -131,6 +131,15 @@ final class HubDepartementalTest extends WebTestCase
         self::assertSame(['Accueil', 'Haute-Garonne'], $this->filAriane($this->hub('haute-garonne')));
     }
 
+    public function testLeHubNAfficheAucunCommercial(): void
+    {
+        // Vitrine restreinte (#385) : plus de connexion ni de création de compte.
+        $crawler = $this->hub('haute-garonne');
+
+        self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+    }
+
     /**
      * @return list<mixed> les noms du fil d'Ariane (JSON-LD BreadcrumbList), dans l'ordre
      */

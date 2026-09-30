@@ -2,9 +2,9 @@
 <html lang="fr">
 <head>
 {{ include('_seo.html.twig', {
-  titre: 'Valeur verte mesurée — l\'outil des entreprises RGE',
-  og_titre: 'Montrez à vos clients la valeur, pas la dépense',
-  description: 'Mesurez la valeur qu\'une rénovation ajoute à une maison, à partir des ventes réelles autour de l\'adresse. Rapport PDF en 3 min, pour les entreprises RGE.',
+  titre: 'Valeur verte — ce que la rénovation ajoute au prix d\'une maison',
+  og_titre: 'La valeur qu\'une rénovation ajoute à une maison',
+  description: 'Mesurez la valeur qu\'une rénovation énergétique ajoute à une maison, à partir des ventes réelles enregistrées autour de l\'adresse. Simulateur et méthode ouverte.',
   canonical: url('home'),
 }) }}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +20,7 @@
       '@id': url('home') ~ '#organisation',
       'name': 'Valeur Verte',
       'url': url('home'),
-      'description': 'Outil de mesure de la valeur verte pour les entreprises RGE, à partir des ventes réelles (DVF) croisées aux DPE.',
+      'description': 'Outil de mesure de la valeur verte, à partir des ventes réelles (DVF) croisées aux DPE.',
       'areaServed': 'FR'
     },
     {
@@ -29,19 +29,6 @@
       'name': 'Valeur Verte',
       'inLanguage': 'fr-FR',
       'publisher': { '@id': url('home') ~ '#organisation' }
-    },
-    {
-      '@type': 'Product',
-      'name': 'Valeur Verte',
-      'description': 'Rapport de valeur verte chiffré, à l\'en-tête du professionnel, à partir de transactions réelles.',
-      'brand': { '@type': 'Brand', 'name': 'Valeur Verte' },
-      'offers': {
-        '@type': 'Offer',
-        'price': '89',
-        'priceCurrency': 'EUR',
-        'availability': 'https://schema.org/InStock',
-        'url': url('inscription')
-      }
     }
   ]
 } %}
@@ -55,12 +42,9 @@
   <div class="wrap">
     <a href="/" class="brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
     <ul class="nav-menu">
+      <li class="nav-link"><a href="{{ path('simulateur') }}">Simulateur</a></li>
       <li class="nav-link"><a href="#methode">Méthode</a></li>
-      <li class="nav-link"><a href="#prix">Prix</a></li>
       <li class="nav-link"><a href="#limites">Limites</a></li>
-      {# « Créer un compte » pointera vers l'inscription self-service (#105) quand elle existera. #}
-      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
-      <li class="nav-cta"><a href="{{ path('inscription') }}" class="btn btn-sm">Créer un compte</a></li>
     </ul>
   </div>
 </nav>
@@ -71,15 +55,15 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <p class="kicker">Pour les entreprises RGE</p>
-        <h1>Vos clients ne voient que la dépense. <span>Montrez-leur la valeur.</span></h1>
-        <p class="lead">Le chiffre exact que la rénovation ajoute à leur maison, mesuré sur les ventes
+        <p class="kicker">Mesuré sur les ventes réelles</p>
+        <h1>Ce que la rénovation ajoute <span>à la valeur d'une maison.</span></h1>
+        <p class="lead">Le chiffre que la rénovation énergétique ajoute à une maison, mesuré sur les ventes
           réellement enregistrées autour de l'adresse. Pas une moyenne nationale.</p>
         <div class="cta-row">
-          <a href="{{ path('inscription') }}" class="btn">Créer un compte</a>
+          <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Estimer une adresse</a>
           <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
         </div>
-        <p class="cta-note">Sans carte bancaire · Premier rapport en 3 minutes</p>
+        <p class="cta-note">Démonstration immédiate · Résultat chiffré avec fourchette</p>
       </div>
 
       <section id="simulateur" class="demo" aria-labelledby="demo-titre">
@@ -160,31 +144,6 @@
     </div>
   </div>
 
-  <!-- ============ USAGE ============ -->
-  <section aria-labelledby="usages-titre">
-    <div class="wrap">
-      <h2 id="usages-titre">Trois façons de s'en servir</h2>
-      <p class="section-lead">Le même calcul, aux trois moments où un devis se gagne ou se perd.</p>
-      <ul class="steps">
-        <li class="step">
-          <p class="num">01 — EN RENDEZ-VOUS</p>
-          <h3>Le document que vous laissez</h3>
-          <p>Après la visite, vous saisissez ce que vous avez constaté et repartez avec un PDF à votre en-tête. Le client garde un chiffre, pas seulement un devis.</p>
-        </li>
-        <li class="step">
-          <p class="num">02 — APRÈS COUP</p>
-          <h3>La relance des devis dormants</h3>
-          <p>Un lien à votre marque, envoyé aux devis restés sans réponse. Vous savez qui l'ouvre. C'est le seul argument nouveau que vous pouvez apporter.</p>
-        </li>
-        <li class="step">
-          <p class="num">03 — EN AMONT</p>
-          <h3>Votre page publique</h3>
-          <p>Une adresse à vous, à mettre sur vos devis, votre camion, votre signature. Le visiteur obtient son chiffre, vous obtenez son contact.</p>
-        </li>
-      </ul>
-    </div>
-  </section>
-
   <!-- ============ MÉTHODE ============ -->
   <section id="methode" class="on-card" aria-labelledby="methode-titre">
     <div class="wrap">
@@ -211,9 +170,9 @@
 
       <div class="devis-card">
         <div>
-          <p class="eyebrow">CE QUE ÇA CHANGE POUR LE DEVIS</p>
+          <p class="eyebrow">CE QUE ÇA CHANGE</p>
           <h3>Le marché paie le passage en C, pas la progression continue.</h3>
-          <p>Viser C est presque toujours l'optimum ; payer pour B et rater le C est le pire scénario. Vous dimensionnez juste, et ça se défend.</p>
+          <p>Viser C est presque toujours l'optimum ; payer pour B et rater le C est le pire scénario. On dimensionne juste, et ça se défend.</p>
         </div>
         <table class="trans">
           <caption>Valeur créée par transition — ordres de grandeur mesurés sur le corridor nord toulousain</caption>
@@ -229,41 +188,16 @@
     </div>
   </section>
 
-  <!-- ============ PRIX ============ -->
-  <section id="prix" class="on-card" aria-labelledby="prix-titre">
+  <!-- ============ ACCÈS SIMULATEUR ============ -->
+  <section id="essayer" class="on-card" aria-labelledby="essayer-titre">
     <div class="wrap">
-      <h2 id="prix-titre">Deux façons d'entrer</h2>
-      <p class="section-lead">Le même produit, sans quota ni palier. Les barèmes MaPrimeRénov', l'éco-PTZ, la TVA réduite et les coefficients de marché changent tous les six mois : c'est ce que vous payez — une donnée à jour, pas un calculateur.</p>
-      <div class="price-grid">
-        <div class="price-card">
-          <p><span class="price-tag">Membre classique</span></p>
-          <p class="price-amount">300 €<small> / mois</small></p>
-          <p class="price-sub">sans engagement · résiliable en un clic</p>
-          <ul class="price-list">
-            <li><strong>2 mois d'essai gratuit</strong></li>
-            <li>Rapports illimités</li>
-            <li>Votre logo, vos couleurs, vos coûts</li>
-            <li>Barèmes d'aides tenus à jour</li>
-            <li>Option annuelle : 10 mois payés</li>
-          </ul>
-          <a href="{{ path('inscription') }}" class="price-cta">Créer un compte</a>
-          <p class="price-foot">Disponible à tout moment, sans condition.</p>
-        </div>
-        <div class="price-card featured">
-          <p><span class="price-tag">Offre fondateur — 10 places</span></p>
-          <p class="price-amount">250 €<small> / mois</small></p>
-          <p class="price-sub">au lieu de <s>300 €</s> · prix garanti à vie</p>
-          <ul class="price-list">
-            <li><strong>6 premiers mois offerts</strong></li>
-            <li>Rapports illimités</li>
-            <li>Votre logo, vos couleurs, vos coûts</li>
-            <li>Barèmes d'aides tenus à jour</li>
-            <li>Résiliation en un clic</li>
-          </ul>
-          <a href="{{ path('inscription') }}" class="price-cta">Prendre une place fondateur</a>
-          <p class="price-foot">En échange : trois points de vingt minutes sur six mois.</p>
-        </div>
-      </div>
+      <h2 id="essayer-titre">Estimez pour une adresse précise</h2>
+      <p class="section-lead">La démonstration ci-dessus est illustrative. Le simulateur, lui, part de
+        <strong>votre commune</strong> : saisissez l'adresse, la surface et les étiquettes DPE, et recevez le
+        rapport chiffré par email — la valeur créée, sa fourchette et le nombre de ventes comparables.</p>
+      <p class="essayer-cta">
+        <a href="{{ path('simulateur') }}" class="btn" data-lien="simulateur">Ouvrir le simulateur</a>
+      </p>
     </div>
   </section>
 
@@ -271,7 +205,7 @@
   <section id="limites" aria-labelledby="limites-titre">
     <div class="wrap">
       <h2 id="limites-titre">Ce que l'outil ne fait pas</h2>
-      <p class="section-lead">Autant le dire avant que vous le découvriez devant un client.</p>
+      <p class="section-lead">Autant le dire d'emblée.</p>
       <dl class="limits">
         <div><dt>Ce n'est pas une estimation immobilière.</dt><dd>C'est une mesure statistique sur des ventes passées. Elle n'engage personne sur un bien précis.</dd></div>
         <div><dt>Maisons individuelles uniquement.</dt><dd>En copropriété, le propriétaire ne décide pas seul des travaux qui comptent.</dd></div>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Rapport envoyé — Valeur Verte',
+  description: 'Votre rapport de valeur verte vous a été envoyé par email.',
+  canonical: url('simulateur'),
+  robots: 'noindex, nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+<link rel="stylesheet" href="{{ asset('css/footer.css') }}">
+<link rel="stylesheet" href="{{ asset('css/simulateur.css') }}">
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+{{ include('_nav_publique.html.twig') }}
+
+<main id="contenu" class="simulateur">
+  <div class="wrap">
+    <section class="simulateur-resultat" data-simulateur="confirmation">
+      <p class="kicker">Rapport envoyé</p>
+      <h1>Votre rapport part vers <span>{{ email }}</span></h1>
+      <p class="lead">Vérifiez votre boîte mail (et les indésirables). Voici l'essentiel de l'estimation&nbsp;:</p>
+
+      <p class="montant">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
+      <p class="fourchette">Fourchette&nbsp;: {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} €
+        – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €</p>
+
+      <ul class="stats">
+        <li><span>Transactions</span><b>{{ restitution.n|number_format(0, ',', ' ') }}</b></li>
+        <li><span>Portée</span><b>{{ restitution.intitulePortee }}</b></li>
+        <li><span>Millésime</span><b>{{ restitution.millesime }}</b></li>
+      </ul>
+
+      {% if conserve %}
+        <p class="note-consentement">Votre email est conservé pour recevoir des nouvelles. Chaque message vous permettra de vous désinscrire.</p>
+      {% endif %}
+
+      <p><a href="{{ path('simulateur') }}" class="btn btn-ghost">Faire une autre estimation</a></p>
+    </section>
+  </div>
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+</body>
+</html>

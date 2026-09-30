@@ -149,10 +149,24 @@ services:
         arguments:
             $maintenanceActive: '%env(bool:APP_MAINTENANCE)%'
 
+    # Vitrine restreinte (#385) : APP_VITRINE_RESTREINTE=1 ferme la zone pro (app.)
+    # en la redirigeant vers l'accueil public. Active par défaut le temps de
+    # l'observation d'usage ; éteinte, l'espace pro rouvre sans redéploiement.
+    App\Vitrine\VerrouillageEspaceProListener:
+        arguments:
+            $vitrineRestreinte: '%env(bool:APP_VITRINE_RESTREINTE)%'
+
     # Le limiteur d'inscription reçoit la fabrique nommée « inscription_ip ».
     App\Security\LimiteurInscription:
         arguments:
             $inscriptionIpLimiter: '@limiter.inscription_ip'
+
+    # Anti-abus du simulateur public (#385) : les deux fabriques nommées (émission
+    # du rapport par IP, autocomplétion d'adresse par IP).
+    App\Simulateur\PlafondSimulateur:
+        arguments:
+            $simulateurIpLimiter: '@limiter.simulateur_ip'
+            $simulateurAdresseIpLimiter: '@limiter.simulateur_adresse_ip'
 
     # Plafond anti-abus du widget (#43) : les deux fabriques nommées (par IP et par page).
     App\Widget\PlafondWidget:

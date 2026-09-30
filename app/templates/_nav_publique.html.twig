@@ -1,15 +1,15 @@
 {# Navigation du site public, partagée par la vitrine et les pages légales (#228).
    Les ancres pointent sur la vitrine : depuis une page légale, elles ramènent à
-   la section correspondante plutôt que dans le vide. #}
+   la section correspondante plutôt que dans le vide.
+   Vitrine restreinte (#385) : ni connexion ni création de compte — le site
+   n'expose que l'information et le simulateur. #}
 <nav class="nav" aria-label="Navigation principale">
   <div class="wrap">
     <a href="{{ path('home') }}" class="brand"><i aria-hidden="true">VV</i> Valeur Verte</a>
     <ul class="nav-menu">
+      <li class="nav-link"><a href="{{ path('simulateur') }}">Simulateur</a></li>
       <li class="nav-link"><a href="{{ path('home') }}#methode">Méthode</a></li>
-      <li class="nav-link"><a href="{{ path('home') }}#prix">Prix</a></li>
       <li class="nav-link"><a href="{{ path('home') }}#limites">Limites</a></li>
-      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
-      <li class="nav-cta"><a href="{{ path('inscription') }}" class="btn btn-sm">Créer un compte</a></li>
     </ul>
   </div>
 </nav>
