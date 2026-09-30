@@ -33,7 +33,7 @@ final class ListeBlancheTest extends TestCase
         ));
     }
 
-    public function testEtainMeuse_froidDetenduRuralLevierFort(): void
+    public function testEtainMeuseFroidDetenduRuralLevierFort(): void
     {
         // Froid (H1), marché détendu, rural, levier de rénovation fort → 3 hypothèses cohérentes.
         $marqueurs = Marqueurs::depuis([
@@ -51,7 +51,7 @@ final class ListeBlancheTest extends TestCase
         self::assertTrue($this->auMoinsUne($hypotheses, 'rural'));
     }
 
-    public function testVar_douxTenduLittoralTourismeFortLevierFaible(): void
+    public function testVarDouxTenduLittoralTourismeFortLevierFaible(): void
     {
         // Doux (H3), marché tendu, littoral prisé, levier faible → 2 hypothèses cohérentes.
         $marqueurs = Marqueurs::depuis([
