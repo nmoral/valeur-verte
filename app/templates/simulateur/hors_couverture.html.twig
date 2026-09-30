@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Commune hors couverture — Valeur Verte',
+  description: 'Cette commune n\'est pas encore couverte par le simulateur de valeur verte.',
+  canonical: url('simulateur'),
+  robots: 'noindex, nofollow',
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+<link rel="stylesheet" href="{{ asset('css/footer.css') }}">
+<link rel="stylesheet" href="{{ asset('css/simulateur.css') }}">
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+{{ include('_nav_publique.html.twig') }}
+
+<main id="contenu" class="simulateur">
+  <div class="wrap">
+    <section class="simulateur-resultat" data-simulateur="hors-couverture">
+      <p class="kicker">Estimation indisponible</p>
+      <h1>Nous ne couvrons pas encore cette commune</h1>
+      <p class="lead">Le simulateur s'appuie sur les ventes réelles de la commune. Il n'y en a pas assez ici
+        pour produire un chiffre fiable — aucun rapport n'a été envoyé.</p>
+      <p><a href="{{ path('simulateur') }}" class="btn btn-ghost">Essayer une autre adresse</a></p>
+    </section>
+  </div>
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+</body>
+</html>

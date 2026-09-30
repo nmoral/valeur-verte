@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+{{ include('_seo.html.twig', {
+  titre: 'Simulateur de valeur verte — la plus-value d\'une rénovation, commune par commune',
+  og_titre: 'Estimez la valeur qu\'une rénovation ajoute à une maison',
+  description: 'Saisissez une adresse, la surface et les étiquettes DPE : recevez par email la valeur qu\'une rénovation énergétique ajoute à la maison, mesurée sur les ventes réelles de la commune.',
+  canonical: url('simulateur'),
+}) }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+<link rel="stylesheet" href="{{ asset('css/footer.css') }}">
+<link rel="stylesheet" href="{{ asset('css/simulateur.css') }}">
+</head>
+<body>
+
+<a href="#contenu" class="sr-only">Aller au contenu principal</a>
+{{ include('_nav_publique.html.twig') }}
+
+<main id="contenu" class="simulateur">
+  <div class="wrap">
+    <header class="simulateur-tete">
+      <p class="kicker">Mesuré sur les ventes réelles</p>
+      <h1>Ce que la rénovation ajoute à la valeur d'une maison</h1>
+      <p class="lead">Choisissez l'adresse, la surface et les étiquettes DPE. Vous recevez le rapport chiffré
+        par email — la valeur créée, sa fourchette, et le nombre de ventes comparables dans la commune.</p>
+    </header>
+
+    {% if erreurs is not empty %}
+      <ul class="erreurs" data-simulateur="erreurs">
+        {% for erreur in erreurs %}<li>{{ erreur }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <form data-simulateur="estimation" method="post" action="{{ path('simulateur_soumettre') }}"
+          data-adresse-url="{{ path('simulateur_adresses') }}">
+      <input type="hidden" name="code_insee" data-simulateur="code-insee" value="{{ valeurs.code_insee|default('') }}">
+
+      <div class="champ">
+        <label for="adresse">Adresse du bien</label>
+        <div class="combo">
+          <input type="text" id="adresse" name="adresse" data-simulateur="adresse"
+                 autocomplete="off" role="combobox" aria-autocomplete="list"
+                 aria-controls="adresse-suggestions" aria-expanded="false"
+                 placeholder="12 rue du Taur, Toulouse" value="{{ valeurs.adresse|default('') }}" required>
+          <ul class="suggestions" id="adresse-suggestions" data-simulateur="suggestions" role="listbox" hidden></ul>
+        </div>
+        <p class="champ-aide">Choisissez votre adresse dans la liste : elle situe le bien dans sa commune.</p>
+      </div>
+
+      <div class="duo">
+        <div class="champ">
+          <label for="surface_batie">Surface habitable (m²)</label>
+          <input type="number" id="surface_batie" name="surface_batie" min="20" max="400"
+                 placeholder="95" value="{{ valeurs.surface_batie|default('') }}" required>
+        </div>
+        <div class="champ">
+          <label for="surface_terrain">Surface du terrain (m²)</label>
+          <input type="number" id="surface_terrain" name="surface_terrain" min="0" max="10000"
+                 value="{{ valeurs.surface_terrain|default('0') }}">
+        </div>
+      </div>
+
+      <div class="duo">
+        <div class="champ">
+          <label for="dpe_avant">Étiquette énergétique actuelle</label>
+          <select id="dpe_avant" name="dpe_avant" required>
+            <option value="" disabled {{ valeurs.dpe_avant|default('') == '' ? 'selected' : '' }}>—</option>
+            {% for dpe in dpe_options %}
+              <option value="{{ dpe.value }}" {{ valeurs.dpe_avant|default('') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="champ">
+          <label for="dpe_apres">Étiquette visée après travaux</label>
+          <select id="dpe_apres" name="dpe_apres" required>
+            <option value="" disabled {{ valeurs.dpe_apres|default('') == '' ? 'selected' : '' }}>—</option>
+            {% for dpe in dpe_options %}
+              <option value="{{ dpe.value }}" {{ valeurs.dpe_apres|default('') == dpe.value ? 'selected' : '' }}>{{ dpe.value }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="champ">
+        <label for="email">Votre email</label>
+        <input type="email" id="email" name="email" placeholder="vous@exemple.fr"
+               value="{{ valeurs.email|default('') }}" required>
+        <p class="champ-aide">Le rapport chiffré vous est envoyé à cette adresse.</p>
+      </div>
+
+      <label class="consentement">
+        <input type="checkbox" name="consentement" value="1">
+        <span>Je souhaite que mon email soit conservé pour recevoir des nouvelles (facultatif).</span>
+      </label>
+
+      <button type="submit" class="btn">Recevoir mon rapport par email</button>
+      <p class="cta-note">Estimation statistique sur les ventes réelles — ne constitue pas une évaluation immobilière.</p>
+    </form>
+  </div>
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+<script src="{{ asset('js/simulateur.js') }}" defer></script>
+</body>
+</html>

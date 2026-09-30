@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;background:#f4f6f5;font-family:'Public Sans',Arial,sans-serif;color:#111820">
+  <div style="max-width:560px;margin:0 auto;padding:24px">
+    <p style="font:600 13px/1 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#0E4A5C">Valeur Verte</p>
+    <h1 style="font:800 24px/1.2 Arial,sans-serif;margin:8px 0 4px">Votre rapport de valeur verte</h1>
+    <p style="color:#4a5560;margin:0 0 20px">Ce que la rénovation ajoute à la valeur de la maison, mesuré sur les ventes réellement enregistrées autour de l'adresse.</p>
+
+    <table role="presentation" width="100%" style="background:#fff;border:1px solid #e2e6e4;border-radius:6px;border-collapse:separate;padding:20px">
+      <tr><td>
+        <p style="margin:0;color:#4a5560;font-size:14px">Le bien</p>
+        <p style="margin:2px 0 16px;font-weight:600">{{ saisie.adresse }} · {{ saisie.surfaceBatie }} m² · {{ saisie.dpeAvant.value }} → {{ saisie.dpeApres.value }}</p>
+
+        <p style="margin:0;color:#4a5560;font-size:14px">Valeur créée par la rénovation</p>
+        <p style="margin:2px 0 4px;font:800 34px/1 Arial,sans-serif;color:#0E4A5C">+{{ restitution.montantEuros|number_format(0, ',', ' ') }} €</p>
+        <p style="margin:0 0 16px;color:#4a5560;font-size:14px">Fourchette&nbsp;: {{ restitution.borneBasseEuros|number_format(0, ',', ' ') }} € – {{ restitution.borneHauteEuros|number_format(0, ',', ' ') }} €</p>
+
+        <p style="margin:0;color:#4a5560;font-size:14px">Contexte de la mesure</p>
+        <p style="margin:2px 0 0;font-weight:600">{{ restitution.n|number_format(0, ',', ' ') }} ventes comparables · {{ restitution.intitulePortee }} · millésime {{ restitution.millesime }}</p>
+      </td></tr>
+    </table>
+
+    <p style="color:#7a848c;font-size:12px;margin:16px 0 0">Estimation statistique sur les ventes réelles (DVF/DGFiP) croisées aux DPE (ADEME). Elle ne constitue pas une évaluation immobilière et n'engage personne sur un prix de vente.</p>
+  </div>
+</body>
+</html>

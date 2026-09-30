@@ -161,6 +161,13 @@ services:
         arguments:
             $inscriptionIpLimiter: '@limiter.inscription_ip'
 
+    # Anti-abus du simulateur public (#385) : les deux fabriques nommées (émission
+    # du rapport par IP, autocomplétion d'adresse par IP).
+    App\Simulateur\PlafondSimulateur:
+        arguments:
+            $simulateurIpLimiter: '@limiter.simulateur_ip'
+            $simulateurAdresseIpLimiter: '@limiter.simulateur_adresse_ip'
+
     # Plafond anti-abus du widget (#43) : les deux fabriques nommées (par IP et par page).
     App\Widget\PlafondWidget:
         arguments:
