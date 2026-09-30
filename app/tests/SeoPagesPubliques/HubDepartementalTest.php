@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\SeoPagesPubliques;
 
+use App\Publication\PerimetrePublic;
 use App\Tests\Publication\ProvisionneModelePublie;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -165,6 +166,38 @@ final class HubDepartementalTest extends WebTestCase
         }
 
         self::fail('Aucun JSON-LD BreadcrumbList trouvé sur la page.');
+    }
+
+    public function testUnDepartementHorsPerimetreRenvoie404AvecPageIndisponible(): void
+    {
+        $client = $this->naviguer();
+        $client->disableReboot();
+        $this->publier(); // Haute-Garonne (31) mesuré…
+        // …mais le périmètre ne contient que l'Ariège : la page n'est pas encore ouverte.
+        self::getContainer()->set(
+            PerimetrePublic::class,
+            new PerimetrePublic(['09'], communesPubliques: false, epciPublics: false),
+        );
+
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne');
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertStringContainsString('pas encore disponible', mb_strtolower($crawler->text()));
+    }
+
+    public function testUnDepartementDuPerimetreResteAccessible(): void
+    {
+        $client = $this->naviguer();
+        $client->disableReboot();
+        $this->publier();
+        self::getContainer()->set(
+            PerimetrePublic::class,
+            new PerimetrePublic(['31'], communesPubliques: false, epciPublics: false),
+        );
+
+        $client->request('GET', '/valeur-verte/haute-garonne');
+
+        self::assertResponseIsSuccessful();
     }
 
     private function hub(string $slug): Crawler

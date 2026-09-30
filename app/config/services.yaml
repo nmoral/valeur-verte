@@ -14,6 +14,18 @@ parameters:
     # borne à 50 000 URLs / 50 Mo. Au-delà, le sitemap index paginé prend le relais.
     app.sitemap.max_urls: 50000
 
+    # Périmètre de publication SEO (#393) : mise en ligne progressive. Au go-live,
+    # seuls la carte et les hubs des départements listés sont accessibles/indexés ;
+    # les pages commune et EPCI ne le sont que si leur type est activé. Défaut =
+    # Occitanie (13 départements), hubs seuls — élargi par phases via l'environnement
+    # (VV_PERIMETRE_DEPARTEMENTS, VV_COMMUNES_PUBLIQUES, VV_EPCI_PUBLICS), sans code.
+    app.perimetre.departements_defaut: '09,11,12,30,31,32,34,46,48,65,66,81,82'
+    app.perimetre.departements: '%env(csv:default:app.perimetre.departements_defaut:VV_PERIMETRE_DEPARTEMENTS)%'
+    app.perimetre.communes_publiques_defaut: false
+    app.perimetre.communes_publiques: '%env(bool:default:app.perimetre.communes_publiques_defaut:VV_COMMUNES_PUBLIQUES)%'
+    app.perimetre.epci_publics_defaut: false
+    app.perimetre.epci_publics: '%env(bool:default:app.perimetre.epci_publics_defaut:VV_EPCI_PUBLICS)%'
+
     # Sauvegarde de la base (#55). Défauts du poste de dev ; le cron du VPS fixe
     # VV_SAUVEGARDE_DIR (volume monté) et, au besoin, VV_SAUVEGARDE_RETENTION_JOURS.
     app.sauvegarde.repertoire_defaut: '%kernel.project_dir%/var/sauvegardes'
@@ -62,6 +74,14 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+
+    # Périmètre de publication SEO (#393) : allowlist de départements + flags de types
+    # (non autowirable — tableau + booléens ; alimenté par les paramètres app.perimetre.*).
+    App\Publication\PerimetrePublic:
+        arguments:
+            $departements: '%app.perimetre.departements%'
+            $communesPubliques: '%app.perimetre.communes_publiques%'
+            $epciPublics: '%app.perimetre.epci_publics%'
 
     # Mentions légales (#228) : identité de l'éditeur et de l'hébergeur.
     App\Controller\PagesLegalesController:
@@ -372,6 +392,18 @@ when@dev:
 
 when@test:
     services:
+        # Périmètre de publication (#393) : ouvert en test (toutes les pages
+        # accessibles), pour que les tests fonctionnels existants (communes/EPCI,
+        # départements hors Occitanie) restent verts. Les tests du gating restrictif
+        # substituent leur propre PerimetrePublic via le conteneur de test — d'où
+        # « public: true ». Le bloc when@test n'hérite pas des _defaults.
+        App\Publication\PerimetrePublic:
+            public: true
+            arguments:
+                $departements: ['*']
+                $communesPubliques: true
+                $epciPublics: true
+
         # Exposé pour les tests tant qu'aucun service applicatif n'injecte le
         # hasher (l'inscription #105 le fera) : sans consommateur, l'alias
         # d'autowiring est élagué du conteneur et introuvable côté test.

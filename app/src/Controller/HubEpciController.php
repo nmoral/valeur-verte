@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Publication\FichesEpci;
+use App\Publication\PerimetrePublic;
 use App\Publication\RepertoireEpci;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -41,7 +42,15 @@ final class HubEpciController extends AbstractController
         string $epci,
         RepertoireEpci $epcis,
         FichesEpci $fiches,
+        PerimetrePublic $perimetre,
     ): Response {
+        // Mise en ligne progressive (#393) : les hubs EPCI ne sont ouverts qu'à une
+        // phase ultérieure (un EPCI peut chevaucher plusieurs départements, d'où un
+        // simple drapeau de type plutôt qu'un filtre départemental).
+        if (!$perimetre->epciPublics()) {
+            throw $this->createNotFoundException(\sprintf('Hubs EPCI non ouverts : %s.', $epci));
+        }
+
         $lEpci = $epcis->resoudre($epci);
         if (null === $lEpci) {
             throw $this->createNotFoundException(\sprintf('EPCI inconnu : %s.', $epci));

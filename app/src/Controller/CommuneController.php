@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Publication\FichesCommunales;
+use App\Publication\PerimetrePublic;
 use App\Publication\RepertoireCommunes;
 use App\Publication\RepertoireDepartements;
 use App\Publication\RepertoireEpci;
@@ -40,10 +41,17 @@ final class CommuneController extends AbstractController
         FichesCommunales $fiches,
         RepertoireDepartements $departements,
         RepertoireEpci $epcis,
+        PerimetrePublic $perimetre,
     ): Response {
         $laCommune = $communes->resoudre($departement, $commune);
         if (null === $laCommune) {
             throw $this->createNotFoundException(\sprintf('Commune inconnue : %s / %s.', $departement, $commune));
+        }
+
+        // Mise en ligne progressive (#393) : les pages communes ne sont servies que si
+        // leur type est ouvert ET que le département est dans le périmètre publié.
+        if (!$perimetre->communesPubliques() || !$perimetre->contient($laCommune->codeDepartement)) {
+            throw $this->createNotFoundException(\sprintf('Pages communes non ouvertes : %s.', $commune));
         }
 
         $fiche = $fiches->pour($laCommune);

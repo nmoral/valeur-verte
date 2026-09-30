@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# 404 : hors index (la page n'existe pas encore publiquement). #}
+  <meta name="robots" content="noindex, follow">
+  <title>{{ departement_nom }} : bientôt disponible — Valeur Verte</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="{{ asset('css/landing.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/footer.css') }}">
+</head>
+<body>
+
+<nav class="nav" aria-label="Navigation principale">
+  <div class="wrap">
+    <a href="{{ url('home') }}" class="brand" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
+  </div>
+</nav>
+
+<main id="contenu">
+  <section class="block">
+    <div class="wrap">
+      <h1>{{ departement_nom }} : pas encore disponible</h1>
+      <p>La valeur verte de ce département n'est pas encore publiée. Nous ouvrons les
+        territoires <strong>progressivement</strong> — celui-ci arrivera dans une prochaine vague.</p>
+      <div class="cta-row">
+        <a href="{{ url('carte_nationale') }}" class="btn" data-lien="carte">Voir la carte de France</a>
+        <a href="{{ url('home') }}" class="btn btn-ghost">Retour à l'accueil</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+{{ include('_pied_de_page.html.twig') }}
+
+</body>
+</html>
