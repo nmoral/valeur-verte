@@ -11,6 +11,7 @@ from valeur_verte_data.db.coefficient_repository import (
     archiver_coefficient,
     lire_coefficient_precedent,
     lire_coefficients_publies,
+    supprimer_refus,
 )
 from valeur_verte_data.degraded import CoverageMode, PalierFiabilite
 
@@ -106,6 +107,21 @@ def test_les_ecarts_types_dpe_sont_persistes() -> None:
     assert "se_dpe" in query
     assert params is not None
     assert json.loads(params[15])["F"] == 0.5
+
+
+def test_supprimer_refus_efface_la_ligne_du_millesime() -> None:
+    """#399 : un recalcul réussi doit purger un refus périmé (code_insee, millesime).
+    Sans quoi ``publier_millesime`` — qui applique les refus APRÈS avoir projeté
+    l'archive — efface la maille valide qu'on vient d'archiver. Pendant naturel de
+    ``enregistrer_refus``, borné à la clé (code_insee, millesime)."""
+    conn = _FakeConnection()
+
+    supprimer_refus(conn, "31555", 2024)
+
+    query, params = conn.calls[0]
+    assert "delete" in query.lower()
+    assert "maille_refusee" in query
+    assert params == ["31555", 2024]
 
 
 def test_archiver_coefficient_versionne_par_millesime() -> None:

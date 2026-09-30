@@ -181,6 +181,26 @@ def test_le_batch_archive_les_mailles_retenues(
     assert [m.code_insee for m, _ in archivees] == ["31555"]
 
 
+def test_une_maille_archivee_purge_le_refus_perime(
+    connexion: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#399 : archiver une maille réussie purge le refus (code_insee, millesime)
+    laissé par un run antérieur. Sans cela, ``publier_millesime`` — qui applique les
+    refus après avoir projeté l'archive — re-supprimerait la maille valide (bug qui a
+    effacé 5 départements entiers, dont la Lozère, en prod)."""
+    purges: list[tuple[str, int]] = []
+    _brancher(monkeypatch, [_maille("31555")])
+    monkeypatch.setattr(
+        orchestration,
+        "supprimer_refus",
+        lambda conn, code, mil: purges.append((code, mil)),
+    )
+
+    orchestration.compute_departement(_FauxFetcher(), connexion, "31", 2024)
+
+    assert purges == [("31555", 2024)]
+
+
 def test_l_archive_porte_la_classe_d_ecart(connexion: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """La publication doit pouvoir écarter les mailles bloquées par REG-1.
 

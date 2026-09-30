@@ -57,6 +57,12 @@ _REFUS = (
 )
 
 
+# #399 : un recalcul réussi doit annuler un refus antérieur. Sans cela, le refus
+# périmé subsiste et ``data.publier_millesime`` — qui applique les refus APRÈS avoir
+# projeté l'archive — efface la maille valide (5 départements effacés en prod).
+_PURGE_REFUS = "DELETE FROM data.maille_refusee WHERE code_insee = %s AND millesime = %s"
+
+
 # REG-1 (#129) : le « précédent » d'un millésime = la ligne d'historique de plus
 # grand millésime strictement inférieur. Colonnes dans l'ordre lu par ``_depuis_row``.
 _SELECT_PRECEDENT = (
@@ -158,6 +164,17 @@ def enregistrer_refus(conn: Connection, code_insee: str, millesime: int, motif: 
     du service. Différer évite qu'un millésime abandonné laisse des trous.
     """
     conn.execute(_REFUS, [code_insee, millesime, motif.value])
+
+
+def supprimer_refus(conn: Connection, code_insee: str, millesime: int) -> None:
+    """Annule un refus antérieur pour cette commune sous ce millésime (#399).
+
+    Un recalcul qui réussit rend caduc le refus qu'un run précédent avait pu poser :
+    on le purge dans la même transaction que l'archivage, sinon ``publier_millesime``
+    (qui applique les refus après avoir projeté l'archive) effacerait la maille valide.
+    Idempotent : sans ligne à supprimer, le ``DELETE`` ne fait rien.
+    """
+    conn.execute(_PURGE_REFUS, [code_insee, millesime])
 
 
 def lire_coefficient_precedent(

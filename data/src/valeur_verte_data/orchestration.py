@@ -29,6 +29,7 @@ from .db.coefficient_repository import (
     enregistrer_refus,
     lire_coefficient_precedent,
     lire_coefficients_publies,
+    supprimer_refus,
 )
 from .db.commune_repository import upsert_communes
 from .db.epci_repository import communes_de_meme_epci, upsert_epci, upsert_epci_noms
@@ -515,6 +516,11 @@ def compute_departement(
                 ecart=None if ecart is None else ecart.ecart,
                 ecart_coefficient=None if ecart is None else ecart.coefficient,
             )
+            # #399 : le recalcul a réussi → tout refus antérieur pour cette commune
+            # sous ce millésime est caduc. Le purger dans la même transaction, sinon
+            # publier_millesime (qui applique les refus après avoir projeté l'archive)
+            # effacerait la maille qu'on vient d'archiver.
+            supprimer_refus(conn, code_insee, millesime)
         except Exception as erreur:  # noqa: BLE001 — une commune ne doit pas tout arrêter
             conn.rollback()
             rapport.echecs.append(code_insee)

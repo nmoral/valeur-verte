@@ -29,7 +29,8 @@ pool département+limitrophes (maisons)          [pool_repository.load_pool]
   → ligne coefficient_maille (ou refus)          [batch.compute_maille]
 ```
 Orchestration département : `orchestration.compute_departement` (pool chargé une
-fois, §10.6 ; une transaction par commune ; refus ⇒ `delete_coefficient`).
+fois, §10.6 ; une transaction par commune ; refus ⇒ `enregistrer_refus` différé, REG-2 ;
+succès ⇒ `archiver_coefficient` + `supprimer_refus` d'un refus périmé, #399).
 
 **Court-circuit « pool nourri seulement par les limitrophes » (#255)** : après chargement
 du pool et ses filtres (régime DPE #215, multi-communes #252), si le pool est **non vide**
@@ -480,6 +481,13 @@ abandonné aurait déjà modifié ce que voient les clients.
 
 - **Refus différé** : une commune non calculable est inscrite dans `data.maille_refusee`
   (`code_insee`+`millesime`+motif). Elle ne sort du service qu'à la publication.
+- **Purge du refus au recalcul réussi** (#399, `orchestration.compute_departement` →
+  `supprimer_refus`) : dès qu'un recalcul **archive** une maille, il **supprime** dans la
+  même transaction tout refus antérieur pour ce `(code_insee, millesime)`. Un refus posé
+  par un run précédent (état pré-fix, pré-pooling…) devient caduc quand la commune
+  redevient calculable. Sans cette purge, `publier_millesime` applique le refus périmé
+  **après** avoir projeté l'archive et efface la maille valide — c'est ce qui a vidé du
+  vif 5 départements entiers (dont la Lozère) après le recompute d'août 2026.
 - **Publier** (`data.publier_millesime(millesime, auteur)`) projette l'historique du
   millésime vers la table vive, **sauf** les mailles en `classe_ecart = 'blocage'`, puis
   applique les refus du millésime et inscrit la décision dans `data.publication_millesime`.
