@@ -181,6 +181,15 @@ final class HubEpciTest extends WebTestCase
         );
     }
 
+    public function testLeHubNAfficheAucunCommercial(): void
+    {
+        // Vitrine restreinte (#385) : plus de connexion ni de création de compte.
+        $crawler = $this->hub();
+
+        self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+    }
+
     private function hub(): Crawler
     {
         $client = $this->naviguer();

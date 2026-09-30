@@ -123,13 +123,16 @@ final class PagePublicationTest extends WebTestCase
         );
     }
 
-    public function testLaPageInviteACreerUnCompte(): void
+    public function testLaPageMeneAuSimulateur(): void
     {
+        // Vitrine restreinte (#385) : la page mène au simulateur de l'accueil,
+        // plus à la création de compte.
         $crawler = $this->page();
 
-        self::assertSame(
-            'http://valeurverte.localhost/inscription',
-            $crawler->filter('a[data-lien="inscription"]')->attr('href'),
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+        self::assertStringContainsString(
+            '#simulateur',
+            (string) $crawler->filter('a[data-lien="simulateur"]')->first()->attr('href'),
         );
     }
 

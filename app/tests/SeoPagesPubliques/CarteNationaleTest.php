@@ -114,12 +114,14 @@ final class CarteNationaleTest extends WebTestCase
         }
     }
 
-    public function testLaPageRamèneALAccueilEtALInscription(): void
+    public function testLaPageRamèneALAccueilEtAuSimulateur(): void
     {
+        // Vitrine restreinte (#385) : accès au simulateur, plus à l'inscription.
         $crawler = $this->page();
 
         self::assertSame('http://valeurverte.localhost/', $crawler->filter('a[data-lien="accueil"]')->attr('href'));
-        self::assertSame('http://valeurverte.localhost/inscription', $crawler->filter('a[data-lien="inscription"]')->first()->attr('href'));
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+        self::assertStringContainsString('#simulateur', (string) $crawler->filter('a[data-lien="simulateur"]')->first()->attr('href'));
     }
 
     public function testLaPageEstMiseEnCachePubliquement(): void

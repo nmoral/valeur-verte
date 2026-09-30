@@ -219,6 +219,18 @@ final class CommuneValeurVerteTest extends WebTestCase
         self::fail('Aucun JSON-LD WebPage trouvé sur la page.');
     }
 
+    public function testLaPageNAfficheAucunCommercial(): void
+    {
+        // Vitrine restreinte (#385) : plus de connexion ni de création de compte.
+        $client = $this->naviguer();
+        $this->publier();
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne/toulouse');
+        self::assertResponseIsSuccessful();
+
+        self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+    }
+
     public function testLaPageEstMiseEnCachePubliquement(): void
     {
         $client = $this->naviguer();

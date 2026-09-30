@@ -134,6 +134,15 @@ final class HubDepartementalTest extends WebTestCase
     /**
      * @return list<mixed> les noms du fil d'Ariane (JSON-LD BreadcrumbList), dans l'ordre
      */
+    public function testLeHubNAfficheAucunCommercial(): void
+    {
+        // Vitrine restreinte (#385) : plus de connexion ni de création de compte.
+        $crawler = $this->hub('haute-garonne');
+
+        self::assertSame(0, $crawler->filter('nav a[href="/login"]')->count());
+        self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
+    }
+
     private function filAriane(Crawler $crawler): array
     {
         foreach ($crawler->filter('script[type="application/ld+json"]') as $node) {
