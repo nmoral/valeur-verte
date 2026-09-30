@@ -195,6 +195,13 @@ services:
     App\BackOffice\Estimation\FournisseurCoefficientMaille: '@App\BackOffice\Estimation\CoefficientMailleDbal'
     App\BackOffice\Estimation\FournisseurPrixMaille: '@App\BackOffice\Estimation\PrixMailleDbal'
 
+    # Bloc « Pourquoi ici ? » (#341) : lecture des marqueurs (data.marqueurs, lecture
+    # seule) et moteur de narration monté sur la liste blanche (non autowirable, il
+    # prend un tableau de règles → fabrique parDefaut()).
+    App\PourquoiIci\FournisseurMarqueurs: '@App\PourquoiIci\MarqueursDbal'
+    App\PourquoiIci\MoteurPourquoiIci:
+        factory: ['App\PourquoiIci\MoteurPourquoiIci', 'parDefaut']
+
     # Génération du PDF (#32) : moteur de conversion mpdf et fabrique
     # d'identifiants de rapport aléatoires (§9.6).
     App\BackOffice\Pdf\ConvertisseurPdf: '@App\BackOffice\Pdf\MpdfConvertisseur'

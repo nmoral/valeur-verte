@@ -23,6 +23,18 @@ final readonly class MoteurPourquoiIci
     }
 
     /**
+     * Fabrique le moteur sur la liste blanche par défaut.
+     *
+     * Point d'entrée du conteneur : le moteur n'est pas autowirable (son
+     * constructeur prend un tableau de règles), il est donc câblé via cette
+     * fabrique (`services.yaml`, `factory`).
+     */
+    public static function parDefaut(): self
+    {
+        return new self(ListeBlanche::reglesParDefaut());
+    }
+
+    /**
      * @return list<Phrase>
      */
     public function phrases(Marqueurs $marqueurs, ?int $gainEc, int $n): array

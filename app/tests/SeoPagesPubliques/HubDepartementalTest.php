@@ -184,6 +184,24 @@ final class HubDepartementalTest extends WebTestCase
         self::assertContains('/valeur-verte/epci/toulouse-metropole', $liens);
     }
 
+    public function testLeHubAfficheLesHypothesesDuBlocPourquoiIci(): void
+    {
+        $client = $this->naviguer();
+        $this->publier(); // gain E→C médian du 31 = 35 % → levier départemental dérivé « fort ».
+        // Marqueur départemental : marché détendu → hypothèse cohérente avec le levier.
+        $this->semerMarqueur(nom: 'marche', valeur: 'detendu', codeDepartement: '31');
+
+        $crawler = $client->request('GET', '/valeur-verte/haute-garonne');
+        self::assertResponseIsSuccessful();
+
+        $bloc = $crawler->filter('.pourquoi-ici');
+        self::assertSame(1, $bloc->count());
+        self::assertStringContainsString('Marché détendu', $bloc->text());
+        self::assertGreaterThanOrEqual(1, $bloc->filter('.hypothese .badge')->count());
+        // Au niveau département : aucune phrase mesurée (pas de « .fait »).
+        self::assertSame(0, $bloc->filter('.fait')->count());
+    }
+
     /**
      * La Haute-Garonne (31) mesurée localement, avec un B publiable (cran C→B).
      * Toulouse (31001) est rattachée à Toulouse Métropole (maillage descendant #364).

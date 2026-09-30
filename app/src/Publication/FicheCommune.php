@@ -7,6 +7,7 @@ namespace App\Publication;
 use App\BackOffice\Restitution\IndicateurFiabilite;
 use App\BackOffice\Restitution\PalierFiabilite;
 use App\BackOffice\Restitution\PorteeEstimation;
+use App\PourquoiIci\Phrase;
 
 /**
  * Objet de présentation publique d'une commune (#360, SEO Vague 2 #338) : agrège
@@ -36,9 +37,14 @@ final readonly class FicheCommune
         private ?float $prixM2Median,
         public PalierFiabilite $palier,
         public ?float $poidsPooling,
+        /** @var list<Phrase> */
+        public array $phrases,
     ) {
     }
 
+    /**
+     * @param list<Phrase> $phrases
+     */
     public static function depuis(
         string $codeInsee,
         string $nom,
@@ -51,6 +57,7 @@ final readonly class FicheCommune
         ?float $prixM2Median,
         PalierFiabilite $palier,
         ?float $poidsPooling = null,
+        array $phrases = [],
     ): self {
         return new self(
             $codeInsee,
@@ -64,6 +71,7 @@ final readonly class FicheCommune
             $prixM2Median,
             $palier,
             $poidsPooling,
+            $phrases,
         );
     }
 

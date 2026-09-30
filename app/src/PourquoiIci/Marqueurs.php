@@ -38,4 +38,14 @@ final readonly class Marqueurs
     {
         return ($this->valeurs[$nom] ?? null) === $valeur;
     }
+
+    /**
+     * Une copie enrichie d'un marqueur (ajouté ou remplacé) — l'original est
+     * inchangé. Sert à injecter un marqueur dérivé, comme le levier départemental
+     * (#341, Lot 4), là où la source ne le porte pas.
+     */
+    public function avec(string $nom, string $valeur): self
+    {
+        return new self([...$this->valeurs, $nom => $valeur]);
+    }
 }

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Publication;
 
+use App\PourquoiIci\FournisseurMarqueurs;
+use App\PourquoiIci\Marqueurs;
+use App\PourquoiIci\MoteurPourquoiIci;
+use App\PourquoiIci\Phrase;
 use App\Publication\FichesDepartementales;
 use App\Publication\LectureModelePublie;
 use App\Publication\Maille;
@@ -21,14 +25,14 @@ final class FichesDepartementalesTest extends TestCase
     {
         // Des mailles existent, mais rien n'est publié : la liste doit rester vide
         // (on ne sert jamais un millésime non publié, REG-2).
-        $fiches = new FichesDepartementales($this->lecture(null, [new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19])]));
+        $fiches = new FichesDepartementales($this->lecture(null, [new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19])]), $this->marqueursDept([]), MoteurPourquoiIci::parDefaut());
 
         self::assertSame([], $fiches->codesMesures());
     }
 
     public function testSansMillesimePublieLaFicheEstNulle(): void
     {
-        $fiches = new FichesDepartementales($this->lecture(null, [new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19])]));
+        $fiches = new FichesDepartementales($this->lecture(null, [new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19])]), $this->marqueursDept([]), MoteurPourquoiIci::parDefaut());
 
         self::assertNull($fiches->pour('33'));
     }
@@ -38,7 +42,7 @@ final class FichesDepartementalesTest extends TestCase
         $fiches = new FichesDepartementales($this->lecture($this->publie(), [
             new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
             new Maille('09001', 'departemental', ['D' => 0.0, 'C' => 0.05, 'E' => -0.05]),
-        ]));
+        ]), $this->marqueursDept([]), MoteurPourquoiIci::parDefaut());
 
         self::assertSame(['09', '33'], $fiches->codesMesures());
     }
@@ -48,7 +52,7 @@ final class FichesDepartementalesTest extends TestCase
         $fiches = new FichesDepartementales($this->lecture($this->publie(), [
             new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
             new Maille('33002', 'local', ['D' => 0.0, 'C' => 0.11, 'B' => 0.19, 'E' => -0.19]),
-        ]));
+        ]), $this->marqueursDept([]), MoteurPourquoiIci::parDefaut());
 
         $fiche = $fiches->pour('33');
 
@@ -64,9 +68,75 @@ final class FichesDepartementalesTest extends TestCase
     {
         $fiches = new FichesDepartementales($this->lecture($this->publie(), [
             new Maille('33001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
-        ]));
+        ]), $this->marqueursDept([]), MoteurPourquoiIci::parDefaut());
 
         self::assertNull($fiches->pour('75'), 'Un département sans maille publiée n\'a pas de hub.');
+    }
+
+    public function testLaFicheProduitLesHypothesesAvecUnLevierDepartementalDerive(): void
+    {
+        // Gain E→C médian = 35 % → levier départemental « fort » dérivé, qui rend
+        // cohérente l'hypothèse « froid » (marqueur départemental de la Meuse).
+        $fiches = new FichesDepartementales(
+            $this->lecture($this->publie(), [
+                new Maille('55001', 'local', ['D' => 0.0, 'C' => 0.11, 'E' => -0.19]),
+            ]),
+            $this->marqueursDept(['climat' => 'froid']),
+            MoteurPourquoiIci::parDefaut(),
+        );
+
+        $fiche = $fiches->pour('55');
+
+        self::assertNotNull($fiche);
+        self::assertNotEmpty($fiche->phrases);
+        // Au niveau département : aucune phrase mesurée, uniquement des hypothèses.
+        foreach ($fiche->phrases as $phrase) {
+            self::assertTrue($phrase->estHypothese());
+        }
+        self::assertStringContainsString('froid', $fiche->phrases[0]->texte);
+    }
+
+    public function testLHypotheseDepartementaleEstSupprimeeSiLeGainMedianEstFaible(): void
+    {
+        // Gain E→C médian faible (~8 %) → levier « faible » : l'hypothèse « froid »
+        // (qui suppose que rénover paie) contredit la mesure et disparaît.
+        $fiches = new FichesDepartementales(
+            $this->lecture($this->publie(), [
+                new Maille('55001', 'local', ['D' => 0.0, 'C' => 0.08, 'E' => 0.0]),
+            ]),
+            $this->marqueursDept(['climat' => 'froid']),
+            MoteurPourquoiIci::parDefaut(),
+        );
+
+        $fiche = $fiches->pour('55');
+
+        self::assertNotNull($fiche);
+        self::assertSame([], $fiche->phrases);
+    }
+
+    /**
+     * @param array<string, string> $dept marqueurs départementaux à servir
+     */
+    private function marqueursDept(array $dept): FournisseurMarqueurs
+    {
+        return new class($dept) implements FournisseurMarqueurs {
+            /**
+             * @param array<string, string> $dept
+             */
+            public function __construct(private array $dept)
+            {
+            }
+
+            public function pourCommune(string $codeInsee, string $codeDepartement): Marqueurs
+            {
+                return Marqueurs::depuis([]);
+            }
+
+            public function pourDepartement(string $codeDepartement): Marqueurs
+            {
+                return Marqueurs::depuis($this->dept);
+            }
+        };
     }
 
     private function publie(): Publication

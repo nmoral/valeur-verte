@@ -114,6 +114,32 @@ trait ProvisionneModelePublie
     }
 
     /**
+     * Sème un marqueur territorial (#341) : portée communale (`codeInsee`) OU
+     * départementale (`codeDepartement`), jamais les deux.
+     */
+    protected function semerMarqueur(
+        string $nom,
+        string $valeur,
+        string $typeMarqueur = 'contextuel',
+        ?string $codeInsee = null,
+        ?string $codeDepartement = null,
+        string $source = 'test',
+    ): void {
+        $this->prive()->executeStatement(
+            'INSERT INTO data.marqueurs (code_insee, code_departement, nom, valeur, type_marqueur, source)
+             VALUES (:insee, :dept, :nom, :valeur, :type, :source)',
+            [
+                'insee' => $codeInsee,
+                'dept' => $codeDepartement,
+                'nom' => $nom,
+                'valeur' => $valeur,
+                'type' => $typeMarqueur,
+                'source' => $source,
+            ],
+        );
+    }
+
+    /**
      * Rattache une commune à son EPCI (SIREN) — alimente le LEFT JOIN de
      * {@see \App\Publication\RepertoireCommunes} et l'énumération par EPCI (#363).
      */
@@ -223,6 +249,21 @@ trait ProvisionneModelePublie
             )',
         );
 
+        // Marqueurs territoriaux (#341, migration 021) : source du bloc « Pourquoi
+        // ici ? ». Portée exclusive commune (code_insee) OU département
+        // (code_departement), lue par MarqueursDbal.
+        $prive->executeStatement(
+            'CREATE TABLE IF NOT EXISTS data.marqueurs (
+                code_insee       CHAR(5),
+                code_departement VARCHAR(3),
+                nom              TEXT NOT NULL,
+                valeur           TEXT NOT NULL,
+                type_marqueur    TEXT NOT NULL,
+                source           TEXT NOT NULL,
+                maj_le           TIMESTAMP NOT NULL DEFAULT now()
+            )',
+        );
+
         // VV_DATA_DIR quand l'arbre du pipeline est monté ailleurs (conteneur) ;
         // sinon la disposition du dépôt, qui vaut en CI comme en local.
         $racine = getenv('VV_DATA_DIR') ?: \dirname(__DIR__, 3).'/data';
@@ -249,6 +290,7 @@ trait ProvisionneModelePublie
             'data.commune',
             'data.commune_epci',
             'data.epci',
+            'data.marqueurs',
         ] as $table) {
             $prive->executeStatement(\sprintf('DELETE FROM %s', $table));
         }
