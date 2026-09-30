@@ -6,6 +6,8 @@ namespace App\Publication;
 
 use App\BackOffice\Estimation\FournisseurPrixMaille;
 use App\BackOffice\Restitution\PalierFiabilite;
+use App\PourquoiIci\FournisseurMarqueurs;
+use App\PourquoiIci\MoteurPourquoiIci;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -25,6 +27,8 @@ final readonly class FichesCommunales
         private Connection $connexion,
         private LectureModelePublie $lecture,
         private FournisseurPrixMaille $prix,
+        private FournisseurMarqueurs $marqueurs,
+        private MoteurPourquoiIci $moteur,
     ) {
     }
 
@@ -46,23 +50,34 @@ final readonly class FichesCommunales
         }
 
         $rayon = self::entier($ligne['rayon_retenu_km']);
+        $maille = new Maille(
+            codeInsee: $commune->codeInsee,
+            mode: \is_string($ligne['mode']) ? $ligne['mode'] : '',
+            coefDpe: self::coefficients($ligne['coef_dpe']),
+        );
+        $n = self::entier($ligne['n_transactions']);
+
+        // Bloc « Pourquoi ici ? » (#341) : le fait mesuré (gain E→C, n) ancre les
+        // hypothèses contextuelles, gardées par la cohérence avec le levier communal.
+        $phrases = $this->moteur->phrases(
+            $this->marqueurs->pourCommune($commune->codeInsee, $commune->codeDepartement),
+            $maille->gain('E', 'C'),
+            $n,
+        );
 
         return FicheCommune::depuis(
             codeInsee: $commune->codeInsee,
             nom: $commune->nom,
             millesime: $publication->millesime,
             calculeLe: $publication->calculeLe,
-            maille: new Maille(
-                codeInsee: $commune->codeInsee,
-                mode: \is_string($ligne['mode']) ? $ligne['mode'] : '',
-                coefDpe: self::coefficients($ligne['coef_dpe']),
-            ),
-            n: self::entier($ligne['n_transactions']),
+            maille: $maille,
+            n: $n,
             rayonKm: 0 === $rayon ? null : $rayon,
             erreurMediane: is_numeric($ligne['erreur_mediane']) ? (float) $ligne['erreur_mediane'] : 0.0,
             prixM2Median: $this->prix->prixM2Median($commune->codeInsee),
             palier: PalierFiabilite::depuis(\is_string($ligne['palier']) ? $ligne['palier'] : null),
             poidsPooling: is_numeric($ligne['poids_pooling']) ? (float) $ligne['poids_pooling'] : null,
+            phrases: $phrases,
         );
     }
 
