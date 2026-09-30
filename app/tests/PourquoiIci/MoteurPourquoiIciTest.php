@@ -31,6 +31,22 @@ final class MoteurPourquoiIciTest extends TestCase
         ]);
     }
 
+    public function testParDefautCableLeMoteurSurLaListeBlanche(): void
+    {
+        // La fabrique par défaut (utilisée par le conteneur, moteur non autowirable)
+        // monte le moteur avec la liste blanche : une commune froide au levier fort
+        // en tire l'hypothèse « froid ».
+        $marqueurs = Marqueurs::depuis(['climat' => 'froid', 'levier_renovation' => 'fort']);
+
+        $hypotheses = array_values(array_filter(
+            MoteurPourquoiIci::parDefaut()->phrases($marqueurs, 35, 120),
+            static fn (Phrase $p) => $p->estHypothese(),
+        ));
+
+        self::assertCount(1, $hypotheses);
+        self::assertStringContainsString('froid', $hypotheses[0]->texte);
+    }
+
     public function testLaPhraseMesureeOuvreLeBlocAvecLeGainEtLeNombreDeVentes(): void
     {
         $marqueurs = Marqueurs::depuis(['climat' => 'froid', 'levier_renovation' => 'fort']);
