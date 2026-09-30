@@ -26,12 +26,14 @@ from valeur_verte_data.marqueurs_mesures import (
 
 
 def _maille(code: str, *, cC: float | None = None, n: int = 100, rayon: int | None = 15) -> MailleMesurable:
-    """Une maille de test : gain E→C piloté par ``cC`` (base E=0), amplitude A↔G large."""
-    coef: dict[str, float] = {"D": 0.0, "E": 0.0, "A": 0.6, "G": -0.3}
+    """Une maille de test dont ``cC`` pilote à la fois le gain E→C et l'amplitude A↔G.
+
+    ``cC`` absent = échelle tronquée (ni C ni A/G) : ni gain ni amplitude calculables,
+    seule la fiabilité (n, rayon) reste dérivable.
+    """
+    coef: dict[str, float] = {"D": 0.0}
     if cC is not None:
-        coef["C"] = cC
-    else:
-        del coef["A"]  # échelle tronquée : ni gain E→C (pas de C) ni amplitude (pas de A)
+        coef.update({"E": 0.0, "C": cC, "A": cC, "G": -cC})
     return MailleMesurable(code_insee=code, coef_dpe=coef, n_transactions=n, rayon_retenu_km=rayon)
 
 

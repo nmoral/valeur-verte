@@ -20,6 +20,9 @@ import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from .marqueurs import TYPE_MESURE, Marqueur
+from .referentiel_communes import departement_de
+
 
 @dataclass(frozen=True)
 class MailleMesurable:
@@ -127,3 +130,76 @@ def sensibilite_dpe(amplitude_ag_pct: float, seuils: tuple[float, float]) -> str
     Position de l'amplitude A↔G de la commune dans la distribution **nationale**.
     """
     return _classer(amplitude_ag_pct, seuils, bas="faible", moyen="modérée", haut="forte")
+
+
+def _source(libelle: str, millesime: int) -> str:
+    """Source versionnée d'un marqueur mesuré (critère #341 : tout marqueur est sourcé)."""
+    return f"{libelle} — coefficient_maille (millésime {millesime})"
+
+
+def marqueurs_mesures_departement(
+    mailles: Sequence[MailleMesurable], departement: str, millesime: int
+) -> list[Marqueur]:
+    """Dérive les marqueurs mesurés des communes d'un département (#341, Lot 2).
+
+    Les seuils de ``levier_renovation`` et ``sensibilite_dpe`` sont des **tertiles
+    nationaux** : ``mailles`` doit couvrir tout le millésime (pas seulement le
+    département), sinon la classification fort/moyen/faible n'a plus de sens. Seules
+    les communes du ``departement`` sont émises. La ``fiabilite`` est toujours dérivée
+    (n, rayon) ; ``levier_renovation``/``sensibilite_dpe`` seulement quand l'échelle
+    DPE porte les classes nécessaires (E+C, A+G).
+    """
+    seuils_levier = tertiles([g for m in mailles if (g := gain_ec(m.coef_dpe)) is not None])
+    seuils_sensibilite = tertiles(
+        [a for m in mailles if (a := amplitude_ag(m.coef_dpe)) is not None]
+    )
+
+    marqueurs: list[Marqueur] = []
+    for maille in mailles:
+        if departement_de(maille.code_insee) != departement:
+            continue
+
+        gain = gain_ec(maille.coef_dpe)
+        if gain is not None:
+            marqueurs.append(
+                _marqueur(
+                    maille.code_insee,
+                    "levier_renovation",
+                    levier_renovation(gain, seuils_levier),
+                    _source("Levier de rénovation (gain E→C, tertiles nationaux)", millesime),
+                )
+            )
+
+        amplitude = amplitude_ag(maille.coef_dpe)
+        if amplitude is not None:
+            marqueurs.append(
+                _marqueur(
+                    maille.code_insee,
+                    "sensibilite_dpe",
+                    sensibilite_dpe(amplitude, seuils_sensibilite),
+                    _source("Sensibilité au DPE (amplitude A↔G, tertiles nationaux)", millesime),
+                )
+            )
+
+        marqueurs.append(
+            _marqueur(
+                maille.code_insee,
+                "fiabilite",
+                fiabilite(maille.n_transactions, maille.rayon_retenu_km),
+                _source("Fiabilité (effectif et rayon de la maille)", millesime),
+            )
+        )
+
+    return marqueurs
+
+
+def _marqueur(code_insee: str, nom: str, valeur: str, source: str) -> Marqueur:
+    """Un marqueur mesuré communal (portée commune, ``type_marqueur = 'mesure'``)."""
+    return Marqueur(
+        code_insee=code_insee,
+        code_departement=None,
+        nom=nom,
+        valeur=valeur,
+        type_marqueur=TYPE_MESURE,
+        source=source,
+    )
