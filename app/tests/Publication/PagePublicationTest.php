@@ -130,8 +130,7 @@ final class PagePublicationTest extends WebTestCase
         $crawler = $this->page();
 
         self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
-        self::assertStringContainsString(
-            '#simulateur',
+        self::assertStringContainsString('/simulateur',
             (string) $crawler->filter('a[data-lien="simulateur"]')->first()->attr('href'),
         );
     }

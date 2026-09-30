@@ -121,7 +121,7 @@ final class CarteNationaleTest extends WebTestCase
 
         self::assertSame('http://valeurverte.localhost/', $crawler->filter('a[data-lien="accueil"]')->attr('href'));
         self::assertSame(0, $crawler->filter('a[data-lien="inscription"]')->count());
-        self::assertStringContainsString('#simulateur', (string) $crawler->filter('a[data-lien="simulateur"]')->first()->attr('href'));
+        self::assertStringContainsString('/simulateur', (string) $crawler->filter('a[data-lien="simulateur"]')->first()->attr('href'));
     }
 
     public function testLaPageEstMiseEnCachePubliquement(): void

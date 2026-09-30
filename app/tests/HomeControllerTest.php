@@ -98,6 +98,7 @@ final class HomeControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $acces = $crawler->filter('a[data-lien="simulateur"]');
         self::assertGreaterThan(0, $acces->count(), 'Un accès au simulateur est attendu.');
-        self::assertStringContainsString('#simulateur', (string) $acces->first()->attr('href'));
+        // Le lien mène au vrai simulateur (widget public), pas à la démo de la page.
+        self::assertStringContainsString('/simulateur', (string) $acces->first()->attr('href'));
     }
 }
