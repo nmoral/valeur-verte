@@ -28,8 +28,7 @@
   'url': url('page_calculateur'),
   'applicationCategory': 'BusinessApplication',
   'inLanguage': 'fr-FR',
-  'description': 'Calculateur de valeur verte par commune : la plus-value d\'un meilleur DPE, mesurée sur les ventes réelles (DVF) croisées aux DPE de l\'ADEME.',
-  'offers': { '@type': 'Offer', 'price': '0', 'priceCurrency': 'EUR' }
+  'description': 'Calculateur de valeur verte par commune : la plus-value d\'un meilleur DPE, mesurée sur les ventes réelles (DVF) croisées aux DPE de l\'ADEME.'
 } %}
 <script type="application/ld+json">{{ donnees_structurees|json_encode|raw }}</script>
 </head>
@@ -43,8 +42,7 @@
     <ul class="nav-menu">
       <li class="nav-link"><a href="#methode">Méthode</a></li>
       <li class="nav-link"><a href="{{ path('publication') }}">L'étude</a></li>
-      <li><a href="{{ path('login') }}" class="btn btn-ghost btn-sm">Connexion</a></li>
-      <li class="nav-cta"><a href="{{ url('inscription') }}" class="btn btn-sm" data-lien="inscription">Créer un compte</a></li>
+      <li class="nav-cta"><a href="{{ url('home') ~ '#simulateur' }}" class="btn btn-sm" data-lien="simulateur">Essayer le simulateur</a></li>
     </ul>
   </div>
 </nav>
@@ -60,10 +58,10 @@
           Pas une moyenne nationale : le chiffre observé dans <em>votre commune</em>, sur les ventes
           réellement enregistrées par les notaires et croisées aux DPE.</p>
         <div class="cta-row">
-          <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Lancer un calcul</a>
+          <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
           <a href="#methode" class="btn btn-ghost">Voir la méthode</a>
         </div>
-        <p class="cta-note">Gratuit à l'essai · Résultat chiffré avec fourchette</p>
+        <p class="cta-note">Démonstration immédiate · Résultat chiffré avec fourchette</p>
       </div>
     </div>
   </header>
@@ -83,7 +81,7 @@
         Source&nbsp;: ventes DVF (DGFiP) et DPE (ADEME), sous licence ouverte Etalab.{% if millesime %} · Données millésime&nbsp;{{ millesime }}.{% endif %}
       </p>
       <div class="cta-row">
-        <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte gratuit</a>
+        <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
         <a href="{{ path('publication') }}" class="btn btn-ghost">Voir l'étude par département</a>
       </div>
     </div>

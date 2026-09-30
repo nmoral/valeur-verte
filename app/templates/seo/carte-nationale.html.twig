@@ -49,7 +49,7 @@
 
   <nav class="topbar">
     <a class="brand" href="{{ url('home') }}" data-lien="accueil"><i aria-hidden="true">VV</i> Valeur Verte</a>
-    <a href="{{ url('inscription') }}" class="btn" data-lien="inscription">Créer un compte</a>
+    <a href="{{ url('home') ~ '#simulateur' }}" class="btn" data-lien="simulateur">Essayer le simulateur</a>
   </nav>
 
   <main id="contenu">
@@ -92,11 +92,11 @@
 
     <section class="block compte">
       <div>
-        <h2>Vous mesurez ces gains pour vos clients&nbsp;?</h2>
-        <p>Valeur Verte produit le même calcul à l'adresse près, avec le rapport à remettre au propriétaire.</p>
+        <h2>Mesurez le gain pour une adresse&nbsp;?</h2>
+        <p>Le simulateur estime en direct la valeur qu'une rénovation ajoute à une maison, avec sa fourchette.</p>
       </div>
       <p class="compte-liens">
-        <a href="{{ url('inscription') }}" data-lien="inscription">Créer un compte</a>
+        <a href="{{ url('home') ~ '#simulateur' }}" data-lien="simulateur">Essayer le simulateur</a>
         <a href="{{ url('publication') }}" class="secondaire">Voir l'étude complète</a>
       </p>
     </section>
