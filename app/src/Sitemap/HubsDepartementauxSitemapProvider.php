@@ -24,7 +24,7 @@ final readonly class HubsDepartementauxSitemapProvider implements SitemapUrlProv
 
     public function routes(): iterable
     {
-        $codes = array_filter($this->fiches->codesMesures(), $this->perimetre->contient(...));
+        $codes = array_values(array_filter($this->fiches->codesMesures(), $this->perimetre->contient(...)));
 
         foreach ($this->repertoire->annuaire($codes) as $entree) {
             yield ['hub_departemental', ['departement' => $entree['slug']]];
