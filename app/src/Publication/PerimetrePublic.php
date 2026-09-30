@@ -25,9 +25,13 @@ final readonly class PerimetrePublic
     ) {
     }
 
+    /** Sentinelle « périmètre ouvert » : tous les départements (phase finale du go-live). */
+    public const TOUS = '*';
+
     public function contient(string $codeDepartement): bool
     {
-        return \in_array($codeDepartement, $this->departements, true);
+        return \in_array(self::TOUS, $this->departements, true)
+            || \in_array($codeDepartement, $this->departements, true);
     }
 
     /**
