@@ -82,23 +82,24 @@ def test_la_sonde_de_l_app_laisse_le_temps_du_demarrage(compose_prod: dict[str, 
 
 
 def test_la_sonde_est_atteignable_par_une_surveillance_externe() -> None:
-    """Le VPS peut tomber en entier — une sonde interne ne le verra jamais. Le
-    proxy doit donc servir /sante sans le basic auth de la préversion, sans quoi
-    toute surveillance externe ne mesure que le 401."""
+    """Le VPS peut tomber en entier — une sonde interne ne le verra jamais. /sante
+    doit donc être servi par son handle dédié (qui masque la pile technique), avant
+    le proxy générique — sans quoi une surveillance externe ne verrait pas le vrai
+    état applicatif."""
     caddy = _caddyfile()
     bloc = re.search(r"handle\s+@sante\s*\{(.*?)\n\t\}", caddy, re.DOTALL)
-    assert bloc, (
-        "Le Caddyfile doit déclarer un bloc « handle @sante » servant la sonde "
-        "avant la porte basic auth."
-    )
+    assert bloc, "Le Caddyfile doit déclarer un bloc « handle @sante » servant la sonde."
     assert "basic_auth" not in bloc.group(1), (
-        "La sonde ne doit pas être derrière le basic auth : une surveillance externe "
-        "ne mesurerait que le 401."
+        "La sonde ne doit être derrière aucune authentification (surveillance externe)."
     )
     assert "reverse_proxy" in bloc.group(1), "Le bloc de la sonde doit relayer vers l'app."
-    assert caddy.index("@sante") < caddy.index("basic_auth"), (
-        "Le matcher de la sonde doit précéder la porte basic auth : Caddy évalue les "
-        "blocs « handle » dans l'ordre écrit."
+
+    generique = re.search(r"\n\thandle\s*\{", caddy)
+    assert generique, "Le Caddyfile doit déclarer un handle générique (proxy fourre-tout)."
+    assert caddy.index("@sante") < generique.start(), (
+        "Le matcher de la sonde doit précéder le handle générique : Caddy évalue les "
+        "blocs « handle » dans l'ordre écrit, sinon /sante tomberait dans le proxy "
+        "fourre-tout au lieu de son handle dédié."
     )
 
 
