@@ -1,0 +1,23 @@
+{# Choroplèthe communale du hub départemental (#392). Paramètres (via le contexte
+   du hub) : `carte_dept` (structure {w, h, dom, feats}) et `dep` (le département).
+   Le SVG est peuplé côté client par js/carte-departement.js, qui lit le bloc JSON ;
+   masquée tant qu'aucun contour communal n'est chargé. #}
+{% if carte_dept.feats is not empty %}
+  <section class="block" aria-labelledby="carte-dept-titre">
+    <div class="wrap">
+      <h2 id="carte-dept-titre">La valeur verte, commune par commune</h2>
+      <p>Le gain de prix qu'un passage de E à C ajoute à une maison, commune par commune
+        dans {{ dep.nom }}. Les communes où les ventes proches manquent restent en gris —
+        elles n'ont pas de mesure locale.</p>
+      <div class="carte-dept-wrap">
+        <svg id="carte-dept" viewBox="0 0 {{ carte_dept.w }} {{ carte_dept.h }}" role="img"
+             aria-label="Carte des communes de {{ dep.nom }} colorées par le gain d'un meilleur DPE"></svg>
+        <div class="carte-dept-tip" id="carte-dept-tip" hidden></div>
+      </div>
+      <div class="carte-dept-legend" id="carte-dept-legend" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <script type="application/json" id="carte-departement-donnees">{{ carte_dept|json_encode|raw }}</script>
+  <script src="{{ asset('js/carte-departement.js') }}" defer></script>
+{% endif %}

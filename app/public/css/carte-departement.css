@@ -1,0 +1,15 @@
+/* Choroplèthe communale du hub départemental (#392). Carte illustrative :
+   couleur = gain vert E→C, infobulle au survol, sans navigation. */
+.carte-dept-wrap{position:relative;margin:18px 0;max-width:640px}
+#carte-dept{width:100%;height:auto;display:block;background:var(--card,#fff);
+  border:1px solid var(--rule,#e3e8e8);border-radius:4px}
+#carte-dept path{stroke:#fff;stroke-width:.4;fill-rule:evenodd}
+#carte-dept path.hl{stroke-width:1.2}
+.carte-dept-legend{display:flex;align-items:center;gap:8px;margin:4px 0 0;
+  font-size:13px;color:var(--slate,#5b6b6b)}
+.carte-dept-legend i{display:inline-block;width:120px;height:10px;border-radius:5px}
+.carte-dept-tip{position:absolute;pointer-events:none;background:#0e1a1a;color:#fff;
+  padding:7px 10px;border-radius:4px;font-size:13px;max-width:220px;z-index:5;
+  box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.carte-dept-tip b{display:block;font-weight:700;margin-bottom:2px}
+.carte-dept-tip span{opacity:.85;font-size:12px}
