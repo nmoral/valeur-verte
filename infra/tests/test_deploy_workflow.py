@@ -178,6 +178,21 @@ def test_le_cache_app_est_reconstruit_au_deploiement() -> None:
     )
 
 
+def test_le_cache_cron_est_reconstruit_au_deploiement() -> None:
+    """Même image, même cache de build figé sur *.valeurverte.localhost : l'ordonnanceur
+    « cron » souffre du même mal que l'app, mais lui ne sert aucune requête et ne se
+    répare donc jamais tout seul. Sans un cache:clear qui lui soit propre, ses commandes
+    CLI (audit SEO #345, emails de relance) génèrent des URLs *.valeurverte.localhost —
+    injoignables → audit en HTTP 0 (#410). Le cache:clear de l'app ne couvre pas le cron :
+    le déploiement doit reconstruire le cache du conteneur cron explicitement."""
+    contenu = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"exec[^\n]*\bcron\b[^\n]*cache:clear", contenu), (
+        "Le déploiement doit reconstruire le cache du conteneur « cron » "
+        "(docker compose exec cron … cache:clear), sinon ses commandes CLI génèrent "
+        "des URLs sur le domaine de build (#410)."
+    )
+
+
 def test_le_reverse_proxy_est_demarre_au_deploiement() -> None:
     """Le point d'entrée public doit être (re)lancé au déploiement, sinon le site est
     injoignable — et une nouvelle image app n'est servie qu'après relance du proxy."""
