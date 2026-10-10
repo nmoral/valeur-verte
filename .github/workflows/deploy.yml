@@ -180,6 +180,12 @@ jobs:
           # crontab). Sans ça, ils resservent la config lue au démarrage précédent
           # (#368). Bref clignotement du proxy à chaque déploiement, assumé (manuel,
           # rare). --no-deps : db/app tournent déjà, on ne veut pas les redémarrer.
+          # L'image est bâtie avec le domaine par défaut (*.valeurverte.localhost) :
+          # son cache de routes cible ce domaine, APP_DOMAINE n'agit qu'au runtime et
+          # le cache de prod ne se reconstruit pas seul. On le reconstruit donc sur
+          # « app » ET sur « cron » : le cron partage l'image mais ne sert aucune
+          # requête, il ne se « réparerait » jamais de lui-même et ses commandes CLI
+          # (audit SEO #345) généreraient des URLs *.valeurverte.localhost (#410).
           printf '%s' "$JETON_GHCR" | ssh -i ~/.ssh/deploiement "$UTILISATEUR@$HOTE" \
             "docker login ghcr.io -u '$COMPTE_GHCR' --password-stdin \
              && cd '$REPERTOIRE_VPS' \
@@ -192,6 +198,7 @@ jobs:
              && docker compose up -d --force-recreate --no-deps caddy cron \
              && docker compose exec -T app php bin/console doctrine:migrations:migrate --no-interaction \
              && docker compose exec -T app php bin/console cache:clear --env=prod \
+             && docker compose exec -T cron php bin/console cache:clear --env=prod \
              && docker logout ghcr.io"
 
       - name: Effacer les traces locales
