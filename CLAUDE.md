@@ -227,7 +227,9 @@ scripts/app-dev.sh vendor/bin/phpunit
 
 Le script fixe le **projet compose du worktree** (sans quoi la commande irait taper la base
 d'un autre worktree, cf. §2), démarre sa base si besoin, monte le code local et `data/`, et
-tourne sous l'uid de l'hôte pour que `var/cache` reste inscriptible. Sous le capot :
+tourne sous l'uid de l'hôte pour que `var/cache` reste inscriptible. **À la première
+invocation**, si `app/vendor/` est absent (clone frais, image bâtie `--no-dev`), il lance
+un `composer install` dans l'image — aucune commande préalable à retenir. Sous le capot :
 
 ```bash
 docker compose -p "$(scripts/worktree-env.sh COMPOSE_PROJECT_NAME)" \

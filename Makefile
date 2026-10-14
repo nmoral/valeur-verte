@@ -113,7 +113,7 @@ COMPOSE_DEV := docker compose -f $(INFRA)/docker-compose.yml -f $(INFRA)/docker-
 stack-up:
 	$(COMPOSE) up -d --build
 	$(COMPOSE) exec -T app php bin/console doctrine:migrations:migrate --no-interaction
-	@echo "App disponible sur http://127.0.0.1:$(APP_PORT) (back-office : /back-office/couts, /back-office/bouquets, /back-office/rapports, /back-office/marque)"
+	@echo "App sur http://app.valeurverte.localhost:$(APP_PORT) (espace pro : /couts, /bouquets, /rapports, /marque ; redirige vers /login) et http://admin.valeurverte.localhost:$(APP_PORT) — 127.0.0.1 nu renvoie 404, c'est normal"
 
 # Stack de développement : le code app/ est monté dans le conteneur, donc un
 # changement de code est reflété sans reconstruire l'image (APP_ENV=dev). L'image
