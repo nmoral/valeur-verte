@@ -12,6 +12,32 @@ Le widget embarqué en iframe chez le pro est abandonné au profit de cette page
 Le cadrage complet est dans le document MVP de référence. Ce dépôt suit le développement
 via un **backlog structuré en issues GitHub**.
 
+## Démarrage local
+
+**Prérequis sur le poste** : Docker + Docker Compose v2, GNU Make, Bash et Python ≥ 3.11
+(pour `data/` et `infra/`). **PHP et Composer ne sont pas requis sur l'hôte** : tout
+`app/` passe par l'image Docker (voir [`CLAUDE.md`](CLAUDE.md) §4).
+
+```bash
+make stack-up     # construit l'image app, démarre PostGIS, joue les migrations
+make install      # dépendances data/ + infra/ (venv Python)
+```
+
+L'application est servie sur des **sous-domaines** de `valeurverte.localhost` (résolus
+vers 127.0.0.1 par les navigateurs), **pas** sur `127.0.0.1` nu — ce dernier renvoie 404,
+c'est normal :
+
+- espace pro : `http://app.valeurverte.localhost:$APP_PORT` (redirige vers `/login`) ;
+- admin interne : `http://admin.valeurverte.localhost:$APP_PORT` ;
+- widget public : `http://widget.valeurverte.localhost:$APP_PORT`.
+
+`make stack-info` affiche le port (`$APP_PORT`) et le nom de projet de la stack du
+worktree courant. Hors worktree (clone simple), la stack retombe sur les ports **8000**
+(app) et **5432** (db) : si l'un est déjà pris, surcharger `APP_PORT` / `POSTGRES_PORT`
+avant `make stack-up`.
+
+Portes qualité, cycle TDD et workflow worktree : [`CLAUDE.md`](CLAUDE.md).
+
 ## Suivi du projet : comment lire les issues
 
 Tout le backlog vit dans les **[issues](../../issues)**. Il n'y a pas de milestones :

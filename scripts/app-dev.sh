@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Exécute une commande PHP/Symfony dans l'image de la stack (infra-app), branchée
 # sur le réseau de la stack locale (service « db » accessible), avec le code local
-# monté et les dev-deps du vendor/ local. Tourne sous l'uid de l'hôte pour que
-# var/cache et var/log restent inscriptibles.
+# monté et les dev-deps du vendor/ local (installées à la première invocation si
+# absentes). Tourne sous l'uid de l'hôte pour que var/cache et var/log restent
+# inscriptibles.
 #
 # Usage :
 #   scripts/app-dev.sh vendor/bin/phpunit
@@ -32,6 +33,17 @@ DATABASE_URL="postgresql://app:app@db:5432/valeur_verte?serverVersion=16&charset
 # est déjà debout, et attend qu'elle soit saine à la première fois.
 docker compose -p "$COMPOSE_PROJECT_NAME" -f "$ROOT/infra/docker-compose.yml" \
     up -d --wait db >/dev/null
+
+# Dépendances dev (PHPUnit, PHPStan, CS-Fixer) : l'image est bâtie --no-dev et
+# vendor/ est gitignoré — sur un clone frais sans PHP sur l'hôte, « vendor/bin/* »
+# n'existe nulle part. On les installe une fois dans l'image (qui porte composer),
+# sous l'uid de l'hôte pour que vendor/ reste à lui. --no-scripts : pas besoin de
+# la base ni du cache Symfony ici (comme la couche de deps du Dockerfile).
+if [ ! -f "$ROOT/app/vendor/autoload.php" ]; then
+    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$ROOT/infra/docker-compose.yml" \
+        run --rm --no-deps -v "$ROOT/app:/app" -w /app -u "$(id -u):$(id -g)" \
+        --entrypoint "" app composer install --no-scripts --no-interaction
+fi
 
 exec docker compose -p "$COMPOSE_PROJECT_NAME" -f "$ROOT/infra/docker-compose.yml" run --rm --no-deps \
     -v "$ROOT/app:/app" -v "$ROOT/data:/pipeline:ro" -w /app \
