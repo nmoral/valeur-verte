@@ -36,6 +36,16 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
 .nav-menu a:not(.btn){color:var(--slate);text-decoration:underline}
 .nav-menu a:not(.btn):hover{color:var(--ink)}
 
+/* fil d'Ariane (#364) — maillage montant horizontal, aligné au conteneur de contenu */
+.fil-ariane{max-width:1040px;margin:0 auto;padding:16px 40px 0}
+.fil-ariane ol{list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  font:500 13px/1.3 'Public Sans',system-ui,sans-serif;color:var(--mute)}
+.fil-ariane li{display:flex;align-items:center;gap:8px}
+.fil-ariane li+li::before{content:"\203A";color:var(--rule-strong)}
+.fil-ariane a{color:var(--slate)}
+.fil-ariane a:hover{color:var(--ink);text-decoration:underline}
+.fil-ariane [aria-current="page"]{color:var(--ink);font-weight:600}
+
 /* hero */
 .hero .wrap{padding-top:64px;padding-bottom:56px;display:grid;grid-template-columns:1fr 424px;gap:56px;align-items:center}
 .kicker{font:500 12px/1 'JetBrains Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--slate-2);margin-bottom:16px}
@@ -152,6 +162,7 @@ h2{font:800 30px/1.15 'Archivo',sans-serif;letter-spacing:-.025em;margin-bottom:
    plus côte à côte, on empile le héros et on assouplit les grilles serrées. */
 @media (max-width:900px){
   .wrap{padding:0 28px}
+  .fil-ariane{padding-left:28px;padding-right:28px}
   .hero .wrap{grid-template-columns:1fr;gap:32px;padding-top:48px;padding-bottom:44px}
   .hero .demo{max-width:560px}
   h1{font-size:40px}
@@ -169,6 +180,7 @@ h2{font:800 30px/1.15 'Archivo',sans-serif;letter-spacing:-.025em;margin-bottom:
    largeur, cibles tactiles 44px, une seule colonne partout. */
 @media (max-width:600px){
   .wrap{padding:0 20px}
+  .fil-ariane{padding-left:20px;padding-right:20px}
   .nav .wrap{min-height:56px}
   .nav-menu{gap:10px}
   .nav-menu li.nav-link{display:none}

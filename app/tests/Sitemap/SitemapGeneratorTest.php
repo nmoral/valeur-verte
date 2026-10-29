@@ -37,7 +37,6 @@ final class SitemapGeneratorTest extends KernelTestCase
         yield 'mentions légales' => ['/mentions-legales'];
         yield 'confidentialité' => ['/confidentialite'];
         yield 'CGU' => ['/cgu'];
-        yield 'connexion' => ['/login'];
     }
 
     #[DataProvider('cheminsPublicsIndexables')]
@@ -60,6 +59,8 @@ final class SitemapGeneratorTest extends KernelTestCase
         yield 'réinitialisation' => ['/mot-de-passe-oublie/reinitialiser'];
         // Endpoint applicatif, pas une page.
         yield 'déconnexion' => ['/logout'];
+        // Page de connexion : contenu mince sans valeur d'indexation, hors sitemap.
+        yield 'connexion' => ['/login'];
         // Vitrine restreinte (#385) : la création de compte est masquée.
         yield 'inscription' => ['/inscription'];
     }
