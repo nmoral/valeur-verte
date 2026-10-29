@@ -47,6 +47,10 @@ jobs:
         with:
           context: data
           file: data/Dockerfile
+          # Même raison que l'image app : « python:3.11-slim » est un tag flottant,
+          # « pull: true » garantit que ses correctifs de sécurité sont re-tirés à
+          # chaque build au lieu d'être figés par le cache gha.
+          pull: true
           push: true
           tags: ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
@@ -72,6 +76,13 @@ jobs:
         with:
           context: app
           file: app/Dockerfile
+          # La base « dunglas/frankenphp:1-php8.4 » est un tag flottant : les correctifs
+          # de sécurité PHP paraissent sous ce tag avec un nouveau digest. « pull: true »
+          # force buildx à re-résoudre ce digest à chaque build — sans quoi le cache gha
+          # réutiliserait la couche FROM d'un build antérieur et figerait l'ancien PHP.
+          # Si la base a bougé, la couche FROM et tout l'aval sont reconstruits (patch
+          # embarqué) ; sinon le cache est réutilisé (aucun rebuild inutile).
+          pull: true
           push: true
           tags: ${{ env.APP_IMAGE }}:${{ github.sha }}
           cache-from: type=gha
