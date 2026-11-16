@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "valeur-verte-infra"
 version = "0.1.0"
 description = "Portes qualité du déploiement : invariants d'exploitation du compose de production, de l'image data et du workflow de déploiement"
+license = {text = "PolyForm-Noncommercial-1.0.0"}
 requires-python = ">=3.11"
 dependencies = []
 
