@@ -114,3 +114,7 @@ Ce dépôt est publié en **source ouverte non commerciale**, sous la licence
 
 **Demande de licence commerciale** : ouvrir une issue intitulée « Demande de licence
 commerciale » sur <https://github.com/nmoral/valeur-verte/issues>.
+
+Les règles de contribution et la gouvernance (licence des contributions, consultation des
+contributeurs reconnus sur les décisions d'usage commercial, discrétion finale du
+créateur) sont décrites dans [`CONTRIBUTING.md`](CONTRIBUTING.md).
