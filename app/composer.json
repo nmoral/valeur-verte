@@ -2,7 +2,7 @@
     "name": "nmoral/valeur-verte-app",
     "description": "Application Valeur verte : widget public, mode audit, back-office pro, admin interne",
     "type": "project",
-    "license": "proprietary",
+    "license": "PolyForm-Noncommercial-1.0.0",
     "require": {
         "php": ">=8.4",
         "doctrine/doctrine-bundle": "^3.3",

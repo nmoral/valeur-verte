@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "valeur-verte-data"
 version = "0.1.0"
 description = "Pipeline d'ingestion DVF/DPE/BAN et calcul des coefficients de valeur verte"
+license = {text = "PolyForm-Noncommercial-1.0.0"}
 requires-python = ">=3.11"
 dependencies = [
   "psycopg[binary]>=3.1",

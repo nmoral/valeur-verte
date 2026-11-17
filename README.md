@@ -96,3 +96,25 @@ Deux projets dans un monorepo (voir §10 du cadrage) :
 | `app/` | Symfony | Widget public, mode audit, back-office pro, admin interne (schéma `app`) |
 
 Contrat : `data` est en **lecture seule** pour Symfony ; chaque projet gère ses migrations.
+
+## Licence
+
+Ce dépôt est publié en **source ouverte non commerciale**, sous la licence
+[PolyForm Noncommercial 1.0.0](LICENSE) — © Nicolas Moral.
+
+- **Usage non commercial autorisé** : étude, recherche, expérimentation, contributions,
+  usage personnel, associatif, éducatif, par un organisme public ou de protection de
+  l'environnement. Vous pouvez lire, exécuter, modifier et redistribuer le code dans ce
+  cadre, à condition de conserver la licence et la mention de copyright.
+- **Usage commercial interdit sans accord écrit préalable.** Toute exploitation
+  commerciale (vente, SaaS, prestation facturée, intégration dans un produit payant,
+  usage au sein d'une entreprise à but lucratif…) nécessite une **licence commerciale
+  distincte**, négociée avec le titulaire des droits. Aucune autorisation n'est réputée
+  accordée sans accord écrit explicite.
+
+**Demande de licence commerciale** : ouvrir une issue intitulée « Demande de licence
+commerciale » sur <https://github.com/nmoral/valeur-verte/issues>.
+
+Les règles de contribution et la gouvernance (licence des contributions, consultation des
+contributeurs reconnus sur les décisions d'usage commercial, discrétion finale du
+créateur) sont décrites dans [`CONTRIBUTING.md`](CONTRIBUTING.md).
