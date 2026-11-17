@@ -76,6 +76,14 @@ printf "APP_MAINTENANCE='%s'\n" "${APP_MAINTENANCE:-0}"
 # L'exploitant la passe à 0 le jour de l'ouverture commerciale.
 printf "APP_VITRINE_RESTREINTE='%s'\n" "${APP_VITRINE_RESTREINTE:-1}"
 
+# Périmètre public des pages SEO (#393) : allowlist des départements exposés/indexés
+# (App\Publication\PerimetrePublic). Passe-plat depuis le .env du VPS pour élargir ou
+# restreindre sans reconstruire l'image. **Défaut « * » (tout le territoire)** : le
+# go-live national est ouvert ; l'exploitant peut revenir à une exposition partielle
+# en passant une allowlist CSV (ex. « 09,31 »). Écrit explicitement pour que Compose
+# n'avertisse pas d'une variable absente (qui refermerait tout le périmètre).
+printf "VV_PERIMETRE_DEPARTEMENTS='%s'\n" "${VV_PERIMETRE_DEPARTEMENTS:-*}"
+
 # Présence SEO externe (#346) : accès à Google Search Console (OAuth utilisateur —
 # les clés de compte de service sont bloquées par une règle d'org) et à PageSpeed
 # Insights (clé API). Écrits explicitement, à vide par défaut, pour que Compose

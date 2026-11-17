@@ -26,6 +26,14 @@ x-environnement-app: &environnement_app
   # ecrire-env.sh, qui écrit toujours la variable. L'exploitant passe 0 le jour de
   # l'ouverture commerciale.
   APP_VITRINE_RESTREINTE: ${APP_VITRINE_RESTREINTE}
+  # Périmètre public des pages SEO (#393) : allowlist des départements exposés/indexés
+  # (App\Publication\PerimetrePublic). Passe-plat depuis le .env du VPS pour élargir ou
+  # restreindre le territoire sans reconstruire l'image. Passe-plat nu (pas de « :- » :
+  # la règle « aucun repli en prod » l'interdit) ; le **défaut « * » (tout le
+  # territoire)** est porté par ecrire-env.sh, qui écrit toujours la variable — une
+  # variable absente refermerait tout le périmètre. L'exploitant passe une allowlist
+  # CSV (ex. « 09,31 ») pour une exposition partielle.
+  VV_PERIMETRE_DEPARTEMENTS: ${VV_PERIMETRE_DEPARTEMENTS}
   # Secret Symfony (jetons signés — vérification d'email #105, réinitialisation
   # #194 —, protection CSRF). Sans lui, l'app tourne sur un secret vide : à
   # exiger explicitement, jamais de repli.
