@@ -80,6 +80,4 @@ def test_le_env_du_vps_ouvre_tout_le_territoire_par_defaut() -> None:
 def test_le_env_du_vps_peut_restreindre_le_perimetre() -> None:
     """L'exploitant fixe une allowlist CSV (dans l'environnement / le .env) pour
     revenir à une exposition partielle sans toucher au code."""
-    assert "VV_PERIMETRE_DEPARTEMENTS='09,31'" in _ecrire_env(
-        VV_PERIMETRE_DEPARTEMENTS="09,31"
-    )
+    assert "VV_PERIMETRE_DEPARTEMENTS='09,31'" in _ecrire_env(VV_PERIMETRE_DEPARTEMENTS="09,31")
